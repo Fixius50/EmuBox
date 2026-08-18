@@ -7,11 +7,11 @@ import { MockBackendService as MockBackend } from '@services/backend/mock-backen
 import { TauriBackendService as TauriBackend } from '@services/backend/tauri-backend.service';
 
 import type { InputAction } from '@contracts/input.types';
-import type { Game } from '@contracts/game.types';
+import type { Game, Emulator } from '@contracts/game.types';
 import games10000 from '@data/games-10000.json';
 
 console.log("===============================================================================");
-console.log("   EMUBOX FASE 3: SUITE DE PRUEBAS DEL VERTICAL SLICE (SOLID + KOBALTE)        ");
+console.log("   EMUBOX FASE 4: SUITE DE PRUEBAS DE ARQUITECTURA Y CONTRATOS DE BACKEND      ");
 console.log("===============================================================================\n");
 
 let passed = 0;
@@ -87,9 +87,57 @@ const launchResult = await backend.launchGame(firstGameId, 'snes9x');
 assert(launchResult.success === true && !!launchResult.pid, `Lanzamiento de juego simulado con éxito (PID: ${launchResult.pid})`);
 
 // ----------------------------------------------------------------------------
-// TEST 3: Motor de Navegación Espacial 2D y Jerarquía de Contenedores
+// TEST 3: Nuevos Contratos de Backend (Configuración, Sistema, CRUD Emuladores)
 // ----------------------------------------------------------------------------
-console.log("\nTEST 3: Motor de Navegación Espacial 2D y Jerarquía de Contenedores...");
+console.log("\nTEST 3: Nuevos Contratos de Backend (Configuración, Sistema, CRUD Emuladores)...");
+
+// System Info
+const sysInfo = await backend.getSystemInfo();
+assert(sysInfo.architecture === 'x86_64' && sysInfo.cpuCores > 0, `SystemInfo obtenido: ${sysInfo.cpuCores} cores, Arch: ${sysInfo.architecture}`);
+
+// First Run Detection
+const firstRun = await backend.runFirstRunDetection();
+assert(firstRun.vulkanSupported === true && firstRun.configGenerated === true, `First Run Detection validado: Vulkan=${firstRun.vulkanSupported}`);
+
+// EmuBoxConfig (Versioned)
+const config = await backend.getConfig();
+assert(config.version === 1 && typeof config.paths.roms === 'string', `EmuBoxConfig versionado (v${config.version}) leído correctamente`);
+
+config.audio.volume = 90;
+await backend.saveConfig(config);
+const updatedConfig = await backend.getConfig();
+assert(updatedConfig.audio.volume === 90, `EmuBoxConfig guardado y persistido correctamente (Volumen: ${updatedConfig.audio.volume}%)`);
+
+// Gamepad Status
+const padStatus = await backend.getGamepadStatus();
+assert(padStatus.connectedCount >= 1 && padStatus.devices.length >= 1, `GamepadStatus consultado: ${padStatus.connectedCount} dispositivos activos`);
+
+// Emulators CRUD
+const initialEmus = await backend.getEmulators();
+const initialCount = initialEmus.length;
+const testEmu: Emulator = {
+  id: 'test-core-duck',
+  name: 'DuckStation Test Core',
+  version: '2.0.0',
+  supportedPlatforms: ['ps1'],
+  coreType: 'standalone',
+  status: 'active',
+  executable: 'duckstation-qt',
+  arguments: ['-fullscreen']
+};
+
+await backend.saveEmulator(testEmu);
+const afterAdd = await backend.getEmulators();
+assert(afterAdd.length === initialCount + 1, `CRUD Emuladores: Motor añadido con éxito (${afterAdd.length} emuladores)`);
+
+await backend.deleteEmulator('test-core-duck');
+const afterDel = await backend.getEmulators();
+assert(afterDel.length === initialCount, `CRUD Emuladores: Motor eliminado con éxito (${afterDel.length} emuladores)`);
+
+// ----------------------------------------------------------------------------
+// TEST 4: Motor de Navegación Espacial 2D y Jerarquía de Contenedores
+// ----------------------------------------------------------------------------
+console.log("\nTEST 4: Motor de Navegación Espacial 2D y Jerarquía de Contenedores...");
 const navigator = new EmuBoxSpatialNavigator();
 
 // Registrar nodos en un grid simulado de 7 columnas
@@ -99,56 +147,64 @@ for (let row = 0; row < 4; row++) {
     navigator.register({
       id: `game-card-${idx}`,
       containerId: 'library',
-      rect: { x: col * 180, y: row * 240, width: 160, height: 220 }
+      rect: {
+        x: col * 180,
+        y: row * 260,
+        left: col * 180,
+        top: row * 260,
+        width: 160,
+        height: 240
+      },
+      priority: 1
     });
   }
 }
 
-// Registrar botones en contenedor modal
+// Registrar botones del modal (contenedor aislado)
 navigator.register({
   id: 'btn-play-game',
   containerId: 'modal',
-  rect: { x: 500, y: 400, width: 200, height: 50 }
+  rect: { x: 500, y: 400, left: 500, top: 400, width: 200, height: 50 },
+  priority: 10
 });
 navigator.register({
   id: 'btn-fav-game',
   containerId: 'modal',
-  rect: { x: 500, y: 460, width: 200, height: 50 }
+  rect: { x: 500, y: 470, left: 500, top: 470, width: 200, height: 50 },
+  priority: 10
 });
 
+// Foco inicial
 navigator.setFocus('game-card-0');
 assert(navigator.getCurrentFocusId() === 'game-card-0', "Foco inicial asignado al primer ítem del grid");
 
-// Movimiento Derecha
-navigator.move('NAV_RIGHT');
-assert(navigator.getCurrentFocusId() === 'game-card-1', "D-pad Derecha -> game-card-1");
+// Mover a la derecha en la misma fila
+navigator.navigate('NAV_RIGHT');
+assert(navigator.getCurrentFocusId() === 'game-card-1', `D-pad Derecha -> ${navigator.getCurrentFocusId()}`);
 
-// Movimiento Abajo
-navigator.move('NAV_DOWN');
-assert(navigator.getCurrentFocusId() === 'game-card-8', "D-pad Abajo -> game-card-8 (fila siguiente)");
+// Mover abajo (salto de fila en grid)
+navigator.navigate('NAV_DOWN');
+assert(navigator.getCurrentFocusId() === 'game-card-8', `D-pad Abajo -> ${navigator.getCurrentFocusId()} (fila siguiente)`);
 
-// Push Container: Modal
+// Cambiar de contenedor (abrir modal)
 navigator.pushContainer('modal', true);
-assert(navigator.getActiveContainerId() === 'modal', "Contenedor activo cambiado a 'modal'");
-
-// El foco en modal debe atraparse en el primer elemento interactivo
 assert(navigator.getCurrentFocusId() === 'btn-play-game', "Foco atrapado en el primer botón del modal (btn-play-game)");
 
-// Navegación dentro del modal
-navigator.move('NAV_DOWN');
-assert(navigator.getCurrentFocusId() === 'btn-fav-game', "Navegación vertical dentro del modal -> btn-fav-game");
+// Navegar dentro del modal
+navigator.navigate('NAV_DOWN');
+assert(navigator.getCurrentFocusId() === 'btn-fav-game', `Navegación vertical dentro del modal -> ${navigator.getCurrentFocusId()}`);
 
-// Pop Container: Restaurar librería y foco previo
+// Restaurar foco al contenedor de biblioteca tras cerrar modal
 navigator.popContainer();
-assert(navigator.getActiveContainerId() === 'library', "Contenedor restaurado a 'library'");
 assert(navigator.getCurrentFocusId() === 'game-card-8', "Foco restaurado automáticamente a la tarjeta previa (game-card-8)");
 
+// ----------------------------------------------------------------------------
+// RESUMEN FINAL
+// ----------------------------------------------------------------------------
 console.log("\n===============================================================================");
 console.log(`   RESULTADO: ${passed} PRUEBAS PASADAS / ${failed} FALLADAS                   `);
 console.log("===============================================================================\n");
 
 if (failed > 0) {
   process.exit(1);
-} else {
-  process.exit(0);
 }

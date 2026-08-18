@@ -1,118 +1,183 @@
-import type { Game, Platform, Emulator, SystemSettings } from '@contracts/game.types';
-import type { IEmuBoxBackend, LaunchResult } from '@contracts/backend.types';
+import type { Game, Platform, Emulator, SystemSettings, EmuBoxConfig } from '@contracts/game.types';
+import type {
+  IEmuBoxBackend,
+  LaunchResult,
+  LaunchGameRequest,
+  SystemInfo,
+  GamepadStatus,
+  ScanGamesRequest,
+  ScanGamesResult,
+  FirstRunDetectionResult,
+  GameFilter
+} from '@contracts/backend.types';
+import { MockBackendService } from './mock-backend.service';
 
-interface TauriWindow {
-  __TAURI__?: {
-    invoke: <T = unknown>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
-  };
-}
-
+/**
+ * Tauri IPC Backend Implementation.
+ * Bridges SolidJS frontend with Rust backend via Tauri IPC invoke calls.
+ * Automatically and seamlessly falls back to MockBackendService in non-Tauri browser environments.
+ */
 export class TauriBackendService implements IEmuBoxBackend {
-  private fallbackBackend: IEmuBoxBackend;
+  private fallback: MockBackendService;
+  private isTauri: boolean;
 
-  constructor(fallbackBackend: IEmuBoxBackend) {
-    this.fallbackBackend = fallbackBackend;
+  constructor(fallbackMock?: MockBackendService) {
+    this.fallback = fallbackMock || new MockBackendService();
+    this.isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
   }
 
-  private isTauriEnvironment(): boolean {
-    return typeof window !== 'undefined' && !!(window as unknown as TauriWindow).__TAURI__;
-  }
-
-  public async getGames(filter?: { platform?: string; search?: string; favorite?: boolean; limit?: number }): Promise<Game[]> {
-    if (!this.isTauriEnvironment()) {
-      return this.fallbackBackend.getGames(filter);
+  private async invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+    if (this.isTauri && (window as any).__TAURI__?.core?.invoke) {
+      return (window as any).__TAURI__.core.invoke(cmd, args);
     }
+    throw new Error('Tauri runtime not detected');
+  }
+
+  // System & Environment
+  public async getSystemInfo(): Promise<SystemInfo> {
     try {
-      const tauri = (window as unknown as TauriWindow).__TAURI__!;
-      return await tauri.invoke<Game[]>('get_games', { filter });
-    } catch (err) {
-      console.warn('[TauriBackend] Error en get_games, usando fallback:', err);
-      return this.fallbackBackend.getGames(filter);
-    }
-  }
-
-  public async getGameById(id: string): Promise<Game | null> {
-    if (!this.isTauriEnvironment()) {
-      return this.fallbackBackend.getGameById(id);
-    }
-    try {
-      const tauri = (window as unknown as TauriWindow).__TAURI__!;
-      return await tauri.invoke<Game | null>('get_game_by_id', { id });
+      return await this.invoke<SystemInfo>('get_system_info');
     } catch {
-      return this.fallbackBackend.getGameById(id);
+      return this.fallback.getSystemInfo();
     }
   }
 
-  public async getPlatforms(): Promise<Platform[]> {
-    if (!this.isTauriEnvironment()) {
-      return this.fallbackBackend.getPlatforms();
-    }
+  public async runFirstRunDetection(): Promise<FirstRunDetectionResult> {
     try {
-      const tauri = (window as unknown as TauriWindow).__TAURI__!;
-      return await tauri.invoke<Platform[]>('get_platforms');
+      return await this.invoke<FirstRunDetectionResult>('first_run_detection');
     } catch {
-      return this.fallbackBackend.getPlatforms();
+      return this.fallback.runFirstRunDetection();
     }
   }
 
-  public async getEmulators(): Promise<Emulator[]> {
-    if (!this.isTauriEnvironment()) {
-      return this.fallbackBackend.getEmulators();
-    }
+  // Central Versioned Configuration
+  public async getConfig(): Promise<EmuBoxConfig> {
     try {
-      const tauri = (window as unknown as TauriWindow).__TAURI__!;
-      return await tauri.invoke<Emulator[]>('get_emulators');
+      return await this.invoke<EmuBoxConfig>('get_config');
     } catch {
-      return this.fallbackBackend.getEmulators();
+      return this.fallback.getConfig();
     }
   }
 
+  public async saveConfig(config: EmuBoxConfig): Promise<void> {
+    try {
+      await this.invoke('save_config', { config });
+    } catch {
+      await this.fallback.saveConfig(config);
+    }
+  }
+
+  // Settings & Legacy Support
   public async getSettings(): Promise<SystemSettings> {
-    if (!this.isTauriEnvironment()) {
-      return this.fallbackBackend.getSettings();
-    }
     try {
-      const tauri = (window as unknown as TauriWindow).__TAURI__!;
-      return await tauri.invoke<SystemSettings>('get_settings');
+      return await this.invoke<SystemSettings>('get_settings');
     } catch {
-      return this.fallbackBackend.getSettings();
+      return this.fallback.getSettings();
     }
   }
 
   public async saveSettings(settings: SystemSettings): Promise<boolean> {
-    if (!this.isTauriEnvironment()) {
-      return this.fallbackBackend.saveSettings(settings);
-    }
     try {
-      const tauri = (window as unknown as TauriWindow).__TAURI__!;
-      return await tauri.invoke<boolean>('save_settings', { settings });
+      return await this.invoke<boolean>('save_settings', { settings });
     } catch {
-      return this.fallbackBackend.saveSettings(settings);
+      return this.fallback.saveSettings(settings);
+    }
+  }
+
+  // Games & Library
+  public async scanGames(request?: ScanGamesRequest): Promise<ScanGamesResult> {
+    try {
+      return await this.invoke<ScanGamesResult>('scan_games', { request });
+    } catch {
+      return this.fallback.scanGames(request);
+    }
+  }
+
+  public async getGames(filter?: GameFilter): Promise<Game[]> {
+    try {
+      return await this.invoke<Game[]>('get_games', { filter });
+    } catch {
+      return this.fallback.getGames(filter);
+    }
+  }
+
+  public async getGameById(id: string): Promise<Game | null> {
+    try {
+      return await this.invoke<Game | null>('get_game_by_id', { id });
+    } catch {
+      return this.fallback.getGameById(id);
     }
   }
 
   public async toggleFavorite(gameId: string): Promise<boolean> {
-    if (!this.isTauriEnvironment()) {
-      return this.fallbackBackend.toggleFavorite(gameId);
-    }
     try {
-      const tauri = (window as unknown as TauriWindow).__TAURI__!;
-      return await tauri.invoke<boolean>('toggle_favorite', { gameId });
+      return await this.invoke<boolean>('toggle_favorite', { gameId });
     } catch {
-      return this.fallbackBackend.toggleFavorite(gameId);
+      return this.fallback.toggleFavorite(gameId);
     }
   }
 
-  public async launchGame(gameId: string, emulatorId: string): Promise<LaunchResult> {
-    if (!this.isTauriEnvironment()) {
-      return this.fallbackBackend.launchGame(gameId, emulatorId);
-    }
+  // Platforms & Consoles
+  public async getPlatforms(): Promise<Platform[]> {
     try {
-      const tauri = (window as unknown as TauriWindow).__TAURI__!;
-      return await tauri.invoke<LaunchResult>('launch_game', { gameId, emulatorId });
-    } catch (err) {
-      console.warn('[TauriBackend] Error en launch_game, usando fallback:', err);
-      return this.fallbackBackend.launchGame(gameId, emulatorId);
+      return await this.invoke<Platform[]>('get_platforms');
+    } catch {
+      return this.fallback.getPlatforms();
+    }
+  }
+
+  // Emulators (CRUD)
+  public async getEmulators(): Promise<Emulator[]> {
+    try {
+      return await this.invoke<Emulator[]>('get_emulators');
+    } catch {
+      return this.fallback.getEmulators();
+    }
+  }
+
+  public async saveEmulator(emulator: Emulator): Promise<void> {
+    try {
+      await this.invoke('save_emulator', { emulator });
+    } catch {
+      await this.fallback.saveEmulator(emulator);
+    }
+  }
+
+  public async deleteEmulator(id: string): Promise<void> {
+    try {
+      await this.invoke('delete_emulator', { id });
+    } catch {
+      await this.fallback.deleteEmulator(id);
+    }
+  }
+
+  // Game Execution & Lifecycle
+  public async launchGame(gameIdOrRequest: string | LaunchGameRequest, emulatorId?: string): Promise<LaunchResult> {
+    try {
+      const request: LaunchGameRequest = typeof gameIdOrRequest === 'string'
+        ? { gameId: gameIdOrRequest, emulatorId: emulatorId || '' }
+        : gameIdOrRequest;
+
+      return await this.invoke<LaunchResult>('launch_game', { request });
+    } catch {
+      return this.fallback.launchGame(gameIdOrRequest, emulatorId);
+    }
+  }
+
+  public async stopGame(): Promise<void> {
+    try {
+      await this.invoke('stop_game');
+    } catch {
+      await this.fallback.stopGame();
+    }
+  }
+
+  // Gamepad Status
+  public async getGamepadStatus(): Promise<GamepadStatus> {
+    try {
+      return await this.invoke<GamepadStatus>('get_gamepad_status');
+    } catch {
+      return this.fallback.getGamepadStatus();
     }
   }
 }

@@ -29,6 +29,8 @@ export interface Game {
   description: string;
   playTimeMinutes: number;
   lastPlayed: string | null;
+  romPath?: string;
+  fileSizeMb?: number;
 }
 
 export interface Platform {
@@ -56,8 +58,8 @@ export interface Emulator {
 
 export interface SystemSettings {
   display: {
-    resolution: '1920x1080' | '3840x2160' | '1280x720';
-    refreshRate: 60 | 120 | 144;
+    resolution: '1920x1080' | '3840x2160' | '1280x720' | string;
+    refreshRate: 60 | 120 | 144 | 165 | 240 | number;
     vsync: boolean;
     fullscreen: boolean;
     crtShader: 'none' | 'scanlines' | 'curved_crt' | 'phosphor';
@@ -78,9 +80,57 @@ export interface SystemSettings {
     showMissingCovers: boolean;
     defaultPlatform: PlatformId;
   };
-  system: {
-    performanceMode: 'battery' | 'balanced' | 'performance';
-    vramLimit: string;
-    showFps: boolean;
+  system?: {
+    performanceMode?: 'high-performance' | 'balanced' | 'power-saver' | 'ultra-boost';
+    vramLimit?: string;
+    showFps?: boolean;
+  };
+}
+
+/**
+ * Single, Central, Versioned EmuBox Configuration Model.
+ * Mirrors ~/.config/emubox/config.json in production Arch Linux installations.
+ */
+export interface EmuBoxConfig {
+  version: number;
+  paths: {
+    roms: string;
+    saves: string;
+    states: string;
+    screenshots: string;
+    covers: string;
+    logs: string;
+  };
+  display: {
+    resolution: string;
+    refreshRate: number | string;
+    fullscreen: boolean;
+    vsync: boolean;
+    gamescopeEnabled: boolean;
+    gamescopeScaling: 'integer' | 'fit' | 'stretch';
+    crtShader: 'none' | 'scanlines' | 'curved_crt' | 'phosphor';
+  };
+  audio: {
+    volume: number;
+    uiSoundEffects: boolean;
+    backgroundMusic: boolean;
+    latencyMs: number;
+  };
+  input: {
+    deadzone: number;
+    vibrationEnabled: boolean;
+    swapSouthEastButtons: boolean;
+    pollRateHz: number;
+  };
+  emulators: {
+    defaultMapping: Record<PlatformId, string>;
+    customBinariesPath?: string;
+  };
+  interface: {
+    locale: string;
+    theme: 'dark-cyber' | 'glassmorphism' | 'pure-oled';
+    animations: boolean;
+    showFpsOverlay: boolean;
+    performanceMode: 'high-performance' | 'balanced' | 'power-saver' | 'ultra-boost';
   };
 }
