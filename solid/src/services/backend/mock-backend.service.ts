@@ -4,16 +4,28 @@ import type {
   LaunchResult,
   LaunchGameRequest,
   SystemInfo,
+  HardwareInfo,
+  DisplayInfo,
+  AudioInfo,
+  StorageInfo,
+  StorageLocation,
+  ProcessStatus,
+  RunningGameInfo,
+  GamepadDevice,
   GamepadStatus,
   ScanGamesRequest,
   ScanGamesResult,
   FirstRunDetectionResult,
+  DiagnosticReport,
+  LogEntry,
+  BiosStatus,
   GameFilter
 } from '@contracts/backend.types';
 
 export class MockBackendService implements IEmuBoxBackend {
   private games: Game[] = [];
-  private activePid: number | null = null;
+  private activeRunningGame: RunningGameInfo | null = null;
+  private logs: LogEntry[] = [];
 
   private platforms: Platform[] = [
     { id: 'snes', name: 'Super Nintendo Entertainment System', shortName: 'SNES', manufacturer: 'Nintendo', generation: 4, releaseYear: 1990, color: '#e52521', icon: 'snes', defaultEmulatorId: 'snes9x' },
@@ -134,20 +146,58 @@ export class MockBackendService implements IEmuBoxBackend {
     this.games = games;
   }
 
-  // System Info & First Run Detection
+  // 1. Sistema & Hardware Telemetry
   public async getSystemInfo(): Promise<SystemInfo> {
     return {
       osName: 'EmuBox OS (Arch Linux Custom Kernel 6.8.9-zen)',
       kernelVersion: '6.8.9-zen1-1-zen',
       architecture: 'x86_64',
+      hostname: 'emubox-console',
+      uptimeSeconds: 7200,
+      hardware: await this.getHardwareInfo(),
+      display: await this.getDisplayInfo(),
+      audio: await this.getAudioInfo(),
+      isPluggedIn: true
+    };
+  }
+
+  public async getHardwareInfo(): Promise<HardwareInfo> {
+    return {
+      gpuVendor: 'amd',
       gpuRenderer: 'AMD Radeon RX 7800 XT (RADV Vulkan 1.3.275)',
+      vulkanDriverVersion: '24.0.4',
       cpuModel: 'AMD Ryzen 7 7800X3D 8-Core Processor',
       cpuCores: 16,
+      cpuArchitecture: 'x86_64',
       totalMemoryMb: 32150,
-      usedMemoryMb: 4120,
-      gamescopeAvailable: true,
-      activeCompositor: 'gamescope-wayland',
-      isPluggedIn: true
+      freeMemoryMb: 28030
+    };
+  }
+
+  public async getDisplayInfo(): Promise<DisplayInfo> {
+    return {
+      resolution: '1920x1080',
+      width: 1920,
+      height: 1080,
+      refreshRate: 60,
+      devicePixelRatio: 1.0,
+      colorDepth: 24,
+      hdrSupported: false,
+      activeCompositor: 'gamescope',
+      gamescopeActive: true
+    };
+  }
+
+  public async getAudioInfo(): Promise<AudioInfo> {
+    return {
+      masterVolume: this.settings.audio.masterVolume,
+      uiSoundEffects: this.settings.audio.uiSoundEffects,
+      backgroundMusic: this.settings.audio.backgroundMusic,
+      latencyMs: 16,
+      sampleRate: 48000,
+      devices: [
+        { id: 'default-sink', name: 'PipeWire Low-Latency Audio Sink', isDefault: true, type: 'sink' }
+      ]
     };
   }
 
@@ -163,7 +213,7 @@ export class MockBackendService implements IEmuBoxBackend {
     };
   }
 
-  // Central Versioned Configuration
+  // 2. Configuración
   public async getConfig(): Promise<EmuBoxConfig> {
     return JSON.parse(JSON.stringify(this.config));
   }
@@ -172,7 +222,6 @@ export class MockBackendService implements IEmuBoxBackend {
     this.config = JSON.parse(JSON.stringify(config));
   }
 
-  // Settings & Legacy Support
   public async getSettings(): Promise<SystemSettings> {
     return JSON.parse(JSON.stringify(this.settings));
   }
@@ -182,16 +231,7 @@ export class MockBackendService implements IEmuBoxBackend {
     return true;
   }
 
-  // Games & Library
-  public async scanGames(request?: ScanGamesRequest): Promise<ScanGamesResult> {
-    return {
-      scannedCount: this.games.length,
-      addedCount: 0,
-      updatedCount: this.games.length,
-      errors: []
-    };
-  }
-
+  // 3. Biblioteca & Juegos
   public async getGames(filter?: GameFilter): Promise<Game[]> {
     let result = this.games;
 
@@ -215,8 +255,25 @@ export class MockBackendService implements IEmuBoxBackend {
     return result;
   }
 
-  public async getGameById(id: string): Promise<Game | null> {
+  public async getGame(id: string): Promise<Game | null> {
     return this.games.find(g => g.id === id) || null;
+  }
+
+  public async getGameById(id: string): Promise<Game | null> {
+    return this.getGame(id);
+  }
+
+  public async scanGames(request?: ScanGamesRequest): Promise<ScanGamesResult> {
+    return {
+      scannedCount: this.games.length,
+      addedCount: 0,
+      updatedCount: this.games.length,
+      errors: []
+    };
+  }
+
+  public async getPlatforms(): Promise<Platform[]> {
+    return this.platforms;
   }
 
   public async toggleFavorite(gameId: string): Promise<boolean> {
@@ -228,14 +285,22 @@ export class MockBackendService implements IEmuBoxBackend {
     return false;
   }
 
-  // Platforms & Consoles
-  public async getPlatforms(): Promise<Platform[]> {
-    return this.platforms;
-  }
-
-  // Emulators (CRUD)
+  // 4. Emuladores (CRUD)
   public async getEmulators(): Promise<Emulator[]> {
     return this.emulators;
+  }
+
+  public async getEmulator(id: string): Promise<Emulator | null> {
+    return this.emulators.find(e => e.id === id) || null;
+  }
+
+  public async scanEmulators(): Promise<Emulator[]> {
+    return this.emulators;
+  }
+
+  public async getEmulatorStatus(id: string): Promise<'active' | 'inactive' | 'missing_bios'> {
+    const emu = await this.getEmulator(id);
+    return emu ? emu.status : 'inactive';
   }
 
   public async saveEmulator(emulator: Emulator): Promise<void> {
@@ -251,12 +316,12 @@ export class MockBackendService implements IEmuBoxBackend {
     this.emulators = this.emulators.filter(e => e.id !== id);
   }
 
-  // Game Execution & Lifecycle
+  // 5. Ejecución & Procesos
   public async launchGame(gameIdOrRequest: string | LaunchGameRequest, emulatorId?: string): Promise<LaunchResult> {
     const gameId = typeof gameIdOrRequest === 'string' ? gameIdOrRequest : gameIdOrRequest.gameId;
     const targetEmuId = typeof gameIdOrRequest === 'string' ? emulatorId : (gameIdOrRequest.emulatorId || emulatorId);
 
-    const game = await this.getGameById(gameId);
+    const game = await this.getGame(gameId);
     const emu = this.emulators.find(e => e.id === targetEmuId) || this.emulators[0];
 
     if (!game || !emu) {
@@ -264,7 +329,20 @@ export class MockBackendService implements IEmuBoxBackend {
     }
 
     const simPid = Math.floor(Math.random() * 60000) + 10000;
-    this.activePid = simPid;
+    this.activeRunningGame = {
+      pid: simPid,
+      gameId: game.id,
+      gameTitle: game.title,
+      platformId: game.platform,
+      emulatorId: emu.id,
+      emulatorName: emu.name,
+      executable: emu.executable,
+      arguments: emu.arguments,
+      startTime: Date.now(),
+      cpuPercent: 12.5,
+      memoryMb: 450,
+      status: 'running'
+    };
 
     return {
       success: true,
@@ -276,27 +354,165 @@ export class MockBackendService implements IEmuBoxBackend {
   }
 
   public async stopGame(): Promise<void> {
-    this.activePid = null;
+    this.activeRunningGame = null;
   }
 
-  // Gamepad Status
-  public async getGamepadStatus(): Promise<GamepadStatus> {
+  public async isGameRunning(): Promise<boolean> {
+    return this.activeRunningGame !== null;
+  }
+
+  public async getRunningGame(): Promise<RunningGameInfo | null> {
+    return this.activeRunningGame;
+  }
+
+  public async getProcessStatus(): Promise<ProcessStatus> {
     return {
-      connectedCount: 1,
-      primaryDeviceIndex: 0,
-      devices: [
-        {
-          index: 0,
-          id: 'xinput-pad-0',
-          name: 'Xbox Wireless Controller',
-          connected: true,
-          buttonsCount: 16,
-          axesCount: 4,
-          hasVibration: true,
-          isPrimary: true
-        }
-      ]
+      hasActiveGame: this.activeRunningGame !== null,
+      runningGame: this.activeRunningGame,
+      activeChildPids: this.activeRunningGame ? [this.activeRunningGame.pid] : []
     };
+  }
+
+  public async killProcess(pid: number): Promise<boolean> {
+    if (this.activeRunningGame && this.activeRunningGame.pid === pid) {
+      this.activeRunningGame = null;
+      return true;
+    }
+    return false;
+  }
+
+  // 6. Input / Gamepads
+  public async getGamepads(): Promise<GamepadDevice[]> {
+    return [
+      {
+        index: 0,
+        id: 'xinput-pad-0',
+        name: 'Xbox Wireless Controller',
+        connected: true,
+        buttonsCount: 16,
+        axesCount: 4,
+        hasVibration: true,
+        isPrimary: true
+      }
+    ];
+  }
+
+  public async getGamepadStatus(): Promise<GamepadStatus> {
+    const pads = await this.getGamepads();
+    return {
+      connectedCount: pads.length,
+      primaryDeviceIndex: 0,
+      devices: pads
+    };
+  }
+
+  // 7. Sistema Operativo & Energía
+  public async shutdown(): Promise<void> {
+    console.log('[MockBackend] Shutdown request simulated');
+  }
+
+  public async restart(): Promise<void> {
+    console.log('[MockBackend] Restart request simulated');
+  }
+
+  public async sleep(): Promise<void> {
+    console.log('[MockBackend] Sleep request simulated');
+  }
+
+  public async logout(): Promise<void> {
+    console.log('[MockBackend] Logout request simulated');
+  }
+
+  // 8. Almacenamiento & XDG
+  public async getStorageInfo(): Promise<StorageInfo> {
+    return {
+      drives: [
+        {
+          id: 'nvme0n1p2',
+          name: 'EmuBox System SSD',
+          mountPoint: '/',
+          filesystem: 'ext4',
+          totalBytes: 512000000000,
+          availableBytes: 384000000000,
+          usedBytes: 128000000000,
+          isRemovable: false,
+          isSystemDrive: true
+        }
+      ],
+      locations: await this.getStorageLocations(),
+      totalGamesStorageBytes: 120000000000,
+      totalSavesStorageBytes: 450000000
+    };
+  }
+
+  public async getStorageLocations(): Promise<Record<string, StorageLocation>> {
+    return {
+      roms: { id: 'roms', label: 'ROMs Directory', path: '~/.local/share/emubox/roms', totalFiles: this.games.length, totalBytes: 120000000000, accessible: true, isWritable: true },
+      saves: { id: 'saves', label: 'Saves Directory', path: '~/.local/share/emubox/saves', totalFiles: 45, totalBytes: 450000000, accessible: true, isWritable: true },
+      states: { id: 'states', label: 'States Directory', path: '~/.local/share/emubox/states', totalFiles: 20, totalBytes: 250000000, accessible: true, isWritable: true },
+      screenshots: { id: 'screenshots', label: 'Screenshots Directory', path: '~/.local/share/emubox/screenshots', totalFiles: 12, totalBytes: 15000000, accessible: true, isWritable: true },
+      covers: { id: 'covers', label: 'Covers Cache', path: '~/.local/share/emubox/covers', totalFiles: 10000, totalBytes: 500000000, accessible: true, isWritable: true },
+      bios: { id: 'bios', label: 'BIOS Directory', path: '~/.local/share/emubox/bios', totalFiles: 5, totalBytes: 35000000, accessible: true, isWritable: true },
+      logs: { id: 'logs', label: 'Logs Directory', path: '~/.local/share/emubox/logs', totalFiles: 3, totalBytes: 120000, accessible: true, isWritable: true },
+      cache: { id: 'cache', label: 'Vulkan Shaders Cache', path: '~/.cache/emubox', totalFiles: 50, totalBytes: 80000000, accessible: true, isWritable: true }
+    };
+  }
+
+  // 9. Diagnóstico & Logs
+  public async getSystemLogs(limit: number = 50): Promise<LogEntry[]> {
+    return this.logs.slice(-limit);
+  }
+
+  public async getEmuBoxLogs(limit: number = 50): Promise<LogEntry[]> {
+    return this.logs.filter(l => l.source === 'frontend' || l.source === 'tauri').slice(-limit);
+  }
+
+  public async getDiagnostics(): Promise<DiagnosticReport> {
+    return {
+      generatedAt: Date.now(),
+      osInfo: 'EmuBox OS 1.0 (Arch Linux)',
+      kernelVersion: '6.8.9-zen1-1-zen',
+      architecture: 'x86_64',
+      gpuAdapter: 'AMD Radeon RX 7800 XT (RADV Vulkan 1.3)',
+      vulkanReady: true,
+      gamescopeReady: true,
+      pipewireReady: true,
+      storageMounted: true,
+      emulatorsInstalledCount: this.emulators.length,
+      emulatorsMissingCount: 0,
+      connectedGamepadsCount: 1,
+      recentErrors: this.logs.filter(l => l.level === 'error'),
+      rawSummaryText: 'EmuBox OS Diagnostics: All systems active and compliant.'
+    };
+  }
+
+  // 10. BIOS Scanner
+  public async getBiosRequirements(): Promise<BiosStatus> {
+    return {
+      totalRequired: 2,
+      totalFound: 2,
+      missingRequiredCount: 0,
+      platforms: {
+        ps1: {
+          platformId: 'ps1',
+          platformName: 'Sony PlayStation',
+          emulatorId: 'duckstation',
+          allRequiredPresent: true,
+          biosFiles: [{ filename: 'scph1001.bin', description: 'US PlayStation BIOS v4.1', state: 'found_valid' }]
+        },
+        ps2: {
+          platformId: 'ps2',
+          platformName: 'Sony PlayStation 2',
+          emulatorId: 'pcsx2',
+          allRequiredPresent: true,
+          biosFiles: [{ filename: 'SCPH-70012.bin', description: 'PlayStation 2 v12 BIOS', state: 'found_valid' }]
+        }
+      }
+    };
+  }
+
+  public async scanBios(): Promise<BiosStatus> {
+    return this.getBiosRequirements();
   }
 }
 

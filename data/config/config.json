@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "paths": {
+    "roms": "~/.local/share/emubox/roms",
+    "saves": "~/.local/share/emubox/saves",
+    "states": "~/.local/share/emubox/states",
+    "screenshots": "~/.local/share/emubox/screenshots",
+    "covers": "~/.local/share/emubox/covers",
+    "logs": "~/.local/share/emubox/logs"
+  },
+  "display": {
+    "resolution": "1920x1080",
+    "refreshRate": 60,
+    "fullscreen": true,
+    "vsync": true,
+    "gamescopeEnabled": true,
+    "gamescopeScaling": "integer",
+    "crtShader": "none"
+  },
+  "audio": {
+    "volume": 85,
+    "uiSoundEffects": true,
+    "backgroundMusic": false,
+    "latencyMs": 16
+  },
+  "input": {
+    "deadzone": 0.15,
+    "vibrationEnabled": true,
+    "swapSouthEastButtons": false,
+    "pollRateHz": 250
+  },
+  "emulators": {
+    "defaultMapping": {
+      "snes": "snes9x",
+      "ps1": "duckstation",
+      "ps2": "pcsx2",
+      "n64": "mupen64plus",
+      "genesis": "genesis_plus_gx",
+      "gba": "mgba",
+      "dreamcast": "flycast",
+      "arcade": "fbneo",
+      "gamecube": "dolphin",
+      "psp": "ppsspp",
+      "nds": "desmume"
+    }
+  },
+  "interface": {
+    "locale": "es",
+    "theme": "dark-cyber",
+    "animations": true,
+    "showFpsOverlay": false,
+    "performanceMode": "high-performance"
+  }
+}

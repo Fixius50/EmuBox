@@ -7,40 +7,48 @@ import type {
   EmuBoxConfig
 } from './game.types';
 
-export interface SystemInfo {
-  osName: string;
-  kernelVersion: string;
-  architecture: string;
-  gpuRenderer: string;
-  cpuModel: string;
-  cpuCores: number;
-  totalMemoryMb: number;
-  usedMemoryMb: number;
-  gamescopeAvailable: boolean;
-  activeCompositor: string;
-  batteryLevelPercent?: number;
-  isPluggedIn?: boolean;
-}
+import type {
+  SystemInfo,
+  HardwareInfo,
+  DisplayInfo,
+  AudioInfo,
+  PowerAction
+} from './system.types';
 
-export interface GamepadDevice {
-  index: number;
-  id: string;
-  name: string;
-  connected: boolean;
-  vendorId?: string;
-  productId?: string;
-  buttonsCount: number;
-  axesCount: number;
-  hasVibration: boolean;
-  batteryPercent?: number;
-  isPrimary: boolean;
-}
+import type {
+  StorageInfo,
+  StorageLocation
+} from './storage.types';
 
-export interface GamepadStatus {
-  connectedCount: number;
-  primaryDeviceIndex: number;
-  devices: GamepadDevice[];
-}
+import type {
+  ProcessStatus,
+  RunningGameInfo,
+  ProcessLaunchConfig
+} from './process.types';
+
+import type {
+  GamepadDevice,
+  GamepadStatus
+} from './input.types';
+
+import type {
+  DiagnosticReport,
+  LogEntry
+} from './diagnostics.types';
+
+import type {
+  BiosStatus,
+  BiosRequirement
+} from './bios.types';
+
+export * from './system.types';
+export * from './storage.types';
+export * from './process.types';
+export * from './input.types';
+export * from './diagnostics.types';
+export * from './bios.types';
+export * from './events.types';
+export * from './errors.types';
 
 export interface LaunchGameRequest {
   gameId: string;
@@ -93,40 +101,66 @@ export interface GameFilter {
 
 /**
  * Master EmuBox Backend Interface.
- * Defines the strict, unified contract between the frontend UI (SolidJS)
- * and the execution backend (MockBackend during development, Tauri IPC in production).
+ * Universal contract implemented identically by MockBackend (dev) and TauriBackend (production).
  */
 export interface IEmuBoxBackend {
-  // System & Environment
+  // 1. Sistema & Hardware Telemetry
   getSystemInfo(): Promise<SystemInfo>;
+  getHardwareInfo(): Promise<HardwareInfo>;
+  getDisplayInfo(): Promise<DisplayInfo>;
+  getAudioInfo(): Promise<AudioInfo>;
   runFirstRunDetection(): Promise<FirstRunDetectionResult>;
 
-  // Central Versioned Configuration (XDG Base Directory)
+  // 2. Configuración (Versioned & Legacy)
   getConfig(): Promise<EmuBoxConfig>;
   saveConfig(config: EmuBoxConfig): Promise<void>;
-
-  // Legacy/Runtime Quick Settings
   getSettings(): Promise<SystemSettings>;
   saveSettings(settings: SystemSettings): Promise<boolean>;
 
-  // Games & Library
-  scanGames(request?: ScanGamesRequest): Promise<ScanGamesResult>;
+  // 3. Biblioteca & Juegos
   getGames(filter?: GameFilter): Promise<Game[]>;
-  getGameById(id: string): Promise<Game | null>;
+  getGame(id: string): Promise<Game | null>;
+  getGameById(id: string): Promise<Game | null>; // Alias for backward compatibility
+  scanGames(request?: ScanGamesRequest): Promise<ScanGamesResult>;
+  getPlatforms(): Promise<Platform[]>;
   toggleFavorite(gameId: string): Promise<boolean>;
 
-  // Platforms & Consoles
-  getPlatforms(): Promise<Platform[]>;
-
-  // Emulators & Libretro Cores (CRUD)
+  // 4. Emuladores & Cores Libretro
   getEmulators(): Promise<Emulator[]>;
+  getEmulator(id: string): Promise<Emulator | null>;
+  scanEmulators(): Promise<Emulator[]>;
+  getEmulatorStatus(id: string): Promise<'active' | 'inactive' | 'missing_bios'>;
   saveEmulator(emulator: Emulator): Promise<void>;
   deleteEmulator(id: string): Promise<void>;
 
-  // Game Execution & Lifecycle
+  // 5. Ejecución & Procesos de Juego
   launchGame(gameIdOrRequest: string | LaunchGameRequest, emulatorId?: string): Promise<LaunchResult>;
   stopGame(): Promise<void>;
+  isGameRunning(): Promise<boolean>;
+  getRunningGame(): Promise<RunningGameInfo | null>;
+  getProcessStatus(): Promise<ProcessStatus>;
+  killProcess(pid: number): Promise<boolean>;
 
-  // Gamepad & Input
+  // 6. Dispositivos de Entrada (Gamepads)
+  getGamepads(): Promise<GamepadDevice[]>;
   getGamepadStatus(): Promise<GamepadStatus>;
+
+  // 7. Sistema Operativo & Energía
+  shutdown(): Promise<void>;
+  restart(): Promise<void>;
+  sleep(): Promise<void>;
+  logout(): Promise<void>;
+
+  // 8. Almacenamiento & XDG
+  getStorageInfo(): Promise<StorageInfo>;
+  getStorageLocations(): Promise<Record<string, StorageLocation>>;
+
+  // 9. Diagnóstico & Logs
+  getSystemLogs(limit?: number): Promise<LogEntry[]>;
+  getEmuBoxLogs(limit?: number): Promise<LogEntry[]>;
+  getDiagnostics(): Promise<DiagnosticReport>;
+
+  // 10. BIOS Scanner
+  getBiosRequirements(): Promise<BiosStatus>;
+  scanBios(): Promise<BiosStatus>;
 }

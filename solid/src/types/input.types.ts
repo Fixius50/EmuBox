@@ -22,6 +22,26 @@ export interface InputDeviceStatus {
   batteryLevel?: number;
 }
 
+export interface GamepadDevice {
+  index: number;
+  id: string;
+  name: string;
+  connected: boolean;
+  vendorId?: string;
+  productId?: string;
+  buttonsCount: number;
+  axesCount: number;
+  hasVibration: boolean;
+  batteryPercent?: number;
+  isPrimary: boolean;
+}
+
+export interface GamepadStatus {
+  connectedCount: number;
+  primaryDeviceIndex: number;
+  devices: GamepadDevice[];
+}
+
 export type InputActionListener = (action: InputAction) => void;
 export type InputStatusListener = (status: InputDeviceStatus) => void;
 

@@ -5,13 +5,21 @@ import { InputManager } from '@services/input/input.manager';
 import { SpatialNavigatorService as EmuBoxSpatialNavigator } from '@services/navigation/spatial-navigator.service';
 import { MockBackendService as MockBackend } from '@services/backend/mock-backend.service';
 import { TauriBackendService as TauriBackend } from '@services/backend/tauri-backend.service';
+import { GameService } from '@services/games/game.service';
+import { EmulatorService } from '@services/emulators/emulator.service';
+import { SystemService } from '@services/system/system.service';
+import { PathService } from '@services/system/path.service';
+import { StorageService } from '@services/storage/storage.service';
+import { ProcessService } from '@services/process/process.service';
+import { BiosScannerService } from '@services/bios/bios-scanner.service';
+import { EmuBoxError } from '@contracts/errors.types';
 
 import type { InputAction } from '@contracts/input.types';
 import type { Game, Emulator } from '@contracts/game.types';
 import games10000 from '@data/games-10000.json';
 
 console.log("===============================================================================");
-console.log("   EMUBOX FASE 4: SUITE DE PRUEBAS DE ARQUITECTURA Y CONTRATOS DE BACKEND      ");
+console.log("   EMUBOX: SUITE DE PRUEBAS DE ARQUITECTURA, SERVICIOS Y CONTRATOS             ");
 console.log("===============================================================================\n");
 
 let passed = 0;
@@ -93,7 +101,7 @@ console.log("\nTEST 3: Nuevos Contratos de Backend (Configuración, Sistema, CRU
 
 // System Info
 const sysInfo = await backend.getSystemInfo();
-assert(sysInfo.architecture === 'x86_64' && sysInfo.cpuCores > 0, `SystemInfo obtenido: ${sysInfo.cpuCores} cores, Arch: ${sysInfo.architecture}`);
+assert(sysInfo.architecture === 'x86_64' && sysInfo.hardware.cpuCores > 0, `SystemInfo obtenido: ${sysInfo.hardware.cpuCores} cores, Arch: ${sysInfo.architecture}`);
 
 // First Run Detection
 const firstRun = await backend.runFirstRunDetection();
@@ -135,9 +143,46 @@ const afterDel = await backend.getEmulators();
 assert(afterDel.length === initialCount, `CRUD Emuladores: Motor eliminado con éxito (${afterDel.length} emuladores)`);
 
 // ----------------------------------------------------------------------------
-// TEST 4: Motor de Navegación Espacial 2D y Jerarquía de Contenedores
+// TEST 4: Capa de Servicios de Dominio (Domain Services Layer)
 // ----------------------------------------------------------------------------
-console.log("\nTEST 4: Motor de Navegación Espacial 2D y Jerarquía de Contenedores...");
+console.log("\nTEST 4: Capa de Servicios de Dominio (Domain Services Layer)...");
+const gameService = new GameService(backend);
+const emulatorService = new EmulatorService(backend);
+const systemService = new SystemService(backend);
+const storageService = new StorageService(backend);
+const processService = new ProcessService(backend);
+const pathService = new PathService();
+const biosScanner = new BiosScannerService();
+
+const platGames = await gameService.getGamesForPlatform('snes');
+assert(platGames.length === 1238, `GameService filtró juegos por plataforma correctamente (${platGames.length} juegos)`);
+
+const emusForPs1 = await emulatorService.getEmulatorsForPlatform('ps1');
+assert(emusForPs1.length > 0, `EmulatorService devolvió emuladores para PS1 (${emusForPs1[0].name})`);
+
+const hwInfo = await systemService.getHardwareInfo();
+assert(hwInfo.gpuVendor === 'amd' || hwInfo.gpuVendor === 'generic', `SystemService devolvió GPU Vendor: ${hwInfo.gpuVendor}`);
+
+const storageInfo = await storageService.getStorageInfo();
+assert(storageInfo.drives.length > 0, `StorageService reportó unidades montadas: ${storageInfo.drives[0].name}`);
+
+const isRunning = await processService.isGameRunning();
+assert(typeof isRunning === 'boolean', `ProcessService comprobó estado de proceso: running=${isRunning}`);
+
+const romPath = pathService.getRomsDir('ps2');
+assert(romPath === '~/.local/share/emubox/roms/ps2', `PathService resolvió ruta XDG: ${romPath}`);
+
+const biosStatus = await biosScanner.scanBios();
+assert(biosStatus.totalRequired > 0, `BiosScannerService detectó ${biosStatus.totalRequired} BIOS requeridas`);
+
+// Error model check
+const err = new EmuBoxError('EmulatorNotInstalled', 'PCSX2 no encontrado');
+assert(err.code === 'EmulatorNotInstalled' && err.message.includes('PCSX2'), `EmuBoxError estructurado validado`);
+
+// ----------------------------------------------------------------------------
+// TEST 5: Motor de Navegación Espacial 2D y Jerarquía de Contenedores
+// ----------------------------------------------------------------------------
+console.log("\nTEST 5: Motor de Navegación Espacial 2D y Jerarquía de Contenedores...");
 const navigator = new EmuBoxSpatialNavigator();
 
 // Registrar nodos en un grid simulado de 7 columnas

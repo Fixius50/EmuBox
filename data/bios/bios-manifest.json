@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "requirements": [
+    {
+      "platformId": "ps1",
+      "platformName": "Sony PlayStation",
+      "emulatorId": "duckstation",
+      "biosFiles": [
+        {
+          "filename": "scph1001.bin",
+          "description": "US PlayStation BIOS v4.1",
+          "expectedMd5": "924e392ed05558d116f481e64d362242",
+          "required": true
+        },
+        {
+          "filename": "scph7001.bin",
+          "description": "US PlayStation BIOS v4.4",
+          "required": false
+        }
+      ]
+    },
+    {
+      "platformId": "ps2",
+      "platformName": "Sony PlayStation 2",
+      "emulatorId": "pcsx2",
+      "biosFiles": [
+        {
+          "filename": "SCPH-70012.bin",
+          "description": "PlayStation 2 v12 BIOS",
+          "required": true
+        }
+      ]
+    },
+    {
+      "platformId": "dreamcast",
+      "platformName": "Sega Dreamcast",
+      "emulatorId": "flycast",
+      "biosFiles": [
+        {
+          "filename": "dc_boot.bin",
+          "description": "Dreamcast System Boot ROM",
+          "required": true
+        },
+        {
+          "filename": "dc_flash.bin",
+          "description": "Dreamcast Flash NVRAM",
+          "required": true
+        }
+      ]
+    }
+  ]
+}
