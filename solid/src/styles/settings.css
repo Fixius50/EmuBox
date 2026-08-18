@@ -144,7 +144,7 @@
   border-radius: 0.25rem;
 }
 
-/* Right Content Pane - FIXED PADDING TO PREVENT OVERFLOW CUTS */
+/* Right Content Pane */
 .console-settings-content-pane {
   flex: 1;
   width: 100%;
@@ -505,6 +505,179 @@
 .gamepad-device-sub {
   font-size: 0.6875rem;
   color: var(--text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   OTA UPDATE, DECOUPLED LIFECYCLE & MAINTENANCE STYLES
+   -------------------------------------------------------------------------- */
+.update-hero-blade {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(10, 35, 65, 0.8) 100%);
+  border: 0.0625rem solid rgba(0, 240, 255, 0.35);
+  border-radius: var(--border-radius-xl);
+  padding: 1.5rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.6);
+  position: relative;
+  overflow: hidden;
+}
+
+.update-hero-blade::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0.375rem;
+  height: 100%;
+  background: #00f0ff;
+  box-shadow: 0 0 1rem #00f0ff;
+}
+
+.update-hero-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.update-version-title {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.update-status-pill {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--border-radius-full);
+  background: rgba(16, 185, 129, 0.15);
+  border: 0.0625rem solid rgba(16, 185, 129, 0.5);
+  color: #10b981;
+}
+
+.update-status-pill.has-update {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #f59e0b;
+}
+
+.update-meta-text {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.update-changelog-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 0.0625rem solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius-lg);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.update-changelog-title {
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.update-changelog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.update-changelog-item {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+
+.update-progress-container {
+  width: 100%;
+  height: 0.625rem;
+  background: rgba(15, 23, 42, 0.9);
+  border: 0.0625rem solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--border-radius-full);
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.update-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #006FCD 0%, #00f0ff 100%);
+  border-radius: var(--border-radius-full);
+  transition: width 200ms ease;
+}
+
+.safety-guarantee-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.safety-guarantee-card {
+  background: rgba(15, 23, 42, 0.5);
+  border: 0.0625rem solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--border-radius-md);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.safety-icon {
+  font-size: 1.125rem;
+}
+
+.safety-title {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.safety-desc {
+  font-size: 0.625rem;
+  color: var(--text-secondary);
+}
+
+.release-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.release-history-item {
+  background: rgba(15, 23, 42, 0.65);
+  border: 0.0625rem solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius-lg);
+  padding: 0.875rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 180ms ease;
+}
+
+.release-history-item:hover,
+.release-history-item.focused {
+  background: rgba(20, 35, 65, 0.85);
+  border-color: #00f0ff;
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.8), 0 0 1rem rgba(0, 240, 255, 0.4);
+}
+
+.release-history-item.current-release {
+  border-color: rgba(16, 185, 129, 0.5);
 }
 
 /* Kobalte High-Contrast Switch */

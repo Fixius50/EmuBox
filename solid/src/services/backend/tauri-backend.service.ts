@@ -19,7 +19,12 @@ import type {
   DiagnosticReport,
   LogEntry,
   BiosStatus,
-  GameFilter
+  GameFilter,
+  UpdateInfo,
+  UpdateCheckResult,
+  UpdateProgress,
+  RollbackResult,
+  UpdateChannel
 } from '@contracts/backend.types';
 import { MockBackendService } from './mock-backend.service';
 
@@ -315,6 +320,14 @@ export class TauriBackendService implements IEmuBoxBackend {
     }
   }
 
+  public async restartAppSession(): Promise<void> {
+    try {
+      await this.invoke('restart_app_session');
+    } catch {
+      await this.fallback.restartAppSession();
+    }
+  }
+
   // 8. Almacenamiento & XDG
   public async getStorageInfo(): Promise<StorageInfo> {
     try {
@@ -371,6 +384,39 @@ export class TauriBackendService implements IEmuBoxBackend {
       return await this.invoke<BiosStatus>('scan_bios');
     } catch {
       return this.fallback.scanBios();
+    }
+  }
+
+  // 11. Actualización OTA & Mantenimiento Desacoplado
+  public async getUpdateInfo(): Promise<UpdateInfo> {
+    try {
+      return await this.invoke<UpdateInfo>('get_update_info');
+    } catch {
+      return this.fallback.getUpdateInfo();
+    }
+  }
+
+  public async checkForUpdates(channel?: UpdateChannel): Promise<UpdateCheckResult> {
+    try {
+      return await this.invoke<UpdateCheckResult>('check_for_updates', { channel });
+    } catch {
+      return this.fallback.checkForUpdates(channel);
+    }
+  }
+
+  public async applyUpdate(targetVersion?: string): Promise<UpdateProgress> {
+    try {
+      return await this.invoke<UpdateProgress>('apply_update', { targetVersion });
+    } catch {
+      return this.fallback.applyUpdate(targetVersion);
+    }
+  }
+
+  public async rollbackToVersion(version: string): Promise<RollbackResult> {
+    try {
+      return await this.invoke<RollbackResult>('rollback_to_version', { version });
+    } catch {
+      return this.fallback.rollbackToVersion(version);
     }
   }
 }

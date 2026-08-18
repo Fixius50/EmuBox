@@ -1,5 +1,4 @@
 export type PlatformId =
-  | 'all'
   | 'snes'
   | 'ps1'
   | 'ps2'
@@ -10,28 +9,8 @@ export type PlatformId =
   | 'arcade'
   | 'gamecube'
   | 'psp'
-  | 'nds';
-
-export interface Game {
-  id: string;
-  title: string;
-  platform: PlatformId;
-  platformName: string;
-  emulatorId: string;
-  releaseYear: number;
-  genre: string;
-  developer: string;
-  publisher: string;
-  rating: number;
-  favorite: boolean;
-  coverImage: string;
-  backdropImage: string;
-  description: string;
-  playTimeMinutes: number;
-  lastPlayed: string | null;
-  romPath?: string;
-  fileSizeMb?: number;
-}
+  | 'nds'
+  | 'all';
 
 export interface Platform {
   id: PlatformId;
@@ -43,6 +22,24 @@ export interface Platform {
   color: string;
   icon: string;
   defaultEmulatorId: string;
+}
+
+export interface Game {
+  id: string;
+  title: string;
+  platform: PlatformId;
+  platformName: string;
+  releaseYear: number;
+  genre: string;
+  developer: string;
+  publisher: string;
+  rating: number;
+  playTimeMinutes: number;
+  favorite: boolean;
+  coverImage: string;
+  backdropImage?: string;
+  description: string;
+  romPath?: string;
 }
 
 export interface Emulator {
@@ -84,6 +81,11 @@ export interface SystemSettings {
     performanceMode?: 'high-performance' | 'balanced' | 'power-saver' | 'ultra-boost';
     vramLimit?: string;
     showFps?: boolean;
+  };
+  updates?: {
+    autoUpdate: boolean;
+    channel: 'stable' | 'beta' | 'nightly';
+    checkOnStartup: boolean;
   };
 }
 
@@ -132,5 +134,10 @@ export interface EmuBoxConfig {
     animations: boolean;
     showFpsOverlay: boolean;
     performanceMode: 'high-performance' | 'balanced' | 'power-saver' | 'ultra-boost';
+  };
+  updates: {
+    autoUpdate: boolean;
+    channel: 'stable' | 'beta' | 'nightly';
+    checkOnStartup: boolean;
   };
 }

@@ -133,6 +133,8 @@ export function useConsoleNavigation(options: UseConsoleNavigationOptions) {
           maxRows = 2;
         } else if (currentTab === 'gamepad') {
           maxRows = 2 + 4; // rumble + primary + up to 4 pads
+        } else if (currentTab === 'update') {
+          maxRows = 2; // Auto-Update Switch (0), Action Button (1)
         }
 
         switch (action) {

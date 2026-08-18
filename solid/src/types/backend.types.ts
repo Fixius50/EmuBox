@@ -41,12 +41,21 @@ import type {
   BiosRequirement
 } from './bios.types';
 
+import type {
+  UpdateInfo,
+  UpdateCheckResult,
+  UpdateProgress,
+  RollbackResult,
+  UpdateChannel
+} from './update.types';
+
 export * from './system.types';
 export * from './storage.types';
 export * from './process.types';
 export * from './input.types';
 export * from './diagnostics.types';
 export * from './bios.types';
+export * from './update.types';
 export * from './events.types';
 export * from './errors.types';
 
@@ -120,7 +129,7 @@ export interface IEmuBoxBackend {
   // 3. Biblioteca & Juegos
   getGames(filter?: GameFilter): Promise<Game[]>;
   getGame(id: string): Promise<Game | null>;
-  getGameById(id: string): Promise<Game | null>; // Alias for backward compatibility
+  getGameById(id: string): Promise<Game | null>;
   scanGames(request?: ScanGamesRequest): Promise<ScanGamesResult>;
   getPlatforms(): Promise<Platform[]>;
   toggleFavorite(gameId: string): Promise<boolean>;
@@ -150,6 +159,7 @@ export interface IEmuBoxBackend {
   restart(): Promise<void>;
   sleep(): Promise<void>;
   logout(): Promise<void>;
+  restartAppSession(): Promise<void>;
 
   // 8. Almacenamiento & XDG
   getStorageInfo(): Promise<StorageInfo>;
@@ -163,4 +173,10 @@ export interface IEmuBoxBackend {
   // 10. BIOS Scanner
   getBiosRequirements(): Promise<BiosStatus>;
   scanBios(): Promise<BiosStatus>;
+
+  // 11. Actualización OTA, Desacoplamiento & Mantenimiento
+  getUpdateInfo(): Promise<UpdateInfo>;
+  checkForUpdates(channel?: UpdateChannel): Promise<UpdateCheckResult>;
+  applyUpdate(targetVersion?: string): Promise<UpdateProgress>;
+  rollbackToVersion(version: string): Promise<RollbackResult>;
 }

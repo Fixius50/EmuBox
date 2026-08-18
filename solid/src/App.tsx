@@ -2,6 +2,7 @@ import { Component, createMemo, onMount, createSignal, Show } from 'solid-js';
 
 // Types
 import type { Game, Emulator } from '@contracts/game.types';
+import type { UpdateInfo, UpdateCheckResult, UpdateProgress } from '@contracts/update.types';
 
 // Services
 import { MockBackendService } from '@services/backend/mock-backend.service';
@@ -46,6 +47,7 @@ export const App: Component = () => {
   const [activeSettingsTab, setActiveSettingsTab] = createSignal<string>('system');
   const [settingsFocusArea, setSettingsFocusArea] = createSignal<'sidebar' | 'content'>('sidebar');
   const [settingsRowIndex, setSettingsRowIndex] = createSignal<number>(0);
+  const [updateInfo, setUpdateInfo] = createSignal<UpdateInfo | undefined>(undefined);
 
   let platformWheelHandle: PlatformWheelHandle | undefined;
 
@@ -120,6 +122,18 @@ export const App: Component = () => {
       } catch {
         // ignore
       }
+    } else if (tab === 'update') {
+      if (row === 0) {
+        if (!clone.updates) clone.updates = { autoUpdate: true, channel: 'stable', checkOnStartup: true };
+        clone.updates.autoUpdate = !clone.updates.autoUpdate;
+        systemStore.updateSettings(clone);
+      } else if (row === 1) {
+        if (updateInfo()?.hasUpdate) {
+          handleApplyUpdate();
+        } else {
+          handleCheckUpdates();
+        }
+      }
     }
   };
 
@@ -154,6 +168,30 @@ export const App: Component = () => {
     const emus = systemStore.emulators().filter(e => e.id !== emulatorId);
     systemStore.setEmulators(emus);
     soundFx.playBack();
+  };
+
+  // OTA Update Handlers
+  const handleCheckUpdates = async (): Promise<UpdateCheckResult | undefined> => {
+    soundFx.playMove();
+    const res = await backend.checkForUpdates();
+    setUpdateInfo(await backend.getUpdateInfo());
+    soundFx.playSelect();
+    return res;
+  };
+
+  const handleApplyUpdate = async (ver?: string): Promise<UpdateProgress | undefined> => {
+    soundFx.playSelect();
+    const progress = await backend.applyUpdate(ver);
+    setUpdateInfo(await backend.getUpdateInfo());
+    soundFx.playFavorite();
+    return progress;
+  };
+
+  const handleRollback = async (ver: string): Promise<void> => {
+    soundFx.playMove();
+    await backend.rollbackToVersion(ver);
+    setUpdateInfo(await backend.getUpdateInfo());
+    soundFx.playSelect();
   };
 
   // 3. Composable Logic Hooks
@@ -207,6 +245,11 @@ export const App: Component = () => {
     }
     if (systemStore.settings()) {
       soundFx.setEnabled(systemStore.settings()!.audio.uiSoundEffects);
+    }
+    try {
+      setUpdateInfo(await backend.getUpdateInfo());
+    } catch {
+      // ignore
     }
   });
 
@@ -271,6 +314,7 @@ export const App: Component = () => {
         <SettingsView
           settings={systemStore.settings()}
           emulators={systemStore.emulators()}
+          updateInfo={updateInfo()}
           activeTab={activeSettingsTab()}
           focusArea={settingsFocusArea()}
           focusedRowIndex={settingsRowIndex()}
@@ -284,6 +328,8 @@ export const App: Component = () => {
           }}
           onSaveEmulator={handleSaveEmulator}
           onDeleteEmulator={handleDeleteEmulator}
+          onCheckUpdates={handleCheckUpdates}
+          onApplyUpdate={handleApplyUpdate}
           onBack={() => {
             soundFx.playBack();
             navigationStore.setCurrentSection('library');

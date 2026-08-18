@@ -19,13 +19,53 @@ import type {
   DiagnosticReport,
   LogEntry,
   BiosStatus,
-  GameFilter
+  GameFilter,
+  UpdateInfo,
+  UpdateCheckResult,
+  UpdateProgress,
+  RollbackResult,
+  UpdateChannel,
+  InstalledReleaseInfo
 } from '@contracts/backend.types';
 
 export class MockBackendService implements IEmuBoxBackend {
   private games: Game[] = [];
   private activeRunningGame: RunningGameInfo | null = null;
   private logs: LogEntry[] = [];
+
+  private updateInfo: UpdateInfo = {
+    currentVersion: 'v1.0.0',
+    channel: 'stable',
+    lastChecked: Date.now() - 3600000,
+    hasUpdate: true,
+    latestVersion: 'v1.0.1',
+    releaseDate: '18 de Agosto, 2026',
+    downloadSizeBytes: 48500000,
+    releaseNotes: [
+      'Optimizacion de latencia en compositor Gamescope para 1080p 60/144Hz.',
+      'Deteccion automatica y calibracion de disparadores en DualSense y Xbox Series.',
+      'Soporte para actualizacion atomica OTA de la app sin reiniciar Arch Linux.',
+      'Proteccion estricta de ROMs, partidas guardadas y BIOS durante la actualizacion.'
+    ],
+    installedReleases: [
+      {
+        version: 'v1.0.0',
+        releaseDate: '10 de Agosto, 2026',
+        installedAt: Date.now() - 604800000,
+        commitHash: '8f3a1c2',
+        isCurrent: true,
+        installPath: '/opt/emubox/releases/v1.0.0'
+      },
+      {
+        version: 'v0.9.9',
+        releaseDate: '1 de Agosto, 2026',
+        installedAt: Date.now() - 1209600000,
+        commitHash: '7b29e01',
+        isCurrent: false,
+        installPath: '/opt/emubox/releases/v0.9.9'
+      }
+    ]
+  };
 
   private platforms: Platform[] = [
     { id: 'snes', name: 'Super Nintendo Entertainment System', shortName: 'SNES', manufacturer: 'Nintendo', generation: 4, releaseYear: 1990, color: '#e52521', icon: 'snes', defaultEmulatorId: 'snes9x' },
@@ -102,6 +142,11 @@ export class MockBackendService implements IEmuBoxBackend {
       animations: true,
       showFpsOverlay: false,
       performanceMode: 'high-performance'
+    },
+    updates: {
+      autoUpdate: true,
+      channel: 'stable',
+      checkOnStartup: true
     }
   };
 
@@ -133,6 +178,11 @@ export class MockBackendService implements IEmuBoxBackend {
       performanceMode: 'high-performance',
       vramLimit: '4 GB',
       showFps: false
+    },
+    updates: {
+      autoUpdate: true,
+      channel: 'stable',
+      checkOnStartup: true
     }
   };
 
@@ -389,6 +439,8 @@ export class MockBackendService implements IEmuBoxBackend {
         id: 'xinput-pad-0',
         name: 'Xbox Wireless Controller',
         connected: true,
+        vendorId: undefined,
+        productId: undefined,
         buttonsCount: 16,
         axesCount: 4,
         hasVibration: true,
@@ -421,6 +473,10 @@ export class MockBackendService implements IEmuBoxBackend {
 
   public async logout(): Promise<void> {
     console.log('[MockBackend] Logout request simulated');
+  }
+
+  public async restartAppSession(): Promise<void> {
+    console.log('[MockBackend] EmuBox session restart simulated (Arch Linux remains untouched)');
   }
 
   // 8. Almacenamiento & XDG
@@ -513,6 +569,67 @@ export class MockBackendService implements IEmuBoxBackend {
 
   public async scanBios(): Promise<BiosStatus> {
     return this.getBiosRequirements();
+  }
+
+  // 11. Actualización OTA & Mantenimiento Desacoplado
+  public async getUpdateInfo(): Promise<UpdateInfo> {
+    return JSON.parse(JSON.stringify(this.updateInfo));
+  }
+
+  public async checkForUpdates(channel: UpdateChannel = 'stable'): Promise<UpdateCheckResult> {
+    this.updateInfo.channel = channel;
+    this.updateInfo.lastChecked = Date.now();
+    return {
+      updateAvailable: true,
+      currentVersion: this.updateInfo.currentVersion,
+      targetVersion: 'v1.0.1',
+      releaseDate: '18 de Agosto, 2026',
+      downloadUrl: 'https://github.com/Fixius50/EmuBox/releases/download/v1.0.1/emubox-v1.0.1-x86_64.tar.gz',
+      checksumSha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      downloadSizeBytes: 48500000,
+      releaseNotes: this.updateInfo.releaseNotes || []
+    };
+  }
+
+  public async applyUpdate(targetVersion: string = 'v1.0.1'): Promise<UpdateProgress> {
+    const prevVersion = this.updateInfo.currentVersion;
+    this.updateInfo.installedReleases.forEach(r => { r.isCurrent = false; });
+    this.updateInfo.installedReleases.unshift({
+      version: targetVersion,
+      releaseDate: '18 de Agosto, 2026',
+      installedAt: Date.now(),
+      commitHash: '9a4b3d7',
+      isCurrent: true,
+      installPath: `/opt/emubox/releases/${targetVersion}`
+    });
+    this.updateInfo.currentVersion = targetVersion;
+    this.updateInfo.hasUpdate = false;
+
+    return {
+      stage: 'ready_to_restart',
+      percent: 100,
+      bytesDownloaded: 48500000,
+      totalBytes: 48500000,
+      message: `Actualización ${targetVersion} instalada con éxito en /opt/emubox/releases/${targetVersion}. Enlace atómico /opt/emubox/current actualizado.`
+    };
+  }
+
+  public async rollbackToVersion(version: string): Promise<RollbackResult> {
+    const target = this.updateInfo.installedReleases.find(r => r.version === version);
+    if (!target) {
+      return { success: false, restoredVersion: this.updateInfo.currentVersion, message: `Versión ${version} no encontrada en el historial local.` };
+    }
+    this.updateInfo.installedReleases.forEach(r => {
+      r.isCurrent = r.version === version;
+    });
+    this.updateInfo.currentVersion = version;
+    this.updateInfo.hasUpdate = true;
+
+    return {
+      success: true,
+      restoredVersion: version,
+      message: `Rollback completado con éxito. /opt/emubox/current apunta ahora a ${target.installPath}.`
+    };
   }
 }
 

@@ -246,7 +246,6 @@ export const PlatformWheel: Component<PlatformWheelProps> = (props) => {
                       </div>
 
                       <div class="active-card-main-title">
-                        {isSystemCard && <span class="system-gear-emblem">⚙️</span>}
                         <span class="active-card-main-code">{item.shortName}</span>
                         <span class="active-card-full-name">{item.name}</span>
                       </div>
@@ -273,7 +272,6 @@ export const PlatformWheel: Component<PlatformWheelProps> = (props) => {
                   ) : (
                     // Flanking Inactive Cards: Emblem Badge
                     <>
-                      {isSystemCard && <span class="inactive-system-icon">⚙️</span>}
                       <span class="dome-card-code">{item.shortName}</span>
                       <span class="dome-card-name">{item.name}</span>
                     </>

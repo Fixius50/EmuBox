@@ -3,9 +3,11 @@ import { Switch } from '@kobalte/core/switch';
 import { Slider } from '@kobalte/core/slider';
 import { HardwareProbeService, RealHardwareInfo, RealGamepadInfo } from '@services/system/hardware-probe.service';
 import { animateEmulatorDeckEntrance, animateEmulatorModalEntrance } from '@animations/emulator-animations';
-import type { SystemSettings, Emulator, PlatformId } from '@contracts/game.types';
+import { animateUpdateProgressBar } from '@animations/update-animations';
+import type { SystemSettings, Emulator } from '@contracts/game.types';
+import type { UpdateInfo, UpdateCheckResult, UpdateProgress } from '@contracts/update.types';
 
-export const SETTINGS_TABS = ['system', 'emulators', 'audio', 'gamepad'] as const;
+export const SETTINGS_TABS = ['system', 'emulators', 'audio', 'gamepad', 'update'] as const;
 export type SettingsTabId = typeof SETTINGS_TABS[number];
 
 const PERFORMANCE_MODES = [
@@ -27,15 +29,26 @@ interface SettingsViewProps {
   onSaveEmulator?: (emulator: Emulator) => void;
   onDeleteEmulator?: (emulatorId: string) => void;
   onBack?: () => void;
+  // OTA Update Handlers
+  updateInfo?: UpdateInfo;
+  onCheckUpdates?: () => Promise<UpdateCheckResult | undefined>;
+  onApplyUpdate?: (version?: string) => Promise<UpdateProgress | undefined>;
 }
 
 export const SettingsView: Component<SettingsViewProps> = (props) => {
   let contentPaneRef!: HTMLDivElement;
   let modalBoxRef!: HTMLDivElement;
+  let progressBarRef!: HTMLDivElement;
   const probeService = new HardwareProbeService();
 
   const [hardwareInfo, setHardwareInfo] = createSignal<RealHardwareInfo>(probeService.getRealHardwareInfo());
   const [gamepadsList, setGamepadsList] = createSignal<RealGamepadInfo[]>(probeService.getConnectedGamepads());
+
+  // OTA Update UI State
+  const [isCheckingUpdate, setIsCheckingUpdate] = createSignal<boolean>(false);
+  const [isUpdating, setIsUpdating] = createSignal<boolean>(false);
+  const [updateProgressVal, setUpdateProgressVal] = createSignal<number>(0);
+  const [updateStatusMsg, setUpdateStatusMsg] = createSignal<string>('');
 
   // CRUD Modal State for Emulators
   const [isEditingEmulator, setIsEditingEmulator] = createSignal<boolean>(false);
@@ -174,6 +187,50 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
     }
   };
 
+  // Check for updates
+  const handleCheckForUpdates = async () => {
+    setIsCheckingUpdate(true);
+    setUpdateStatusMsg('Consultando releases en GitHub API...');
+    try {
+      if (props.onCheckUpdates) {
+        await props.onCheckUpdates();
+      }
+      setUpdateStatusMsg('Comprobación completada.');
+    } finally {
+      setTimeout(() => setIsCheckingUpdate(false), 800);
+    }
+  };
+
+  // Apply OTA Update
+  const handleApplyUpdate = async () => {
+    setIsUpdating(true);
+    setUpdateProgressVal(15);
+    setUpdateStatusMsg('Descargando paquete de actualización en /opt/emubox/releases...');
+    if (progressBarRef) animateUpdateProgressBar(progressBarRef, 15);
+
+    setTimeout(async () => {
+      setUpdateProgressVal(60);
+      setUpdateStatusMsg('Verificando checksum SHA256 y desempaquetando...');
+      if (progressBarRef) animateUpdateProgressBar(progressBarRef, 60);
+
+      setTimeout(async () => {
+        setUpdateProgressVal(90);
+        setUpdateStatusMsg('Reasignando enlace atómico /opt/emubox/current...');
+        if (progressBarRef) animateUpdateProgressBar(progressBarRef, 90);
+
+        setTimeout(async () => {
+          if (props.onApplyUpdate) {
+            await props.onApplyUpdate('v1.0.1');
+          }
+          setUpdateProgressVal(100);
+          setUpdateStatusMsg('Actualización aplicada con éxito. Reiniciando sesión de EmuBox...');
+          if (progressBarRef) animateUpdateProgressBar(progressBarRef, 100);
+          setTimeout(() => setIsUpdating(false), 1200);
+        }, 600);
+      }, 600);
+    }, 600);
+  };
+
   return (
     <div class="console-settings-container">
       {/* Top Header Bar with Back Button */}
@@ -204,7 +261,6 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
             class={`sidebar-tab-trigger ${currentTab() === 'system' ? 'active' : ''} ${currentTab() === 'system' && props.focusArea === 'sidebar' ? 'focused-sidebar' : ''}`}
             onClick={() => handleTabClick('system')}
           >
-            <span class="tab-badge-icon">⚡</span>
             <div class="tab-label-group">
               <span class="tab-main-text">Sistema & Pantalla</span>
               <span class="tab-sub-text">Hardware, GPU, 1080p, VSync</span>
@@ -216,7 +272,6 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
             class={`sidebar-tab-trigger ${currentTab() === 'emulators' ? 'active' : ''} ${currentTab() === 'emulators' && props.focusArea === 'sidebar' ? 'focused-sidebar' : ''}`}
             onClick={() => handleTabClick('emulators')}
           >
-            <span class="tab-badge-icon">🕹️</span>
             <div class="tab-label-group">
               <span class="tab-main-text">Núcleos & Emuladores</span>
               <span class="tab-sub-text">Cores Libretro, Binarios</span>
@@ -228,7 +283,6 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
             class={`sidebar-tab-trigger ${currentTab() === 'audio' ? 'active' : ''} ${currentTab() === 'audio' && props.focusArea === 'sidebar' ? 'focused-sidebar' : ''}`}
             onClick={() => handleTabClick('audio')}
           >
-            <span class="tab-badge-icon">🔊</span>
             <div class="tab-label-group">
               <span class="tab-main-text">Audio & Sintetizador</span>
               <span class="tab-sub-text">Volumen, Efectos UI</span>
@@ -240,12 +294,22 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
             class={`sidebar-tab-trigger ${currentTab() === 'gamepad' ? 'active' : ''} ${currentTab() === 'gamepad' && props.focusArea === 'sidebar' ? 'focused-sidebar' : ''}`}
             onClick={() => handleTabClick('gamepad')}
           >
-            <span class="tab-badge-icon">🎮</span>
             <div class="tab-label-group">
               <span class="tab-main-text">Mando & Controles</span>
               <span class="tab-sub-text">Dispositivos Conectados</span>
             </div>
             {currentTab() === 'gamepad' && <div class="tab-neon-caret" />}
+          </div>
+
+          <div
+            class={`sidebar-tab-trigger ${currentTab() === 'update' ? 'active' : ''} ${currentTab() === 'update' && props.focusArea === 'sidebar' ? 'focused-sidebar' : ''}`}
+            onClick={() => handleTabClick('update')}
+          >
+            <div class="tab-label-group">
+              <span class="tab-main-text">Actualización & OTA</span>
+              <span class="tab-sub-text">GitHub Releases, Auto-Update</span>
+            </div>
+            {currentTab() === 'update' && <div class="tab-neon-caret" />}
           </div>
         </div>
 
@@ -262,7 +326,6 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
               </div>
 
               <div class="settings-form-stack">
-                {/* Row 0: Performance Mode */}
                 <div
                   class={`setting-card-row ${isRowFocused(0) ? 'focused' : ''}`}
                   onClick={() => {
@@ -275,12 +338,11 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
                     <span class="setting-desc">{currentPerformanceMode().desc}</span>
                   </div>
                   <span class={`readonly-badge interactive-badge ${currentPerformanceMode().badge || 'highlight'}`}>
-                    <span>⚡ {currentPerformanceMode().name}</span>
+                    <span>{currentPerformanceMode().name}</span>
                     <span style={{ "font-size": "0.625rem", opacity: "0.8" }}>[A] ROTAR</span>
                   </span>
                 </div>
 
-                {/* Row 1: Screen Resolution & Refresh Rate */}
                 <div
                   class={`setting-card-row ${isRowFocused(1) ? 'focused' : ''}`}
                   onClick={() => props.onSelectContentArea?.()}
@@ -292,7 +354,6 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
                   <span class="readonly-badge highlight">{hardwareInfo().screenRefreshRate} Hz Sincronizado</span>
                 </div>
 
-                {/* Row 2: GPU Renderer & Logical Cores */}
                 <div
                   class={`setting-card-row ${isRowFocused(2) ? 'focused' : ''}`}
                   onClick={() => props.onSelectContentArea?.()}
@@ -304,7 +365,6 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
                   <span class="readonly-badge">{hardwareInfo().memoryEstimate}</span>
                 </div>
 
-                {/* Row 3: VSync Switch */}
                 <div
                   class={`setting-card-row ${isRowFocused(3) ? 'focused' : ''}`}
                   onClick={() => {
@@ -331,7 +391,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
             </div>
           )}
 
-          {/* Emulators & Cores Tab (Cyber Core Deck with Anime.js) */}
+          {/* Emulators & Cores Tab */}
           {currentTab() === 'emulators' && (
             <div class="settings-tab-panel">
               <div class="panel-header-block">
@@ -361,7 +421,9 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
                     >
                       <div class="blade-main-meta">
                         <div class="blade-engine-icon-badge">
-                          {emu.coreType === 'libretro' ? '🕹️' : '⚙️'}
+                          <span style={{ "font-size": "0.75rem", "font-weight": "900", color: "#00f0ff" }}>
+                            {emu.coreType === 'libretro' ? 'CORE' : 'BIN'}
+                          </span>
                         </div>
                         <div class="blade-details-col">
                           <div class="blade-engine-name">
@@ -386,7 +448,6 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
 
                       <div class="blade-actions-col">
                         <span class="blade-btn-edit">
-                          <span>⚙️</span>
                           <span>[A] CONFIGURAR</span>
                         </span>
                       </div>
@@ -459,7 +520,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
             </div>
           )}
 
-          {/* Gamepad & Peripherals Tab */}
+          {/* Gamepad Tab */}
           {currentTab() === 'gamepad' && (
             <div class="settings-tab-panel">
               <div class="panel-header-block">
@@ -498,13 +559,12 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
                 </div>
 
                 <div class="gamepads-list-stack">
-                  {/* Keyboard Primary Input Card */}
                   <div
                     class={`gamepad-device-card active-controller ${isRowFocused(1) ? 'focused' : ''}`}
                     onClick={() => props.onSelectContentArea?.()}
                   >
                     <div class="gamepad-device-header">
-                      <div class="gamepad-icon-circle">⌨️</div>
+                      <div class="gamepad-icon-circle" style={{ "font-size": "0.75rem", "font-weight": "800" }}>KB</div>
                       <div>
                         <div class="gamepad-device-title">Teclado & Ratón Estándar (Entrada Activa)</div>
                         <div class="gamepad-device-sub">Mapeo Semántico EmuBox • Teclas Flechas / Enter / Escape</div>
@@ -513,7 +573,6 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
                     <span class="readonly-badge highlight">ACTIVO • PUERTO PRIMARIO</span>
                   </div>
 
-                  {/* Real Physical Gamepads */}
                   <For each={gamepadsList()}>
                     {(pad, padIdx) => (
                       <div
@@ -524,7 +583,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
                         }}
                       >
                         <div class="gamepad-device-header">
-                          <div class="gamepad-icon-circle">🎮</div>
+                          <div class="gamepad-icon-circle" style={{ "font-size": "0.75rem", "font-weight": "800" }}>P{pad.index + 1}</div>
                           <div>
                             <div class="gamepad-device-title">{pad.id}</div>
                             <div class="gamepad-device-sub">Puerto {pad.index + 1} • {pad.buttonsCount} Botones • {pad.axesCount} Ejes • {pad.hasVibration ? 'Háptica Soportada (Pulsar [A] para Test)' : 'Sin vibrador'}</div>
@@ -538,7 +597,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
                   {gamepadsList().length === 0 && (
                     <div class="gamepad-device-card" style={{ opacity: "0.7" }}>
                       <div class="gamepad-device-header">
-                        <div class="gamepad-icon-circle">🎮</div>
+                        <div class="gamepad-icon-circle" style={{ "font-size": "0.75rem", "font-weight": "800" }}>PAD</div>
                         <div>
                           <div class="gamepad-device-title">Esperando Mando Físico en Puertos 1 - 4...</div>
                           <div class="gamepad-device-sub">Conecta un mando Xbox, PlayStation o USB/Bluetooth para asignación directa</div>
@@ -551,6 +610,137 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
               </div>
             </div>
           )}
+
+          {/* OTA UPDATE, DECOUPLED LIFECYCLE & AUTO-UPDATE TAB */}
+          {currentTab() === 'update' && (
+            <div class="settings-tab-panel">
+              <div class="panel-header-block">
+                <div class="panel-header-titles">
+                  <h3 class="panel-section-title">Actualización OTA & Mantenimiento Desacoplado</h3>
+                  <p class="panel-section-desc">Actualiza la aplicación EmuBox automáticamente sin tocar Arch Linux ni tus ROMs y partidas</p>
+                </div>
+              </div>
+
+              {/* Setting Row 0: Auto-Update Switch */}
+              <div class="settings-form-stack">
+                <div
+                  class={`setting-card-row ${isRowFocused(0) ? 'focused' : ''}`}
+                  onClick={() => {
+                    props.onSelectContentArea?.();
+                    handleUpdate(s => {
+                      if (!s.updates) s.updates = { autoUpdate: true, channel: 'stable', checkOnStartup: true };
+                      s.updates.autoUpdate = !s.updates.autoUpdate;
+                    });
+                  }}
+                >
+                  <div class="setting-info">
+                    <span class="setting-title">Actualización Automática</span>
+                    <span class="setting-desc">Instala automáticamente nuevas versiones estables de EmuBox cuando estén disponibles</span>
+                  </div>
+                  <Switch
+                    checked={props.settings?.updates?.autoUpdate ?? true}
+                    onChange={(val) => handleUpdate(s => {
+                      if (!s.updates) s.updates = { autoUpdate: true, channel: 'stable', checkOnStartup: true };
+                      s.updates.autoUpdate = val;
+                    })}
+                    class="console-switch"
+                  >
+                    <Switch.Input class="switch-input" />
+                    <Switch.Control class="switch-control">
+                      <Switch.Thumb class="switch-thumb" />
+                    </Switch.Control>
+                  </Switch>
+                </div>
+              </div>
+
+              {/* Update Hero Blade (Row 1 focusable) */}
+              <div class={`update-hero-blade ${isRowFocused(1) ? 'focused' : ''}`} style={{ "margin-top": "0.5rem" }}>
+                <div class="update-hero-main">
+                  <div class="update-version-title">
+                    <span>EmuBox OS {props.updateInfo?.currentVersion || 'v1.0.0'}</span>
+                    <span class={`update-status-pill ${props.updateInfo?.hasUpdate ? 'has-update' : ''}`}>
+                      {props.updateInfo?.hasUpdate ? 'ACTUALIZACIÓN DISPONIBLE (v1.0.1)' : 'SISTEMA AL DÍA'}
+                    </span>
+                  </div>
+                  <div class="update-meta-text">
+                    Canal: <strong style={{ color: "#00f0ff" }}>GitHub Releases (Estable)</strong> • Estado: {props.settings?.updates?.autoUpdate ?? true ? 'Auto-Update Activado' : 'Manual'}
+                  </div>
+                  {updateStatusMsg() && (
+                    <div class="update-meta-text" style={{ color: "#00f0ff", "font-weight": "800", "margin-top": "0.25rem" }}>
+                      {updateStatusMsg()}
+                    </div>
+                  )}
+                </div>
+
+                <div class="settings-header-actions-row">
+                  {props.updateInfo?.hasUpdate ? (
+                    <button
+                      class="settings-action-btn"
+                      style={{ background: "linear-gradient(135deg, rgba(16, 185, 129, 0.4) 0%, rgba(0, 240, 255, 0.6) 100%)", "border-color": "#10b981" }}
+                      onClick={handleApplyUpdate}
+                      disabled={isUpdating()}
+                    >
+                      <span>{isUpdating() ? 'ACTUALIZANDO...' : '[A] APLICAR v1.0.1 AHORA'}</span>
+                    </button>
+                  ) : (
+                    <button
+                      class="settings-action-btn"
+                      onClick={handleCheckForUpdates}
+                      disabled={isCheckingUpdate() || isUpdating()}
+                    >
+                      <span>{isCheckingUpdate() ? 'BUSCANDO...' : '[A] BUSCAR EN GITHUB'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Progress Bar (Visible during active update) */}
+              {isUpdating() && (
+                <div class="update-progress-container">
+                  <div class="update-progress-bar-fill" ref={progressBarRef} style={{ width: `${updateProgressVal()}%` }} />
+                </div>
+              )}
+
+              {/* Available Update Changelog Card */}
+              {props.updateInfo?.hasUpdate && (
+                <div class="update-changelog-card">
+                  <div class="update-changelog-title">
+                    <span>Novedades en EmuBox {props.updateInfo?.latestVersion || 'v1.0.1'} ({props.updateInfo?.releaseDate || 'Reciente'})</span>
+                  </div>
+                  <div class="update-changelog-list">
+                    <For each={props.updateInfo?.releaseNotes || []}>
+                      {(note) => <div class="update-changelog-item">• {note}</div>}
+                    </For>
+                  </div>
+                </div>
+              )}
+
+              {/* Safety Guarantees Grid */}
+              <div class="safety-guarantee-grid">
+                <div class="safety-guarantee-card">
+                  <span class="readonly-badge" style={{ "font-size": "0.625rem" }}>ROMS</span>
+                  <div>
+                    <div class="safety-title">ROMs & BIOS Intactas</div>
+                    <div class="safety-desc">~/.local/share/emubox/roms</div>
+                  </div>
+                </div>
+                <div class="safety-guarantee-card">
+                  <span class="readonly-badge" style={{ "font-size": "0.625rem" }}>SAVES</span>
+                  <div>
+                    <div class="safety-title">Partidas & Saves Seguras</div>
+                    <div class="safety-desc">~/.local/share/emubox/saves</div>
+                  </div>
+                </div>
+                <div class="safety-guarantee-card">
+                  <span class="readonly-badge" style={{ "font-size": "0.625rem" }}>OS</span>
+                  <div>
+                    <div class="safety-title">Arch Linux Intacto</div>
+                    <div class="safety-desc">Drivers y Kernel aislados</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -559,7 +749,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
         <div class="crud-modal-backdrop" onClick={() => setIsEditingEmulator(false)}>
           <div class="crud-modal-box" ref={modalBoxRef} onClick={(e) => e.stopPropagation()}>
             <h3 class="crud-modal-title">
-              {editingEmulatorData().id ? '⚙️ Gestionar Motor / Núcleo de Emulación' : '➕ Añadir Nuevo Motor de Emulación'}
+              {editingEmulatorData().id ? 'Gestionar Motor / Núcleo de Emulación' : 'Añadir Nuevo Motor de Emulación'}
             </h3>
 
             <div class="crud-form-group">
@@ -595,7 +785,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
             <div class="crud-modal-actions">
               {editingEmulatorData().id && (
                 <button class="crud-btn-delete" onClick={deleteEmulator}>
-                  🗑️ ELIMINAR
+                  ELIMINAR NÚCLEO
                 </button>
               )}
               <button class="crud-btn-cancel" onClick={() => setIsEditingEmulator(false)}>

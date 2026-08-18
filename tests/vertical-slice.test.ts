@@ -12,6 +12,7 @@ import { PathService } from '@services/system/path.service';
 import { StorageService } from '@services/storage/storage.service';
 import { ProcessService } from '@services/process/process.service';
 import { BiosScannerService } from '@services/bios/bios-scanner.service';
+import { UpdateService } from '@services/update/update.service';
 import { EmuBoxError } from '@contracts/errors.types';
 
 import type { InputAction } from '@contracts/input.types';
@@ -110,6 +111,7 @@ assert(firstRun.vulkanSupported === true && firstRun.configGenerated === true, `
 // EmuBoxConfig (Versioned)
 const config = await backend.getConfig();
 assert(config.version === 1 && typeof config.paths.roms === 'string', `EmuBoxConfig versionado (v${config.version}) leído correctamente`);
+assert(config.updates.autoUpdate === true, `EmuBoxConfig incluye configuración de Auto-Update activo`);
 
 config.audio.volume = 90;
 await backend.saveConfig(config);
@@ -153,6 +155,7 @@ const storageService = new StorageService(backend);
 const processService = new ProcessService(backend);
 const pathService = new PathService();
 const biosScanner = new BiosScannerService();
+const updateService = new UpdateService(backend);
 
 const platGames = await gameService.getGamesForPlatform('snes');
 assert(platGames.length === 1238, `GameService filtró juegos por plataforma correctamente (${platGames.length} juegos)`);
@@ -180,9 +183,19 @@ const err = new EmuBoxError('EmulatorNotInstalled', 'PCSX2 no encontrado');
 assert(err.code === 'EmulatorNotInstalled' && err.message.includes('PCSX2'), `EmuBoxError estructurado validado`);
 
 // ----------------------------------------------------------------------------
-// TEST 5: Motor de Navegación Espacial 2D y Jerarquía de Contenedores
+// TEST 5: Actualización Desacoplada OTA & Auto-Update
 // ----------------------------------------------------------------------------
-console.log("\nTEST 5: Motor de Navegación Espacial 2D y Jerarquía de Contenedores...");
+console.log("\nTEST 5: Actualización Desacoplada OTA & Auto-Update...");
+const updateCheck = await updateService.checkForUpdates('stable');
+assert(updateCheck.updateAvailable === true && updateCheck.targetVersion === 'v1.0.1', `OTA Check detectó actualización disponible (${updateCheck.targetVersion})`);
+
+const updateProgress = await updateService.applyUpdate('v1.0.1');
+assert(updateProgress.stage === 'ready_to_restart' && updateProgress.percent === 100, `OTA Apply ejecutó instalación atómica en /opt/emubox/releases/`);
+
+// ----------------------------------------------------------------------------
+// TEST 6: Motor de Navegación Espacial 2D y Jerarquía de Contenedores
+// ----------------------------------------------------------------------------
+console.log("\nTEST 6: Motor de Navegación Espacial 2D y Jerarquía de Contenedores...");
 const navigator = new EmuBoxSpatialNavigator();
 
 // Registrar nodos en un grid simulado de 7 columnas
