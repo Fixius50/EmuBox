@@ -1,0 +1,71 @@
+{
+  "testRunId": "run-official-astro-500-linux",
+  "timestamp": "2026-08-17T21:41:30.355Z",
+  "framework": "Astro 5",
+  "frameworkVersion": "5.3.0",
+  "platform": {
+    "os": "Arch Linux x86_64 (Kernel 6.10.x / Gamescope Session)",
+    "displayServer": "Wayland / DRM-KMS Direct",
+    "webview": "WebKitGTK 2.44.3",
+    "resolution": "1920x1080 @ 60Hz"
+  },
+  "datasetSize": 500,
+  "virtualizationEnabled": false,
+  "spatialNavMode": "agnostic",
+  "inputArchitecture": "gamepad_api",
+  "metrics": {
+    "startup": {
+      "timeToFirstInteractiveMs": 86.3,
+      "coldStartMs": 129.5
+    },
+    "frameStats": {
+      "fpsAverage": 59.1,
+      "fps1PercentLow": 47.8,
+      "frameTimeP50Ms": 16.6,
+      "frameTimeP95Ms": 18.1,
+      "frameTimeP99Ms": 22.8,
+      "framesAbove16_67ms": 35,
+      "framesAbove33_33ms": 2,
+      "framesAbove50ms": 0,
+      "totalFramesSampled": 1200,
+      "durationMs": 20000
+    },
+    "memory": {
+      "osProcessRssMb": 74.3,
+      "osPrivateWorkingSetMb": 58,
+      "jsHeapUsedMb": 23.5
+    },
+    "soakTest30Min": {
+      "rssMemoryDeltaMb": 1.5,
+      "fpsDegradationPercent": 0.16,
+      "activeListenersCount": 2,
+      "focusLossOccurrences": 0
+    },
+    "modalLeakTest500Cycles": {
+      "rssMemoryBeforeMb": 74.3,
+      "rssMemoryAfterMb": 75,
+      "retainedDetachedDomNodes": 0
+    },
+    "dataOperations": {
+      "itemCount": 10000,
+      "filterDurationMs": 2.7332000000000107,
+      "sortDurationMs": 0.3272999999999797
+    },
+    "bundle": {
+      "jsRawKb": 1544.8,
+      "jsGzipKb": 118.1,
+      "cssRawKb": 9.9,
+      "cssGzipKb": 2.7,
+      "tauriStandaloneBinaryMb": 13.7,
+      "installerPackageMb": 6.8,
+      "totalInstalledFootprintMb": 15.2
+    },
+    "maintainability": {
+      "linesOfCode": 775,
+      "fileCount": 11,
+      "cyclomaticComplexityScore": 2.1,
+      "extensionTestLocAdded": 28,
+      "extensionTestFrictionNotes": "Al requerir interactividad 100% continua en modo cliente (client:only), el overhead es equivalente a React Vite con capa mínima de Astro."
+    }
+  }
+}

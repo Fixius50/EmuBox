@@ -1,0 +1,71 @@
+{
+  "testRunId": "run-official-svelte-500-linux",
+  "timestamp": "2026-08-17T21:41:30.281Z",
+  "framework": "Svelte 5",
+  "frameworkVersion": "5.0.0",
+  "platform": {
+    "os": "Arch Linux x86_64 (Kernel 6.10.x / Gamescope Session)",
+    "displayServer": "Wayland / DRM-KMS Direct",
+    "webview": "WebKitGTK 2.44.3",
+    "resolution": "1920x1080 @ 60Hz"
+  },
+  "datasetSize": 500,
+  "virtualizationEnabled": false,
+  "spatialNavMode": "agnostic",
+  "inputArchitecture": "gamepad_api",
+  "metrics": {
+    "startup": {
+      "timeToFirstInteractiveMs": 85.8,
+      "coldStartMs": 128.7
+    },
+    "frameStats": {
+      "fpsAverage": 59.8,
+      "fps1PercentLow": 55.1,
+      "frameTimeP50Ms": 16.5,
+      "frameTimeP95Ms": 17.1,
+      "frameTimeP99Ms": 18.8,
+      "framesAbove16_67ms": 11,
+      "framesAbove33_33ms": 0,
+      "framesAbove50ms": 0,
+      "totalFramesSampled": 1200,
+      "durationMs": 20000
+    },
+    "memory": {
+      "osProcessRssMb": 61.2,
+      "osPrivateWorkingSetMb": 47.7,
+      "jsHeapUsedMb": 16.1
+    },
+    "soakTest30Min": {
+      "rssMemoryDeltaMb": 1.2,
+      "fpsDegradationPercent": 0.14,
+      "activeListenersCount": 2,
+      "focusLossOccurrences": 0
+    },
+    "modalLeakTest500Cycles": {
+      "rssMemoryBeforeMb": 61.2,
+      "rssMemoryAfterMb": 61.7,
+      "retainedDetachedDomNodes": 0
+    },
+    "dataOperations": {
+      "itemCount": 10000,
+      "filterDurationMs": 2.7332000000000107,
+      "sortDurationMs": 0.3272999999999797
+    },
+    "bundle": {
+      "jsRawKb": 1391.2,
+      "jsGzipKb": 72.6,
+      "cssRawKb": 9.9,
+      "cssGzipKb": 2.7,
+      "tauriStandaloneBinaryMb": 13.1,
+      "installerPackageMb": 6.4,
+      "totalInstalledFootprintMb": 14.5
+    },
+    "maintainability": {
+      "linesOfCode": 697,
+      "fileCount": 9,
+      "cyclomaticComplexityScore": 2.1,
+      "extensionTestLocAdded": 28,
+      "extensionTestFrictionNotes": "Runes ($state, $derived) muy limpios y transiciones integradas nativas. Excelente ergonomía y bajo boilerplate."
+    }
+  }
+}

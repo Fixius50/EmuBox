@@ -1,0 +1,82 @@
+[
+  {
+    "id": "snes9x",
+    "name": "Snes9x",
+    "version": "1.62.3",
+    "supportedPlatforms": ["snes"],
+    "coreType": "libretro",
+    "status": "active",
+    "executable": "retroarch",
+    "arguments": ["-L", "cores/snes9x_libretro.so"]
+  },
+  {
+    "id": "duckstation",
+    "name": "DuckStation",
+    "version": "0.1-6890",
+    "supportedPlatforms": ["ps1"],
+    "coreType": "standalone",
+    "status": "active",
+    "executable": "duckstation-qt",
+    "arguments": ["-batch", "-fullscreen"]
+  },
+  {
+    "id": "pcsx2",
+    "name": "PCSX2",
+    "version": "2.1.0",
+    "supportedPlatforms": ["ps2"],
+    "coreType": "standalone",
+    "status": "active",
+    "executable": "pcsx2-qt",
+    "arguments": ["-batch", "-fullscreen"]
+  },
+  {
+    "id": "mupen64plus",
+    "name": "Mupen64Plus-Next",
+    "version": "2.5.0",
+    "supportedPlatforms": ["n64"],
+    "coreType": "libretro",
+    "status": "active",
+    "executable": "retroarch",
+    "arguments": ["-L", "cores/mupen64plus_next_libretro.so"]
+  },
+  {
+    "id": "genesis-plus-gx",
+    "name": "Genesis Plus GX",
+    "version": "1.7.4",
+    "supportedPlatforms": ["genesis"],
+    "coreType": "libretro",
+    "status": "active",
+    "executable": "retroarch",
+    "arguments": ["-L", "cores/genesis_plus_gx_libretro.so"]
+  },
+  {
+    "id": "mgba",
+    "name": "mGBA",
+    "version": "0.10.3",
+    "supportedPlatforms": ["gba"],
+    "coreType": "standalone",
+    "status": "active",
+    "executable": "mgba",
+    "arguments": ["-f"]
+  },
+  {
+    "id": "flycast",
+    "name": "Flycast",
+    "version": "2.3",
+    "supportedPlatforms": ["dreamcast"],
+    "coreType": "standalone",
+    "status": "active",
+    "executable": "flycast",
+    "arguments": ["--fullscreen"]
+  },
+  {
+    "id": "fbneo",
+    "name": "FinalBurn Neo",
+    "version": "1.0.0.3",
+    "supportedPlatforms": ["arcade"],
+    "coreType": "libretro",
+    "status": "active",
+    "executable": "retroarch",
+    "arguments": ["-L", "cores/fbneo_libretro.so"]
+  }
+]

@@ -1,0 +1,284 @@
+/* ==========================================================================
+   ZONE 9: CONSOLE MODAL BLADES (KOBALTE DIALOGS)
+   ========================================================================== */
+
+.console-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 4, 8, 0.85);
+  backdrop-filter: blur(1.75rem);
+  z-index: 100;
+  animation: fadeIn 200ms ease;
+}
+
+.console-modal-center-container {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 101;
+}
+
+.console-game-blade {
+  width: 67.5rem;
+  max-width: 90vw;
+  height: 36.25rem;
+  background: linear-gradient(135deg, rgba(20, 29, 48, 0.95) 0%, rgba(10, 15, 25, 0.98) 100%);
+  border: 0.125rem solid var(--neon-cyan);
+  box-shadow: 0 0 3.125rem var(--neon-cyan-glow), 0 1.875rem 3.75rem rgba(0, 0, 0, 0.95);
+  border-radius: var(--border-radius-xl);
+  overflow: hidden;
+  animation: bladePop 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.blade-inner-layout {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.blade-poster-wrapper {
+  width: 25rem;
+  height: 100%;
+  position: relative;
+  background: #000;
+}
+
+.blade-poster-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.blade-poster-glow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, transparent 70%, rgba(10, 15, 25, 1) 100%);
+}
+
+.blade-info-wrapper {
+  flex: 1;
+  padding: 2.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.blade-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.blade-platform-tag {
+  background: var(--neon-cyan);
+  color: #05070a;
+  font-size: 0.75rem;
+  font-weight: 900;
+  padding: 0.1875rem 0.625rem;
+  border-radius: var(--border-radius-sm);
+}
+
+.blade-year-tag {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--border-radius-sm);
+}
+
+.blade-rating-tag {
+  color: var(--accent-amber);
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+.blade-game-title {
+  font-size: clamp(1.6rem, 2vw, 2rem);
+  font-weight: 900;
+  color: #fff;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+.blade-specs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  background: rgba(0, 0, 0, 0.35);
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: var(--border-radius-md);
+  padding: 0.875rem 1.125rem;
+  margin-bottom: 1rem;
+}
+
+.spec-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.spec-header {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.spec-data {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.blade-synopsis-text {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #cbd5e1;
+  max-height: 8.75rem;
+  overflow-y: auto;
+}
+
+.blade-action-buttons {
+  display: flex;
+  gap: 0.875rem;
+}
+
+.console-btn {
+  padding: 0.875rem 1.75rem;
+  border-radius: var(--border-radius-md);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  letter-spacing: 0.03125rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  border: 0.0625rem solid transparent;
+  transition: all 180ms ease;
+}
+
+.console-btn.primary-glow-btn {
+  background: linear-gradient(135deg, var(--neon-cyan) 0%, var(--neon-blue) 100%);
+  color: #05070a;
+  box-shadow: 0 0 1.25rem var(--neon-cyan-glow);
+}
+
+.console-btn.primary-glow-btn:hover {
+  transform: translateY(-0.125rem);
+  box-shadow: 0 0 1.875rem var(--neon-cyan);
+}
+
+.console-btn.secondary-frosted-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-subtle);
+  color: #fff;
+}
+
+.console-btn.secondary-frosted-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--neon-cyan);
+}
+
+.console-btn.ghost-btn {
+  background: transparent;
+  border-color: var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.console-btn.ghost-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Confirm Launch Blade */
+.confirm-launch-box {
+  padding: 2.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.launch-header-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.launch-pulse-icon {
+  width: 3rem;
+  height: 3rem;
+  background: var(--neon-cyan);
+  color: #05070a;
+  border-radius: var(--border-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: 0 0 1.25rem var(--neon-cyan-glow);
+}
+
+.launch-sub-note {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.launch-target-card {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  background: rgba(0, 0, 0, 0.4);
+  border: 0.0625rem solid var(--border-subtle);
+  border-radius: var(--border-radius-md);
+  padding: 1rem 1.25rem;
+}
+
+.launch-thumb {
+  width: 4.375rem;
+  height: 5.625rem;
+  border-radius: var(--border-radius-sm);
+  object-fit: cover;
+}
+
+.launch-game-name {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.launch-console-tag {
+  font-size: 0.8125rem;
+  color: var(--neon-cyan);
+  font-weight: 700;
+}
+
+.launch-pipeline-info {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.terminal-command-dock {
+  background: #04060a;
+  border: 0.0625rem solid #1e293b;
+  border-radius: var(--border-radius-md);
+  padding: 1.125rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.dock-cmd-label {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 0.0625rem;
+}
+
+.dock-cmd-code {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: #38bdf8;
+}

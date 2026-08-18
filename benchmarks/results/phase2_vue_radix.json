@@ -1,0 +1,73 @@
+{
+  "testRunId": "run-phase2-vue_radix-10k",
+  "timestamp": "2026-08-17T21:51:34.919Z",
+  "framework": "Vue 3",
+  "version": "3.5.0",
+  "headlessPrimitives": "Reka UI / Radix Vue (v1.9)",
+  "datasetScaleTested": [
+    500,
+    1000,
+    5000,
+    10000
+  ],
+  "searchAndFilter10k": {
+    "averageInputToVisualLatencyMs": 3.4,
+    "searchQueriesEvaluated": [
+      "Final",
+      "Super",
+      "Dragon",
+      "Zelda",
+      "Racing"
+    ]
+  },
+  "spatialNavigationTelemetry": {
+    "jumpLatencyP50Ms": 0.16,
+    "jumpLatencyP95Ms": 0.22,
+    "jumpLatencyP99Ms": 0.23,
+    "selectionErrorCount": 0,
+    "focusLossCount": 0,
+    "avgScrollSettlingTimeMs": 14,
+    "totalJumpsSampled": 500
+  },
+  "benchmarkA_Agnostic": {
+    "description": "Agnóstico (Mismo motor, sin virtualizar 500 items)",
+    "fpsAvg": 59.6,
+    "fps1Low": 52.4,
+    "p50": 16.5,
+    "p95": 17.4,
+    "p99": 19.8,
+    "jank16": 18,
+    "jank33": 1,
+    "rssMb": 66.5,
+    "heapMb": 18.4
+  },
+  "benchmarkB_Idiomatic_Virtualized": {
+    "description": "Idiomático (Radix Vue Dialog/Tabs/Switch/Slider + TanStack Vue Virtual en 10.000 juegos)",
+    "fpsAvg": 59.7,
+    "fps1Low": 54.8,
+    "p50": 16.4,
+    "p95": 17,
+    "p99": 18.4,
+    "jank16": 7,
+    "jank33": 0,
+    "rssMb": 68.4,
+    "heapMb": 20.2,
+    "domNodesMounted": 35
+  },
+  "headlessEvaluationMatrix": {
+    "dialog": "Excelente (FocusScope nativo, Teleport integrado y accesibilidad WAI-ARIA)",
+    "tabs": "Excelente (v-model reactivo con roving focus)",
+    "switch": "Muy bueno (v-model:checked con transiciones CSS)",
+    "slider": "Muy bueno (SliderTrack/Range/Thumb con pasos precisos)",
+    "gamepadIntegration": "Muy buena (Composition API + Proxies)",
+    "bundleOverheadKb": 18.2
+  },
+  "bundleDetails": {
+    "jsRawKb": 35600.2,
+    "jsGzipKb": 1248.5,
+    "cssRawKb": 9.9,
+    "cssGzipKb": 2.7,
+    "tauriStandaloneBinaryMb": 13.4,
+    "installerPackageMb": 6.6
+  }
+}

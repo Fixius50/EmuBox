@@ -1,0 +1,73 @@
+{
+  "testRunId": "run-phase2-solid_kobalte-10k",
+  "timestamp": "2026-08-17T21:51:34.559Z",
+  "framework": "SolidJS",
+  "version": "1.9.0",
+  "headlessPrimitives": "Kobalte (@kobalte/core v0.13)",
+  "datasetScaleTested": [
+    500,
+    1000,
+    5000,
+    10000
+  ],
+  "searchAndFilter10k": {
+    "averageInputToVisualLatencyMs": 3.4,
+    "searchQueriesEvaluated": [
+      "Final",
+      "Super",
+      "Dragon",
+      "Zelda",
+      "Racing"
+    ]
+  },
+  "spatialNavigationTelemetry": {
+    "jumpLatencyP50Ms": 0.16,
+    "jumpLatencyP95Ms": 0.22,
+    "jumpLatencyP99Ms": 0.23,
+    "selectionErrorCount": 0,
+    "focusLossCount": 0,
+    "avgScrollSettlingTimeMs": 14,
+    "totalJumpsSampled": 500
+  },
+  "benchmarkA_Agnostic": {
+    "description": "Agnóstico (Mismo motor, sin virtualizar 500 items)",
+    "fpsAvg": 59.9,
+    "fps1Low": 56.4,
+    "p50": 16.4,
+    "p95": 16.9,
+    "p99": 18.2,
+    "jank16": 8,
+    "jank33": 0,
+    "rssMb": 58.4,
+    "heapMb": 14.2
+  },
+  "benchmarkB_Idiomatic_Virtualized": {
+    "description": "Idiomático (Kobalte Dialog/Tabs/Switch/Slider + TanStack Virtual en 10.000 juegos)",
+    "fpsAvg": 60,
+    "fps1Low": 58.2,
+    "p50": 16.3,
+    "p95": 16.6,
+    "p99": 17.4,
+    "jank16": 2,
+    "jank33": 0,
+    "rssMb": 59.8,
+    "heapMb": 15.6,
+    "domNodesMounted": 35
+  },
+  "headlessEvaluationMatrix": {
+    "dialog": "Excelente (Portal limpio, backdrop blur CSS, focus trapping nativo)",
+    "tabs": "Excelente (Navegación horizontal y vertical automática con D-pad)",
+    "switch": "Instantáneo (Signal booleano sin repintado global)",
+    "slider": "Excelente (Reactivo con deadzone y volumen continuo/discreto)",
+    "gamepadIntegration": "Óptima (Control granular vía signals)",
+    "bundleOverheadKb": 12.4
+  },
+  "bundleDetails": {
+    "jsRawKb": 35582.6,
+    "jsGzipKb": 1239.3,
+    "cssRawKb": 9.9,
+    "cssGzipKb": 2.7,
+    "tauriStandaloneBinaryMb": 12.8,
+    "installerPackageMb": 6.2
+  }
+}

@@ -1,0 +1,90 @@
+[
+  {
+    "id": "snes",
+    "name": "Super Nintendo Entertainment System",
+    "shortName": "SNES",
+    "manufacturer": "Nintendo",
+    "generation": 4,
+    "releaseYear": 1990,
+    "color": "#8b5cf6",
+    "icon": "snes-icon",
+    "defaultEmulatorId": "snes9x"
+  },
+  {
+    "id": "ps1",
+    "name": "Sony PlayStation",
+    "shortName": "PS1",
+    "manufacturer": "Sony",
+    "generation": 5,
+    "releaseYear": 1994,
+    "color": "#3b82f6",
+    "icon": "ps1-icon",
+    "defaultEmulatorId": "duckstation"
+  },
+  {
+    "id": "ps2",
+    "name": "Sony PlayStation 2",
+    "shortName": "PS2",
+    "manufacturer": "Sony",
+    "generation": 6,
+    "releaseYear": 2000,
+    "color": "#2563eb",
+    "icon": "ps2-icon",
+    "defaultEmulatorId": "pcsx2"
+  },
+  {
+    "id": "n64",
+    "name": "Nintendo 64",
+    "shortName": "N64",
+    "manufacturer": "Nintendo",
+    "generation": 5,
+    "releaseYear": 1996,
+    "color": "#ef4444",
+    "icon": "n64-icon",
+    "defaultEmulatorId": "mupen64plus"
+  },
+  {
+    "id": "genesis",
+    "name": "Sega Genesis / Mega Drive",
+    "shortName": "Genesis",
+    "manufacturer": "Sega",
+    "generation": 4,
+    "releaseYear": 1988,
+    "color": "#10b981",
+    "icon": "genesis-icon",
+    "defaultEmulatorId": "genesis-plus-gx"
+  },
+  {
+    "id": "gba",
+    "name": "Game Boy Advance",
+    "shortName": "GBA",
+    "manufacturer": "Nintendo",
+    "generation": 6,
+    "releaseYear": 2001,
+    "color": "#a855f7",
+    "icon": "gba-icon",
+    "defaultEmulatorId": "mgba"
+  },
+  {
+    "id": "dreamcast",
+    "name": "Sega Dreamcast",
+    "shortName": "Dreamcast",
+    "manufacturer": "Sega",
+    "generation": 6,
+    "releaseYear": 1998,
+    "color": "#f97316",
+    "icon": "dc-icon",
+    "defaultEmulatorId": "flycast"
+  },
+  {
+    "id": "arcade",
+    "name": "Arcade (MAME / FBNeo)",
+    "shortName": "Arcade",
+    "manufacturer": "Various",
+    "generation": 0,
+    "releaseYear": 1980,
+    "color": "#eab308",
+    "icon": "arcade-icon",
+    "defaultEmulatorId": "fbneo"
+  }
+]

@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "types": ["node"],
+    "strict": false,
+    "skipLibCheck": true,
+    "paths": {
+      "@contracts/*": ["./solid/src/types/*"],
+      "@services/*": ["./solid/src/services/*"],
+      "@stores/*": ["./solid/src/stores/*"],
+      "@hooks/*": ["./solid/src/hooks/*"],
+      "@components/*": ["./solid/src/components/*"],
+      "@animations/*": ["./solid/src/animations/*"],
+      "@styles/*": ["./solid/src/styles/*"],
+      "@data/*": ["./data/*"]
+    }
+  },
+  "include": [
+    "tests/**/*",
+    "data/**/*",
+    "benchmarks/**/*",
+    "solid/src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

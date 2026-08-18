@@ -1,0 +1,144 @@
+/* ==========================================================================
+   ZONE 4: TOP CONSOLE DASHBOARD HEADER (SLIM & ELEGANT)
+   ========================================================================== */
+
+.console-dashboard-header {
+  height: var(--header-height);
+  padding: 0 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 0.0625rem solid var(--border-subtle);
+  background: rgba(5, 7, 12, 0.7);
+  backdrop-filter: blur(1rem);
+  z-index: 50;
+}
+
+.console-user-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-avatar-hex {
+  width: 2.125rem;
+  height: 2.125rem;
+  background: linear-gradient(135deg, var(--neon-cyan) 0%, var(--neon-blue) 100%);
+  color: #05070a;
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+  font-weight: 900;
+  position: relative;
+  box-shadow: 0 0 0.75rem var(--neon-cyan-glow);
+}
+
+.avatar-online-dot {
+  position: absolute;
+  bottom: -0.125rem;
+  right: -0.125rem;
+  width: 0.5625rem;
+  height: 0.5625rem;
+  background: var(--accent-emerald);
+  border: 0.125rem solid var(--bg-void);
+  border-radius: 50%;
+  box-shadow: 0 0 0.375rem var(--accent-emerald);
+}
+
+.user-info-text .user-handle {
+  font-size: 0.8125rem;
+  font-weight: 800;
+  letter-spacing: 0.0625rem;
+  color: #fff;
+}
+
+.user-info-text .user-system-tag {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+}
+
+.console-main-navigation {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.nav-blade-btn {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.0625rem;
+  padding: 0.4375rem 1.125rem;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+  transition: all 180ms ease;
+}
+
+.nav-blade-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-blade-btn.active {
+  color: var(--neon-cyan);
+  text-shadow: 0 0 0.625rem var(--neon-cyan-glow);
+}
+
+.blade-active-indicator {
+  position: absolute;
+  bottom: -0.5rem;
+  left: 15%;
+  right: 15%;
+  height: 0.125rem;
+  background: var(--neon-cyan);
+  border-radius: 0.125rem;
+  box-shadow: 0 0 0.5rem var(--neon-cyan);
+}
+
+.console-system-status-dock {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.controller-status-capsule {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 0.0625rem solid var(--border-subtle);
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.gamepad-hardware-icon.online {
+  filter: drop-shadow(0 0 0.25rem var(--accent-emerald));
+}
+
+.console-clock-dock {
+  text-align: right;
+}
+
+.clock-time {
+  display: block;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.0625rem;
+  color: #fff;
+}
+
+.clock-date {
+  font-size: 0.625rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}

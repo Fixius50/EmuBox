@@ -1,0 +1,46 @@
+/* ==========================================================================
+   EMUBOX CONSOLE OS DESIGN SYSTEM - MASTER IMPORT ORCHESTRATOR
+   100% Relative Units (rem, em, clamp, %, vh, vw)
+   ========================================================================== */
+
+/* 1. Core Tokens, Colors & Fluid Scale */
+@import './variables.css';
+
+/* 2. Base Reset & Stage Container */
+@import './base.css';
+
+/* 3. Ambient Dynamic Backdrop */
+@import './ambient.css';
+
+/* 4. Top Dashboard Header */
+@import './header.css';
+
+/* 5. Cinematic Hero Banner */
+@import './hero.css';
+
+/* 6. Console Platform Ribbon */
+@import './ribbon.css';
+
+/* 7. Telemetry & Filter HUD */
+@import './hud.css';
+
+/* 8. 3D Perspective Shelf Grid & Cards */
+@import './shelf.css';
+
+/* 9. Console Modal Blades (Kobalte Dialogs) */
+@import './modals.css';
+
+/* 10. Console Settings Blades & Tabs (Kobalte) */
+@import './settings.css';
+
+/* 11. Emulators View */
+@import './emulators.css';
+
+/* 12. 3D Platform Wheel (No Cards) */
+@import './wheel.css';
+
+/* 13. Emulator Core Selector */
+@import './emulator-selector.css';
+
+/* 14. Keyframe Animations & Glow */
+@import './animations.css';

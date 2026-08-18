@@ -1,0 +1,38 @@
+/* ==========================================================================
+   ZONE 3: AMBIENT HERO CANVAS & BACKDROP LIGHTING
+   ========================================================================== */
+
+.ambient-backdrop-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ambient-backdrop-image {
+  position: absolute;
+  inset: -2.5rem;
+  background-size: cover;
+  background-position: center 25%;
+  filter: blur(2.8rem) saturate(1.6) brightness(0.45);
+  transform: scale(1.1);
+  transition: background-image 400ms cubic-bezier(0.16, 1, 0.3, 1), filter 400ms ease;
+  will-change: background-image;
+}
+
+.ambient-vignette-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 75% 20%, rgba(11, 15, 25, 0.2) 0%, rgba(5, 7, 10, 0.85) 60%, rgba(5, 7, 10, 0.98) 100%),
+              linear-gradient(to bottom, rgba(5, 7, 10, 0.4) 0%, rgba(5, 7, 10, 0.9) 70%, var(--bg-void) 100%);
+}
+
+.ambient-grid-mesh {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.015) 0.0625rem, transparent 0.0625rem),
+                    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 0.0625rem, transparent 0.0625rem);
+  background-size: 3.75rem 3.75rem;
+  opacity: 0.6;
+}

@@ -1,0 +1,26 @@
+{
+  "display": {
+    "resolution": "1920x1080",
+    "refreshRate": 60,
+    "fullscreen": true,
+    "vsync": true,
+    "crtShader": "none"
+  },
+  "audio": {
+    "masterVolume": 85,
+    "uiSoundEffects": true,
+    "outputDevice": "default"
+  },
+  "gamepad": {
+    "vibration": true,
+    "deadzone": 0.15,
+    "buttonLayout": "xbox",
+    "inputSource": "gamepad_api"
+  },
+  "system": {
+    "language": "es",
+    "theme": "obsidian-cyan",
+    "showFps": true,
+    "virtualization": false
+  }
+}

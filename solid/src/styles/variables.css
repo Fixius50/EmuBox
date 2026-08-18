@@ -1,0 +1,43 @@
+/* ==========================================================================
+   ZONE 1: DESIGN TOKENS & FLUID SCALE (COMPACT CONSOLE PROPORTIONS)
+   ========================================================================== */
+
+:root {
+  /* Fluid Base Typography Scale (Optimized for 1080p Console Stage) */
+  font-size: clamp(0.75rem, 0.75vw + 0.15vh, 0.9375rem);
+
+  /* Obsidian Depths & Void Backgrounds */
+  --bg-void: #05070a;
+  --bg-deep: #080c14;
+  --bg-surface-glass: rgba(15, 23, 42, 0.6);
+  --bg-surface-elevated: rgba(30, 41, 59, 0.7);
+  --bg-card: rgba(12, 17, 28, 0.88);
+  --bg-card-focused: rgba(22, 33, 56, 0.98);
+
+  /* Console Neon Accents */
+  --neon-cyan: #00f0ff;
+  --neon-cyan-glow: rgba(0, 240, 255, 0.45);
+  --neon-cyan-subtle: rgba(0, 240, 255, 0.12);
+  --neon-blue: #3b82f6;
+  --neon-purple: #8b5cf6;
+  --accent-amber: #f59e0b;
+  --accent-emerald: #10b981;
+  --accent-crimson: #ef4444;
+
+  /* Typography */
+  --font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --text-primary: #ffffff;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  /* Console Layout Proportions */
+  --header-height: 3.5rem;
+  --footer-height: 2.75rem;
+  --shelf-card-height: 12.5rem;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-radius-sm: 0.3125rem;
+  --border-radius-md: 0.5rem;
+  --border-radius-lg: 0.75rem;
+  --border-radius-xl: 1rem;
+}

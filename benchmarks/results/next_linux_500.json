@@ -1,0 +1,71 @@
+{
+  "testRunId": "run-official-next-500-linux",
+  "timestamp": "2026-08-17T21:41:30.339Z",
+  "framework": "Next.js 15",
+  "frameworkVersion": "15.1.0",
+  "platform": {
+    "os": "Arch Linux x86_64 (Kernel 6.10.x / Gamescope Session)",
+    "displayServer": "Wayland / DRM-KMS Direct",
+    "webview": "WebKitGTK 2.44.3",
+    "resolution": "1920x1080 @ 60Hz"
+  },
+  "datasetSize": 500,
+  "virtualizationEnabled": false,
+  "spatialNavMode": "agnostic",
+  "inputArchitecture": "gamepad_api",
+  "metrics": {
+    "startup": {
+      "timeToFirstInteractiveMs": 86.8,
+      "coldStartMs": 130.3
+    },
+    "frameStats": {
+      "fpsAverage": 57.8,
+      "fps1PercentLow": 41.5,
+      "frameTimeP50Ms": 16.7,
+      "frameTimeP95Ms": 19.8,
+      "frameTimeP99Ms": 27.2,
+      "framesAbove16_67ms": 68,
+      "framesAbove33_33ms": 7,
+      "framesAbove50ms": 1,
+      "totalFramesSampled": 1200,
+      "durationMs": 20000
+    },
+    "memory": {
+      "osProcessRssMb": 89.2,
+      "osPrivateWorkingSetMb": 69.6,
+      "jsHeapUsedMb": 32.1
+    },
+    "soakTest30Min": {
+      "rssMemoryDeltaMb": 1.8,
+      "fpsDegradationPercent": 0.13,
+      "activeListenersCount": 2,
+      "focusLossOccurrences": 0
+    },
+    "modalLeakTest500Cycles": {
+      "rssMemoryBeforeMb": 89.2,
+      "rssMemoryAfterMb": 90.2,
+      "retainedDetachedDomNodes": 0
+    },
+    "dataOperations": {
+      "itemCount": 10000,
+      "filterDurationMs": 2.7332000000000107,
+      "sortDurationMs": 0.3272999999999797
+    },
+    "bundle": {
+      "jsRawKb": 2132.5,
+      "jsGzipKb": 295.3,
+      "cssRawKb": 10,
+      "cssGzipKb": 2.7,
+      "tauriStandaloneBinaryMb": 14.8,
+      "installerPackageMb": 7.6,
+      "totalInstalledFootprintMb": 16.9
+    },
+    "maintainability": {
+      "linesOfCode": 775,
+      "fileCount": 11,
+      "cyclomaticComplexityScore": 2.1,
+      "extensionTestLocAdded": 28,
+      "extensionTestFrictionNotes": "Exportación estática funcional pero con peso extra de runtime de router y scripts de inicialización de framework."
+    }
+  }
+}
