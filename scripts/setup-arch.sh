@@ -11,6 +11,13 @@ REPO_URL="https://github.com/Fixius50/EmuBox.git"
 CALLER_USER="${SUDO_USER:-$USER}"
 
 # ------------------------------------------------------------------------------
+# Directorio de logs de instalacion
+# ------------------------------------------------------------------------------
+mkdir -p /var/log/emubox
+SETUP_LOG="/var/log/emubox/setup.log"
+exec > >(tee -a "${SETUP_LOG}") 2>&1
+
+# ------------------------------------------------------------------------------
 # Funciones de salida (Cero Emojis)
 # ------------------------------------------------------------------------------
 log_info() {
@@ -105,7 +112,20 @@ log_info "[4/9] Instalando toolchains de desarrollo (Node.js, npm, Rust)..."
 
 # Node.js + npm
 pacman -S --needed --noconfirm nodejs npm
-log_ok "Node.js: $(node --version) | npm: $(npm --version)"
+hash -r
+
+if ! command -v node >/dev/null 2>&1; then
+  log_error "Node.js no se ha instalado correctamente."
+  exit 1
+fi
+
+if ! command -v npm >/dev/null 2>&1; then
+  log_error "npm no se ha instalado correctamente."
+  exit 1
+fi
+
+log_ok "Node.js $(node --version)"
+log_ok "npm $(npm --version)"
 
 # Rust toolchain (pacman oficial o rustup)
 if ! command -v rustc >/dev/null 2>&1 || ! command -v cargo >/dev/null 2>&1; then
@@ -160,20 +180,42 @@ log_info "[6/9] Instalando dependencias y compilando EmuBox..."
 cd "${EMUBOX_DIR}"
 
 # --------------------------------------------------------------------------
-# Verificacion real de Node.js y npm
+# Diagnostico del entorno Node.js
 # --------------------------------------------------------------------------
+log_step "Diagnostico del entorno Node.js..."
+
+echo "PATH=${PATH}"
+echo "Usuario: $(whoami)"
+echo "Directorio: $(pwd)"
+
 if ! command -v node >/dev/null 2>&1; then
-  log_error "Node.js no esta disponible despues de la instalacion."
+  log_error "Node.js NO esta disponible."
   exit 1
 fi
 
 if ! command -v npm >/dev/null 2>&1; then
-  log_error "npm no esta disponible despues de la instalacion."
+  log_error "npm NO esta disponible."
   exit 1
 fi
 
-log_step "Node.js: $(node --version)"
-log_step "npm: $(npm --version)"
+echo "Node: $(command -v node)"
+echo "Node version: $(node --version)"
+echo "npm: $(command -v npm)"
+echo "npm version: $(npm --version)"
+
+if [[ ! -f package.json ]]; then
+  log_error "No existe package.json en ${EMUBOX_DIR}"
+  exit 1
+fi
+
+if ! npm run | grep -qE 'build'; then
+  log_error "El package.json no contiene ningun script build."
+  echo "Scripts disponibles:"
+  npm run
+  exit 1
+fi
+
+log_ok "Entorno Node.js verificado."
 
 # --------------------------------------------------------------------------
 # Dependencias del proyecto
@@ -376,4 +418,5 @@ echo "  Directorio de partidas:    ~/.local/share/emubox/saves"
 echo "  Comando de ejecucion:      emubox (ejecuta binario nativo Tauri)"
 echo "  Comando de actualizacion:  emubox-update"
 echo "  Autoarranque de consola:   Habilitado (${SERVICE_NAME})"
+echo "  Log completo de setup:     ${SETUP_LOG}"
 echo "==============================================================================="
