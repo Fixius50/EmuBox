@@ -28,12 +28,16 @@ fi
 log_step "Node.js: $(node --version)"
 log_step "npm: $(npm --version)"
 
-# 2. Dependencias npm (ocultando lineas redundantes de npm error)
+# 2. Dependencias npm (filtrando completamente cualquier linea con 'npm error')
 log_step "Instalando dependencias npm..."
 set +e
 if [[ -f package-lock.json ]]; then
   NPM_OUTPUT="$(npm ci --no-audit --no-fund 2>&1)"
   NPM_STATUS=$?
+  if [[ ${NPM_STATUS} -ne 0 ]]; then
+    NPM_OUTPUT="$(npm install --no-audit --no-fund 2>&1)"
+    NPM_STATUS=$?
+  fi
 else
   NPM_OUTPUT="$(npm install --no-audit --no-fund 2>&1)"
   NPM_STATUS=$?
@@ -41,7 +45,7 @@ fi
 set -e
 
 if [[ -n "${NPM_OUTPUT}" ]]; then
-  echo "${NPM_OUTPUT}" | grep -v -i "npm error" | grep -v -i "npm ERR!" || true
+  echo "${NPM_OUTPUT}" | grep -viE "(npm error|npm err|npm help)" || true
 fi
 
 if [[ ${NPM_STATUS} -ne 0 ]]; then
@@ -50,7 +54,7 @@ if [[ ${NPM_STATUS} -ne 0 ]]; then
 fi
 log_ok "Dependencias npm instaladas correctamente."
 
-# 3. Compilacion del Frontend SolidJS (ocultando lineas redundantes de npm error)
+# 3. Compilacion del Frontend SolidJS (filtrando completamente lineas de npm error)
 log_step "Compilando frontend SolidJS..."
 rm -rf solid/dist
 
@@ -60,7 +64,7 @@ BUILD_STATUS=$?
 set -e
 
 if [[ -n "${BUILD_OUTPUT}" ]]; then
-  echo "${BUILD_OUTPUT}" | grep -v -i "npm error" | grep -v -i "npm ERR!" || true
+  echo "${BUILD_OUTPUT}" | grep -viE "(npm error|npm err|npm help)" || true
 fi
 
 if [[ ${BUILD_STATUS} -ne 0 ]]; then
