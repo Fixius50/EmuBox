@@ -28,55 +28,48 @@ fi
 log_step "Node.js: $(node --version)"
 log_step "npm: $(npm --version)"
 
-# 2. Dependencias npm (silencioso y sin spam de terminal)
+# 2. Dependencias npm - SALIDA OCULTA
 log_step "Instalando dependencias npm..."
 
-NPM_TMP_LOG="/tmp/emubox-npm-install.log"
+NPM_LOG="/var/log/emubox/npm-install.log"
 
-set +e
 if [[ -f package-lock.json ]]; then
-  npm ci --no-audit --no-fund > "${NPM_TMP_LOG}" 2>&1
-  NPM_STATUS=$?
-  if [[ ${NPM_STATUS} -ne 0 ]]; then
-    npm install --no-audit --no-fund >> "${NPM_TMP_LOG}" 2>&1
+  if npm ci --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
+    log_ok "Dependencias npm instaladas correctamente."
+  else
     NPM_STATUS=$?
+    log_error "La instalacion de dependencias npm ha fallado."
+    log_error "Codigo de salida: ${NPM_STATUS}"
+    log_error "El detalle completo se ha guardado en: ${NPM_LOG}"
+    exit "${NPM_STATUS}"
   fi
 else
-  npm install --no-audit --no-fund > "${NPM_TMP_LOG}" 2>&1
-  NPM_STATUS=$?
+  if npm install --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
+    log_ok "Dependencias npm instaladas correctamente."
+  else
+    NPM_STATUS=$?
+    log_error "La instalacion de dependencias npm ha fallado."
+    log_error "Codigo de salida: ${NPM_STATUS}"
+    log_error "El detalle completo se ha guardado en: ${NPM_LOG}"
+    exit "${NPM_STATUS}"
+  fi
 fi
-set -e
 
-grep -viE \
-  "^(npm |npm error|npm err|npm help|npm verbose|npm notice|npm warn)|process exited with code|ENOENT" \
-  "${NPM_TMP_LOG}" || true
-
-if [[ ${NPM_STATUS} -ne 0 ]]; then
-  log_error "La instalacion de dependencias npm fallo."
-  exit "${NPM_STATUS}"
-fi
-log_ok "Dependencias npm instaladas correctamente."
-
-# 3. Compilacion del Frontend SolidJS (silencioso y sin spam de terminal)
+# 3. Compilacion del Frontend SolidJS - SALIDA OCULTA
 log_step "Compilando frontend SolidJS..."
 rm -rf solid/dist
 
-BUILD_TMP_LOG="/tmp/emubox-npm-build.log"
+BUILD_LOG="/var/log/emubox/npm-build.log"
 
-set +e
-npm run build > "${BUILD_TMP_LOG}" 2>&1
-BUILD_STATUS=$?
-set -e
-
-grep -viE \
-  "^(npm |npm error|npm err|npm help|npm verbose|npm notice|npm warn)|process exited with code|ENOENT" \
-  "${BUILD_TMP_LOG}" || true
-
-if [[ ${BUILD_STATUS} -ne 0 ]]; then
-  log_error "La compilacion del frontend fallo."
+if npm run build >"${BUILD_LOG}" 2>&1; then
+  log_ok "Frontend SolidJS compilado correctamente."
+else
+  BUILD_STATUS=$?
+  log_error "La compilacion del frontend ha fallado."
+  log_error "Codigo de salida: ${BUILD_STATUS}"
+  log_error "El detalle completo se ha guardado en: ${BUILD_LOG}"
   exit "${BUILD_STATUS}"
 fi
-log_ok "Frontend SolidJS compilado correctamente."
 
 # 4. Compilacion de Tauri (Release)
 OPT_BIN_DIR="/opt/emubox/bin"
