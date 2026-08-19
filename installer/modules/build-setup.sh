@@ -18,13 +18,8 @@ fi
 
 log_step "Compilando frontend SolidJS y empaquetando en binario Tauri (Release)..."
 
-cd "${ROOT_DIR}"
-
-if [[ -f "package-lock.json" ]]; then
-  npm ci
-else
-  npm install
-fi
+log_step "Instalando dependencias de Node.js..."
+npm install --no-audit --no-fund
 
 log_step "Generando bundle de producción (SolidJS)..."
 npm run build
