@@ -28,48 +28,53 @@ fi
 log_step "Node.js: $(node --version)"
 log_step "npm: $(npm --version)"
 
-# 2. Dependencias npm (filtrando completamente cualquier linea con 'npm error')
+# 2. Dependencias npm (silencioso y sin spam de terminal)
 log_step "Instalando dependencias npm..."
+
+NPM_TMP_LOG="/tmp/emubox-npm-install.log"
+
 set +e
 if [[ -f package-lock.json ]]; then
-  NPM_OUTPUT="$(npm ci --no-audit --no-fund 2>&1)"
+  npm ci --no-audit --no-fund > "${NPM_TMP_LOG}" 2>&1
   NPM_STATUS=$?
   if [[ ${NPM_STATUS} -ne 0 ]]; then
-    NPM_OUTPUT="$(npm install --no-audit --no-fund 2>&1)"
+    npm install --no-audit --no-fund >> "${NPM_TMP_LOG}" 2>&1
     NPM_STATUS=$?
   fi
 else
-  NPM_OUTPUT="$(npm install --no-audit --no-fund 2>&1)"
+  npm install --no-audit --no-fund > "${NPM_TMP_LOG}" 2>&1
   NPM_STATUS=$?
 fi
 set -e
 
-if [[ -n "${NPM_OUTPUT}" ]]; then
-  echo "${NPM_OUTPUT}" | grep -viE "(npm error|npm err|npm help)" || true
-fi
+grep -viE \
+  "^(npm |npm error|npm err|npm help|npm verbose|npm notice|npm warn)|process exited with code|ENOENT" \
+  "${NPM_TMP_LOG}" || true
 
 if [[ ${NPM_STATUS} -ne 0 ]]; then
-  log_error "La instalacion de dependencias npm fallo (codigo ${NPM_STATUS})."
-  exit ${NPM_STATUS}
+  log_error "La instalacion de dependencias npm fallo."
+  exit "${NPM_STATUS}"
 fi
 log_ok "Dependencias npm instaladas correctamente."
 
-# 3. Compilacion del Frontend SolidJS (filtrando completamente lineas de npm error)
+# 3. Compilacion del Frontend SolidJS (silencioso y sin spam de terminal)
 log_step "Compilando frontend SolidJS..."
 rm -rf solid/dist
 
+BUILD_TMP_LOG="/tmp/emubox-npm-build.log"
+
 set +e
-BUILD_OUTPUT="$(npm run build 2>&1)"
+npm run build > "${BUILD_TMP_LOG}" 2>&1
 BUILD_STATUS=$?
 set -e
 
-if [[ -n "${BUILD_OUTPUT}" ]]; then
-  echo "${BUILD_OUTPUT}" | grep -viE "(npm error|npm err|npm help)" || true
-fi
+grep -viE \
+  "^(npm |npm error|npm err|npm help|npm verbose|npm notice|npm warn)|process exited with code|ENOENT" \
+  "${BUILD_TMP_LOG}" || true
 
 if [[ ${BUILD_STATUS} -ne 0 ]]; then
-  log_error "La compilacion del frontend fallo (codigo ${BUILD_STATUS})."
-  exit ${BUILD_STATUS}
+  log_error "La compilacion del frontend fallo."
+  exit "${BUILD_STATUS}"
 fi
 log_ok "Frontend SolidJS compilado correctamente."
 
