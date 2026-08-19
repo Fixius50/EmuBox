@@ -19,109 +19,19 @@ fi
 
 cd "${ROOT_DIR}"
 
-# 1. Verificacion de Node.js y npm
-if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
-  log_error "Node.js o npm no estan disponibles en el sistema."
-  exit 1
-fi
+# 1. Compilación mediante el script centralizado build.sh
+chmod +x "${ROOT_DIR}/scripts/build.sh"
+bash "${ROOT_DIR}/scripts/build.sh"
 
-log_step "Node.js: $(node --version)"
-log_step "npm: $(npm --version)"
-
-# 2. Dependencias npm (npm ci / npm install silencioso)
-log_step "Instalando dependencias npm..."
-
-NPM_LOG="/var/log/emubox/npm-install.log"
-: > "${NPM_LOG}"
-
-if [[ -f package-lock.json ]]; then
-  log_step "package-lock.json detectado. Ejecutando npm ci..."
-  if npm ci --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
-    log_ok "npm ci completado correctamente."
-  else
-    NPM_STATUS=$?
-    log_warn "npm ci ha fallado. Se intentara npm install como alternativa."
-    if npm install --no-audit --no-fund >>"${NPM_LOG}" 2>&1; then
-      log_ok "npm install alternativo completado correctamente."
-    else
-      INSTALL_STATUS=$?
-      log_error "La instalacion de dependencias npm ha fallado (codigo ${INSTALL_STATUS})."
-      log_error "Consulta el log completo: ${NPM_LOG}"
-      echo ""
-      echo "Ultimas 30 lineas del error:"
-      tail -n 30 "${NPM_LOG}"
-      exit "${INSTALL_STATUS}"
-    fi
-  fi
-else
-  log_step "No existe package-lock.json. Ejecutando npm install..."
-  if npm install --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
-    log_ok "npm install completado correctamente."
-  else
-    INSTALL_STATUS=$?
-    log_error "npm install ha fallado (codigo ${INSTALL_STATUS})."
-    log_error "Consulta el log completo: ${NPM_LOG}"
-    echo ""
-    echo "Ultimas 30 lineas del error:"
-    tail -n 30 "${NPM_LOG}"
-    exit "${INSTALL_STATUS}"
-  fi
-fi
-
-# Preparacion de esbuild
-log_step "Preparando binarios nativos de esbuild..."
-ESBUILD_LOG="/var/log/emubox/npm-esbuild.log"
-: > "${ESBUILD_LOG}"
-
-if npm rebuild esbuild >>"${ESBUILD_LOG}" 2>&1; then
-  log_ok "esbuild preparado correctamente."
-else
-  ESBUILD_STATUS=$?
-  log_warn "npm rebuild esbuild ha fallado (log: ${ESBUILD_LOG})."
-fi
-
-log_ok "Dependencias npm preparadas."
-
-# 3. Compilacion del Frontend SolidJS - SALIDA OCULTA
-log_step "Compilando frontend SolidJS..."
-rm -rf solid/dist
-
-BUILD_LOG="/var/log/emubox/npm-build.log"
-
-if npm run build >"${BUILD_LOG}" 2>&1; then
-  log_ok "Frontend SolidJS compilado correctamente."
-else
-  BUILD_STATUS=$?
-  log_error "La compilacion del frontend ha fallado (codigo ${BUILD_STATUS})."
-  log_error "Log completo: ${BUILD_LOG}"
-  echo ""
-  echo "Ultimas 40 lineas del error:"
-  tail -n 40 "${BUILD_LOG}"
-  exit "${BUILD_STATUS}"
-fi
-
-# 4. Compilacion de Tauri (Release)
 OPT_BIN_DIR="/opt/emubox/bin"
 mkdir -p "${OPT_BIN_DIR}"
 TAURI_BINARY="${ROOT_DIR}/src-tauri/target/release/emubox"
+OPT_BIN="${OPT_BIN_DIR}/emubox"
 
-if [[ -x "${TAURI_BINARY}" ]]; then
-  log_ok "Binario Tauri existente detectado."
-else
-  log_step "Compilando EmuBox Tauri en modo release..."
-  cargo build --release --manifest-path "${ROOT_DIR}/src-tauri/Cargo.toml"
-
-  if [[ ! -x "${TAURI_BINARY}" ]]; then
-    log_error "Cargo termino pero no se encontro el binario: ${TAURI_BINARY}"
-    exit 1
-  fi
-  log_ok "Binario Tauri compilado correctamente."
+if [[ -f "${TAURI_BINARY}" ]]; then
+  cp -f "${TAURI_BINARY}" "${OPT_BIN}"
+  chmod +x "${OPT_BIN}"
 fi
-
-# 5. Copiar binario a ubicacion estable
-cp -f "${TAURI_BINARY}" "${OPT_BIN_DIR}/emubox"
-chmod +x "${OPT_BIN_DIR}/emubox"
-log_ok "Binario instalado en ${OPT_BIN_DIR}/emubox."
 
 # 6. Instalar ejecutable global en /usr/local/bin/emubox (ESTRICTO SIN FALLBACK)
 cat << 'EOF' > /usr/local/bin/emubox
@@ -154,18 +64,8 @@ cd "${EMUBOX_APP_DIR}"
 git fetch origin
 git pull --ff-only
 
-if [[ -f package-lock.json ]]; then
-  npm ci --no-audit --no-fund
-else
-  npm install --no-audit --no-fund
-fi
-
-npm run build
-cargo build --release --manifest-path "${EMUBOX_APP_DIR}/src-tauri/Cargo.toml"
-
-mkdir -p "${EMUBOX_APP_DIR}/bin"
-cp -f "${EMUBOX_APP_DIR}/src-tauri/target/release/emubox" "${EMUBOX_APP_DIR}/bin/emubox"
-chmod +x "${EMUBOX_APP_DIR}/bin/emubox"
+chmod +x "${EMUBOX_APP_DIR}/scripts/build.sh"
+bash "${EMUBOX_APP_DIR}/scripts/build.sh"
 
 echo "[OK] EmuBox actualizado correctamente en modo producción."
 EOF
