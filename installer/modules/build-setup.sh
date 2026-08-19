@@ -28,26 +28,59 @@ fi
 log_step "Node.js: $(node --version)"
 log_step "npm: $(npm --version)"
 
-# 2. Dependencias npm y aprobación de scripts (esbuild)
+# 2. Dependencias npm (npm ci / npm install silencioso)
 log_step "Instalando dependencias npm..."
 
 NPM_LOG="/var/log/emubox/npm-install.log"
+: > "${NPM_LOG}"
 
 if [[ -f package-lock.json ]]; then
-  if ! npm ci --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
-    npm install --no-audit --no-fund >>"${NPM_LOG}" 2>&1 || true
+  log_step "package-lock.json detectado. Ejecutando npm ci..."
+  if npm ci --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
+    log_ok "npm ci completado correctamente."
+  else
+    NPM_STATUS=$?
+    log_warn "npm ci ha fallado. Se intentara npm install como alternativa."
+    if npm install --no-audit --no-fund >>"${NPM_LOG}" 2>&1; then
+      log_ok "npm install alternativo completado correctamente."
+    else
+      INSTALL_STATUS=$?
+      log_error "La instalacion de dependencias npm ha fallado (codigo ${INSTALL_STATUS})."
+      log_error "Consulta el log completo: ${NPM_LOG}"
+      echo ""
+      echo "Ultimas 30 lineas del error:"
+      tail -n 30 "${NPM_LOG}"
+      exit "${INSTALL_STATUS}"
+    fi
   fi
 else
-  npm install --no-audit --no-fund >"${NPM_LOG}" 2>&1 || true
+  log_step "No existe package-lock.json. Ejecutando npm install..."
+  if npm install --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
+    log_ok "npm install completado correctamente."
+  else
+    INSTALL_STATUS=$?
+    log_error "npm install ha fallado (codigo ${INSTALL_STATUS})."
+    log_error "Consulta el log completo: ${NPM_LOG}"
+    echo ""
+    echo "Ultimas 30 lineas del error:"
+    tail -n 30 "${NPM_LOG}"
+    exit "${INSTALL_STATUS}"
+  fi
 fi
 
-# Gestionar politica de scripts de instalacion de npm (esbuild)
-if command -v npm >/dev/null 2>&1; then
-  npm install-scripts approve esbuild >>"${NPM_LOG}" 2>&1 || true
-  npm rebuild esbuild >>"${NPM_LOG}" 2>&1 || true
+# Preparacion de esbuild
+log_step "Preparando binarios nativos de esbuild..."
+ESBUILD_LOG="/var/log/emubox/npm-esbuild.log"
+: > "${ESBUILD_LOG}"
+
+if npm rebuild esbuild >>"${ESBUILD_LOG}" 2>&1; then
+  log_ok "esbuild preparado correctamente."
+else
+  ESBUILD_STATUS=$?
+  log_warn "npm rebuild esbuild ha fallado (log: ${ESBUILD_LOG})."
 fi
 
-log_ok "Dependencias npm y binarios de esbuild preparados correctamente."
+log_ok "Dependencias npm preparadas."
 
 # 3. Compilacion del Frontend SolidJS - SALIDA OCULTA
 log_step "Compilando frontend SolidJS..."
@@ -59,9 +92,11 @@ if npm run build >"${BUILD_LOG}" 2>&1; then
   log_ok "Frontend SolidJS compilado correctamente."
 else
   BUILD_STATUS=$?
-  log_error "La compilacion del frontend ha fallado."
-  log_error "Codigo de salida: ${BUILD_STATUS}"
-  log_error "El detalle completo se ha guardado en: ${BUILD_LOG}"
+  log_error "La compilacion del frontend ha fallado (codigo ${BUILD_STATUS})."
+  log_error "Log completo: ${BUILD_LOG}"
+  echo ""
+  echo "Ultimas 40 lineas del error:"
+  tail -n 40 "${BUILD_LOG}"
   exit "${BUILD_STATUS}"
 fi
 

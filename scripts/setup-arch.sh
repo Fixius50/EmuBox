@@ -215,32 +215,94 @@ fi
 
 log_ok "Entorno Node.js verificado."
 
-# --------------------------------------------------------------------------
-# Instalación de dependencias npm y aprobación de scripts (esbuild)
-# --------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# npm ci / npm install
+# Toda la salida de npm queda almacenada en el log.
+# No se muestra directamente en pantalla.
+# ------------------------------------------------------------------------------
 log_step "Instalando dependencias npm..."
 
 NPM_LOG="/var/log/emubox/npm-install.log"
 
+# Limpiar log anterior
+: > "${NPM_LOG}"
+
 if [[ -f package-lock.json ]]; then
-  if ! npm ci --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
-    npm install --no-audit --no-fund >>"${NPM_LOG}" 2>&1 || true
+
+  log_step "package-lock.json detectado. Ejecutando npm ci..."
+
+  if npm ci --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
+    log_ok "npm ci completado correctamente."
+  else
+    NPM_STATUS=$?
+
+    log_warn "npm ci ha fallado. Se intentara npm install como alternativa."
+
+    if npm install --no-audit --no-fund >>"${NPM_LOG}" 2>&1; then
+      log_ok "npm install alternativo completado correctamente."
+    else
+      INSTALL_STATUS=$?
+
+      log_error "La instalacion de dependencias npm ha fallado."
+      log_error "Codigo de salida: ${INSTALL_STATUS}"
+      log_error "Consulta el log completo:"
+      log_error "${NPM_LOG}"
+
+      echo ""
+      echo "Ultimas 30 lineas del error:"
+      tail -n 30 "${NPM_LOG}"
+
+      exit "${INSTALL_STATUS}"
+    fi
   fi
+
 else
-  npm install --no-audit --no-fund >"${NPM_LOG}" 2>&1 || true
+
+  log_step "No existe package-lock.json. Ejecutando npm install..."
+
+  if npm install --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
+    log_ok "npm install completado correctamente."
+  else
+    INSTALL_STATUS=$?
+
+    log_error "npm install ha fallado."
+    log_error "Codigo de salida: ${INSTALL_STATUS}"
+    log_error "Consulta el log completo:"
+    log_error "${NPM_LOG}"
+
+    echo ""
+    echo "Ultimas 30 lineas del error:"
+    tail -n 30 "${NPM_LOG}"
+
+    exit "${INSTALL_STATUS}"
+  fi
+
 fi
 
-# Gestionar politica de scripts de instalacion de npm (esbuild)
-if command -v npm >/dev/null 2>&1; then
-  npm install-scripts approve esbuild >>"${NPM_LOG}" 2>&1 || true
-  npm rebuild esbuild >>"${NPM_LOG}" 2>&1 || true
+# ------------------------------------------------------------------------------
+# Preparacion de esbuild
+# ------------------------------------------------------------------------------
+
+log_step "Preparando binarios nativos de esbuild..."
+
+ESBUILD_LOG="/var/log/emubox/npm-esbuild.log"
+: > "${ESBUILD_LOG}"
+
+if npm rebuild esbuild >>"${ESBUILD_LOG}" 2>&1; then
+  log_ok "esbuild preparado correctamente."
+else
+  ESBUILD_STATUS=$?
+
+  log_warn "npm rebuild esbuild ha fallado."
+  log_warn "Esto no detendra la instalacion en este momento."
+  log_warn "Log: ${ESBUILD_LOG}"
 fi
 
-log_ok "Dependencias npm y binarios de compilacion preparados correctamente."
+log_ok "Dependencias npm preparadas."
 
-# --------------------------------------------------------------------------
-# Compilación frontend - SALIDA OCULTA
-# --------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# Compilacion frontend - SALIDA OCULTA
+# ------------------------------------------------------------------------------
 log_step "Compilando frontend SolidJS..."
 
 rm -rf solid/dist
@@ -251,10 +313,15 @@ if npm run build >"${BUILD_LOG}" 2>&1; then
   log_ok "Frontend SolidJS compilado correctamente."
 else
   BUILD_STATUS=$?
-  log_error "La compilación del frontend ha fallado."
-  log_error "Código de salida: ${BUILD_STATUS}"
-  log_error "El detalle completo se ha guardado en:"
-  log_error "${BUILD_LOG}"
+
+  log_error "La compilacion del frontend ha fallado."
+  log_error "Codigo de salida: ${BUILD_STATUS}"
+  log_error "Log completo: ${BUILD_LOG}"
+
+  echo ""
+  echo "Ultimas 40 lineas del error:"
+  tail -n 40 "${BUILD_LOG}"
+
   exit "${BUILD_STATUS}"
 fi
 
