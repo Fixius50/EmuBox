@@ -10,6 +10,14 @@ if [[ ! -d "${EMUBOX_DIR}" ]]; then
   EMUBOX_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fi
 
+# Instalar sudo de forma inmediata si no está presente
+if ! command -v sudo >/dev/null 2>&1 && command -v pacman >/dev/null 2>&1 && [[ $EUID -eq 0 ]]; then
+  echo "--> sudo no detectado. Instalando sudo automaticamente con pacman..."
+  pacman -Sy --needed --noconfirm sudo || true
+  hash -r
+  echo "[OK] sudo instalado."
+fi
+
 echo "==============================================================================="
 echo "  EMUBOX: DIAGNOSTICO DE ENTORNO Y REGISTRO DE ERRORES DE NPM"
 echo "==============================================================================="

@@ -51,10 +51,22 @@ if [[ ! -f /etc/arch-release ]]; then
   exit 1
 fi
 
+# Instalar sudo de forma inmediata si no está presente
+if ! command -v sudo >/dev/null 2>&1 && command -v pacman >/dev/null 2>&1 && [[ $EUID -eq 0 ]]; then
+  log_step "sudo no detectado en el sistema. Instalando sudo con pacman..."
+  pacman -Sy --needed --noconfirm sudo || true
+  hash -r
+  log_ok "sudo instalado correctamente."
+fi
+
 if [[ $EUID -ne 0 ]]; then
-  log_error "Este script unificado requiere permisos de root para instalar dependencias."
-  echo "Por favor, ejecutalo con sudo:"
-  echo "  sudo ./scripts/setup-arch.sh"
+  if command -v sudo >/dev/null 2>&1; then
+    log_error "Este script requiere permisos de root para instalar dependencias."
+    echo "Por favor, ejecutalo con sudo:"
+    echo "  sudo ./scripts/setup-arch.sh"
+  else
+    log_error "Este script requiere permisos de root. Ejecutalo como root (ej. su - o inicio de sesion root)."
+  fi
   exit 1
 fi
 
@@ -78,6 +90,7 @@ log_ok "Repositorios sincronizados."
 log_info "[2/9] Instalando herramientas de compilacion del sistema..."
 COMPILATION_PACKAGES=(
   base-devel
+  sudo
   git
   curl
   wget
@@ -91,7 +104,7 @@ COMPILATION_PACKAGES=(
 )
 
 pacman -S --needed --noconfirm "${COMPILATION_PACKAGES[@]}"
-log_ok "Herramientas de compilacion instaladas."
+log_ok "Herramientas de compilacion y sudo instaladas."
 
 # ------------------------------------------------------------------------------
 # 4. Dependencias graficas y runtime de Tauri v2
