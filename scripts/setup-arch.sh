@@ -161,22 +161,16 @@ log_info "[6/9] Instalando dependencias y compilando EmuBox en modo producción.
 cd "${EMUBOX_DIR}"
 
 if [[ -n "${CALLER_USER}" && "${CALLER_USER}" != "root" ]]; then
-  if [[ -f "package-lock.json" ]]; then
-    sudo -u "${CALLER_USER}" npm ci
-  else
-    sudo -u "${CALLER_USER}" npm install
-  fi
+  log_step "Instalando dependencias npm..."
+  sudo -u "${CALLER_USER}" npm install --no-audit --no-fund
   log_step "Compilando frontend SolidJS..."
   sudo -u "${CALLER_USER}" npm run build
 
   log_step "Compilando binario nativo Tauri (Release)..."
   sudo -u "${CALLER_USER}" cargo build --release --manifest-path src-tauri/Cargo.toml
 else
-  if [[ -f "package-lock.json" ]]; then
-    npm ci
-  else
-    npm install
-  fi
+  log_step "Instalando dependencias npm..."
+  npm install --no-audit --no-fund
   log_step "Compilando frontend SolidJS..."
   npm run build
 
@@ -248,11 +242,7 @@ cd "${EMUBOX_APP_DIR}"
 git fetch origin
 git pull --ff-only
 
-if [[ -f "package-lock.json" ]]; then
-  npm ci
-else
-  npm install
-fi
+npm install --no-audit --no-fund
 
 npm run build
 cargo build --release --manifest-path src-tauri/Cargo.toml
