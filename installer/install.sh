@@ -33,7 +33,10 @@ main() {
   # 6. Gamescope compositor configuration
   bash "${SCRIPT_DIR}/modules/gamescope-setup.sh"
 
-  # 7. Desktop integration & autostart
+  # 7. Native Production Build (SolidJS + Tauri release binary)
+  bash "${SCRIPT_DIR}/modules/build-setup.sh"
+
+  # 8. Desktop integration & autostart
   bash "${SCRIPT_DIR}/modules/autostart-setup.sh"
 
   echo ""

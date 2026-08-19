@@ -102,21 +102,20 @@ function showMenu() {
      🎮  EMUBOX CONSOLE LAUNCHER (SOLIDJS 1.9 + KOBALTE)  🎮
   ===================================================================
   `)));
-  console.log(bold('  Selecciona una opción:\n'));
-
-  console.log(`  ${green(bold('[1]'))} ${bold('Iniciar EmuBox Console UI')}  ${dim('(http://localhost:3001 - 1080p Stage)')}`);
-  console.log(`  ${magenta(bold('[2]'))} ${bold('Ejecutar Test Suite F3')}     ${dim('(18 pruebas automatizadas de arquitectura)')}`);
-  console.log(`  ${yellow(bold('[3]'))} ${bold('Compilar Build Producción')}  ${dim('(npm run build - 55 KB gzip)')}\n`);
+  console.log(`  ${green(bold('[1]'))} ${bold('Iniciar EmuBox Modo Desarrollo')}  ${dim('(Vite http://localhost:3001 - HMR)')}`);
+  console.log(`  ${magenta(bold('[2]'))} ${bold('Ejecutar Test Suite F3')}         ${dim('(34 pruebas automatizadas de arquitectura)')}`);
+  console.log(`  ${yellow(bold('[3]'))} ${bold('Compilar Frontend SolidJS')}     ${dim('(npm run build - dist/)')}`);
+  console.log(`  ${cyan(bold('[4]'))} ${bold('Compilar Binario Tauri (Prod)')}  ${dim('(cargo build --release)')}\n`);
 
   console.log(`  ${dim('[0]')} ${dim('Salir (o presiona Ctrl+C / Esc)')}\n`);
   
-  process.stdout.write(cyan(bold('  👉 Introduce tu opción (0-3): ')));
+  process.stdout.write(cyan(bold('  Introduce tu opción (0-4): ')));
 }
 
 process.stdin.on('data', (data) => {
   if (!isRunningApp) {
     const input = data.toString().trim();
-    if (['1', '2', '3', '0'].includes(input)) {
+    if (['1', '2', '3', '4', '0'].includes(input)) {
       handleChoice(input);
     }
   }
@@ -173,6 +172,9 @@ function handleChoice(choice) {
       break;
     case '3':
       runNpmScript('build', 'Compilación de Producción (SolidJS)', null);
+      break;
+    case '4':
+      runNpmScript('tauri:build', 'Compilación de Binario Nativo Tauri (Producción)', null);
       break;
     case '0':
       handleCleanExit();

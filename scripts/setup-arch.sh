@@ -154,9 +154,9 @@ fi
 log_ok "Codigo de EmuBox preparado en ${EMUBOX_DIR}."
 
 # ------------------------------------------------------------------------------
-# 7. Instalacion de dependencias npm y compilacion de produccion
+# 7. Instalacion de dependencias npm y compilacion de produccion (Frontend + Tauri)
 # ------------------------------------------------------------------------------
-log_info "[6/9] Instalando dependencias npm y compilando interfaz..."
+log_info "[6/9] Instalando dependencias y compilando EmuBox en modo producción..."
 
 cd "${EMUBOX_DIR}"
 
@@ -166,17 +166,31 @@ if [[ -n "${CALLER_USER}" && "${CALLER_USER}" != "root" ]]; then
   else
     sudo -u "${CALLER_USER}" npm install
   fi
+  log_step "Compilando frontend SolidJS..."
   sudo -u "${CALLER_USER}" npm run build
+
+  log_step "Compilando binario nativo Tauri (Release)..."
+  sudo -u "${CALLER_USER}" cargo build --release --manifest-path src-tauri/Cargo.toml
 else
   if [[ -f "package-lock.json" ]]; then
     npm ci
   else
     npm install
   fi
+  log_step "Compilando frontend SolidJS..."
   npm run build
+
+  log_step "Compilando binario nativo Tauri (Release)..."
+  cargo build --release --manifest-path src-tauri/Cargo.toml
 fi
 
-log_ok "Compilacion de interfaz completada con exito."
+mkdir -p "${EMUBOX_DIR}/bin"
+if [[ -f "${EMUBOX_DIR}/src-tauri/target/release/emubox" ]]; then
+  cp "${EMUBOX_DIR}/src-tauri/target/release/emubox" "${EMUBOX_DIR}/bin/emubox"
+  chmod +x "${EMUBOX_DIR}/bin/emubox"
+fi
+
+log_ok "Compilacion nativa de EmuBox completada con exito."
 
 # ------------------------------------------------------------------------------
 # 8. Creacion de la infraestructura de datos y comandos ejecutables
@@ -207,12 +221,16 @@ cat << 'EOF' > /usr/local/bin/emubox
 set -euo pipefail
 
 EMUBOX_APP_DIR="/opt/emubox"
-cd "${EMUBOX_APP_DIR}"
+EMUBOX_BIN="${EMUBOX_APP_DIR}/bin/emubox"
 
-if [[ -f "${EMUBOX_APP_DIR}/src-tauri/target/release/emubox" ]]; then
+if [[ -x "${EMUBOX_BIN}" ]]; then
+  exec "${EMUBOX_BIN}" "$@"
+elif [[ -x "${EMUBOX_APP_DIR}/src-tauri/target/release/emubox" ]]; then
   exec "${EMUBOX_APP_DIR}/src-tauri/target/release/emubox" "$@"
 else
-  exec npm run dev "$@"
+  echo "[ERROR] El binario de producción de EmuBox no se encuentra compilado." >&2
+  echo "Ejecuta 'emubox-update' para compilar el binario nativo." >&2
+  exit 1
 fi
 EOF
 chmod +x /usr/local/bin/emubox
@@ -237,7 +255,13 @@ else
 fi
 
 npm run build
-echo "[OK] EmuBox actualizado correctamente."
+cargo build --release --manifest-path src-tauri/Cargo.toml
+
+mkdir -p "${EMUBOX_APP_DIR}/bin"
+cp "${EMUBOX_APP_DIR}/src-tauri/target/release/emubox" "${EMUBOX_APP_DIR}/bin/emubox"
+chmod +x "${EMUBOX_APP_DIR}/bin/emubox"
+
+echo "[OK] EmuBox compilado y actualizado en modo producción."
 EOF
 chmod +x /usr/local/bin/emubox-update
 ln -sf /usr/local/bin/emubox-update /usr/bin/emubox-update
