@@ -273,25 +273,53 @@ log_ok "sudo configurado correctamente."
 # 7. TOOLCHAINS NODE / NPM / RUST
 # ------------------------------------------------------------------------------
 
-log_info "[7/15] Instalando Node.js, npm y Rust..."
+log_info "[7/15] Instalando y configurando Node.js, npm y Rust..."
 
 pacman -S --needed --noconfirm \
     nodejs \
-    npm \
-    rust \
-    cargo
+    npm
+
+# Configuracion de Rust mediante rustup y toolchain estable
+log_step "Configurando toolchain estable de Rust..."
+
+if ! command -v rustup >/dev/null 2>&1; then
+    log_step "rustup no esta instalado. Instalando rustup via pacman..."
+    pacman -S --needed --noconfirm rustup || pacman -S --needed --noconfirm rust cargo
+fi
+
+export PATH="${HOME}/.cargo/bin:/usr/local/bin:${PATH}"
+
+if [[ -f "${HOME}/.cargo/env" ]]; then
+    # shellcheck source=/dev/null
+    . "${HOME}/.cargo/env"
+fi
+
+if command -v rustup >/dev/null 2>&1; then
+    if ! rustup toolchain list 2>/dev/null | grep -q '^stable'; then
+        log_step "Instalando toolchain estable de Rust..."
+        rustup toolchain install stable
+    fi
+
+    rustup default stable
+
+    # Configurar también para el usuario de compilación si es distinto de root
+    if [[ -n "${EMUBOX_USER:-}" && "${EMUBOX_USER}" != "root" ]] && id "${EMUBOX_USER}" >/dev/null 2>&1; then
+        runuser -u "${EMUBOX_USER}" -- env PATH="/home/${EMUBOX_USER}/.cargo/bin:${PATH}" rustup default stable 2>/dev/null || true
+    fi
+fi
 
 hash -r
 
-command -v node >/dev/null || die "Node.js no esta disponible."
-command -v npm >/dev/null || die "npm no esta disponible."
-command -v rustc >/dev/null || die "rustc no esta disponible."
-command -v cargo >/dev/null || die "cargo no esta disponible."
+command -v node >/dev/null 2>&1 || die "Node.js no esta disponible despues de la instalacion."
+command -v npm >/dev/null 2>&1 || die "npm no esta disponible despues de la instalacion."
+command -v rustc >/dev/null 2>&1 || die "rustc no esta disponible despues de configurar Rust."
+command -v cargo >/dev/null 2>&1 || die "cargo no esta disponible despues de configurar Rust."
 
 log_ok "Node.js: $(node --version)"
 log_ok "npm: $(npm --version)"
 log_ok "Rust: $(rustc --version)"
 log_ok "Cargo: $(cargo --version)"
+log_ok "Toolchain Rust estable configurado correctamente."
 
 # ------------------------------------------------------------------------------
 # 8. DEPENDENCIAS GRAFICAS TAURI

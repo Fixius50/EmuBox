@@ -116,6 +116,21 @@ fi
 # ------------------------------------------------------------------------------
 # 5. Compilacion del binario nativo Tauri (Release)
 # ------------------------------------------------------------------------------
+export PATH="${HOME}/.cargo/bin:/usr/local/bin:${PATH}"
+if [[ -f "${HOME}/.cargo/env" ]]; then
+  # shellcheck source=/dev/null
+  . "${HOME}/.cargo/env"
+fi
+
+if command -v rustup >/dev/null 2>&1; then
+  rustup default stable >/dev/null 2>&1 || true
+fi
+
+if ! command -v rustc >/dev/null 2>&1 || ! command -v cargo >/dev/null 2>&1; then
+  log_error "El compilador Rust (rustc) o Cargo no estan disponibles en el PATH."
+  exit 1
+fi
+
 mkdir -p "${EMUBOX_DIR}/bin"
 TAURI_BINARY="${EMUBOX_DIR}/src-tauri/target/release/emubox"
 CARGO_LOG="${LOG_DIR}/cargo-build.log"
@@ -124,7 +139,7 @@ CARGO_LOG="${LOG_DIR}/cargo-build.log"
 if [[ -x "${TAURI_BINARY}" ]]; then
   log_ok "Binario Tauri existente detectado."
 else
-  log_step "Compilando EmuBox Tauri en modo release..."
+  log_step "Compilando EmuBox Tauri en modo release (Rust: $(rustc --version))..."
   if cargo build --release --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" >"${CARGO_LOG}" 2>&1; then
     log_ok "Binario Tauri compilado correctamente."
   else
