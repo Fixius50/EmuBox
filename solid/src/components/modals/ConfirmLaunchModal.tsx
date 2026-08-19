@@ -1,13 +1,6 @@
 import { Component, Show } from 'solid-js';
 import { Dialog } from '@kobalte/core/dialog';
-import type { Game } from '@contracts/game.types';
-
-interface ConfirmLaunchModalProps {
-  game: Game | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirmLaunch: (game: Game) => void;
-}
+import type { ConfirmLaunchModalProps } from '@contracts/modal.types';
 
 export const ConfirmLaunchModal: Component<ConfirmLaunchModalProps> = (props) => {
   return (
@@ -20,7 +13,7 @@ export const ConfirmLaunchModal: Component<ConfirmLaunchModalProps> = (props) =>
               {(g) => (
                 <div class="confirm-launch-box">
                   <div class="launch-header-row">
-                    <div class="launch-pulse-icon">▶</div>
+                    <div class="launch-pulse-icon">RUN</div>
                     <div>
                       <Dialog.Title class="blade-game-title" style={{ "font-size": '1.5rem', "margin-bottom": '0.25rem' }}>
                         Iniciar Sesión de Emulación
@@ -42,7 +35,7 @@ export const ConfirmLaunchModal: Component<ConfirmLaunchModalProps> = (props) =>
 
                   <div class="terminal-command-dock">
                     <span class="dock-cmd-label">COMANDO DE ARRANQUE GENERADO:</span>
-                    <span class="dock-cmd-code">gamescope -W 1920 -H 1080 -f -r 60 -- retroarch -L {g().emulatorId} "{g().title}.rom"</span>
+                    <span class="dock-cmd-code">gamescope -W 1920 -H 1080 -f -r 60 -- retroarch -L {g().platform} "{g().romPath || `${g().title}.rom`}"</span>
                   </div>
 
                   <div class="blade-action-buttons">
@@ -51,7 +44,7 @@ export const ConfirmLaunchModal: Component<ConfirmLaunchModalProps> = (props) =>
                       id="btn-confirm-exec"
                       onClick={() => props.onConfirmLaunch(g())}
                     >
-                      <span>LANZAR JUEGO AHORA (A)</span>
+                      <span>[A] LANZAR JUEGO AHORA</span>
                     </button>
 
                     <button
@@ -59,7 +52,7 @@ export const ConfirmLaunchModal: Component<ConfirmLaunchModalProps> = (props) =>
                       id="btn-cancel-exec"
                       onClick={props.onClose}
                     >
-                      <span>CANCELAR (B)</span>
+                      <span>[B] CANCELAR</span>
                     </button>
                   </div>
                 </div>

@@ -108,29 +108,29 @@ export class KeyboardProvider implements IInputProvider {
     const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
 
     if (isInput) {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        target.blur();
-        return;
+      switch (e.key) {
+        case 'Escape':
+          e.preventDefault();
+          target.blur();
+          return;
+        case 'Enter':
+          e.preventDefault();
+          target.blur();
+          for (const listener of this.actionListeners) {
+            listener('NAV_DOWN');
+          }
+          return;
+        case 'ArrowDown':
+        case 'ArrowUp':
+          e.preventDefault();
+          target.blur();
+          for (const listener of this.actionListeners) {
+            listener(e.key === 'ArrowDown' ? 'NAV_DOWN' : 'NAV_UP');
+          }
+          return;
+        default:
+          return;
       }
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        target.blur();
-        for (const listener of this.actionListeners) {
-          listener('NAV_DOWN');
-        }
-        return;
-      }
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        target.blur();
-        for (const listener of this.actionListeners) {
-          listener(e.key === 'ArrowDown' ? 'NAV_DOWN' : 'NAV_UP');
-        }
-        return;
-      }
-      // Permitir escritura normal para el resto de teclas mientras se edita el input
-      return;
     }
 
     if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'F12')) {

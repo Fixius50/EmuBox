@@ -1,28 +1,17 @@
 import { Component } from 'solid-js';
 import { Slider } from '@kobalte/core/slider';
-
-interface SettingSliderProps {
-  id: string;
-  title: string;
-  description: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  valueSuffix?: string;
-  onChange: (val: number) => void;
-}
+import type { SettingSliderProps } from '@contracts/common.types';
 
 export const SettingSlider: Component<SettingSliderProps> = (props) => {
   return (
-    <div class="setting-item-row vertical" id={props.id}>
-      <div class="setting-header-pane">
+    <div class={`setting-card-row vertical ${props.isFocused ? 'focused' : ''}`}>
+      <div class="setting-header-pane" style={{ display: 'flex', 'justify-content': 'space-between', 'align-items': 'center', width: '100%' }}>
         <div>
           <div class="setting-title">{props.title}</div>
           <div class="setting-desc">{props.description}</div>
         </div>
         <div class="setting-value-badge">
-          {props.value}{props.valueSuffix || ''}
+          {props.value}{props.unit || ''}
         </div>
       </div>
 
@@ -31,8 +20,9 @@ export const SettingSlider: Component<SettingSliderProps> = (props) => {
         onChange={(vals) => props.onChange(vals[0])}
         minValue={props.min}
         maxValue={props.max}
-        step={props.step}
+        step={1}
         class="kobalte-slider-root"
+        style={{ width: '100%', 'margin-top': '0.75rem' }}
       >
         <Slider.Track class="slider-track">
           <Slider.Fill class="slider-fill" />

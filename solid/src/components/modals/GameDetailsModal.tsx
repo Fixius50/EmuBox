@@ -1,14 +1,6 @@
 import { Component, Show } from 'solid-js';
 import { Dialog } from '@kobalte/core/dialog';
-import type { Game } from '@contracts/game.types';
-
-interface GameDetailsModalProps {
-  game: Game | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onLaunch: (game: Game) => void;
-  onToggleFavorite: (id: string) => void;
-}
+import type { GameDetailsModalProps } from '@contracts/modal.types';
 
 export const GameDetailsModal: Component<GameDetailsModalProps> = (props) => {
   return (
@@ -65,8 +57,7 @@ export const GameDetailsModal: Component<GameDetailsModalProps> = (props) => {
                         id="btn-play-game"
                         onClick={() => props.onLaunch(g())}
                       >
-                        <span class="btn-icon">▶</span>
-                        <span>JUGAR AHORA (A)</span>
+                        <span>[A] JUGAR AHORA</span>
                       </button>
 
                       <button
@@ -82,7 +73,7 @@ export const GameDetailsModal: Component<GameDetailsModalProps> = (props) => {
                         id="btn-close-modal"
                         onClick={props.onClose}
                       >
-                        <span>CERRAR (B)</span>
+                        <span>[B] CERRAR</span>
                       </button>
                     </div>
                   </div>

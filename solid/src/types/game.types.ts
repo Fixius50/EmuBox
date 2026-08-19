@@ -53,6 +53,8 @@ export interface Emulator {
   arguments: string[];
 }
 
+export type PerformanceMode = 'high-performance' | 'balanced' | 'power-saver' | 'ultra-boost';
+
 export interface SystemSettings {
   display: {
     resolution: '1920x1080' | '3840x2160' | '1280x720' | string;
@@ -78,7 +80,7 @@ export interface SystemSettings {
     defaultPlatform: PlatformId;
   };
   system?: {
-    performanceMode?: 'high-performance' | 'balanced' | 'power-saver' | 'ultra-boost';
+    performanceMode?: PerformanceMode;
     vramLimit?: string;
     showFps?: boolean;
   };

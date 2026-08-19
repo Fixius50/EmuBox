@@ -1,15 +1,7 @@
 import { Component, For, Show, createSignal, createEffect } from 'solid-js';
 import { Dialog } from '@kobalte/core/dialog';
 import { animateModalOpen } from '@animations/modal-animations';
-import type { Game, Emulator } from '@contracts/game.types';
-
-interface EmulatorSelectorModalProps {
-  game: Game | null;
-  emulators: Emulator[];
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirmLaunch: (game: Game, emulator: Emulator) => void;
-}
+import type { EmulatorSelectorModalProps } from '@contracts/modal.types';
 
 export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (props) => {
   const [selectedEmulatorId, setSelectedEmulatorId] = createSignal<string>('');
@@ -118,8 +110,7 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (pro
                           }
                         }}
                       >
-                        <span class="btn-icon">▶</span>
-                        <span>EJECUTAR CON {selectedEmulator()?.name.toUpperCase() || 'EMULADOR'} (A)</span>
+                        <span>[A] EJECUTAR CON {selectedEmulator()?.name.toUpperCase() || 'EMULADOR'}</span>
                       </button>
 
                       <button
@@ -127,7 +118,7 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (pro
                         id="btn-cancel-core-select"
                         onClick={props.onClose}
                       >
-                        <span>VOLVER (B)</span>
+                        <span>[B] VOLVER</span>
                       </button>
                     </div>
                   </div>

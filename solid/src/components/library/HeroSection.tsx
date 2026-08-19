@@ -59,8 +59,7 @@ export const HeroSection: Component<HeroSectionProps> = (props) => {
                   id="btn-hero-play"
                   onClick={() => props.onPlayGame(game())}
                 >
-                  <span class="btn-play-triangle">▶</span>
-                  <span>JUGAR AHORA (A)</span>
+                  <span>[A] JUGAR AHORA</span>
                 </button>
 
                 <button
@@ -72,12 +71,12 @@ export const HeroSection: Component<HeroSectionProps> = (props) => {
                 </button>
 
                 <button
-                  class="hero-cta-btn icon-only-btn"
+                  class="hero-cta-btn secondary-btn"
                   id="btn-hero-fav"
                   title="Alternar Favorito"
                   onClick={() => props.onToggleFavorite(game().id)}
                 >
-                  <span>{game().favorite ? '★' : '☆'}</span>
+                  <span>[X] {game().favorite ? 'FAVORITO' : 'AÑADIR A FAVORITOS'}</span>
                 </button>
               </div>
             </div>

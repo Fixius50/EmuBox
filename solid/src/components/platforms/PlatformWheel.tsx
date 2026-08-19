@@ -1,37 +1,10 @@
-import { Component, For, createMemo, onMount, createEffect } from 'solid-js';
+import { Component, For, onMount, createEffect, Show } from 'solid-js';
 import { animateScreenEnter, animateCameraZoomIntoLibrary, animateWaterEmergence } from '@animations/screen-transitions';
 import { animateActiveCardBadgeEntrance, animateConsoleCardSwitch } from '@animations/wheel-animations';
-import type { Platform, PlatformId, Game } from '@contracts/game.types';
-import type { AppSection } from '@contracts/navigation.types';
+import type { PlatformWheelProps, WheelItem } from '@contracts/wheel.types';
+import { usePlatformWheelLayout } from './usePlatformWheelLayout';
 
-export interface PlatformWheelHandle {
-  triggerEnter: () => void;
-}
-
-export interface WheelItem {
-  id: string;
-  type: 'platform' | 'section';
-  section?: AppSection;
-  platform?: Platform;
-  name: string;
-  shortName: string;
-  tag: string;
-  color: string;
-  glow: string;
-  year?: number;
-  generation?: number;
-}
-
-interface PlatformWheelProps {
-  platforms: Platform[];
-  selectedIndex: number;
-  onSelectPlatform: (platform: Platform) => void;
-  onSelectSection: (section: AppSection) => void;
-  onNavigateIndex: (index: number) => void;
-  getGamesCountForPlatform: (platformId: PlatformId) => number;
-  getPreviewGamesForPlatform: (platformId: PlatformId) => Game[];
-  ref?: (handle: PlatformWheelHandle) => void;
-}
+export type { PlatformWheelHandle } from '@contracts/wheel.types';
 
 export const PlatformWheel: Component<PlatformWheelProps> = (props) => {
   let containerRef!: HTMLDivElement;
@@ -40,78 +13,17 @@ export const PlatformWheel: Component<PlatformWheelProps> = (props) => {
   let isTransitioning = false;
   let previousIndex = props.selectedIndex;
 
-  // Build combined wheel items: Consoles + Single Dedicated System Settings Card
-  const allWheelItems = createMemo<WheelItem[]>(() => {
-    const items: WheelItem[] = props.platforms.map((p) => {
-      let brand = { color: '#00f0ff', glow: 'rgba(0, 240, 255, 0.6)', tag: 'CONSOLE SYSTEM' };
-      switch (p.id) {
-        case 'snes':
-        case 'n64':
-        case 'gba':
-          brand = { color: '#e52521', glow: 'rgba(229, 37, 33, 0.6)', tag: 'NINTENDO' };
-          break;
-        case 'ps1':
-        case 'ps2':
-          brand = { color: '#006FCD', glow: 'rgba(0, 111, 205, 0.6)', tag: 'SONY PLAYSTATION' };
-          break;
-        case 'genesis':
-        case 'dreamcast':
-          brand = { color: '#0088cc', glow: 'rgba(0, 136, 204, 0.6)', tag: 'SEGA' };
-          break;
-        case 'arcade':
-          brand = { color: '#f59e0b', glow: 'rgba(245, 158, 11, 0.6)', tag: 'ARCADE COIN-OP' };
-          break;
-      }
-      return {
-        id: p.id,
-        type: 'platform',
-        platform: p,
-        name: p.name,
-        shortName: p.shortName,
-        tag: brand.tag,
-        color: brand.color,
-        glow: brand.glow,
-        year: p.releaseYear,
-        generation: p.generation
-      };
-    });
-
-    // Single Distinct System Gateway Card (Pantalla, Núcleos, Audio, Hardware)
-    items.push({
-      id: 'system-settings',
-      type: 'section',
-      section: 'settings',
-      name: 'Pantalla • Núcleos • Audio • Mandos',
-      shortName: 'AJUSTES',
-      tag: 'HERRAMIENTAS DEL SISTEMA',
-      color: '#10b981',
-      glow: 'rgba(16, 185, 129, 0.7)'
-    });
-
-    return items;
-  });
-
-  const currentItem = createMemo(() => {
-    const list = allWheelItems();
-    if (list.length === 0) return null;
-    return list[props.selectedIndex] || list[0];
-  });
-
-  const currentPlatform = createMemo(() => {
-    const item = currentItem();
-    return item?.type === 'platform' ? item.platform || null : null;
-  });
-
-  const gamesCount = createMemo(() => {
-    const plat = currentPlatform();
-    if (!plat) return 0;
-    return props.getGamesCountForPlatform(plat.id);
-  });
-
-  const previewGames = createMemo(() => {
-    const plat = currentPlatform();
-    if (!plat) return [];
-    return props.getPreviewGamesForPlatform(plat.id).slice(0, 8);
+  const {
+    currentItem,
+    currentPlatform,
+    gamesCount,
+    previewGames,
+    allItemSlots
+  } = usePlatformWheelLayout({
+    platforms: () => props.platforms,
+    selectedIndex: () => props.selectedIndex,
+    getGamesCountForPlatform: (id) => props.getGamesCountForPlatform(id),
+    getPreviewGamesForPlatform: (id) => props.getPreviewGamesForPlatform(id)
   });
 
   // 2-Second Cinematic Journey into the Games Library or Instant Section Transition
@@ -163,26 +75,6 @@ export const PlatformWheel: Component<PlatformWheelProps> = (props) => {
     }, 20);
   });
 
-  // Calculate wrapped slots along the wide sweeping arch
-  const allItemSlots = createMemo(() => {
-    const list = allWheelItems();
-    const total = list.length;
-    if (total === 0) return [];
-
-    return list.map((item, index) => {
-      let diff = index - props.selectedIndex;
-      if (diff > total / 2) diff -= total;
-      if (diff < -total / 2) diff += total;
-
-      return {
-        offset: diff,
-        item,
-        index,
-        isCenter: diff === 0
-      };
-    });
-  });
-
   return (
     <div class="console-wheel-container" ref={containerRef}>
       {/* 1. Dynamic Ambient Stage Spotlight */}
@@ -199,17 +91,17 @@ export const PlatformWheel: Component<PlatformWheelProps> = (props) => {
           {(slot) => {
             const item = slot.item;
             const isSystemCard = item.type === 'section';
+            const isCenter = slot.offset === 0;
 
-            // Wide Sweeping Curve Math across full screen width
             const transformStyle = () => {
               const off = slot.offset;
-              const xOffset = off * 16.5; // rem (wide horizontal span)
-              const yOffset = Math.pow(Math.abs(off), 1.32) * 3.6; // rem
-              const zOffset = slot.isCenter ? 4 : -Math.abs(off) * 3.5; // rem
-              const rotateZ = off * -7.5; // deg
-              const rotateY = off * -12; // deg
-              const scale = slot.isCenter ? 1.25 : Math.max(0.72, 1 - Math.abs(off) * 0.09);
-              const opacity = slot.isCenter ? 1 : Math.max(0.45, 1 - Math.abs(off) * 0.16);
+              const xOffset = off * 16.5;
+              const yOffset = Math.pow(Math.abs(off), 1.32) * 3.6;
+              const zOffset = isCenter ? 4 : -Math.abs(off) * 3.5;
+              const rotateZ = off * -7.5;
+              const rotateY = off * -12;
+              const scale = isCenter ? 1.25 : Math.max(0.72, 1 - Math.abs(off) * 0.09);
+              const opacity = isCenter ? 1 : Math.max(0.45, 1 - Math.abs(off) * 0.16);
 
               return {
                 transform: `translateX(${xOffset}rem) translateY(${yOffset}rem) translateZ(${zOffset}rem) rotateZ(${rotateZ}deg) rotateY(${rotateY}deg) scale(${scale})`,
@@ -220,11 +112,11 @@ export const PlatformWheel: Component<PlatformWheelProps> = (props) => {
 
             return (
               <div
-                class={`dome-console-card ${slot.isCenter ? 'active-center' : ''} ${isSystemCard ? 'system-settings-card' : ''}`}
+                class={`dome-console-card ${isCenter ? 'active-center' : ''} ${isSystemCard ? 'system-settings-card' : ''}`}
                 style={transformStyle()}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (slot.isCenter) {
+                  if (isCenter) {
                     handleEnterItem(item);
                   } else {
                     props.onNavigateIndex(slot.index);
@@ -234,48 +126,47 @@ export const PlatformWheel: Component<PlatformWheelProps> = (props) => {
                 <div
                   class={`dome-card-inner ${isSystemCard ? 'system-card-inner' : ''}`}
                   style={{
-                    "border-color": slot.isCenter ? item.color : 'transparent',
-                    "box-shadow": slot.isCenter ? `0 0 3.5rem ${item.glow}` : 'none'
+                    "border-color": isCenter ? item.color : 'transparent',
+                    "box-shadow": isCenter ? `0 0 3.5rem ${item.glow}` : 'none'
                   }}
                 >
-                  {slot.isCenter ? (
-                    // Center Card: Full Embedded Console / System Details
-                    <>
-                      <div class={`active-card-top-tag ${isSystemCard ? 'system-tag' : ''}`}>
-                        {item.tag}
+                  <Show
+                    when={isCenter}
+                    fallback={
+                      <>
+                        <span class="dome-card-code">{item.shortName}</span>
+                        <span class="dome-card-name">{item.name}</span>
+                      </>
+                    }
+                  >
+                    <div class={`active-card-top-tag ${isSystemCard ? 'system-tag' : ''}`}>
+                      {item.tag}
+                    </div>
+
+                    <div class="active-card-main-title">
+                      <span class="active-card-main-code">{item.shortName}</span>
+                      <span class="active-card-full-name">{item.name}</span>
+                    </div>
+
+                    <Show when={item.type === 'platform'}>
+                      <div class="active-card-specs-row">
+                        <span class="active-card-spec-chip">Gen {item.generation}a</span>
+                        <span class="active-card-spec-chip">{item.year}</span>
+                        <span class="active-card-spec-chip highlight">{gamesCount().toLocaleString()} Juegos</span>
                       </div>
+                    </Show>
 
-                      <div class="active-card-main-title">
-                        <span class="active-card-main-code">{item.shortName}</span>
-                        <span class="active-card-full-name">{item.name}</span>
-                      </div>
-
-                      {item.type === 'platform' && (
-                        <div class="active-card-specs-row">
-                          <span class="active-card-spec-chip">Gen {item.generation}ª</span>
-                          <span class="active-card-spec-chip">{item.year}</span>
-                          <span class="active-card-spec-chip highlight">{gamesCount().toLocaleString()} Juegos</span>
-                        </div>
-                      )}
-
-                      <button
-                        class={`active-card-action-btn ${isSystemCard ? 'system-action-btn' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEnterItem(item);
-                        }}
-                      >
-                        <span class="enter-btn-bubble">A</span>
-                        <span>{item.type === 'platform' ? 'ENTRAR AL CATÁLOGO' : 'ABRIR AJUSTES'}</span>
-                      </button>
-                    </>
-                  ) : (
-                    // Flanking Inactive Cards: Emblem Badge
-                    <>
-                      <span class="dome-card-code">{item.shortName}</span>
-                      <span class="dome-card-name">{item.name}</span>
-                    </>
-                  )}
+                    <button
+                      class={`active-card-action-btn ${isSystemCard ? 'system-action-btn' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEnterItem(item);
+                      }}
+                    >
+                      <span class="enter-btn-bubble">A</span>
+                      <span>{item.type === 'platform' ? 'ENTRAR AL CATALOGO' : 'ABRIR AJUSTES'}</span>
+                    </button>
+                  </Show>
                 </div>
 
                 <div class="dome-card-shadow" />
@@ -285,11 +176,11 @@ export const PlatformWheel: Component<PlatformWheelProps> = (props) => {
         </For>
       </div>
 
-      {/* 3. Tilted 3D Library Preview in Background (Only for platforms) */}
-      {currentPlatform() && (
+      {/* 3. Tilted 3D Library Preview in Background */}
+      <Show when={currentPlatform()}>
         <div class="deep-tilted-library-stage" ref={tiltedLibraryRef}>
           <div class="tilted-library-header">
-            <span>CATÁLOGO EN PROFUNDIDAD</span>
+            <span>CATALOGO EN PROFUNDIDAD</span>
             <span>•</span>
             <span>{currentPlatform()?.name}</span>
           </div>
@@ -301,14 +192,16 @@ export const PlatformWheel: Component<PlatformWheelProps> = (props) => {
                   <img src={game.coverImage} alt={game.title} loading="lazy" />
                   <div class="tilted-game-card-info">
                     <div class="tilted-card-title">{game.title}</div>
-                    <div class="tilted-card-meta">★ {game.rating.toFixed(1)} • {game.releaseYear}</div>
+                    <div class="tilted-card-meta">PUNTUACION {game.rating.toFixed(1)} • {game.releaseYear}</div>
                   </div>
                 </div>
               )}
             </For>
           </div>
         </div>
-      )}
+      </Show>
     </div>
   );
 };
+
+export default PlatformWheel;

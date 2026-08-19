@@ -1,26 +1,22 @@
 import { Component } from 'solid-js';
 import { Switch } from '@kobalte/core/switch';
-
-interface SettingSwitchProps {
-  id: string;
-  title: string;
-  description: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}
+import type { SettingSwitchProps } from '@contracts/common.types';
 
 export const SettingSwitch: Component<SettingSwitchProps> = (props) => {
   return (
-    <div class="setting-item-row" id={props.id}>
-      <div class="setting-text-pane">
-        <div class="setting-title">{props.title}</div>
-        <div class="setting-desc">{props.description}</div>
+    <div
+      class={`setting-card-row ${props.isFocused ? 'focused' : ''}`}
+      onClick={() => props.onChange(!props.checked)}
+    >
+      <div class="setting-info">
+        <span class="setting-title">{props.title}</span>
+        <span class="setting-desc">{props.description}</span>
       </div>
 
-      <Switch checked={props.checked} onChange={props.onChange}>
-        <Switch.Input />
-        <Switch.Control class={`switch-control ${props.checked ? 'checked' : ''}`}>
-          <Switch.Thumb class={`switch-thumb ${props.checked ? 'checked' : ''}`} />
+      <Switch checked={props.checked} onChange={props.onChange} class="console-switch">
+        <Switch.Input class="switch-input" />
+        <Switch.Control class="switch-control">
+          <Switch.Thumb class="switch-thumb" />
         </Switch.Control>
       </Switch>
     </div>

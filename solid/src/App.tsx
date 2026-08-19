@@ -1,8 +1,7 @@
 import { Component, createMemo, onMount, createSignal, Show } from 'solid-js';
 
 // Types
-import type { Game, Emulator } from '@contracts/game.types';
-import type { UpdateInfo, UpdateCheckResult, UpdateProgress } from '@contracts/update.types';
+import type { Game } from '@contracts/game.types';
 
 // Services
 import { MockBackendService } from '@services/backend/mock-backend.service';
@@ -15,10 +14,11 @@ import { createSystemStore } from '@stores/system.store';
 import { createNavigationStore } from '@stores/navigation.store';
 import { createModalStore } from '@stores/modal.store';
 
-// Hooks
+// Hooks & Controllers
 import { useConsoleInput } from '@hooks/useConsoleInput';
 import { useConsoleNavigation } from '@hooks/useConsoleNavigation';
 import { useGameLauncher } from '@hooks/useGameLauncher';
+import { useSettingsController } from '@hooks/useSettingsController';
 
 // Components
 import { Shell } from '@components/layout/Shell';
@@ -29,13 +29,11 @@ import { EmulatorSelectorModal } from '@components/modals/EmulatorSelectorModal'
 import { SettingsView } from '@components/settings/SettingsView';
 import { MaintenanceModal } from '@components/modals/MaintenanceModal';
 
-// Data
+// Initial Mock Dataset
 import gamesDataset from '@data/games-10000.json';
 
-const PERFORMANCE_MODES_LIST = ['high-performance', 'balanced', 'power-saver', 'ultra-boost'] as const;
-
 export const App: Component = () => {
-  // 1. Singletons & Stores
+  // 1. Singletons & Stores Initialization
   const mockBackend = new MockBackendService();
   const backend = new TauriBackendService(mockBackend);
   const soundFx = new SoundFxService();
@@ -48,28 +46,44 @@ export const App: Component = () => {
   const [activeSettingsTab, setActiveSettingsTab] = createSignal<string>('system');
   const [settingsFocusArea, setSettingsFocusArea] = createSignal<'sidebar' | 'content'>('sidebar');
   const [settingsRowIndex, setSettingsRowIndex] = createSignal<number>(0);
-  const [updateInfo, setUpdateInfo] = createSignal<UpdateInfo | undefined>(undefined);
 
   let platformWheelHandle: PlatformWheelHandle | undefined;
 
-  // 2. Computed View Memos
+  // 2. Settings Controller (Business Logic & OTA Lifecycle)
+  const {
+    updateInfo,
+    setUpdateInfo,
+    handleCheckUpdates,
+    handleApplyUpdate,
+    handleSaveEmulator,
+    handleDeleteEmulator,
+    handleToggleCurrentSetting,
+    handleAdjustCurrentSlider,
+    triggerVibrationTest
+  } = useSettingsController({
+    systemStore,
+    soundFx,
+    backend,
+    activeSettingsTab,
+    settingsRowIndex
+  });
+
+  // 3. Computed View Memos
   const activePlatform = createMemo(() => {
     const list = systemStore.platforms();
-    if (list.length === 0) return null;
-    return list[navigationStore.wheelPlatformIndex()] || list[0] || null;
+    return list.length === 0 ? null : (list[navigationStore.wheelPlatformIndex()] || list[0] || null);
   });
 
   const platformGames = createMemo(() => {
     const all = libraryStore.games();
     const plat = activePlatform();
-    return plat ? all.filter(g => g.platform === plat.id) : all;
+    return plat ? all.filter((g) => g.platform === plat.id) : all;
   });
 
   const focusedGame = createMemo(() => {
     const list = platformGames();
     const idx = navigationStore.focusedGameIndex();
-    if (list.length === 0) return null;
-    return list[idx] || list[list.length - 1] || null;
+    return list.length === 0 ? null : (list[idx] || list[list.length - 1] || null);
   });
 
   const ambientBackdrop = createMemo(() => {
@@ -80,117 +94,7 @@ export const App: Component = () => {
     return '';
   });
 
-  // OTA Update Handlers
-  const handleCheckUpdates = async (): Promise<UpdateCheckResult | undefined> => {
-    soundFx.playMove();
-    const res = await backend.checkForUpdates();
-    setUpdateInfo(await backend.getUpdateInfo());
-    soundFx.playSelect();
-    return res;
-  };
-
-  const handleApplyUpdate = async (ver?: string): Promise<UpdateProgress | undefined> => {
-    soundFx.playSelect();
-    const progress = await backend.applyUpdate(ver);
-    setUpdateInfo(await backend.getUpdateInfo());
-    soundFx.playFavorite();
-    return progress;
-  };
-
-  // Toggle or adjust setting action handlers
-  const handleToggleCurrentSetting = () => {
-    const settings = systemStore.settings();
-    if (!settings) return;
-    const tab = activeSettingsTab();
-    const row = settingsRowIndex();
-    const clone = JSON.parse(JSON.stringify(settings));
-
-    if (tab === 'system' && row === 0) {
-      // Rotate Performance Mode
-      const current = clone.system?.performanceMode || 'high-performance';
-      const curIdx = PERFORMANCE_MODES_LIST.indexOf(current as any);
-      const nextMode = PERFORMANCE_MODES_LIST[(curIdx + 1) % PERFORMANCE_MODES_LIST.length];
-      if (!clone.system) clone.system = {};
-      clone.system.performanceMode = nextMode;
-      systemStore.updateSettings(clone);
-    } else if (tab === 'system' && row === 3) {
-      clone.display.vsync = !clone.display.vsync;
-      systemStore.updateSettings(clone);
-    } else if (tab === 'audio' && row === 0) {
-      clone.audio.uiSoundEffects = !clone.audio.uiSoundEffects;
-      soundFx.setEnabled(clone.audio.uiSoundEffects);
-      systemStore.updateSettings(clone);
-    } else if (tab === 'gamepad' && row === 0) {
-      clone.gamepad.vibration = !clone.gamepad.vibration;
-      systemStore.updateSettings(clone);
-    } else if (tab === 'gamepad' && row >= 2) {
-      // Test vibration on physical gamepad
-      const padIdx = row - 2;
-      try {
-        const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-        const pad = pads[padIdx];
-        if (pad && (pad as any).vibrationActuator) {
-          (pad as any).vibrationActuator.playEffect('dual-rumble', {
-            startDelay: 0,
-            duration: 300,
-            weakMagnitude: 0.8,
-            strongMagnitude: 0.8
-          });
-        }
-      } catch {
-        // ignore
-      }
-    } else if (tab === 'update') {
-      if (row === 0) {
-        if (!clone.updates) clone.updates = { autoUpdate: true, channel: 'stable', checkOnStartup: true };
-        clone.updates.autoUpdate = !clone.updates.autoUpdate;
-        systemStore.updateSettings(clone);
-      } else if (row === 1) {
-        soundFx.playSelect();
-        (window as any).__EMUBOX_TRIGGER_UPDATE_ACTION__?.();
-      }
-    } else if (tab === 'emulators') {
-      soundFx.playSelect();
-      (window as any).__EMUBOX_OPEN_EMULATOR_CONFIG__?.(row);
-    }
-  };
-
-  const handleAdjustCurrentSlider = (delta: number) => {
-    const settings = systemStore.settings();
-    if (!settings) return;
-    const tab = activeSettingsTab();
-    const row = settingsRowIndex();
-    const clone = JSON.parse(JSON.stringify(settings));
-
-    if (tab === 'audio' && row === 1) {
-      clone.audio.masterVolume = Math.min(100, Math.max(0, clone.audio.masterVolume + delta));
-      systemStore.updateSettings(clone);
-      soundFx.playMove();
-    }
-  };
-
-  // Emulator CRUD Handlers
-  const handleSaveEmulator = (emulator: Emulator) => {
-    const emus = [...systemStore.emulators()];
-    const existingIdx = emus.findIndex(e => e.id === emulator.id);
-    if (existingIdx >= 0) {
-      emus[existingIdx] = emulator;
-    } else {
-      emus.push(emulator);
-    }
-    systemStore.setEmulators(emus);
-    soundFx.playFavorite();
-  };
-
-  const handleDeleteEmulator = (emulatorId: string) => {
-    const emus = systemStore.emulators().filter(e => e.id !== emulatorId);
-    systemStore.setEmulators(emus);
-    soundFx.playBack();
-  };
-
-
-
-  // 3. Composable Logic Hooks
+  // 4. Composable Logic Hooks
   const { launchWithEmulator } = useGameLauncher({ backend, modalStore, soundFx });
 
   const { handleAction } = useConsoleNavigation({
@@ -229,7 +133,7 @@ export const App: Component = () => {
     onAction: handleAction
   });
 
-  // 4. Initial Dataset Bootstrap
+  // 5. Initial Dataset Bootstrap
   onMount(async () => {
     await systemStore.loadSystemData();
     try {
@@ -239,21 +143,20 @@ export const App: Component = () => {
     } catch {
       await libraryStore.loadGames();
     }
+
     if (systemStore.settings()) {
       soundFx.setEnabled(systemStore.settings()!.audio.uiSoundEffects);
     }
+
     try {
       setUpdateInfo(await backend.getUpdateInfo());
     } catch {
-      // ignore
+      // Ignored if backend not ready
     }
   });
 
   return (
-    <Shell
-      ambientBackdropUrl={ambientBackdrop()}
-      crtShaderEnabled={false}
-    >
+    <Shell ambientBackdropUrl={ambientBackdrop()} crtShaderEnabled={false}>
       <Header
         inputStatus={inputStatus()}
         totalGamesCount={libraryStore.games().length}
@@ -279,8 +182,8 @@ export const App: Component = () => {
               soundFx.playMove();
               navigationStore.setWheelPlatformIndex(idx);
             }}
-            getGamesCountForPlatform={(id) => libraryStore.games().filter(g => g.platform === id).length}
-            getPreviewGamesForPlatform={(id) => libraryStore.games().filter(g => g.platform === id)}
+            getGamesCountForPlatform={(id) => libraryStore.games().filter((g) => g.platform === id).length}
+            getPreviewGamesForPlatform={(id) => libraryStore.games().filter((g) => g.platform === id)}
           />
         </Show>
 
