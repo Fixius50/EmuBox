@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 #  EMUBOX OS - SCRIPT UNIFICADO DE PREPARACION, INSTALACION Y DESPLIEGUE EN ARCH
-#  Tauri v2 + SolidJS + Rust + WebKitGTK 4.1 + Estructura de Datos
+#  Tauri v2 + SolidJS + Rust + WebKitGTK 4.1 + Estructura de Datos + Autoarranque
 # ==============================================================================
 
 set -Eeuo pipefail
@@ -42,7 +42,7 @@ fi
 
 if [[ $EUID -ne 0 ]]; then
   log_error "Este script unificado requiere permisos de root para instalar dependencias."
-  echo "Por favor, ejecutable con sudo:"
+  echo "Por favor, ejecutalo con sudo:"
   echo "  sudo ./scripts/setup-arch.sh"
   exit 1
 fi
@@ -57,14 +57,14 @@ log_ok "Sistema Arch Linux verificado y conexion activa."
 # ------------------------------------------------------------------------------
 # 2. Actualizacion del sistema
 # ------------------------------------------------------------------------------
-log_info "[1/8] Actualizando paquetes y repositorios de Arch Linux..."
+log_info "[1/9] Actualizando paquetes y repositorios de Arch Linux..."
 pacman -Syu --noconfirm
 log_ok "Sistema base actualizado."
 
 # ------------------------------------------------------------------------------
 # 3. Herramientas de compilacion y sistema
 # ------------------------------------------------------------------------------
-log_info "[2/8] Instalando herramientas de compilacion del sistema..."
+log_info "[2/9] Instalando herramientas de compilacion del sistema..."
 COMPILATION_PACKAGES=(
   base-devel
   git
@@ -85,7 +85,7 @@ log_ok "Herramientas de compilacion instaladas."
 # ------------------------------------------------------------------------------
 # 4. Dependencias graficas y runtime de Tauri v2
 # ------------------------------------------------------------------------------
-log_info "[3/8] Instalando dependencias de runtime para Tauri v2..."
+log_info "[3/9] Instalando dependencias de runtime para Tauri v2..."
 TAURI_PACKAGES=(
   webkit2gtk-4.1
   gtk3
@@ -97,7 +97,7 @@ log_ok "Librerias WebKitGTK 4.1 y GTK3 instaladas."
 # ------------------------------------------------------------------------------
 # 5. Toolchains: Node.js, npm, Rust y Tauri CLI
 # ------------------------------------------------------------------------------
-log_info "[4/8] Configurando toolchains de desarrollo (Node.js, npm, Rust)..."
+log_info "[4/9] Configurando toolchains de desarrollo (Node.js, npm, Rust)..."
 
 # Node.js + npm
 pacman -S --needed --noconfirm nodejs npm
@@ -128,7 +128,7 @@ log_ok "Toolchains de Node.js, Rust y Tauri configurados."
 # ------------------------------------------------------------------------------
 # 6. Despliegue de la aplicacion EmuBox en /opt/emubox
 # ------------------------------------------------------------------------------
-log_info "[5/8] Desplegando codigo fuente de EmuBox en ${EMUBOX_DIR}..."
+log_info "[5/9] Desplegando codigo fuente de EmuBox en ${EMUBOX_DIR}..."
 
 CURRENT_DIR="$(pwd)"
 mkdir -p "$(dirname "${EMUBOX_DIR}")"
@@ -156,7 +156,7 @@ log_ok "Codigo de EmuBox preparado en ${EMUBOX_DIR}."
 # ------------------------------------------------------------------------------
 # 7. Instalacion de dependencias npm y compilacion de produccion
 # ------------------------------------------------------------------------------
-log_info "[6/8] Instalando dependencias npm y compilando interfaz..."
+log_info "[6/9] Instalando dependencias npm y compilando interfaz..."
 
 cd "${EMUBOX_DIR}"
 
@@ -179,13 +179,14 @@ fi
 log_ok "Compilacion de interfaz completada con exito."
 
 # ------------------------------------------------------------------------------
-# 8. Creacion de la infraestructura de datos y configuracion
+# 8. Creacion de la infraestructura de datos y comandos ejecutables
 # ------------------------------------------------------------------------------
-log_info "[7/8] Creando estructura de directorios de datos y configuracion..."
+log_info "[7/9] Creando estructura de directorios de datos y comandos globales..."
 
-# Directorios de sistema
+# Directorios de sistema y logs
 mkdir -p /var/lib/emubox/{games,roms,saves,states,bios,covers,logs,screenshots}
 mkdir -p /etc/emubox
+mkdir -p /var/log/emubox
 
 # Directorios de usuario XDG
 if [[ -n "${CALLER_USER}" && "${CALLER_USER}" != "root" ]]; then
@@ -195,9 +196,12 @@ if [[ -n "${CALLER_USER}" && "${CALLER_USER}" != "root" ]]; then
   mkdir -p "${USER_HOME}/.cache/emubox"
   chown -R "${CALLER_USER}:${CALLER_USER}" "${USER_HOME}/.local/share/emubox" "${USER_HOME}/.config/emubox" "${USER_HOME}/.cache/emubox"
   chown -R "${CALLER_USER}:${CALLER_USER}" /var/lib/emubox
+  chown -R "${CALLER_USER}:${CALLER_USER}" /var/log/emubox
 fi
 
-# Crear script ejecutable /usr/local/bin/emubox
+chmod -R 755 /var/log/emubox
+
+# Crear script ejecutable /usr/local/bin/emubox y enlace /usr/bin/emubox
 cat << 'EOF' > /usr/local/bin/emubox
 #!/usr/bin/env bash
 set -euo pipefail
@@ -212,6 +216,7 @@ else
 fi
 EOF
 chmod +x /usr/local/bin/emubox
+ln -sf /usr/local/bin/emubox /usr/bin/emubox
 
 # Crear script de actualizacion rapida /usr/local/bin/emubox-update
 cat << 'EOF' > /usr/local/bin/emubox-update
@@ -235,13 +240,61 @@ npm run build
 echo "[OK] EmuBox actualizado correctamente."
 EOF
 chmod +x /usr/local/bin/emubox-update
+ln -sf /usr/local/bin/emubox-update /usr/bin/emubox-update
 
 log_ok "Comandos globales 'emubox' y 'emubox-update' registrados."
 
 # ------------------------------------------------------------------------------
-# 9. Verificacion final del entorno
+# 9. Configuracion del servicio de autoarranque systemd
 # ------------------------------------------------------------------------------
-log_info "[8/8] Verificacion integral del entorno..."
+log_info "[8/9] Configurando servicio systemd para autoarranque (emubox.service)..."
+
+SERVICE_NAME="emubox.service"
+USER_HOME="$(getent passwd "${CALLER_USER}" | cut -d: -f6)"
+
+cat > "/etc/systemd/system/${SERVICE_NAME}" <<EOF
+[Unit]
+Description=EmuBox Console Interface
+After=graphical.target systemd-user-sessions.service
+Wants=graphical.target
+
+[Service]
+Type=simple
+
+User=${CALLER_USER}
+Group=${CALLER_USER}
+
+WorkingDirectory=/opt/emubox
+
+ExecStart=/usr/bin/emubox
+
+Restart=on-failure
+RestartSec=3
+
+# Variables generales
+Environment=HOME=${USER_HOME}
+Environment=EMUBOX_HOME=/var/lib/emubox
+Environment=NODE_ENV=production
+
+# Logs
+StandardOutput=append:/var/log/emubox/emubox.log
+StandardError=append:/var/log/emubox/emubox-error.log
+
+# Seguridad básica
+NoNewPrivileges=true
+
+[Install]
+WantedBy=graphical.target
+EOF
+
+systemctl daemon-reload
+systemctl enable "${SERVICE_NAME}"
+log_ok "Servicio ${SERVICE_NAME} habilitado para autoarranque tras la sesion grafica."
+
+# ------------------------------------------------------------------------------
+# 10. Verificacion integral del entorno
+# ------------------------------------------------------------------------------
+log_info "[9/9] Verificacion integral del entorno..."
 
 CHECK_FAILED=0
 
@@ -290,16 +343,18 @@ if [[ "$CHECK_FAILED" -ne 0 ]]; then
 fi
 
 echo "==============================================================================="
-echo "  EMUBOX OS: INSTALACION Y PREPARACION COMPLETADA CON EXITO"
+echo "  EMUBOX OS: INSTALACION Y AUTOARRANQUE PREPARADOS CON EXITO"
 echo "==============================================================================="
 echo ""
 echo "Ubicacion de la aplicacion:  ${EMUBOX_DIR}"
 echo "Directorio de datos (ROMs):  ~/.local/share/emubox/roms o /var/lib/emubox/roms"
 echo "Directorio de partidas:      ~/.local/share/emubox/saves"
 echo "Directorio de configuracion: ~/.config/emubox"
+echo "Ficheros de log:             /var/log/emubox/emubox.log"
 echo ""
 echo "Comandos disponibles:"
-echo "  emubox         -> Inicia la interfaz de EmuBox"
-echo "  emubox-update  -> Actualiza EmuBox desde Git y recompila en caliente"
+echo "  emubox                 -> Inicia la interfaz de EmuBox"
+echo "  emubox-update          -> Actualiza EmuBox desde Git y recompila"
+echo "  sudo systemctl status emubox -> Comprueba el estado del servicio"
 echo ""
 echo "==============================================================================="
