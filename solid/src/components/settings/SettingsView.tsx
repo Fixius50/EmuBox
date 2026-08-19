@@ -130,6 +130,15 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
     }
   });
 
+  const [modalFocusIdx, setModalFocusIdx] = createSignal<number>(0);
+  const [isTyping, setIsTyping] = createSignal<boolean>(false);
+  let nameInputRef: HTMLInputElement | undefined;
+  let execInputRef: HTMLInputElement | undefined;
+  let typeInputRef: HTMLInputElement | undefined;
+  let deleteBtnRef: HTMLButtonElement | undefined;
+  let cancelBtnRef: HTMLButtonElement | undefined;
+  let saveBtnRef: HTMLButtonElement | undefined;
+
   // Open Edit Modal for an Emulator with Anime.js
   const openEditEmulator = (emu?: Emulator) => {
     if (emu) {
@@ -147,11 +156,85 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
         status: 'active'
       });
     }
+    setModalFocusIdx(0);
+    setIsTyping(false);
     setIsEditingEmulator(true);
     setTimeout(() => {
       if (modalBoxRef) animateEmulatorModalEntrance(modalBoxRef);
-    }, 20);
+    }, 50);
   };
+
+  const focusModalElement = (idx: number) => {
+    setModalFocusIdx(idx);
+    setIsTyping(false);
+    if (document.activeElement instanceof HTMLElement && document.activeElement.tagName === 'INPUT') {
+      document.activeElement.blur();
+    }
+    const hasDelete = !!editingEmulatorData().id;
+    if (hasDelete && idx === 3) deleteBtnRef?.focus();
+    else if (hasDelete && idx === 4) cancelBtnRef?.focus();
+    else if (hasDelete && idx === 5) saveBtnRef?.focus();
+    else if (!hasDelete && idx === 3) cancelBtnRef?.focus();
+    else if (!hasDelete && idx === 4) saveBtnRef?.focus();
+  };
+
+  createEffect(() => {
+    (window as any).__EMUBOX_OPEN_EMULATOR_CONFIG__ = (idx: number) => {
+      const list = props.emulators || [];
+      openEditEmulator(list[idx] || list[0]);
+    };
+    (window as any).__EMUBOX_IS_EMULATOR_MODAL_OPEN__ = () => isEditingEmulator();
+    (window as any).__EMUBOX_CLOSE_EMULATOR_MODAL__ = () => setIsEditingEmulator(false);
+    (window as any).__EMUBOX_TRIGGER_UPDATE_ACTION__ = () => {
+      if (props.updateInfo?.hasUpdate) {
+        handleApplyUpdate();
+      } else {
+        handleCheckForUpdates();
+      }
+    };
+    (window as any).__EMUBOX_EMU_MODAL_NAV__ = (dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' | 'SELECT') => {
+      if (!isEditingEmulator()) return;
+      const cur = modalFocusIdx();
+      const hasDelete = !!editingEmulatorData().id;
+      const maxIdx = hasDelete ? 5 : 4;
+
+      if (dir === 'DOWN') {
+        if (cur < 2) {
+          focusModalElement(cur + 1);
+        } else if (cur === 2) {
+          focusModalElement(hasDelete ? 5 : 4); // Jump to Save button
+        }
+      } else if (dir === 'UP') {
+        if (cur >= 3) {
+          focusModalElement(2);
+        } else if (cur > 0) {
+          focusModalElement(cur - 1);
+        }
+      } else if (dir === 'LEFT') {
+        if (cur > 3) {
+          focusModalElement(cur - 1);
+        }
+      } else if (dir === 'RIGHT') {
+        if (cur >= 3 && cur < maxIdx) {
+          focusModalElement(cur + 1);
+        }
+      } else if (dir === 'SELECT') {
+        if (hasDelete && cur === 3) {
+          deleteEmulator();
+        } else if ((hasDelete && cur === 4) || (!hasDelete && cur === 3)) {
+          setIsEditingEmulator(false);
+        } else if ((hasDelete && cur === 5) || (!hasDelete && cur === 4)) {
+          saveEmulator();
+        } else {
+          // Entrar en modo escritura en el input
+          setIsTyping(true);
+          if (cur === 0) { nameInputRef?.focus(); nameInputRef?.select(); }
+          if (cur === 1) { execInputRef?.focus(); execInputRef?.select(); }
+          if (cur === 2) { typeInputRef?.focus(); typeInputRef?.select(); }
+        }
+      }
+    };
+  });
 
   const saveEmulator = () => {
     const data = editingEmulatorData();
@@ -447,9 +530,16 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
                       </div>
 
                       <div class="blade-actions-col">
-                        <span class="blade-btn-edit">
+                        <button
+                          class="blade-btn-edit"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            props.onSelectContentArea?.();
+                            openEditEmulator(emu);
+                          }}
+                        >
                           <span>[A] CONFIGURAR</span>
-                        </span>
+                        </button>
                       </div>
                     </div>
                   )}
@@ -654,7 +744,18 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
               </div>
 
               {/* Update Hero Blade (Row 1 focusable) */}
-              <div class={`update-hero-blade ${isRowFocused(1) ? 'focused' : ''}`} style={{ "margin-top": "0.5rem" }}>
+              <div
+                class={`update-hero-blade ${isRowFocused(1) ? 'focused' : ''}`}
+                style={{ "margin-top": "0.5rem", cursor: "pointer" }}
+                onClick={() => {
+                  props.onSelectContentArea?.();
+                  if (props.updateInfo?.hasUpdate) {
+                    handleApplyUpdate();
+                  } else {
+                    handleCheckForUpdates();
+                  }
+                }}
+              >
                 <div class="update-hero-main">
                   <div class="update-version-title">
                     <span>EmuBox OS {props.updateInfo?.currentVersion || 'v1.0.0'}</span>
@@ -677,7 +778,11 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
                     <button
                       class="settings-action-btn"
                       style={{ background: "linear-gradient(135deg, rgba(16, 185, 129, 0.4) 0%, rgba(0, 240, 255, 0.6) 100%)", "border-color": "#10b981" }}
-                      onClick={handleApplyUpdate}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        props.onSelectContentArea?.();
+                        handleApplyUpdate();
+                      }}
                       disabled={isUpdating()}
                     >
                       <span>{isUpdating() ? 'ACTUALIZANDO...' : '[A] APLICAR v1.0.1 AHORA'}</span>
@@ -685,7 +790,11 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
                   ) : (
                     <button
                       class="settings-action-btn"
-                      onClick={handleCheckForUpdates}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        props.onSelectContentArea?.();
+                        handleCheckForUpdates();
+                      }}
                       disabled={isCheckingUpdate() || isUpdating()}
                     >
                       <span>{isCheckingUpdate() ? 'BUSCANDO...' : '[A] BUSCAR EN GITHUB'}</span>
@@ -755,9 +864,12 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
             <div class="crud-form-group">
               <label class="crud-label">Nombre del Motor</label>
               <input
+                ref={nameInputRef}
                 type="text"
-                class="crud-input"
+                class={`crud-input ${modalFocusIdx() === 0 ? 'focused' : ''} ${isTyping() && modalFocusIdx() === 0 ? 'typing' : ''}`}
                 value={editingEmulatorData().name || ''}
+                onFocus={() => { setModalFocusIdx(0); setIsTyping(true); }}
+                onBlur={() => setIsTyping(false)}
                 onInput={(e) => setEditingEmulatorData({ ...editingEmulatorData(), name: e.currentTarget.value })}
               />
             </div>
@@ -765,9 +877,12 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
             <div class="crud-form-group">
               <label class="crud-label">Binario / Ejecutable</label>
               <input
+                ref={execInputRef}
                 type="text"
-                class="crud-input"
+                class={`crud-input ${modalFocusIdx() === 1 ? 'focused' : ''} ${isTyping() && modalFocusIdx() === 1 ? 'typing' : ''}`}
                 value={editingEmulatorData().executable || ''}
+                onFocus={() => { setModalFocusIdx(1); setIsTyping(true); }}
+                onBlur={() => setIsTyping(false)}
                 onInput={(e) => setEditingEmulatorData({ ...editingEmulatorData(), executable: e.currentTarget.value })}
               />
             </div>
@@ -775,24 +890,42 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
             <div class="crud-form-group">
               <label class="crud-label">Tipo de Motor</label>
               <input
+                ref={typeInputRef}
                 type="text"
-                class="crud-input"
+                class={`crud-input ${modalFocusIdx() === 2 ? 'focused' : ''} ${isTyping() && modalFocusIdx() === 2 ? 'typing' : ''}`}
                 value={editingEmulatorData().coreType || 'libretro'}
+                onFocus={() => { setModalFocusIdx(2); setIsTyping(true); }}
+                onBlur={() => setIsTyping(false)}
                 onInput={(e) => setEditingEmulatorData({ ...editingEmulatorData(), coreType: e.currentTarget.value as any })}
               />
             </div>
 
             <div class="crud-modal-actions">
               {editingEmulatorData().id && (
-                <button class="crud-btn-delete" onClick={deleteEmulator}>
+                <button
+                  ref={deleteBtnRef}
+                  class={`crud-btn-delete ${modalFocusIdx() === 3 ? 'focused' : ''}`}
+                  onFocus={() => setModalFocusIdx(3)}
+                  onClick={deleteEmulator}
+                >
                   ELIMINAR NÚCLEO
                 </button>
               )}
-              <button class="crud-btn-cancel" onClick={() => setIsEditingEmulator(false)}>
-                CANCELAR
+              <button
+                ref={cancelBtnRef}
+                class={`crud-btn-cancel ${(editingEmulatorData().id ? modalFocusIdx() === 4 : modalFocusIdx() === 3) ? 'focused' : ''}`}
+                onFocus={() => setModalFocusIdx(editingEmulatorData().id ? 4 : 3)}
+                onClick={() => setIsEditingEmulator(false)}
+              >
+                CANCELAR [B]
               </button>
-              <button class="crud-btn-save" onClick={saveEmulator}>
-                GUARDAR CAMBIOS
+              <button
+                ref={saveBtnRef}
+                class={`crud-btn-save ${(editingEmulatorData().id ? modalFocusIdx() === 5 : modalFocusIdx() === 4) ? 'focused' : ''}`}
+                onFocus={() => setModalFocusIdx(editingEmulatorData().id ? 5 : 4)}
+                onClick={saveEmulator}
+              >
+                GUARDAR CAMBIOS [A]
               </button>
             </div>
           </div>

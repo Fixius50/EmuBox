@@ -6,6 +6,8 @@ export function createModalStore(navigator?: SpatialNavigatorService) {
   const [isDetailsOpen, setIsDetailsOpen] = createSignal<boolean>(false);
   const [isConfirmLaunchOpen, setIsConfirmLaunchOpen] = createSignal<boolean>(false);
   const [isEmulatorSelectorOpen, setIsEmulatorSelectorOpen] = createSignal<boolean>(false);
+  const [isMaintenanceOpen, setIsMaintenanceOpen] = createSignal<boolean>(false);
+  const [maintenanceIndex, setMaintenanceIndex] = createSignal<number>(0);
   const [selectedGame, setSelectedGame] = createSignal<Game | null>(null);
 
   const openGameDetails = (game: Game) => {
@@ -39,11 +41,24 @@ export function createModalStore(navigator?: SpatialNavigatorService) {
     setIsEmulatorSelectorOpen(false);
   };
 
+  const openMaintenance = () => {
+    setMaintenanceIndex(0);
+    setIsMaintenanceOpen(true);
+  };
+
+  const closeMaintenance = () => {
+    setIsMaintenanceOpen(false);
+  };
+
   return {
     isDetailsOpen,
     isConfirmLaunchOpen,
     isEmulatorSelectorOpen,
     setIsEmulatorSelectorOpen,
+    isMaintenanceOpen,
+    setIsMaintenanceOpen,
+    maintenanceIndex,
+    setMaintenanceIndex,
     selectedGame,
     setSelectedGame,
     openGameDetails,
@@ -51,7 +66,9 @@ export function createModalStore(navigator?: SpatialNavigatorService) {
     openConfirmLaunch,
     closeConfirmLaunch,
     openEmulatorSelector,
-    closeEmulatorSelector
+    closeEmulatorSelector,
+    openMaintenance,
+    closeMaintenance
   };
 }
 

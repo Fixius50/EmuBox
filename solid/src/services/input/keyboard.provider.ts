@@ -105,7 +105,39 @@ export class KeyboardProvider implements IInputProvider {
 
   private handleKeyDown(e: KeyboardEvent): void {
     const target = e.target as HTMLElement;
-    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') && e.key !== 'Escape') {
+    const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
+
+    if (isInput) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        target.blur();
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        target.blur();
+        for (const listener of this.actionListeners) {
+          listener('NAV_DOWN');
+        }
+        return;
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        target.blur();
+        for (const listener of this.actionListeners) {
+          listener(e.key === 'ArrowDown' ? 'NAV_DOWN' : 'NAV_UP');
+        }
+        return;
+      }
+      // Permitir escritura normal para el resto de teclas mientras se edita el input
+      return;
+    }
+
+    if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'F12')) {
+      e.preventDefault();
+      for (const listener of this.actionListeners) {
+        listener('MAINTENANCE_MENU');
+      }
       return;
     }
 

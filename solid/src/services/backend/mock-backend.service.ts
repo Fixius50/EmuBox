@@ -579,6 +579,8 @@ export class MockBackendService implements IEmuBoxBackend {
   public async checkForUpdates(channel: UpdateChannel = 'stable'): Promise<UpdateCheckResult> {
     this.updateInfo.channel = channel;
     this.updateInfo.lastChecked = Date.now();
+    this.updateInfo.hasUpdate = true;
+    this.updateInfo.latestVersion = 'v1.0.1';
     return {
       updateAvailable: true,
       currentVersion: this.updateInfo.currentVersion,

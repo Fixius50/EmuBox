@@ -27,6 +27,7 @@ import { PlatformWheel, PlatformWheelHandle } from '@components/platforms/Platfo
 import { PlatformGamesView } from '@components/library/PlatformGamesView';
 import { EmulatorSelectorModal } from '@components/modals/EmulatorSelectorModal';
 import { SettingsView } from '@components/settings/SettingsView';
+import { MaintenanceModal } from '@components/modals/MaintenanceModal';
 
 // Data
 import gamesDataset from '@data/games-10000.json';
@@ -79,6 +80,23 @@ export const App: Component = () => {
     return '';
   });
 
+  // OTA Update Handlers
+  const handleCheckUpdates = async (): Promise<UpdateCheckResult | undefined> => {
+    soundFx.playMove();
+    const res = await backend.checkForUpdates();
+    setUpdateInfo(await backend.getUpdateInfo());
+    soundFx.playSelect();
+    return res;
+  };
+
+  const handleApplyUpdate = async (ver?: string): Promise<UpdateProgress | undefined> => {
+    soundFx.playSelect();
+    const progress = await backend.applyUpdate(ver);
+    setUpdateInfo(await backend.getUpdateInfo());
+    soundFx.playFavorite();
+    return progress;
+  };
+
   // Toggle or adjust setting action handlers
   const handleToggleCurrentSetting = () => {
     const settings = systemStore.settings();
@@ -128,12 +146,12 @@ export const App: Component = () => {
         clone.updates.autoUpdate = !clone.updates.autoUpdate;
         systemStore.updateSettings(clone);
       } else if (row === 1) {
-        if (updateInfo()?.hasUpdate) {
-          handleApplyUpdate();
-        } else {
-          handleCheckUpdates();
-        }
+        soundFx.playSelect();
+        (window as any).__EMUBOX_TRIGGER_UPDATE_ACTION__?.();
       }
+    } else if (tab === 'emulators') {
+      soundFx.playSelect();
+      (window as any).__EMUBOX_OPEN_EMULATOR_CONFIG__?.(row);
     }
   };
 
@@ -170,29 +188,7 @@ export const App: Component = () => {
     soundFx.playBack();
   };
 
-  // OTA Update Handlers
-  const handleCheckUpdates = async (): Promise<UpdateCheckResult | undefined> => {
-    soundFx.playMove();
-    const res = await backend.checkForUpdates();
-    setUpdateInfo(await backend.getUpdateInfo());
-    soundFx.playSelect();
-    return res;
-  };
 
-  const handleApplyUpdate = async (ver?: string): Promise<UpdateProgress | undefined> => {
-    soundFx.playSelect();
-    const progress = await backend.applyUpdate(ver);
-    setUpdateInfo(await backend.getUpdateInfo());
-    soundFx.playFavorite();
-    return progress;
-  };
-
-  const handleRollback = async (ver: string): Promise<void> => {
-    soundFx.playMove();
-    await backend.rollbackToVersion(ver);
-    setUpdateInfo(await backend.getUpdateInfo());
-    soundFx.playSelect();
-  };
 
   // 3. Composable Logic Hooks
   const { launchWithEmulator } = useGameLauncher({ backend, modalStore, soundFx });
@@ -347,6 +343,17 @@ export const App: Component = () => {
           modalStore.closeEmulatorSelector();
         }}
         onConfirmLaunch={launchWithEmulator}
+      />
+
+      <MaintenanceModal
+        isOpen={modalStore.isMaintenanceOpen()}
+        onClose={() => {
+          soundFx.playBack();
+          modalStore.closeMaintenance();
+        }}
+        backend={backend}
+        focusedIndex={modalStore.maintenanceIndex()}
+        onSelectIndex={(idx) => modalStore.setMaintenanceIndex(idx)}
       />
     </Shell>
   );

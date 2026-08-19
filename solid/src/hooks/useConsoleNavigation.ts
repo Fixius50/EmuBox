@@ -54,10 +54,71 @@ export function useConsoleNavigation(options: UseConsoleNavigationOptions) {
 
   const handleAction = (action: InputAction) => {
     const now = performance.now();
+
+    // Global Rescue / Maintenance Shortcut
+    if (action === 'MAINTENANCE_MENU') {
+      soundFx.playSelect();
+      modalStore.openMaintenance();
+      return;
+    }
+
+    if (modalStore.isMaintenanceOpen()) {
+      switch (action) {
+        case 'NAV_DOWN':
+          modalStore.setMaintenanceIndex(Math.min(4, modalStore.maintenanceIndex() + 1));
+          soundFx.playMove();
+          return;
+        case 'NAV_UP':
+          modalStore.setMaintenanceIndex(Math.max(0, modalStore.maintenanceIndex() - 1));
+          soundFx.playMove();
+          return;
+        case 'BUTTON_A':
+          soundFx.playSelect();
+          (window as any).__EMUBOX_TRIGGER_MAINTENANCE__?.();
+          return;
+        case 'BUTTON_B':
+          soundFx.playBack();
+          modalStore.closeMaintenance();
+          return;
+        default:
+          return;
+      }
+    }
+
     const isModalOpen = modalStore.isEmulatorSelectorOpen();
 
     // 1. Navigation when in Settings View
     if (!isModalOpen && navigationStore.currentSection() === 'settings') {
+      if ((window as any).__EMUBOX_IS_EMULATOR_MODAL_OPEN__?.()) {
+        switch (action) {
+          case 'NAV_DOWN':
+            (window as any).__EMUBOX_EMU_MODAL_NAV__?.('DOWN');
+            soundFx.playMove();
+            return;
+          case 'NAV_UP':
+            (window as any).__EMUBOX_EMU_MODAL_NAV__?.('UP');
+            soundFx.playMove();
+            return;
+          case 'NAV_LEFT':
+            (window as any).__EMUBOX_EMU_MODAL_NAV__?.('LEFT');
+            soundFx.playMove();
+            return;
+          case 'NAV_RIGHT':
+            (window as any).__EMUBOX_EMU_MODAL_NAV__?.('RIGHT');
+            soundFx.playMove();
+            return;
+          case 'BUTTON_A':
+            soundFx.playSelect();
+            (window as any).__EMUBOX_EMU_MODAL_NAV__?.('SELECT');
+            return;
+          case 'BUTTON_B':
+            soundFx.playBack();
+            (window as any).__EMUBOX_CLOSE_EMULATOR_MODAL__?.();
+            return;
+          default:
+            return;
+        }
+      }
       const area = settingsFocusArea ? settingsFocusArea() : 'sidebar';
       const rowIdx = settingsRowIndex ? settingsRowIndex() : 0;
       const currentTab = activeSettingsTab ? activeSettingsTab() : 'system';

@@ -22,6 +22,7 @@ export class GamepadProvider implements IInputProvider {
   private repeatTimer: number = 0;
   private connectedGamepadIndex: number | null = null;
   private connectedGamepadName: string = 'Mando Desconectado';
+  private maintenanceComboTriggered: boolean = false;
 
   private boundConnected: (e: GamepadEvent) => void;
   private boundDisconnected: (e: GamepadEvent) => void;
@@ -142,6 +143,18 @@ export class GamepadProvider implements IInputProvider {
       }
       this.buttonStates[index] = isPressed;
     };
+
+    // Rescue / Maintenance Combination: LB (4) + RB (5) + Select (8) + Start (9)
+    const isComboPressed = (pad.buttons[4]?.pressed || false) &&
+                           (pad.buttons[5]?.pressed || false) &&
+                           (pad.buttons[8]?.pressed || false) &&
+                           (pad.buttons[9]?.pressed || false);
+    if (isComboPressed && !this.maintenanceComboTriggered) {
+      this.maintenanceComboTriggered = true;
+      this.emitAction('MAINTENANCE_MENU');
+    } else if (!isComboPressed) {
+      this.maintenanceComboTriggered = false;
+    }
 
     checkButton(0, 'BUTTON_A');
     checkButton(1, 'BUTTON_B');

@@ -13,7 +13,8 @@ export type InputAction =
   | 'BUTTON_RT'
   | 'BUTTON_START'
   | 'BUTTON_SELECT'
-  | 'HOME';
+  | 'HOME'
+  | 'MAINTENANCE_MENU';
 
 export interface InputDeviceStatus {
   isConnected: boolean;

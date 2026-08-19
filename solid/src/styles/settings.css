@@ -809,9 +809,17 @@
   transition: border-color 180ms ease;
 }
 
-.crud-input:focus {
+.crud-input:focus,
+.crud-input.focused {
   border-color: var(--accent-neon-cyan);
-  box-shadow: 0 0 0.75rem var(--neon-cyan-glow);
+  box-shadow: 0 0 0.85rem var(--neon-cyan-glow);
+  background: rgba(15, 30, 60, 0.95);
+}
+
+.crud-input.typing {
+  border-color: #ffffff;
+  box-shadow: 0 0 1.25rem rgba(0, 240, 255, 0.8);
+  background: rgba(10, 20, 45, 1);
 }
 
 .crud-modal-actions {
@@ -833,6 +841,13 @@
   cursor: pointer;
 }
 
+.crud-btn-cancel:focus,
+.crud-btn-cancel.focused {
+  border-color: #00f0ff;
+  box-shadow: 0 0 1rem var(--neon-cyan-glow);
+  outline: none;
+}
+
 .crud-btn-save {
   background: linear-gradient(135deg, rgba(0, 240, 255, 0.4) 0%, rgba(0, 111, 205, 0.7) 100%);
   border: 0.0625rem solid #00f0ff;
@@ -845,6 +860,13 @@
   cursor: pointer;
 }
 
+.crud-btn-save:focus,
+.crud-btn-save.focused {
+  border-color: #ffffff;
+  box-shadow: 0 0 1.5rem rgba(0, 240, 255, 0.9);
+  outline: none;
+}
+
 .crud-btn-delete {
   background: rgba(229, 37, 33, 0.25);
   border: 0.0625rem solid #e52521;
@@ -855,4 +877,11 @@
   font-weight: 700;
   cursor: pointer;
   margin-right: auto;
+}
+
+.crud-btn-delete:focus,
+.crud-btn-delete.focused {
+  border-color: #ffffff;
+  box-shadow: 0 0 1.25rem rgba(229, 37, 33, 0.8);
+  outline: none;
 }
