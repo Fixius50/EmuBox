@@ -14,50 +14,81 @@ if [[ -f "${SCRIPT_DIR}/lib/logging.sh" ]]; then
 else
   log_step() { echo "--> $*"; }
   log_ok() { echo "[OK] $*"; }
+  log_error() { echo "[ERROR] $*" >&2; }
 fi
 
-log_step "Compilando frontend SolidJS y empaquetando en binario Tauri (Release)..."
+cd "${ROOT_DIR}"
 
-log_step "Instalando dependencias de Node.js..."
-npm install --no-audit --no-fund
+# 1. Verificacion de Node.js y npm
+if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+  log_error "Node.js o npm no estan disponibles en el sistema."
+  exit 1
+fi
 
-log_step "Generando bundle de producción (SolidJS)..."
-npm run build
+log_step "Node.js: $(node --version)"
+log_step "npm: $(npm --version)"
 
-log_step "Compilando binario nativo Tauri con Cargo (Modo Producción Release)..."
-cargo build --release --manifest-path src-tauri/Cargo.toml
+# 2. Dependencias npm
+log_step "Instalando dependencias npm..."
+if [[ -f package-lock.json ]]; then
+  npm ci --no-audit --no-fund
+else
+  npm install --no-audit --no-fund
+fi
+log_ok "Dependencias npm instaladas correctamente."
 
-# Desplegar binario compilado
-TARGET_BIN="${ROOT_DIR}/src-tauri/target/release/emubox"
+# 3. Compilacion del Frontend SolidJS
+if [[ -f "solid/dist/index.html" ]]; then
+  log_ok "Frontend SolidJS ya compilado. Se reutiliza la compilacion existente."
+else
+  log_step "Compilando frontend SolidJS..."
+  npm run build
+  log_ok "Frontend SolidJS compilado correctamente."
+fi
+
+# 4. Compilacion de Tauri (Release)
 OPT_BIN_DIR="/opt/emubox/bin"
-OPT_BIN="${OPT_BIN_DIR}/emubox"
-
 mkdir -p "${OPT_BIN_DIR}"
-if [[ -f "${TARGET_BIN}" ]]; then
-  cp "${TARGET_BIN}" "${OPT_BIN}"
-  chmod +x "${OPT_BIN}"
+TAURI_BINARY="${ROOT_DIR}/src-tauri/target/release/emubox"
+
+if [[ -x "${TAURI_BINARY}" ]]; then
+  log_ok "Binario Tauri existente detectado."
+else
+  log_step "Compilando EmuBox Tauri en modo release..."
+  cargo build --release --manifest-path "${ROOT_DIR}/src-tauri/Cargo.toml"
+
+  if [[ ! -x "${TAURI_BINARY}" ]]; then
+    log_error "Cargo termino pero no se encontro el binario: ${TAURI_BINARY}"
+    exit 1
+  fi
+  log_ok "Binario Tauri compilado correctamente."
 fi
 
-# Instalar ejecutable global en /usr/local/bin/emubox
+# 5. Copiar binario a ubicacion estable
+cp -f "${TAURI_BINARY}" "${OPT_BIN_DIR}/emubox"
+chmod +x "${OPT_BIN_DIR}/emubox"
+log_ok "Binario instalado en ${OPT_BIN_DIR}/emubox."
+
+# 6. Instalar ejecutable global en /usr/local/bin/emubox (ESTRICTO SIN FALLBACK)
 cat << 'EOF' > /usr/local/bin/emubox
 #!/usr/bin/env bash
 set -euo pipefail
 
-EMUBOX_BIN="/opt/emubox/bin/emubox"
-if [[ -x "${EMUBOX_BIN}" ]]; then
-  exec "${EMUBOX_BIN}" "$@"
-elif [[ -x "/opt/emubox/src-tauri/target/release/emubox" ]]; then
-  exec "/opt/emubox/src-tauri/target/release/emubox" "$@"
-else
-  echo "[ERROR] El binario de producción de EmuBox no se encuentra compilado." >&2
-  echo "Ejecute 'emubox-update' para compilar el binario nativo." >&2
+EMUBOX_APP_DIR="/opt/emubox"
+EMUBOX_BIN="${EMUBOX_APP_DIR}/bin/emubox"
+
+if [[ ! -x "${EMUBOX_BIN}" ]]; then
+  echo "[ERROR] El binario de EmuBox no esta instalado." >&2
+  echo "[ERROR] Ejecuta nuevamente el setup de EmuBox (sudo ./scripts/setup-arch.sh)." >&2
   exit 1
 fi
+
+exec "${EMUBOX_BIN}" "$@"
 EOF
 chmod +x /usr/local/bin/emubox
 ln -sf /usr/local/bin/emubox /usr/bin/emubox
 
-# Instalar comando de actualización global /usr/local/bin/emubox-update
+# 7. Instalar comando de actualizacion global /usr/local/bin/emubox-update
 cat << 'EOF' > /usr/local/bin/emubox-update
 #!/usr/bin/env bash
 set -euo pipefail
@@ -69,20 +100,20 @@ cd "${EMUBOX_APP_DIR}"
 git fetch origin
 git pull --ff-only
 
-if [[ -f "package-lock.json" ]]; then
-  npm ci
+if [[ -f package-lock.json ]]; then
+  npm ci --no-audit --no-fund
 else
-  npm install
+  npm install --no-audit --no-fund
 fi
 
 npm run build
-cargo build --release --manifest-path src-tauri/Cargo.toml
+cargo build --release --manifest-path "${EMUBOX_APP_DIR}/src-tauri/Cargo.toml"
 
 mkdir -p "${EMUBOX_APP_DIR}/bin"
-cp "${EMUBOX_APP_DIR}/src-tauri/target/release/emubox" "${EMUBOX_APP_DIR}/bin/emubox"
+cp -f "${EMUBOX_APP_DIR}/src-tauri/target/release/emubox" "${EMUBOX_APP_DIR}/bin/emubox"
 chmod +x "${EMUBOX_APP_DIR}/bin/emubox"
 
-echo "[OK] EmuBox compilado y actualizado en modo producción."
+echo "[OK] EmuBox actualizado correctamente en modo producción."
 EOF
 chmod +x /usr/local/bin/emubox-update
 ln -sf /usr/local/bin/emubox-update /usr/bin/emubox-update

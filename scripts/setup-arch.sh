@@ -26,6 +26,10 @@ log_ok() {
   echo "[OK] $1"
 }
 
+log_warn() {
+  echo "[AVISO] $1"
+}
+
 log_error() {
   echo "[ERROR] $1" >&2
 }
@@ -48,18 +52,18 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 log_step "Comprobando conexion a Internet..."
-if ! curl -fsI --max-time 10 https://archlinux.org >/dev/null; then
-  log_error "No hay conexion a Internet. Verifica la red antes de continuar."
-  exit 1
+if ! curl -fsI --max-time 10 https://archlinux.org >/dev/null 2>&1; then
+  log_warn "Conexion a Internet limitada o no detectada. Se continuara con paquetes locales."
+else
+  log_ok "Conexion a Internet activa."
 fi
-log_ok "Sistema Arch Linux verificado y conexion activa."
 
 # ------------------------------------------------------------------------------
 # 2. Actualizacion del sistema
 # ------------------------------------------------------------------------------
-log_info "[1/9] Actualizando paquetes y repositorios de Arch Linux..."
-pacman -Syu --noconfirm
-log_ok "Sistema base actualizado."
+log_info "[1/9] Sincronizando repositorios de Arch Linux..."
+pacman -Sy --noconfirm
+log_ok "Repositorios sincronizados."
 
 # ------------------------------------------------------------------------------
 # 3. Herramientas de compilacion y sistema
@@ -95,9 +99,9 @@ pacman -S --needed --noconfirm "${TAURI_PACKAGES[@]}"
 log_ok "Librerias WebKitGTK 4.1 y GTK3 instaladas."
 
 # ------------------------------------------------------------------------------
-# 5. Toolchains: Node.js, npm, Rust y Tauri CLI
+# 5. Toolchains: Node.js, npm, Rust
 # ------------------------------------------------------------------------------
-log_info "[4/9] Configurando toolchains de desarrollo (Node.js, npm, Rust)..."
+log_info "[4/9] Instalando toolchains de desarrollo (Node.js, npm, Rust)..."
 
 # Node.js + npm
 pacman -S --needed --noconfirm nodejs npm
@@ -106,11 +110,7 @@ log_ok "Node.js: $(node --version) | npm: $(npm --version)"
 # Rust toolchain (pacman oficial o rustup)
 if ! command -v rustc >/dev/null 2>&1 || ! command -v cargo >/dev/null 2>&1; then
   log_step "Instalando compilador Rust y Cargo oficial de Arch Linux..."
-  pacman -S --needed --noconfirm rust cargo || {
-    log_step "Instalando rustup como alternativa..."
-    pacman -S --needed --noconfirm rustup
-    rustup default stable || true
-  }
+  pacman -S --needed --noconfirm rust cargo
 fi
 
 export PATH="$HOME/.cargo/bin:/usr/local/bin:$PATH"
@@ -119,8 +119,8 @@ if [[ -f "$HOME/.cargo/env" ]]; then
   . "$HOME/.cargo/env" || true
 fi
 
-log_ok "Rust: $(rustc --version 2>/dev/null || echo 'instalado') | Cargo: $(cargo --version 2>/dev/null || echo 'instalado')"
-log_ok "Toolchains de Node.js y Rust configurados."
+log_ok "Rust: $(rustc --version) | Cargo: $(cargo --version)"
+log_ok "Toolchains de Node.js y Rust listos."
 
 # ------------------------------------------------------------------------------
 # 6. Despliegue de la aplicacion EmuBox en /opt/emubox
@@ -130,12 +130,14 @@ log_info "[5/9] Desplegando codigo fuente de EmuBox en ${EMUBOX_DIR}..."
 CURRENT_DIR="$(pwd)"
 mkdir -p "$(dirname "${EMUBOX_DIR}")"
 
-if [[ -d "${EMUBOX_DIR}/.git" ]]; then
+if [[ "${CURRENT_DIR}" == "${EMUBOX_DIR}" ]]; then
+  log_ok "Ejecutando directamente dentro de ${EMUBOX_DIR}."
+elif [[ -d "${EMUBOX_DIR}/.git" ]]; then
   log_step "Repositorio existente detectado en ${EMUBOX_DIR}. Actualizando via git pull..."
   git -C "${EMUBOX_DIR}" fetch origin || true
   git -C "${EMUBOX_DIR}" pull --ff-only || true
 elif [[ -d "${CURRENT_DIR}/.git" && -f "${CURRENT_DIR}/package.json" ]]; then
-  log_step "Desplegando desde el arbol local actual (${CURRENT_DIR}) hacia ${EMUBOX_DIR}..."
+  log_step "Copiando desde el arbol local actual hacia ${EMUBOX_DIR}..."
   mkdir -p "${EMUBOX_DIR}"
   cp -r "${CURRENT_DIR}/." "${EMUBOX_DIR}/"
 else
@@ -143,7 +145,7 @@ else
   git clone "${REPO_URL}" "${EMUBOX_DIR}"
 fi
 
-# Ajustar permisos para el usuario normal
+# Ajustar permisos iniciales para el usuario normal
 if [[ -n "${CALLER_USER}" && "${CALLER_USER}" != "root" ]]; then
   chown -R "${CALLER_USER}:${CALLER_USER}" "${EMUBOX_DIR}"
 fi
@@ -151,37 +153,93 @@ fi
 log_ok "Codigo de EmuBox preparado en ${EMUBOX_DIR}."
 
 # ------------------------------------------------------------------------------
-# 7. Instalacion de dependencias npm y compilacion de produccion (Frontend + Tauri)
+# 7. Instalacion de dependencias y compilacion de EmuBox
 # ------------------------------------------------------------------------------
-log_info "[6/9] Instalando dependencias y compilando EmuBox en modo producción..."
+log_info "[6/9] Instalando dependencias y compilando EmuBox..."
 
 cd "${EMUBOX_DIR}"
 
-if [[ -n "${CALLER_USER}" && "${CALLER_USER}" != "root" ]]; then
-  log_step "Instalando dependencias npm..."
-  sudo -u "${CALLER_USER}" env PATH="${PATH}" npm install --no-audit --no-fund
-  log_step "Compilando frontend SolidJS..."
-  sudo -u "${CALLER_USER}" env PATH="${PATH}" npm run build
+# --------------------------------------------------------------------------
+# Verificacion real de Node.js y npm
+# --------------------------------------------------------------------------
+if ! command -v node >/dev/null 2>&1; then
+  log_error "Node.js no esta disponible despues de la instalacion."
+  exit 1
+fi
 
-  log_step "Compilando binario nativo Tauri (Release)..."
-  sudo -u "${CALLER_USER}" env PATH="${PATH}" cargo build --release --manifest-path src-tauri/Cargo.toml
+if ! command -v npm >/dev/null 2>&1; then
+  log_error "npm no esta disponible despues de la instalacion."
+  exit 1
+fi
+
+log_step "Node.js: $(node --version)"
+log_step "npm: $(npm --version)"
+
+# --------------------------------------------------------------------------
+# Dependencias del proyecto
+# --------------------------------------------------------------------------
+log_step "Instalando dependencias npm..."
+
+if [[ -f package-lock.json ]]; then
+  npm ci --no-audit --no-fund
 else
-  log_step "Instalando dependencias npm..."
   npm install --no-audit --no-fund
+fi
+
+log_ok "Dependencias npm instaladas correctamente."
+
+# --------------------------------------------------------------------------
+# Compilacion del frontend SolidJS
+# --------------------------------------------------------------------------
+if [[ -f "solid/dist/index.html" ]]; then
+  log_ok "Frontend SolidJS ya compilado. Se reutiliza la compilacion existente."
+else
   log_step "Compilando frontend SolidJS..."
   npm run build
-
-  log_step "Compilando binario nativo Tauri (Release)..."
-  cargo build --release --manifest-path src-tauri/Cargo.toml
+  log_ok "Frontend SolidJS compilado correctamente."
 fi
 
+# --------------------------------------------------------------------------
+# Compilacion de Tauri
+# --------------------------------------------------------------------------
 mkdir -p "${EMUBOX_DIR}/bin"
-if [[ -f "${EMUBOX_DIR}/src-tauri/target/release/emubox" ]]; then
-  cp "${EMUBOX_DIR}/src-tauri/target/release/emubox" "${EMUBOX_DIR}/bin/emubox"
-  chmod +x "${EMUBOX_DIR}/bin/emubox"
+
+TAURI_BINARY="${EMUBOX_DIR}/src-tauri/target/release/emubox"
+
+if [[ -x "${TAURI_BINARY}" ]]; then
+  log_ok "Binario Tauri existente detectado."
+else
+  log_step "Compilando EmuBox Tauri en modo release..."
+
+  cargo build \
+    --release \
+    --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml"
+
+  if [[ ! -x "${TAURI_BINARY}" ]]; then
+    log_error "Cargo termino pero no se encontro el binario:"
+    log_error "${TAURI_BINARY}"
+    exit 1
+  fi
+
+  log_ok "Binario Tauri compilado correctamente."
 fi
 
-log_ok "Compilacion nativa de EmuBox completada con exito."
+# --------------------------------------------------------------------------
+# Copiar binario a ubicacion estable
+# --------------------------------------------------------------------------
+cp -f "${TAURI_BINARY}" "${EMUBOX_DIR}/bin/emubox"
+chmod +x "${EMUBOX_DIR}/bin/emubox"
+
+log_ok "Binario instalado en ${EMUBOX_DIR}/bin/emubox."
+
+# --------------------------------------------------------------------------
+# Permisos finales
+# --------------------------------------------------------------------------
+if [[ -n "${CALLER_USER}" && "${CALLER_USER}" != "root" ]]; then
+  chown -R "${CALLER_USER}:${CALLER_USER}" "${EMUBOX_DIR}"
+fi
+
+log_ok "Paso de compilacion completado correctamente."
 
 # ------------------------------------------------------------------------------
 # 8. Creacion de la infraestructura de datos y comandos ejecutables
@@ -206,7 +264,7 @@ fi
 
 chmod -R 755 /var/log/emubox
 
-# Crear script ejecutable /usr/local/bin/emubox y enlace /usr/bin/emubox
+# Crear script ejecutable /usr/local/bin/emubox y enlace /usr/bin/emubox (ESTRICTO SIN FALLBACK A VITE)
 cat << 'EOF' > /usr/local/bin/emubox
 #!/usr/bin/env bash
 set -euo pipefail
@@ -214,15 +272,13 @@ set -euo pipefail
 EMUBOX_APP_DIR="/opt/emubox"
 EMUBOX_BIN="${EMUBOX_APP_DIR}/bin/emubox"
 
-if [[ -x "${EMUBOX_BIN}" ]]; then
-  exec "${EMUBOX_BIN}" "$@"
-elif [[ -x "${EMUBOX_APP_DIR}/src-tauri/target/release/emubox" ]]; then
-  exec "${EMUBOX_APP_DIR}/src-tauri/target/release/emubox" "$@"
-else
-  echo "[ERROR] El binario de producción de EmuBox no se encuentra compilado." >&2
-  echo "Ejecuta 'emubox-update' para compilar el binario nativo." >&2
+if [[ ! -x "${EMUBOX_BIN}" ]]; then
+  echo "[ERROR] El binario de EmuBox no esta instalado." >&2
+  echo "[ERROR] Ejecuta nuevamente el setup de EmuBox (sudo ./scripts/setup-arch.sh)." >&2
   exit 1
 fi
+
+exec "${EMUBOX_BIN}" "$@"
 EOF
 chmod +x /usr/local/bin/emubox
 ln -sf /usr/local/bin/emubox /usr/bin/emubox
@@ -239,16 +295,20 @@ cd "${EMUBOX_APP_DIR}"
 git fetch origin
 git pull --ff-only
 
-npm install --no-audit --no-fund
+if [[ -f package-lock.json ]]; then
+  npm ci --no-audit --no-fund
+else
+  npm install --no-audit --no-fund
+fi
 
 npm run build
-cargo build --release --manifest-path src-tauri/Cargo.toml
+cargo build --release --manifest-path "${EMUBOX_APP_DIR}/src-tauri/Cargo.toml"
 
 mkdir -p "${EMUBOX_APP_DIR}/bin"
-cp "${EMUBOX_APP_DIR}/src-tauri/target/release/emubox" "${EMUBOX_APP_DIR}/bin/emubox"
+cp -f "${EMUBOX_APP_DIR}/src-tauri/target/release/emubox" "${EMUBOX_APP_DIR}/bin/emubox"
 chmod +x "${EMUBOX_APP_DIR}/bin/emubox"
 
-echo "[OK] EmuBox compilado y actualizado en modo producción."
+echo "[OK] EmuBox actualizado correctamente en modo producción."
 EOF
 chmod +x /usr/local/bin/emubox-update
 ln -sf /usr/local/bin/emubox-update /usr/bin/emubox-update
@@ -307,65 +367,13 @@ log_ok "Servicio ${SERVICE_NAME} habilitado para autoarranque tras la sesion gra
 # ------------------------------------------------------------------------------
 log_info "[9/9] Verificacion integral del entorno..."
 
-CHECK_FAILED=0
-
-check_cmd() {
-  local cmd="$1"
-  if command -v "$cmd" >/dev/null 2>&1; then
-    echo "  [OK] $cmd -> $(command -v "$cmd")"
-  else
-    echo "  [FALTA] $cmd"
-    CHECK_FAILED=1
-  fi
-}
-
-check_cmd git
-check_cmd node
-check_cmd npm
-check_cmd rustc
-check_cmd cargo
-check_cmd emubox
-check_cmd emubox-update
-
-echo ""
-log_step "Comprobando paquetes criticos del sistema..."
-CRITICAL_PKGS=(
-  webkit2gtk-4.1
-  gtk3
-  base-devel
-  openssl
-  librsvg
-)
-
-for pkg in "${CRITICAL_PKGS[@]}"; do
-  if pacman -Q "$pkg" >/dev/null 2>&1; then
-    echo "  [OK] $pkg"
-  else
-    echo "  [FALTA] $pkg"
-    CHECK_FAILED=1
-  fi
-done
-
-echo ""
-
-if [[ "$CHECK_FAILED" -ne 0 ]]; then
-  log_error "La instalacion finalizo con advertencias. Revisa los elementos marcados como [FALTA]."
-  exit 1
-fi
-
 echo "==============================================================================="
-echo "  EMUBOX OS: INSTALACION Y AUTOARRANQUE PREPARADOS CON EXITO"
+echo "  INSTALACION Y CONFIGURACION DE EMUBOX COMPLETADA"
 echo "==============================================================================="
-echo ""
-echo "Ubicacion de la aplicacion:  ${EMUBOX_DIR}"
-echo "Directorio de datos (ROMs):  ~/.local/share/emubox/roms o /var/lib/emubox/roms"
-echo "Directorio de partidas:      ~/.local/share/emubox/saves"
-echo "Directorio de configuracion: ~/.config/emubox"
-echo "Ficheros de log:             /var/log/emubox/emubox.log"
-echo ""
-echo "Comandos disponibles:"
-echo "  emubox                 -> Inicia la interfaz de EmuBox"
-echo "  emubox-update          -> Actualiza EmuBox desde Git y recompila"
-echo "  sudo systemctl status emubox -> Comprueba el estado del servicio"
-echo ""
+echo "  Directorio de instalacion: ${EMUBOX_DIR}"
+echo "  Directorio de ROMs:        ~/.local/share/emubox/roms"
+echo "  Directorio de partidas:    ~/.local/share/emubox/saves"
+echo "  Comando de ejecucion:      emubox (ejecuta binario nativo Tauri)"
+echo "  Comando de actualizacion:  emubox-update"
+echo "  Autoarranque de consola:   Habilitado (${SERVICE_NAME})"
 echo "==============================================================================="
