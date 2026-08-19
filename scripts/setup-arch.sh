@@ -1,329 +1,560 @@
 #!/usr/bin/env bash
+set -Eeuo pipefail
+
 # ==============================================================================
-#  EMUBOX OS - SCRIPT UNIFICADO DE PREPARACION, INSTALACION Y DESPLIEGUE EN ARCH
-#  Tauri v2 + SolidJS + Rust + WebKitGTK 4.1 + Estructura de Datos + Autoarranque
+# EMUBOX OS
+# INSTALADOR MAESTRO PARA ARCH LINUX
+#
+# Hace:
+#   1. Comprobacion del sistema
+#   2. Configuracion regional
+#   3. Usuario + sudo
+#   4. NetworkManager
+#   5. Git y herramientas base
+#   6. Node.js + npm
+#   7. Rust + Cargo
+#   8. GTK/WebKitGTK para Tauri
+#   9. Clonado/actualizacion de EmuBox
+#  10. Build de SolidJS + Tauri
+#  11. Estructura de datos
+#  12. Comando global emubox
+#  13. emubox-update
+#  14. Servicio systemd
+#  15. Verificacion final
+#
+# NO PARTICIONA NI FORMATEA DISCOS.
 # ==============================================================================
 
-set -Eeuo pipefail
+set -E
+
+# ------------------------------------------------------------------------------
+# CONFIGURACION
+# ------------------------------------------------------------------------------
 
 EMUBOX_DIR="/opt/emubox"
 REPO_URL="https://github.com/Fixius50/EmuBox.git"
-CALLER_USER="${SUDO_USER:-$USER}"
+
+EMUBOX_USER="${EMUBOX_USER:-emubox}"
+EMUBOX_GROUP="${EMUBOX_GROUP:-emubox}"
+
+LOG_DIR="/var/log/emubox"
+SETUP_LOG="${LOG_DIR}/setup.log"
+NPM_INSTALL_LOG="${LOG_DIR}/npm-install.log"
+NPM_ESBUILD_LOG="${LOG_DIR}/npm-esbuild.log"
+NPM_BUILD_LOG="${LOG_DIR}/npm-build.log"
+CARGO_BUILD_LOG="${LOG_DIR}/cargo-build.log"
 
 # ------------------------------------------------------------------------------
-# Directorio de logs de instalacion
+# COLORES
 # ------------------------------------------------------------------------------
-mkdir -p /var/log/emubox
-SETUP_LOG="/var/log/emubox/setup.log"
-exec > >(tee -a "${SETUP_LOG}") 2>&1
+
+if [[ -t 1 ]]; then
+    C_RESET='\033[0m'
+    C_BLUE='\033[1;34m'
+    C_GREEN='\033[1;32m'
+    C_YELLOW='\033[1;33m'
+    C_RED='\033[1;31m'
+else
+    C_RESET=''
+    C_BLUE=''
+    C_GREEN=''
+    C_YELLOW=''
+    C_RED=''
+fi
 
 # ------------------------------------------------------------------------------
-# Funciones de salida (Cero Emojis)
+# FUNCIONES
 # ------------------------------------------------------------------------------
+
 log_info() {
-  echo ""
-  echo "[EmuBox] $1"
+    echo ""
+    echo -e "${C_BLUE}[EmuBox]${C_RESET} $*"
 }
 
 log_step() {
-  echo "  -> $1"
+    echo "  -> $*"
 }
 
 log_ok() {
-  echo "[OK] $1"
+    echo -e "${C_GREEN}[OK]${C_RESET} $*"
 }
 
 log_warn() {
-  echo "[AVISO] $1"
+    echo -e "${C_YELLOW}[AVISO]${C_RESET} $*"
 }
 
 log_error() {
-  echo "[ERROR] $1" >&2
+    echo -e "${C_RED}[ERROR]${C_RESET} $*" >&2
+}
+
+die() {
+    log_error "$*"
+    exit 1
 }
 
 # ------------------------------------------------------------------------------
-# 1. Comprobaciones iniciales de entorno
+# CAPTURA GLOBAL DE LOG
 # ------------------------------------------------------------------------------
-log_info "Comprobando sistema operativo y permisos..."
+
+mkdir -p "${LOG_DIR}"
+
+exec > >(tee -a "${SETUP_LOG}") 2>&1
+
+# ------------------------------------------------------------------------------
+# MANEJADOR DE ERRORES
+# ------------------------------------------------------------------------------
+
+on_error() {
+    local exit_code=$?
+    local line_number=$1
+
+    echo ""
+    log_error "El instalador ha fallado."
+    log_error "Linea: ${line_number}"
+    log_error "Codigo: ${exit_code}"
+    log_error "Log general: ${SETUP_LOG}"
+    echo ""
+
+    exit "${exit_code}"
+}
+
+trap 'on_error ${LINENO}' ERR
+
+# ------------------------------------------------------------------------------
+# 1. COMPROBACIONES INICIALES
+# ------------------------------------------------------------------------------
+
+log_info "[1/15] Comprobando sistema..."
+
+if [[ "${EUID}" -ne 0 ]]; then
+    die "Este script debe ejecutarse como root."
+fi
 
 if [[ ! -f /etc/arch-release ]]; then
-  log_error "Este script esta disenado exclusivamente para Arch Linux."
-  exit 1
+    die "Este script solo funciona en Arch Linux."
 fi
 
-# Instalar sudo de forma inmediata si no está presente
-if ! command -v sudo >/dev/null 2>&1 && command -v pacman >/dev/null 2>&1 && [[ $EUID -eq 0 ]]; then
-  log_step "sudo no detectado en el sistema. Instalando sudo con pacman..."
-  pacman -Sy --needed --noconfirm sudo || true
-  hash -r
-  log_ok "sudo instalado correctamente."
-fi
+log_ok "Sistema Arch Linux detectado."
 
-if [[ $EUID -ne 0 ]]; then
-  if command -v sudo >/dev/null 2>&1; then
-    log_error "Este script requiere permisos de root para instalar dependencias."
-    echo "Por favor, ejecutalo con sudo:"
-    echo "  sudo ./scripts/setup-arch.sh"
-  else
-    log_error "Este script requiere permisos de root. Ejecutalo como root (ej. su - o inicio de sesion root)."
-  fi
-  exit 1
-fi
+log_step "Kernel:"
+uname -r
 
-log_step "Comprobando conexion a Internet..."
-if ! curl -fsI --max-time 10 https://archlinux.org >/dev/null 2>&1; then
-  log_warn "Conexion a Internet limitada o no detectada. Se continuara con paquetes locales."
-else
-  log_ok "Conexion a Internet activa."
-fi
+log_step "Arquitectura:"
+uname -m
+
+log_step "Espacio disponible en /:"
+df -h /
 
 # ------------------------------------------------------------------------------
-# 2. Actualizacion del sistema
+# 2. ACTUALIZACION DEL SISTEMA
 # ------------------------------------------------------------------------------
-log_info "[1/9] Sincronizando repositorios de Arch Linux..."
-pacman -Sy --noconfirm
-log_ok "Repositorios sincronizados."
+
+log_info "[2/15] Actualizando repositorios y sistema..."
+
+pacman -Syu --noconfirm
+
+log_ok "Sistema actualizado."
 
 # ------------------------------------------------------------------------------
-# 3. Herramientas de compilacion y sistema
+# 3. PAQUETES BASE
 # ------------------------------------------------------------------------------
-log_info "[2/9] Instalando herramientas de compilacion del sistema..."
-COMPILATION_PACKAGES=(
-  base-devel
-  sudo
-  git
-  curl
-  wget
-  file
-  unzip
-  zip
-  pkgconf
-  openssl
-  librsvg
-  xdotool
+
+log_info "[3/15] Instalando herramientas base..."
+
+BASE_PACKAGES=(
+    base-devel
+    git
+    curl
+    wget
+    file
+    unzip
+    zip
+    tar
+    gzip
+    xz
+    pkgconf
+    openssl
+    ca-certificates
+    nano
+    sudo
+    which
 )
 
-pacman -S --needed --noconfirm "${COMPILATION_PACKAGES[@]}"
-log_ok "Herramientas de compilacion y sudo instaladas."
+pacman -S --needed --noconfirm "${BASE_PACKAGES[@]}"
+
+log_ok "Herramientas base instaladas."
 
 # ------------------------------------------------------------------------------
-# 4. Dependencias graficas y runtime de Tauri v2
+# 4. CONFIGURACION REGIONAL
 # ------------------------------------------------------------------------------
-log_info "[3/9] Instalando dependencias de runtime para Tauri v2..."
+
+log_info "[4/15] Configurando sistema regional..."
+
+if [[ -f /usr/share/zoneinfo/Europe/Madrid ]]; then
+    ln -sf /usr/share/zoneinfo/Europe/Madrid /etc/localtime
+    hwclock --systohc || true
+fi
+
+if [[ -f /etc/locale.gen ]]; then
+    sed -i 's/^#es_ES.UTF-8 UTF-8/es_ES.UTF-8 UTF-8/' /etc/locale.gen
+    sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+    locale-gen
+fi
+
+cat > /etc/locale.conf <<'EOF'
+LANG=es_ES.UTF-8
+LC_NUMERIC=C
+EOF
+
+if [[ ! -f /etc/hostname ]]; then
+    echo "emubox" > /etc/hostname
+fi
+
+log_ok "Configuracion regional completada."
+
+# ------------------------------------------------------------------------------
+# 5. NETWORKMANAGER
+# ------------------------------------------------------------------------------
+
+log_info "[5/15] Configurando red..."
+
+pacman -S --needed --noconfirm networkmanager
+
+systemctl enable NetworkManager || true
+
+log_ok "NetworkManager habilitado."
+
+# ------------------------------------------------------------------------------
+# 6. USUARIO Y SUDO
+# ------------------------------------------------------------------------------
+
+log_info "[6/15] Configurando usuario y sudo..."
+
+if ! getent group "${EMUBOX_GROUP}" >/dev/null 2>&1; then
+    groupadd "${EMUBOX_GROUP}"
+fi
+
+if id "${EMUBOX_USER}" >/dev/null 2>&1; then
+    log_step "Usuario ${EMUBOX_USER} ya existe."
+else
+    log_step "Creando usuario ${EMUBOX_USER}..."
+    useradd \
+        -m \
+        -g "${EMUBOX_GROUP}" \
+        -G wheel \
+        -s /bin/bash \
+        "${EMUBOX_USER}"
+    log_ok "Usuario ${EMUBOX_USER} creado."
+
+    log_warn "El usuario ${EMUBOX_USER} necesita una contraseña."
+    passwd "${EMUBOX_USER}"
+fi
+
+# Asegurar grupo wheel
+usermod -aG wheel "${EMUBOX_USER}"
+
+# Configurar sudoers de forma segura
+SUDOERS_FILE="/etc/sudoers.d/emubox-wheel"
+
+cat > "${SUDOERS_FILE}" <<'EOF'
+%wheel ALL=(ALL:ALL) ALL
+EOF
+
+chmod 0440 "${SUDOERS_FILE}"
+
+if ! visudo -cf "${SUDOERS_FILE}" >/dev/null; then
+    rm -f "${SUDOERS_FILE}"
+    die "La configuracion de sudoers no es valida."
+fi
+
+log_ok "sudo configurado correctamente."
+
+# ------------------------------------------------------------------------------
+# 7. TOOLCHAINS NODE / NPM / RUST
+# ------------------------------------------------------------------------------
+
+log_info "[7/15] Instalando Node.js, npm y Rust..."
+
+pacman -S --needed --noconfirm \
+    nodejs \
+    npm \
+    rust \
+    cargo
+
+hash -r
+
+command -v node >/dev/null || die "Node.js no esta disponible."
+command -v npm >/dev/null || die "npm no esta disponible."
+command -v rustc >/dev/null || die "rustc no esta disponible."
+command -v cargo >/dev/null || die "cargo no esta disponible."
+
+log_ok "Node.js: $(node --version)"
+log_ok "npm: $(npm --version)"
+log_ok "Rust: $(rustc --version)"
+log_ok "Cargo: $(cargo --version)"
+
+# ------------------------------------------------------------------------------
+# 8. DEPENDENCIAS GRAFICAS TAURI
+# ------------------------------------------------------------------------------
+
+log_info "[8/15] Instalando dependencias graficas para Tauri..."
+
 TAURI_PACKAGES=(
-  webkit2gtk-4.1
-  gtk3
+    gtk3
+    webkit2gtk-4.1
+    librsvg
+    openssl
+    pkgconf
+    xdotool
 )
 
 pacman -S --needed --noconfirm "${TAURI_PACKAGES[@]}"
-log_ok "Librerias WebKitGTK 4.1 y GTK3 instaladas."
+
+log_ok "Dependencias graficas de Tauri instaladas."
 
 # ------------------------------------------------------------------------------
-# 5. Toolchains: Node.js, npm, Rust
+# 9. PREPARACION DEL REPOSITORIO
 # ------------------------------------------------------------------------------
-log_info "[4/9] Instalando toolchains de desarrollo (Node.js, npm, Rust)..."
 
-# Node.js + npm
-pacman -S --needed --noconfirm nodejs npm
-hash -r
+log_info "[9/15] Preparando EmuBox..."
 
-if ! command -v node >/dev/null 2>&1; then
-  log_error "Node.js no se ha instalado correctamente."
-  exit 1
-fi
+mkdir -p /opt
 
-if ! command -v npm >/dev/null 2>&1; then
-  log_error "npm no se ha instalado correctamente."
-  exit 1
-fi
-
-log_ok "Node.js $(node --version)"
-log_ok "npm $(npm --version)"
-
-# Rust toolchain (pacman oficial o rustup)
-if ! command -v rustc >/dev/null 2>&1 || ! command -v cargo >/dev/null 2>&1; then
-  log_step "Instalando compilador Rust y Cargo oficial de Arch Linux..."
-  pacman -S --needed --noconfirm rust cargo
-fi
-
-export PATH="$HOME/.cargo/bin:/usr/local/bin:$PATH"
-if [[ -f "$HOME/.cargo/env" ]]; then
-  # shellcheck source=/dev/null
-  . "$HOME/.cargo/env" || true
-fi
-
-log_ok "Rust: $(rustc --version) | Cargo: $(cargo --version)"
-log_ok "Toolchains de Node.js y Rust listos."
-
-# ------------------------------------------------------------------------------
-# 6. Despliegue de la aplicacion EmuBox en /opt/emubox
-# ------------------------------------------------------------------------------
-log_info "[5/9] Desplegando codigo fuente de EmuBox en ${EMUBOX_DIR}..."
-
-CURRENT_DIR="$(pwd)"
-mkdir -p "$(dirname "${EMUBOX_DIR}")"
-
-if [[ "${CURRENT_DIR}" == "${EMUBOX_DIR}" ]]; then
-  log_ok "Ejecutando directamente dentro de ${EMUBOX_DIR}."
-elif [[ -d "${EMUBOX_DIR}/.git" ]]; then
-  log_step "Repositorio existente detectado en ${EMUBOX_DIR}. Actualizando via git pull..."
-  git -C "${EMUBOX_DIR}" fetch origin || true
-  git -C "${EMUBOX_DIR}" pull --ff-only || true
-elif [[ -d "${CURRENT_DIR}/.git" && -f "${CURRENT_DIR}/package.json" ]]; then
-  log_step "Copiando desde el arbol local actual hacia ${EMUBOX_DIR}..."
-  mkdir -p "${EMUBOX_DIR}"
-  cp -r "${CURRENT_DIR}/." "${EMUBOX_DIR}/"
+if [[ -d "${EMUBOX_DIR}/.git" ]]; then
+    log_step "Repositorio existente detectado."
+    git -C "${EMUBOX_DIR}" fetch origin
+    if git -C "${EMUBOX_DIR}" diff --quiet && \
+       git -C "${EMUBOX_DIR}" diff --cached --quiet; then
+        git -C "${EMUBOX_DIR}" pull --ff-only
+    else
+        log_warn "Hay modificaciones locales. No se sobrescribiran."
+    fi
 else
-  log_step "Clonando repositorio remoto en ${EMUBOX_DIR}..."
-  git clone "${REPO_URL}" "${EMUBOX_DIR}"
+    if [[ -e "${EMUBOX_DIR}" ]]; then
+        die "${EMUBOX_DIR} existe pero no es un repositorio Git."
+    fi
+    log_step "Clonando repositorio..."
+    git clone "${REPO_URL}" "${EMUBOX_DIR}"
 fi
 
-# Ajustar permisos iniciales para el usuario normal
-if [[ -n "${CALLER_USER}" && "${CALLER_USER}" != "root" ]]; then
-  chown -R "${CALLER_USER}:${CALLER_USER}" "${EMUBOX_DIR}"
+chown -R "${EMUBOX_USER}:${EMUBOX_GROUP}" "${EMUBOX_DIR}"
+chmod -R 775 "${LOG_DIR}"
+
+log_ok "Repositorio EmuBox preparado."
+
+# ------------------------------------------------------------------------------
+# 10. BUILD DE EMUBOX
+# ------------------------------------------------------------------------------
+
+log_info "[10/15] Compilando EmuBox..."
+
+cd "${EMUBOX_DIR}"
+
+if [[ ! -f package.json ]]; then
+    die "No existe package.json en ${EMUBOX_DIR}."
 fi
 
-log_ok "Codigo de EmuBox preparado en ${EMUBOX_DIR}."
-
-# ------------------------------------------------------------------------------
-# 7. Instalacion de dependencias y compilacion de EmuBox
-# ------------------------------------------------------------------------------
-log_info "[6/9] Instalando dependencias y compilando EmuBox..."
+if [[ ! -f "${EMUBOX_DIR}/scripts/build.sh" ]]; then
+    die "No existe scripts/build.sh en el proyecto."
+fi
 
 chmod +x "${EMUBOX_DIR}/scripts/build.sh"
-bash "${EMUBOX_DIR}/scripts/build.sh"
 
-# Permisos finales
-if [[ -n "${CALLER_USER}" && "${CALLER_USER}" != "root" ]]; then
-  chown -R "${CALLER_USER}:${CALLER_USER}" "${EMUBOX_DIR}"
+log_step "Ejecutando build.sh del proyecto..."
+log_step "La salida npm se almacenara en los logs correspondientes."
+
+# El build debe ejecutarse como usuario normal.
+# Esto evita que node_modules y Cargo queden propiedad de root.
+
+BUILD_SCRIPT="${EMUBOX_DIR}/scripts/build.sh"
+
+if ! runuser -u "${EMUBOX_USER}" -- bash "${BUILD_SCRIPT}"; then
+    log_error "El build de EmuBox ha fallado."
+    log_error "Logs disponibles:"
+    log_error "  npm:     ${NPM_INSTALL_LOG}"
+    log_error "  esbuild: ${NPM_ESBUILD_LOG}"
+    log_error "  frontend:${NPM_BUILD_LOG}"
+    log_error "  cargo:   ${CARGO_BUILD_LOG}"
+    exit 1
 fi
 
-log_ok "Paso de compilacion completado correctamente."
+log_ok "Build de EmuBox completado."
 
 # ------------------------------------------------------------------------------
-# 8. Creacion de la infraestructura de datos y comandos ejecutables
+# 11. ESTRUCTURA DE DATOS
 # ------------------------------------------------------------------------------
-log_info "[7/9] Creando estructura de directorios de datos y comandos globales..."
 
-# Directorios de sistema y logs
-mkdir -p /var/lib/emubox/{games,roms,saves,states,bios,covers,logs,screenshots}
-mkdir -p /etc/emubox
-mkdir -p /var/log/emubox
+log_info "[11/15] Creando estructura de datos..."
 
-# Directorios de usuario XDG
-if [[ -n "${CALLER_USER}" && "${CALLER_USER}" != "root" ]]; then
-  USER_HOME="$(getent passwd "${CALLER_USER}" | cut -d: -f6)"
-  mkdir -p "${USER_HOME}/.local/share/emubox/"{roms,saves,states,bios,covers,logs,screenshots}
-  mkdir -p "${USER_HOME}/.config/emubox"
-  mkdir -p "${USER_HOME}/.cache/emubox"
-  chown -R "${CALLER_USER}:${CALLER_USER}" "${USER_HOME}/.local/share/emubox" "${USER_HOME}/.config/emubox" "${USER_HOME}/.cache/emubox"
-  chown -R "${CALLER_USER}:${CALLER_USER}" /var/lib/emubox
-  chown -R "${CALLER_USER}:${CALLER_USER}" /var/log/emubox
-fi
+mkdir -p \
+    /var/lib/emubox/games \
+    /var/lib/emubox/roms \
+    /var/lib/emubox/saves \
+    /var/lib/emubox/states \
+    /var/lib/emubox/bios \
+    /var/lib/emubox/covers \
+    /var/lib/emubox/logs \
+    /var/lib/emubox/screenshots
 
-chmod -R 755 /var/log/emubox
+USER_HOME="$(getent passwd "${EMUBOX_USER}" | cut -d: -f6)"
 
-# Crear script ejecutable /usr/local/bin/emubox y enlace /usr/bin/emubox (ESTRICTO SIN FALLBACK A VITE)
-cat << 'EOF' > /usr/local/bin/emubox
+mkdir -p \
+    "${USER_HOME}/.local/share/emubox/roms" \
+    "${USER_HOME}/.local/share/emubox/saves" \
+    "${USER_HOME}/.local/share/emubox/states" \
+    "${USER_HOME}/.local/share/emubox/bios" \
+    "${USER_HOME}/.local/share/emubox/covers" \
+    "${USER_HOME}/.local/share/emubox/logs" \
+    "${USER_HOME}/.local/share/emubox/screenshots" \
+    "${USER_HOME}/.config/emubox" \
+    "${USER_HOME}/.cache/emubox"
+
+chown -R "${EMUBOX_USER}:${EMUBOX_GROUP}" \
+    /var/lib/emubox \
+    "${USER_HOME}/.local/share/emubox" \
+    "${USER_HOME}/.config/emubox" \
+    "${USER_HOME}/.cache/emubox"
+
+log_ok "Estructura de datos creada."
+
+# ------------------------------------------------------------------------------
+# 12. COMANDO GLOBAL EMUBOX
+# ------------------------------------------------------------------------------
+
+log_info "[12/15] Registrando comando global emubox..."
+
+cat > /usr/local/bin/emubox <<'EOF'
 #!/usr/bin/env bash
+
 set -euo pipefail
 
-EMUBOX_APP_DIR="/opt/emubox"
-EMUBOX_BIN="${EMUBOX_APP_DIR}/bin/emubox"
+EMUBOX_BIN="/opt/emubox/bin/emubox"
 
 if [[ ! -x "${EMUBOX_BIN}" ]]; then
-  echo "[ERROR] El binario de EmuBox no esta instalado." >&2
-  echo "[ERROR] Ejecuta nuevamente el setup de EmuBox (sudo ./scripts/setup-arch.sh)." >&2
-  exit 1
+    echo "[ERROR] No existe el binario de EmuBox:"
+    echo "${EMUBOX_BIN}"
+    exit 1
 fi
 
 exec "${EMUBOX_BIN}" "$@"
 EOF
-chmod +x /usr/local/bin/emubox
+
+chmod 0755 /usr/local/bin/emubox
 ln -sf /usr/local/bin/emubox /usr/bin/emubox
 
-# Crear script de actualizacion rapida /usr/local/bin/emubox-update
-cat << 'EOF' > /usr/local/bin/emubox-update
+log_ok "Comando emubox instalado."
+
+# ------------------------------------------------------------------------------
+# 13. COMANDO UPDATE
+# ------------------------------------------------------------------------------
+
+log_info "[13/15] Registrando emubox-update..."
+
+cat > /usr/local/bin/emubox-update <<'EOF'
 #!/usr/bin/env bash
-set -euo pipefail
 
-EMUBOX_APP_DIR="/opt/emubox"
-echo "[EmuBox Update] Comprobando actualizaciones del repositorio..."
+set -Eeuo pipefail
 
-cd "${EMUBOX_APP_DIR}"
+EMUBOX_DIR="/opt/emubox"
+EMUBOX_USER="emubox"
+
+cd "${EMUBOX_DIR}"
+
+echo "[EmuBox Update] Actualizando repositorio..."
+
 git fetch origin
 git pull --ff-only
 
-chmod +x "${EMUBOX_APP_DIR}/scripts/build.sh"
-bash "${EMUBOX_APP_DIR}/scripts/build.sh"
+echo "[EmuBox Update] Ejecutando build..."
 
-echo "[OK] EmuBox actualizado correctamente en modo producción."
+chown -R "${EMUBOX_USER}:${EMUBOX_USER}" "${EMUBOX_DIR}"
+
+runuser -u "${EMUBOX_USER}" -- \
+    bash "${EMUBOX_DIR}/scripts/build.sh"
+
+echo "[OK] EmuBox actualizado correctamente."
 EOF
-chmod +x /usr/local/bin/emubox-update
+
+chmod 0755 /usr/local/bin/emubox-update
 ln -sf /usr/local/bin/emubox-update /usr/bin/emubox-update
 
-log_ok "Comandos globales 'emubox' y 'emubox-update' registrados."
+log_ok "emubox-update instalado."
 
 # ------------------------------------------------------------------------------
-# 9. Configuracion del servicio de autoarranque systemd
+# 14. SYSTEMD
 # ------------------------------------------------------------------------------
-log_info "[8/9] Configurando servicio systemd para autoarranque (emubox.service)..."
 
-SERVICE_NAME="emubox.service"
-USER_HOME="$(getent passwd "${CALLER_USER}" | cut -d: -f6)"
+log_info "[14/15] Configurando servicio EmuBox..."
 
-cat > "/etc/systemd/system/${SERVICE_NAME}" <<EOF
+cat > /etc/systemd/system/emubox.service <<EOF
 [Unit]
 Description=EmuBox Console Interface
-After=graphical.target systemd-user-sessions.service
+After=graphical.target
 Wants=graphical.target
 
 [Service]
 Type=simple
 
-User=${CALLER_USER}
-Group=${CALLER_USER}
+User=${EMUBOX_USER}
+Group=${EMUBOX_GROUP}
 
-WorkingDirectory=/opt/emubox
+WorkingDirectory=${EMUBOX_DIR}
 
 ExecStart=/usr/bin/emubox
 
 Restart=on-failure
 RestartSec=3
 
-# Variables generales
 Environment=HOME=${USER_HOME}
 Environment=EMUBOX_HOME=/var/lib/emubox
 Environment=NODE_ENV=production
 
-# Logs
 StandardOutput=append:/var/log/emubox/emubox.log
 StandardError=append:/var/log/emubox/emubox-error.log
-
-# Seguridad básica
-NoNewPrivileges=true
 
 [Install]
 WantedBy=graphical.target
 EOF
 
 systemctl daemon-reload
-systemctl enable "${SERVICE_NAME}"
-log_ok "Servicio ${SERVICE_NAME} habilitado para autoarranque tras la sesion grafica."
+systemctl enable emubox.service || true
+
+log_ok "Servicio emubox.service configurado."
 
 # ------------------------------------------------------------------------------
-# 10. Verificacion integral del entorno
+# 15. VERIFICACION FINAL
 # ------------------------------------------------------------------------------
-log_info "[9/9] Verificacion integral del entorno..."
 
-echo "==============================================================================="
-echo "  INSTALACION Y CONFIGURACION DE EMUBOX COMPLETADA"
-echo "==============================================================================="
-echo "  Directorio de instalacion: ${EMUBOX_DIR}"
-echo "  Directorio de ROMs:        ~/.local/share/emubox/roms"
-echo "  Directorio de partidas:    ~/.local/share/emubox/saves"
-echo "  Comando de ejecucion:      emubox (ejecuta binario nativo Tauri)"
-echo "  Comando de actualizacion:  emubox-update"
-echo "  Autoarranque de consola:   Habilitado (${SERVICE_NAME})"
-echo "  Log completo de setup:     ${SETUP_LOG}"
-echo "==============================================================================="
+log_info "[15/15] Verificacion final..."
+
+echo ""
+echo "=============================================================="
+echo "             EMUBOX - INSTALACION COMPLETADA"
+echo "=============================================================="
+echo ""
+echo "Usuario:              ${EMUBOX_USER}"
+echo "Proyecto:             ${EMUBOX_DIR}"
+echo "Binario:              ${EMUBOX_DIR}/bin/emubox"
+echo "Comando:              emubox"
+echo "Actualizacion:        emubox-update"
+echo "Datos:                /var/lib/emubox"
+echo "Datos usuario:        ${USER_HOME}/.local/share/emubox"
+echo "Configuracion:        ${USER_HOME}/.config/emubox"
+echo "Logs:                 ${LOG_DIR}"
+echo "Servicio:             emubox.service"
+echo ""
+echo "Node:                 $(node --version)"
+echo "npm:                  $(npm --version)"
+echo "Rust:                 $(rustc --version)"
+echo "Cargo:                $(cargo --version)"
+echo ""
+echo "=============================================================="
+
+if [[ -x "${EMUBOX_DIR}/bin/emubox" ]]; then
+    log_ok "Binario EmuBox verificado."
+else
+    log_error "No se encontro el binario EmuBox."
+    exit 1
+fi
+
+log_ok "INSTALACION FINALIZADA CORRECTAMENTE."

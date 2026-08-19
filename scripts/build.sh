@@ -14,7 +14,13 @@ log_ok() { echo "[OK] $1"; }
 log_warn() { echo "[AVISO] $1"; }
 log_error() { echo "[ERROR] $1" >&2; }
 
-mkdir -p /var/log/emubox
+# Directorio de logs resiliente (permite ejecutar como usuario no-root)
+LOG_DIR="${EMUBOX_LOG_DIR:-/var/log/emubox}"
+if [[ ! -d "${LOG_DIR}" ]] || [[ ! -w "${LOG_DIR}" ]]; then
+  mkdir -p "${LOG_DIR}" 2>/dev/null || LOG_DIR="/tmp/emubox-build-logs"
+  mkdir -p "${LOG_DIR}" 2>/dev/null || true
+fi
+
 cd "${EMUBOX_DIR}"
 
 log_info "Iniciando proceso de compilacion de EmuBox..."
@@ -34,7 +40,7 @@ log_step "Node: $(node --version) | npm: $(npm --version)"
 # 2. Instalacion de dependencias (npm ci / npm install)
 # ------------------------------------------------------------------------------
 log_step "Instalando dependencias npm..."
-NPM_LOG="/var/log/emubox/npm-install.log"
+NPM_LOG="${LOG_DIR}/npm-install.log"
 : > "${NPM_LOG}"
 
 if [[ -f package-lock.json ]]; then
@@ -74,7 +80,7 @@ fi
 # 3. Preparacion de esbuild
 # ------------------------------------------------------------------------------
 log_step "Preparando binarios nativos de esbuild..."
-ESBUILD_LOG="/var/log/emubox/npm-esbuild.log"
+ESBUILD_LOG="${LOG_DIR}/npm-esbuild.log"
 : > "${ESBUILD_LOG}"
 
 if npm rebuild esbuild >>"${ESBUILD_LOG}" 2>&1; then
@@ -92,7 +98,7 @@ log_ok "Dependencias npm preparadas."
 log_step "Compilando frontend SolidJS..."
 rm -rf solid/dist
 
-BUILD_LOG="/var/log/emubox/npm-build.log"
+BUILD_LOG="${LOG_DIR}/npm-build.log"
 : > "${BUILD_LOG}"
 
 if npm run build >"${BUILD_LOG}" 2>&1; then
@@ -112,18 +118,24 @@ fi
 # ------------------------------------------------------------------------------
 mkdir -p "${EMUBOX_DIR}/bin"
 TAURI_BINARY="${EMUBOX_DIR}/src-tauri/target/release/emubox"
+CARGO_LOG="${LOG_DIR}/cargo-build.log"
+: > "${CARGO_LOG}"
 
 if [[ -x "${TAURI_BINARY}" ]]; then
   log_ok "Binario Tauri existente detectado."
 else
   log_step "Compilando EmuBox Tauri en modo release..."
-  cargo build --release --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml"
-
-  if [[ ! -x "${TAURI_BINARY}" ]]; then
-    log_error "Cargo termino pero no se encontro el binario: ${TAURI_BINARY}"
-    exit 1
+  if cargo build --release --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" >"${CARGO_LOG}" 2>&1; then
+    log_ok "Binario Tauri compilado correctamente."
+  else
+    CARGO_STATUS=$?
+    log_error "La compilacion de Cargo ha fallado (codigo ${CARGO_STATUS})."
+    log_error "Log completo: ${CARGO_LOG}"
+    echo ""
+    echo "Ultimas 40 lineas del error:"
+    tail -n 40 "${CARGO_LOG}"
+    exit "${CARGO_STATUS}"
   fi
-  log_ok "Binario Tauri compilado correctamente."
 fi
 
 # Copiar binario a ubicacion estable
