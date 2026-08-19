@@ -57,17 +57,24 @@ solid/src/
 2. **Nivel 2: Catálogo del Sistema (`PlatformGamesView.tsx`)**: Hero banner cinemático superior y estante virtualizado (*TanStack Virtual*) con entrada escalonada (*Anime.js Stagger*).
 3. **Nivel 3: Selector de Motor de Emulación (`EmulatorSelectorModal.tsx`)**: Diálogo Kobalte para elegir entre binarios Standalone (Vulkan) o núcleos Libretro antes del arranque DRM/KMS.
 
+## Documentación y Guías de Arquitectura
+
+- [Guía de Arquitectura, Refactorización y Estilo de Código](docs/architecture/refactoring-and-architecture-guidelines.md)
+- [Contratos de Backend y Servicios de Dominio](docs/architecture/backend-contracts.md)
+- [Convención de Archivos y Rutas XDG](docs/architecture/filesystem-convention.md)
+- [Especificación IPC Tauri/Rust](docs/architecture/tauri-rust-ipc-spec.md)
+
 ---
 
-## 🧪 Pruebas y Compilación
+## Pruebas y Compilación
 
 ```bash
-# Ejecutar suite de pruebas de arquitectura (18 pruebas automatizadas)
+# Ejecutar suite de pruebas de arquitectura y contratos (34 pruebas automatizadas)
 npm test
 
-# Compilar build optimizado de producción
+# Compilar build optimizado de producción con Vite
 npm run build
 
-# Iniciar entorno de desarrollo local (http://localhost:3001)
+# Iniciar entorno de desarrollo local
 npm run dev
 ```
