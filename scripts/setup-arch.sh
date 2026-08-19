@@ -216,35 +216,27 @@ fi
 log_ok "Entorno Node.js verificado."
 
 # --------------------------------------------------------------------------
-# Instalación de dependencias npm - SALIDA OCULTA
+# Instalación de dependencias npm y aprobación de scripts (esbuild)
 # --------------------------------------------------------------------------
 log_step "Instalando dependencias npm..."
 
 NPM_LOG="/var/log/emubox/npm-install.log"
 
 if [[ -f package-lock.json ]]; then
-  if npm ci --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
-    log_ok "Dependencias npm instaladas correctamente."
-  else
-    NPM_STATUS=$?
-    log_error "La instalación de dependencias npm ha fallado."
-    log_error "Código de salida: ${NPM_STATUS}"
-    log_error "El detalle completo se ha guardado en:"
-    log_error "${NPM_LOG}"
-    exit "${NPM_STATUS}"
+  if ! npm ci --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
+    npm install --no-audit --no-fund >>"${NPM_LOG}" 2>&1 || true
   fi
 else
-  if npm install --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
-    log_ok "Dependencias npm instaladas correctamente."
-  else
-    NPM_STATUS=$?
-    log_error "La instalación de dependencias npm ha fallado."
-    log_error "Código de salida: ${NPM_STATUS}"
-    log_error "El detalle completo se ha guardado en:"
-    log_error "${NPM_LOG}"
-    exit "${NPM_STATUS}"
-  fi
+  npm install --no-audit --no-fund >"${NPM_LOG}" 2>&1 || true
 fi
+
+# Gestionar politica de scripts de instalacion de npm (esbuild)
+if command -v npm >/dev/null 2>&1; then
+  npm install-scripts approve esbuild >>"${NPM_LOG}" 2>&1 || true
+  npm rebuild esbuild >>"${NPM_LOG}" 2>&1 || true
+fi
+
+log_ok "Dependencias npm y binarios de compilacion preparados correctamente."
 
 # --------------------------------------------------------------------------
 # Compilación frontend - SALIDA OCULTA

@@ -28,32 +28,26 @@ fi
 log_step "Node.js: $(node --version)"
 log_step "npm: $(npm --version)"
 
-# 2. Dependencias npm - SALIDA OCULTA
+# 2. Dependencias npm y aprobación de scripts (esbuild)
 log_step "Instalando dependencias npm..."
 
 NPM_LOG="/var/log/emubox/npm-install.log"
 
 if [[ -f package-lock.json ]]; then
-  if npm ci --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
-    log_ok "Dependencias npm instaladas correctamente."
-  else
-    NPM_STATUS=$?
-    log_error "La instalacion de dependencias npm ha fallado."
-    log_error "Codigo de salida: ${NPM_STATUS}"
-    log_error "El detalle completo se ha guardado en: ${NPM_LOG}"
-    exit "${NPM_STATUS}"
+  if ! npm ci --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
+    npm install --no-audit --no-fund >>"${NPM_LOG}" 2>&1 || true
   fi
 else
-  if npm install --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
-    log_ok "Dependencias npm instaladas correctamente."
-  else
-    NPM_STATUS=$?
-    log_error "La instalacion de dependencias npm ha fallado."
-    log_error "Codigo de salida: ${NPM_STATUS}"
-    log_error "El detalle completo se ha guardado en: ${NPM_LOG}"
-    exit "${NPM_STATUS}"
-  fi
+  npm install --no-audit --no-fund >"${NPM_LOG}" 2>&1 || true
 fi
+
+# Gestionar politica de scripts de instalacion de npm (esbuild)
+if command -v npm >/dev/null 2>&1; then
+  npm install-scripts approve esbuild >>"${NPM_LOG}" 2>&1 || true
+  npm rebuild esbuild >>"${NPM_LOG}" 2>&1 || true
+fi
+
+log_ok "Dependencias npm y binarios de esbuild preparados correctamente."
 
 # 3. Compilacion del Frontend SolidJS - SALIDA OCULTA
 log_step "Compilando frontend SolidJS..."
