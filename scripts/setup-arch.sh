@@ -218,24 +218,51 @@ fi
 log_ok "Entorno Node.js verificado."
 
 # --------------------------------------------------------------------------
-# Dependencias del proyecto
+# Dependencias del proyecto (ocultando lineas redundantes de npm error)
 # --------------------------------------------------------------------------
 log_step "Instalando dependencias npm..."
 
+set +e
 if [[ -f package-lock.json ]]; then
-  npm ci --no-audit --no-fund
+  NPM_OUTPUT="$(npm ci --no-audit --no-fund 2>&1)"
+  NPM_STATUS=$?
 else
-  npm install --no-audit --no-fund
+  NPM_OUTPUT="$(npm install --no-audit --no-fund 2>&1)"
+  NPM_STATUS=$?
+fi
+set -e
+
+if [[ -n "${NPM_OUTPUT}" ]]; then
+  echo "${NPM_OUTPUT}" | grep -v -i "npm error" | grep -v -i "npm ERR!" || true
+fi
+
+if [[ ${NPM_STATUS} -ne 0 ]]; then
+  log_error "La instalacion de dependencias npm fallo (codigo ${NPM_STATUS})."
+  exit ${NPM_STATUS}
 fi
 
 log_ok "Dependencias npm instaladas correctamente."
 
 # --------------------------------------------------------------------------
-# Compilacion del frontend SolidJS
+# Compilacion del frontend SolidJS (ocultando lineas redundantes de npm error)
 # --------------------------------------------------------------------------
 log_step "Compilando frontend SolidJS..."
 rm -rf solid/dist
-npm run build
+
+set +e
+BUILD_OUTPUT="$(npm run build 2>&1)"
+BUILD_STATUS=$?
+set -e
+
+if [[ -n "${BUILD_OUTPUT}" ]]; then
+  echo "${BUILD_OUTPUT}" | grep -v -i "npm error" | grep -v -i "npm ERR!" || true
+fi
+
+if [[ ${BUILD_STATUS} -ne 0 ]]; then
+  log_error "La compilacion del frontend fallo (codigo ${BUILD_STATUS})."
+  exit ${BUILD_STATUS}
+fi
+
 log_ok "Frontend SolidJS compilado correctamente."
 
 # --------------------------------------------------------------------------
