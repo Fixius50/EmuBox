@@ -103,27 +103,24 @@ log_info "[4/9] Configurando toolchains de desarrollo (Node.js, npm, Rust)..."
 pacman -S --needed --noconfirm nodejs npm
 log_ok "Node.js: $(node --version) | npm: $(npm --version)"
 
-# Rust toolchain
+# Rust toolchain (pacman oficial o rustup)
 if ! command -v rustc >/dev/null 2>&1 || ! command -v cargo >/dev/null 2>&1; then
-  log_step "Instalando rustup y configurando toolchain estable..."
-  pacman -S --needed --noconfirm rustup
-  if [[ -n "${CALLER_USER}" && "${CALLER_USER}" != "root" ]]; then
-    sudo -u "${CALLER_USER}" rustup default stable || true
-    sudo -u "${CALLER_USER}" rustup update stable || true
-  else
+  log_step "Instalando compilador Rust y Cargo oficial de Arch Linux..."
+  pacman -S --needed --noconfirm rust cargo || {
+    log_step "Instalando rustup como alternativa..."
+    pacman -S --needed --noconfirm rustup
     rustup default stable || true
-    rustup update stable || true
-  fi
-else
-  log_ok "Rust ya instalado: $(rustc --version)"
+  }
 fi
 
-# Tauri CLI global
-if ! npm list -g @tauri-apps/cli >/dev/null 2>&1 && ! command -v cargo-tauri >/dev/null 2>&1; then
-  log_step "Instalando @tauri-apps/cli globalmente..."
-  npm install --global @tauri-apps/cli || true
+export PATH="$HOME/.cargo/bin:/usr/local/bin:$PATH"
+if [[ -f "$HOME/.cargo/env" ]]; then
+  # shellcheck source=/dev/null
+  . "$HOME/.cargo/env" || true
 fi
-log_ok "Toolchains de Node.js, Rust y Tauri configurados."
+
+log_ok "Rust: $(rustc --version 2>/dev/null || echo 'instalado') | Cargo: $(cargo --version 2>/dev/null || echo 'instalado')"
+log_ok "Toolchains de Node.js y Rust configurados."
 
 # ------------------------------------------------------------------------------
 # 6. Despliegue de la aplicacion EmuBox en /opt/emubox
@@ -162,12 +159,12 @@ cd "${EMUBOX_DIR}"
 
 if [[ -n "${CALLER_USER}" && "${CALLER_USER}" != "root" ]]; then
   log_step "Instalando dependencias npm..."
-  sudo -u "${CALLER_USER}" npm install --no-audit --no-fund
+  sudo -u "${CALLER_USER}" env PATH="${PATH}" npm install --no-audit --no-fund
   log_step "Compilando frontend SolidJS..."
-  sudo -u "${CALLER_USER}" npm run build
+  sudo -u "${CALLER_USER}" env PATH="${PATH}" npm run build
 
   log_step "Compilando binario nativo Tauri (Release)..."
-  sudo -u "${CALLER_USER}" cargo build --release --manifest-path src-tauri/Cargo.toml
+  sudo -u "${CALLER_USER}" env PATH="${PATH}" cargo build --release --manifest-path src-tauri/Cargo.toml
 else
   log_step "Instalando dependencias npm..."
   npm install --no-audit --no-fund
