@@ -233,13 +233,10 @@ log_ok "Dependencias npm instaladas correctamente."
 # --------------------------------------------------------------------------
 # Compilacion del frontend SolidJS
 # --------------------------------------------------------------------------
-if [[ -f "solid/dist/index.html" ]]; then
-  log_ok "Frontend SolidJS ya compilado. Se reutiliza la compilacion existente."
-else
-  log_step "Compilando frontend SolidJS..."
-  npm run build
-  log_ok "Frontend SolidJS compilado correctamente."
-fi
+log_step "Compilando frontend SolidJS..."
+rm -rf solid/dist
+npm run build
+log_ok "Frontend SolidJS compilado correctamente."
 
 # --------------------------------------------------------------------------
 # Compilacion de Tauri
