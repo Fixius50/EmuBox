@@ -137,26 +137,32 @@ if [[ ! -f "${EMUBOX_DIR}/src-tauri/icons/icon.png" ]] && [[ -f "${EMUBOX_DIR}/s
   node "${EMUBOX_DIR}/scripts/generate-icons.js" >/dev/null 2>&1 || true
 fi
 
+# Verificar que el frontend estatico existe antes de compilar Tauri
+if [[ ! -f "${EMUBOX_DIR}/solid/dist/index.html" ]]; then
+  log_error "No se encontro ${EMUBOX_DIR}/solid/dist/index.html. La compilacion del frontend es requerida antes de Tauri."
+  exit 1
+fi
+
 mkdir -p "${EMUBOX_DIR}/bin"
 TAURI_BINARY="${EMUBOX_DIR}/src-tauri/target/release/emubox"
 CARGO_LOG="${LOG_DIR}/cargo-build.log"
 : > "${CARGO_LOG}"
 
-if [[ -x "${TAURI_BINARY}" ]]; then
-  log_ok "Binario Tauri existente detectado."
+log_step "Compilando EmuBox Tauri en modo release con frontend embebido (Rust: $(rustc --version))..."
+
+# Limpiar cache del crate emubox para forzar a build.rs a re-empaquetar ../solid/dist
+cargo clean --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" -p emubox >/dev/null 2>&1 || true
+
+if cargo build --release --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" >"${CARGO_LOG}" 2>&1; then
+  log_ok "Binario nativo Tauri compilado exitosamente con frontend embebido."
 else
-  log_step "Compilando EmuBox Tauri en modo release (Rust: $(rustc --version))..."
-  if cargo build --release --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" >"${CARGO_LOG}" 2>&1; then
-    log_ok "Binario Tauri compilado correctamente."
-  else
-    CARGO_STATUS=$?
-    log_error "La compilacion de Cargo ha fallado (codigo ${CARGO_STATUS})."
-    log_error "Log completo: ${CARGO_LOG}"
-    echo ""
-    echo "Ultimas 40 lineas del error:"
-    tail -n 40 "${CARGO_LOG}"
-    exit "${CARGO_STATUS}"
-  fi
+  CARGO_STATUS=$?
+  log_error "La compilacion de Cargo ha fallado (codigo ${CARGO_STATUS})."
+  log_error "Log completo: ${CARGO_LOG}"
+  echo ""
+  echo "Ultimas 40 lineas del error:"
+  tail -n 40 "${CARGO_LOG}"
+  exit "${CARGO_STATUS}"
 fi
 
 # Copiar binario a ubicacion estable
