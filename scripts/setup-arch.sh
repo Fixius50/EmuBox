@@ -485,6 +485,22 @@ set -euo pipefail
 export WEBKIT_DISABLE_DMABUF_RENDERER=1
 export GDK_BACKEND="${GDK_BACKEND:-wayland,x11}"
 
+# Asegurar XDG_RUNTIME_DIR para compositores Wayland (Cage / Gamescope)
+if [[ -z "${XDG_RUNTIME_DIR:-}" ]]; then
+    CURRENT_UID="$(id -u)"
+    if [[ -d "/run/user/${CURRENT_UID}" ]]; then
+        export XDG_RUNTIME_DIR="/run/user/${CURRENT_UID}"
+    else
+        export XDG_RUNTIME_DIR="/tmp/run-user-${CURRENT_UID}"
+        mkdir -p -m 0700 "${XDG_RUNTIME_DIR}" 2>/dev/null || true
+    fi
+fi
+export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
+
+if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" && -S "${XDG_RUNTIME_DIR}/bus" ]]; then
+    export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
+fi
+
 EMUBOX_BIN="/opt/emubox/bin/emubox"
 
 if [[ ! -x "${EMUBOX_BIN}" ]]; then
