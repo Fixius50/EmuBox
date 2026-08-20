@@ -33,10 +33,32 @@ if [[ -f "${TAURI_BINARY}" ]]; then
   chmod +x "${OPT_BIN}"
 fi
 
-# 6. Instalar ejecutable global en /usr/local/bin/emubox (ESTRICTO CON SOPORTE TTY/GAMESCOPE)
+# 6. Instalar lanzador autónomo /usr/local/bin/emubox-launcher
+cat << 'EOF' > /usr/local/bin/emubox-launcher
+#!/usr/bin/env bash
+set -euo pipefail
+
+export WEBKIT_DISABLE_DMABUF_RENDERER=1
+export GDK_BACKEND="${GDK_BACKEND:-wayland,x11}"
+
+EMUBOX_BIN="/opt/emubox/bin/emubox"
+if [[ ! -x "${EMUBOX_BIN}" ]]; then
+  echo "[ERROR] No existe el binario de EmuBox: ${EMUBOX_BIN}" >&2
+  exit 1
+fi
+
+exec "${EMUBOX_BIN}" "$@"
+EOF
+chmod 0755 /usr/local/bin/emubox-launcher
+ln -sf /usr/local/bin/emubox-launcher /usr/bin/emubox-launcher
+
+# 7. Instalar ejecutable global en /usr/local/bin/emubox (ESTRICTO CON SOPORTE WAYLAND/CAGE/GAMESCOPE)
 cat << 'EOF' > /usr/local/bin/emubox
 #!/usr/bin/env bash
 set -euo pipefail
+
+export WEBKIT_DISABLE_DMABUF_RENDERER=1
+export GDK_BACKEND="${GDK_BACKEND:-wayland,x11}"
 
 EMUBOX_APP_DIR="/opt/emubox"
 EMUBOX_BIN="${EMUBOX_APP_DIR}/bin/emubox"
@@ -47,22 +69,25 @@ if [[ ! -x "${EMUBOX_BIN}" ]]; then
   exit 1
 fi
 
-# Si ya existe un servidor gráfico activo (X11 o Wayland), ejecutar directamente
-if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
+# Si ya existe un servidor gráfico activo (Wayland o X11), ejecutar directamente
+if [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
   exec "${EMUBOX_BIN}" "$@"
 fi
 
-# Si se ejecuta desde una consola TTY sin servidor gráfico, iniciar sesión con Gamescope o X11
-if command -v gamescope >/dev/null 2>&1; then
-  echo "[EmuBox] Iniciando interfaz de consola con Gamescope..."
+# Si se ejecuta desde una consola TTY sin servidor gráfico, iniciar sesión con Cage, Gamescope o X11
+if command -v cage >/dev/null 2>&1; then
+  echo "[EmuBox] Iniciando sesión gráfica de consola con Cage (Wayland)..."
+  exec cage -- "${EMUBOX_BIN}" "$@"
+elif command -v gamescope >/dev/null 2>&1; then
+  echo "[EmuBox] Iniciando sesión gráfica de consola con Gamescope..."
   exec gamescope -f -W 1920 -H 1080 -- "${EMUBOX_BIN}" "$@"
 elif command -v xinit >/dev/null 2>&1; then
   echo "[EmuBox] Iniciando sesión gráfica con X11..."
   exec xinit "${EMUBOX_BIN}" "$@" -- :0
 else
-  echo "[ERROR] No se detectó ninguna sesión gráfica activa (\$DISPLAY / \$WAYLAND_DISPLAY)." >&2
-  echo "Para ejecutar EmuBox desde la consola TTY, instala gamescope:" >&2
-  echo "  sudo pacman -S --needed gamescope" >&2
+  echo "[ERROR] No se detectó ninguna sesión gráfica activa (\$WAYLAND_DISPLAY / \$DISPLAY)." >&2
+  echo "Para ejecutar EmuBox desde la consola TTY, instala cage o gamescope:" >&2
+  echo "  sudo pacman -S --needed cage gamescope" >&2
   echo "O inicia EmuBox dentro de tu entorno de escritorio habitual." >&2
   exit 1
 fi

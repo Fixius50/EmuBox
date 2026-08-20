@@ -95,6 +95,8 @@ RestartSec=3
 Environment=HOME=$EMUBOX_HOME
 Environment=EMUBOX_HOME=/var/lib/emubox
 Environment=NODE_ENV=production
+Environment=WEBKIT_DISABLE_DMABUF_RENDERER=1
+Environment=GDK_BACKEND=wayland,x11
 
 # Logs permanentes
 StandardOutput=append:/var/log/emubox/emubox.log

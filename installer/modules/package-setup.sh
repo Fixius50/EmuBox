@@ -13,6 +13,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 REQUIRED_PACKAGES=(
   "sudo"
+  "cage"
+  "foot"
   "gamescope"
   "pipewire"
   "pipewire-pulse"
