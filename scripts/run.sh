@@ -56,12 +56,25 @@ if [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
 fi
 
 # 4. Si se ejecuta desde una consola TTY sin servidor grafico, iniciar sesion con Cage o Gamescope
+DBUS_RUN=""
+if command -v dbus-run-session >/dev/null 2>&1 && [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
+  DBUS_RUN="dbus-run-session"
+fi
+
 if command -v cage >/dev/null 2>&1; then
   echo "[EmuBox] Iniciando sesión gráfica con Cage (Wayland)..."
-  exec cage -- "${EMUBOX_BIN}" "$@"
+  if [[ -n "${DBUS_RUN}" ]]; then
+    exec dbus-run-session cage -- "${EMUBOX_BIN}" "$@"
+  else
+    exec cage -- "${EMUBOX_BIN}" "$@"
+  fi
 elif command -v gamescope >/dev/null 2>&1; then
   echo "[EmuBox] Iniciando sesión gráfica con Gamescope..."
-  exec gamescope -f -W 1920 -H 1080 -- "${EMUBOX_BIN}" "$@"
+  if [[ -n "${DBUS_RUN}" ]]; then
+    exec dbus-run-session gamescope -f -W 1920 -H 1080 -- "${EMUBOX_BIN}" "$@"
+  else
+    exec gamescope -f -W 1920 -H 1080 -- "${EMUBOX_BIN}" "$@"
+  fi
 elif command -v xinit >/dev/null 2>&1; then
   echo "[EmuBox] Iniciando sesión gráfica con X11..."
   exec xinit "${EMUBOX_BIN}" "$@" -- :0
