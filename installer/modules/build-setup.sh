@@ -33,7 +33,7 @@ if [[ -f "${TAURI_BINARY}" ]]; then
   chmod +x "${OPT_BIN}"
 fi
 
-# 6. Instalar ejecutable global en /usr/local/bin/emubox (ESTRICTO SIN FALLBACK)
+# 6. Instalar ejecutable global en /usr/local/bin/emubox (ESTRICTO CON SOPORTE TTY/GAMESCOPE)
 cat << 'EOF' > /usr/local/bin/emubox
 #!/usr/bin/env bash
 set -euo pipefail
@@ -47,7 +47,25 @@ if [[ ! -x "${EMUBOX_BIN}" ]]; then
   exit 1
 fi
 
-exec "${EMUBOX_BIN}" "$@"
+# Si ya existe un servidor gráfico activo (X11 o Wayland), ejecutar directamente
+if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
+  exec "${EMUBOX_BIN}" "$@"
+fi
+
+# Si se ejecuta desde una consola TTY sin servidor gráfico, iniciar sesión con Gamescope o X11
+if command -v gamescope >/dev/null 2>&1; then
+  echo "[EmuBox] Iniciando interfaz de consola con Gamescope..."
+  exec gamescope -f -W 1920 -H 1080 -- "${EMUBOX_BIN}" "$@"
+elif command -v xinit >/dev/null 2>&1; then
+  echo "[EmuBox] Iniciando sesión gráfica con X11..."
+  exec xinit "${EMUBOX_BIN}" "$@" -- :0
+else
+  echo "[ERROR] No se detectó ninguna sesión gráfica activa (\$DISPLAY / \$WAYLAND_DISPLAY)." >&2
+  echo "Para ejecutar EmuBox desde la consola TTY, instala gamescope:" >&2
+  echo "  sudo pacman -S --needed gamescope" >&2
+  echo "O inicia EmuBox dentro de tu entorno de escritorio habitual." >&2
+  exit 1
+fi
 EOF
 chmod +x /usr/local/bin/emubox
 ln -sf /usr/local/bin/emubox /usr/bin/emubox

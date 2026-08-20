@@ -334,11 +334,16 @@ TAURI_PACKAGES=(
     openssl
     pkgconf
     xdotool
+    gamescope
+    mesa
+    vulkan-icd-loader
+    xorg-server
+    xorg-xinit
 )
 
-pacman -S --needed --noconfirm "${TAURI_PACKAGES[@]}"
+pacman -S --needed --noconfirm "${TAURI_PACKAGES[@]}" || true
 
-log_ok "Dependencias graficas de Tauri instaladas."
+log_ok "Dependencias graficas y compositores de Tauri instalados."
 
 # ------------------------------------------------------------------------------
 # 9. PREPARACION DEL REPOSITORIO
@@ -459,12 +464,29 @@ set -euo pipefail
 EMUBOX_BIN="/opt/emubox/bin/emubox"
 
 if [[ ! -x "${EMUBOX_BIN}" ]]; then
-    echo "[ERROR] No existe el binario de EmuBox:"
-    echo "${EMUBOX_BIN}"
+    echo "[ERROR] No existe el binario de EmuBox: ${EMUBOX_BIN}" >&2
     exit 1
 fi
 
-exec "${EMUBOX_BIN}" "$@"
+# Si ya existe un servidor gráfico activo (X11 o Wayland), ejecutar directamente
+if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
+    exec "${EMUBOX_BIN}" "$@"
+fi
+
+# Si se ejecuta desde una consola TTY sin servidor gráfico, iniciar sesión con Gamescope o X11
+if command -v gamescope >/dev/null 2>&1; then
+    echo "[EmuBox] Iniciando interfaz de consola con Gamescope..."
+    exec gamescope -f -W 1920 -H 1080 -- "${EMUBOX_BIN}" "$@"
+elif command -v xinit >/dev/null 2>&1; then
+    echo "[EmuBox] Iniciando sesión gráfica con X11..."
+    exec xinit "${EMUBOX_BIN}" "$@" -- :0
+else
+    echo "[ERROR] No se detectó ninguna sesión gráfica activa (\$DISPLAY / \$WAYLAND_DISPLAY)." >&2
+    echo "Para ejecutar EmuBox desde la consola TTY, instala gamescope:" >&2
+    echo "  sudo pacman -S --needed gamescope" >&2
+    echo "O inicia EmuBox dentro de tu entorno de escritorio habitual." >&2
+    exit 1
+fi
 EOF
 
 chmod 0755 /usr/local/bin/emubox
