@@ -131,6 +131,12 @@ if ! command -v rustc >/dev/null 2>&1 || ! command -v cargo >/dev/null 2>&1; the
   exit 1
 fi
 
+# Asegurar iconos de la aplicacion para Tauri
+if [[ ! -f "${EMUBOX_DIR}/src-tauri/icons/icon.png" ]] && [[ -f "${EMUBOX_DIR}/scripts/generate-icons.js" ]]; then
+  log_step "Generando iconos nativos para Tauri..."
+  node "${EMUBOX_DIR}/scripts/generate-icons.js" >/dev/null 2>&1 || true
+fi
+
 mkdir -p "${EMUBOX_DIR}/bin"
 TAURI_BINARY="${EMUBOX_DIR}/src-tauri/target/release/emubox"
 CARGO_LOG="${LOG_DIR}/cargo-build.log"
