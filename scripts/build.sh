@@ -148,16 +148,18 @@ TAURI_BINARY="${EMUBOX_DIR}/src-tauri/target/release/emubox"
 CARGO_LOG="${LOG_DIR}/cargo-build.log"
 : > "${CARGO_LOG}"
 
-log_step "Compilando EmuBox Tauri en modo release con frontend embebido (Rust: $(rustc --version))..."
+log_step "Compilando EmuBox Tauri en modo produccion con frontend embebido..."
 
-# Limpiar cache del crate emubox para forzar a build.rs a re-empaquetar ../solid/dist
+# Limpiar cache del crate emubox para forzar re-empaquetado limpio de ../solid/dist
 cargo clean --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" -p emubox >/dev/null 2>&1 || true
 
-if cargo build --release --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" >"${CARGO_LOG}" 2>&1; then
-  log_ok "Binario nativo Tauri compilado exitosamente con frontend embebido."
+if npx tauri build --no-bundle >"${CARGO_LOG}" 2>&1; then
+  log_ok "Binario nativo Tauri compilado exitosamente con frontend embebido (tauri build)."
+elif cargo build --release --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" >"${CARGO_LOG}" 2>&1; then
+  log_ok "Binario nativo Tauri compilado exitosamente mediante Cargo release."
 else
   CARGO_STATUS=$?
-  log_error "La compilacion de Cargo ha fallado (codigo ${CARGO_STATUS})."
+  log_error "La compilacion de Tauri ha fallado (codigo ${CARGO_STATUS})."
   log_error "Log completo: ${CARGO_LOG}"
   echo ""
   echo "Ultimas 40 lineas del error:"
