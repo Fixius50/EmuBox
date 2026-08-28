@@ -1,6 +1,6 @@
 # Arquitectura de Arranque Autónomo de Consola (Appliance Lifecycle)
 
-Este documento define la arquitectura de ciclo de vida y arranque del sistema **EmuBox** como un dispositivo de consola dedicada (*Appliance*) bajo **Arch Linux (Direct DRM/KMS + Gamescope)**.
+Este documento define la arquitectura de ciclo de vida, arranque autónomo y políticas de resiliencia del sistema **EmuBox** como un dispositivo de consola dedicada (*Appliance*) bajo **Arch Linux (Direct DRM/KMS + Gamescope)**.
 
 ---
 
@@ -10,7 +10,7 @@ Este documento define la arquitectura de ciclo de vida y arranque del sistema **
                     ┌──────────────────────────────────────────────────┐
                     │                 1. SYSTEMD / TTY1                │
                     │   - Autologin del usuario 'emubox' en seat0      │
-                    │   - Aislamiento de sesión PAM y D-Bus            │
+                    │   - Aislamiento de sesión PAM y D-Bus de usuario │
                     └─────────────────────────┬────────────────────────┘
                                               │
                                               ▼
@@ -39,9 +39,13 @@ Este documento define la arquitectura de ciclo de vida y arranque del sistema **
 
 Cage y Gamescope no son alternativas excluyentes, sino **capas complementarias con propósitos diferenciados**:
 
-* **Cage (Capa de Sesión Wayland)**: Proporciona una sesión Wayland de kiosko minimalista y ultra-ligera en `tty1`. Su único trabajo es gestionar el asiento de hardware (`seat0`) y ejecutar una única aplicación sin arrastrar gestores de ventanas ni entornos de escritorio pesados (GNOME/KDE/XFCE).
+* **Cage (Capa de Sesión Wayland / Kiosko)**: Proporciona una sesión Wayland minimalista y ultra-ligera en `tty1`. Su único trabajo es gestionar el asiento de hardware (`seat0`) y ejecutar una única aplicación sin arrastrar gestores de ventanas ni entornos de escritorio pesados (GNOME/KDE/XFCE).
 * **Gamescope (Capa de Composición y Rendimiento de Consola)**: Se ejecuta dentro de la sesión de Cage para brindar las capacidades avanzadas de una consola moderna de videojuegos (aislamiento de resolución, sincronización VSync estricta, escalado FSR/Integer scaling y gestión dinámica de ventanas de emuladores).
 * **EmuBox (Capa de Aplicación)**: El frontend WebKitGTK/Tauri que renderiza la interfaz cinematográfica Obsidian & Neón.
+
+> 📌 **Regla de Oro de Administración**:  
+> **SSH es exclusivamente una puerta de mantenimiento, diagnóstico y despliegue remoto.**  
+> EmuBox jamás se ejecuta dentro de la sesión SSH ni depende de que exista una conexión activa. La interfaz gráfica se levanta y persiste de forma autónoma en la pantalla física de la máquina.
 
 ---
 
@@ -71,3 +75,63 @@ Cage y Gamescope no son alternativas excluyentes, sino **capas complementarias c
 | **Motor Frontend** | **WebKitGTK 4.1 + Tauri v2** | Renderizado HTML/CSS de ultra-alto rendimiento con reactividad de grano fino en SolidJS. |
 | **Pipeline de Renderizado** | **Autónomo (GPU vs CPU)** | Detección automática en arranque; fallback transparente sin blur pesado en entornos sin GPU acelerada. |
 | **Sesión & Ciclo de Vida** | **Systemd + getty@tty1** | Persistencia total ante reinicios sin dependencia de conexiones de red externas. |
+
+---
+
+## 4. Política de Resiliencia y Recuperación (Anti-Crash Loops)
+
+Para evitar bucles masivos de reinicios (ej. `Restart=on-failure` superando cientos de intentos):
+1. **Límites de Reinicio Estrictos**: Configurar `StartLimitIntervalSec=60s` y `StartLimitBurst=3` en systemd.
+2. **TTY de Rescate**: Si el entorno gráfico falla en `tty1`, el sistema no se bloquea; se conservan `tty2` y `tty3` para acceso manual directo o administración vía SSH.
+3. **Persistencia de Permisos**: Todo el árbol `/opt/emubox` pertenece exclusivamente a `emubox:emubox`, previniendo bloqueos de acceso generados por ejecuciones con `sudo`.
+
+---
+
+## 5. Red y Conectividad Zero-Config (Offline-First)
+
+La consola opera bajo la premisa de **cero fricción de red**:
+
+```text
+                           ENCENDER CONSOLA
+                                  │
+                                  ▼
+                         NetworkManager Daemon
+                                  │
+                   ┌──────────────┴──────────────┐
+                   ▼                             ▼
+           Ethernet Conectado           Sin Cable Ethernet
+                   │                             │
+                   ▼                             ▼
+             DHCP Automático             ¿Hay Wi-Fi Configurado?
+                   │                             │
+                   │                     ┌───────┴───────┐
+                   │                     ▼               ▼
+                   │                   Sí (Auto)       No (Manual)
+                   │                     │               │
+                   │                     ▼               ▼
+                   │                Conectar SSIDs    Elegir red en UI
+                   │                     │            e introducir clave
+                   └──────────────┬──────┘               │
+                                  ▼                      ▼
+                            Online Ready         Offline Mode Activo
+                       (Scraping / OTA / P2P)    (Juegos locales 100% listos)
+```
+
+* **Cero Configuración Manual de IPs**: El usuario no debe introducir IP, máscara de red, gateway ni DNS.
+* **Filosofía Offline-First**: EmuBox arranca y ejecuta todos los emuladores, partidas guardadas e interfaz aunque no exista conexión a Internet.
+
+---
+
+## 6. Protocolo de Verificación Canónico (11 Pasos)
+
+1. Validar configuración de unidades systemd (`systemctl`).
+2. Validar override de `getty@tty1` (autologin).
+3. Validar permisos de `/opt/emubox` (`emubox:emubox`).
+4. Validar socket y permisos de Wayland.
+5. Validar ejecución de Cage.
+6. Validar anidación de Gamescope.
+7. Validar arranque de NetworkManager.
+8. Validar renderizado de EmuBox en local.
+9. Reiniciar la VM / máquina física.
+10. Observar aparición automática de la interfaz en pantalla física.
+11. Cerrar completamente la sesión SSH y verificar que la consola permanece 100% activa.

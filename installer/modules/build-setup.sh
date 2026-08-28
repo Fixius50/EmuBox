@@ -96,7 +96,14 @@ if command -v dbus-run-session >/dev/null 2>&1 && [[ -z "${DBUS_SESSION_BUS_ADDR
   DBUS_RUN="dbus-run-session"
 fi
 
-if command -v cage >/dev/null 2>&1; then
+if command -v cage >/dev/null 2>&1 && command -v gamescope >/dev/null 2>&1; then
+  echo "[EmuBox] Iniciando sesión gráfica de consola con Cage + Gamescope (Wayland)..."
+  if [[ -n "${DBUS_RUN}" ]]; then
+    exec dbus-run-session cage -- gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
+  else
+    exec cage -- gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
+  fi
+elif command -v cage >/dev/null 2>&1; then
   echo "[EmuBox] Iniciando sesión gráfica de consola con Cage (Wayland)..."
   if [[ -n "${DBUS_RUN}" ]]; then
     exec dbus-run-session cage -- "${EMUBOX_BIN}" "$@"
@@ -104,20 +111,16 @@ if command -v cage >/dev/null 2>&1; then
     exec cage -- "${EMUBOX_BIN}" "$@"
   fi
 elif command -v gamescope >/dev/null 2>&1; then
-  echo "[EmuBox] Iniciando sesión gráfica de consola con Gamescope..."
+  echo "[EmuBox] Iniciando sesión gráfica de consola con Gamescope (Wayland Direct DRM)..."
   if [[ -n "${DBUS_RUN}" ]]; then
-    exec dbus-run-session gamescope -f -W 1920 -H 1080 -- "${EMUBOX_BIN}" "$@"
+    exec dbus-run-session gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
   else
-    exec gamescope -f -W 1920 -H 1080 -- "${EMUBOX_BIN}" "$@"
+    exec gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
   fi
-elif command -v xinit >/dev/null 2>&1; then
-  echo "[EmuBox] Iniciando sesión gráfica con X11..."
-  exec xinit "${EMUBOX_BIN}" "$@" -- :0
 else
   echo "[ERROR] No se detectó ninguna sesión gráfica activa (\$WAYLAND_DISPLAY / \$DISPLAY)." >&2
-  echo "Para ejecutar EmuBox desde la consola TTY, instala cage o gamescope:" >&2
+  echo "Para ejecutar EmuBox en consola dedicada, instala cage y gamescope:" >&2
   echo "  sudo pacman -S --needed cage gamescope" >&2
-  echo "O inicia EmuBox dentro de tu entorno de escritorio habitual." >&2
   exit 1
 fi
 EOF

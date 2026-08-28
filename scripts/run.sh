@@ -55,32 +55,37 @@ if [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
   exec "${EMUBOX_BIN}" "$@"
 fi
 
-# 4. Si se ejecuta desde una consola TTY sin servidor grafico, iniciar sesion con Cage o Gamescope
+# 4. Si se ejecuta desde una consola TTY sin servidor gráfico, iniciar sesión Wayland con Cage + Gamescope
 DBUS_RUN=""
 if command -v dbus-run-session >/dev/null 2>&1 && [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
   DBUS_RUN="dbus-run-session"
 fi
 
-if command -v cage >/dev/null 2>&1; then
-  echo "[EmuBox] Iniciando sesión gráfica con Cage (Wayland)..."
+if command -v cage >/dev/null 2>&1 && command -v gamescope >/dev/null 2>&1; then
+  echo "[EmuBox] Iniciando sesión gráfica de consola con Cage + Gamescope (Wayland)..."
+  if [[ -n "${DBUS_RUN}" ]]; then
+    exec dbus-run-session cage -- gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
+  else
+    exec cage -- gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
+  fi
+elif command -v cage >/dev/null 2>&1; then
+  echo "[EmuBox] Iniciando sesión gráfica de kiosko con Cage (Wayland)..."
   if [[ -n "${DBUS_RUN}" ]]; then
     exec dbus-run-session cage -- "${EMUBOX_BIN}" "$@"
   else
     exec cage -- "${EMUBOX_BIN}" "$@"
   fi
 elif command -v gamescope >/dev/null 2>&1; then
-  echo "[EmuBox] Iniciando sesión gráfica con Gamescope..."
+  echo "[EmuBox] Iniciando sesión gráfica directa con Gamescope (Wayland Direct DRM)..."
   if [[ -n "${DBUS_RUN}" ]]; then
-    exec dbus-run-session gamescope -f -W 1920 -H 1080 -- "${EMUBOX_BIN}" "$@"
+    exec dbus-run-session gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
   else
-    exec gamescope -f -W 1920 -H 1080 -- "${EMUBOX_BIN}" "$@"
+    exec gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
   fi
-elif command -v xinit >/dev/null 2>&1; then
-  echo "[EmuBox] Iniciando sesión gráfica con X11..."
-  exec xinit "${EMUBOX_BIN}" "$@" -- :0
 else
-  echo "[ERROR] No se detecto ninguna sesion grafica (\$WAYLAND_DISPLAY / \$DISPLAY)." >&2
-  echo "Para arrancar EmuBox directamente desde TTY, instala cage:" >&2
-  echo "  sudo pacman -S --needed cage" >&2
+  echo "[ERROR] No se detectó ninguna sesión gráfica (\$WAYLAND_DISPLAY / \$DISPLAY)." >&2
+  echo "Para arrancar EmuBox en consola dedicada, instala cage y gamescope:" >&2
+  echo "  sudo pacman -S --needed cage gamescope" >&2
   exit 1
 fi
+
