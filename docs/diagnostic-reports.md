@@ -64,13 +64,21 @@ El pipeline de construcción y empaquetado nativo (`scripts/build.sh`) funciona 
 ## 📑 Reporte 4: Diagnóstico de Ejecución en Tiempo Real (Systemd & SIGABRT)
 
 * **Fecha**: 28 de Agosto, 2026
-* **Síntoma**: `emubox.service` termina inmediatamente con `status=6/ABRT` (`SIGABRT`, código de salida `134`), entrando en bucle de reinicios.
+* **Síntoma**: `emubox.service` termina inmediatamente con `status=6/ABRT` (`SIGABRT`, código de salida `134`).
+* **Causa Raíz Confirmada**:
+  * Traza capturada: `thread 'main' panicked ... tao-0.35.3/src/platform_impl/linux/event_loop.rs: Failed to initialize gtk backend! Failed to initialize GTK`.
+  * La sesión SSH no dispone de servidor gráfico (`DISPLAY=<vacio>`, `WAYLAND_DISPLAY=<vacio>`, `XDG_SESSION_TYPE=tty`).
+  * `tao` / `gtk::init()` lanza un panic en Rust al no encontrar pantalla disponible, generando `SIGABRT` y bucle de reinicios en systemd.
 
-### Causa Raíz Identificada:
-* El binario ELF de EmuBox está construido sobre WebKitGTK / Tauri (`tao`).
-* `gtk::init()` requiere obligatoriamente una conexión válida a un servidor gráfico (`$WAYLAND_DISPLAY` o `$DISPLAY`).
-* Al ser invocado por `systemd` como servicio de fondo antes de levantar un compositor de consola (como **Gamescope** o **Cage**) en la TTY física, GTK falla con `Cannot open display` y aborta el proceso de forma forzada (`SIGABRT`).
+---
 
-### Medidas de Mitigación:
-* El servicio `emubox.service` ha sido detenido temporalmente para evitar bucles de reinicio.
-* La ejecución debe realizarse mediante el wrapper orquestador que inicializa la sesión gráfica Wayland con Gamescope/Cage en TTY (`/dev/tty1`).
+## 📑 Reporte 5: Decisión Arquitectónica del Stack Gráfico (Pure Wayland)
+
+* **Fecha**: 28 de Agosto, 2026
+* **Stack Gráfico Objetivo**: **Wayland puro** (Direct DRM/KMS + Gamescope / Cage).
+* **Decisiones Inmutables**:
+  1. No se introduce Xorg / X11. EmuBox es un entorno de consola moderno basado 100% en Wayland.
+  2. **Gamescope** (con Cage como alternativa ligera) actuará como compositor de pantalla completa embebido sobre DRM/KMS.
+  3. **SSH** se mantiene estrictamente para tareas de administración remota, no para arrancar el entorno gráfico.
+  4. El arranque de la interfaz se orquestará localmente en la TTY física (`/dev/tty1`) mediante autologin y sesión Wayland de usuario.
+
