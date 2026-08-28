@@ -228,7 +228,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
-  backdrop-filter: blur(1rem);
+  backdrop-filter: var(--glass-blur-md);
   box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.5);
   transition: all 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
   cursor: pointer;
@@ -313,7 +313,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
-  backdrop-filter: blur(1.25rem);
+  backdrop-filter: var(--glass-blur-lg);
   box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.6);
   cursor: pointer;
   transition: border-color 200ms ease, background 200ms ease, box-shadow 200ms ease;
@@ -758,8 +758,8 @@
 .crud-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(1.5rem);
+  background: var(--glass-modal-bg);
+  backdrop-filter: var(--glass-blur-lg);
   z-index: 100;
   display: flex;
   align-items: center;

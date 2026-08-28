@@ -41,14 +41,14 @@
 }
 
 .emulator-card {
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--bg-surface-glass);
   border: 0.0625rem solid var(--border-subtle);
   border-radius: var(--border-radius-xl);
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
-  backdrop-filter: blur(0.75rem);
+  backdrop-filter: var(--glass-blur-md);
   transition: transform 180ms ease, border-color 180ms ease;
 }
 

@@ -161,7 +161,7 @@
   background: radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.14) 0%, rgba(10, 15, 28, 0.94) 100%);
   border: 0.125rem solid transparent;
   padding: 0.75rem;
-  backdrop-filter: blur(1.25rem);
+  backdrop-filter: var(--glass-blur-lg);
   box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.85);
   transition: all 300ms ease;
 }
@@ -209,7 +209,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  backdrop-filter: blur(2rem);
+  backdrop-filter: var(--glass-blur-xl);
   transform: translateZ(2rem);
 }
 

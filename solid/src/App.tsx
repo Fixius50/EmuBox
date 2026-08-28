@@ -7,6 +7,7 @@ import type { Game } from '@contracts/game.types';
 import { MockBackendService } from '@services/backend/mock-backend.service';
 import { TauriBackendService } from '@services/backend/tauri-backend.service';
 import { SoundFxService } from '@services/audio/sound-fx.service';
+import { GraphicsDetectorService } from '@services/graphics/graphics-detector.service';
 
 // Stores
 import { createLibraryStore } from '@stores/library.store';
@@ -34,6 +35,9 @@ import gamesDataset from '@data/games-10000.json';
 
 export const App: Component = () => {
   // 1. Singletons & Stores Initialization
+  const graphicsDetector = new GraphicsDetectorService();
+  graphicsDetector.detect();
+
   const mockBackend = new MockBackendService();
   const backend = new TauriBackendService(mockBackend);
   const soundFx = new SoundFxService();

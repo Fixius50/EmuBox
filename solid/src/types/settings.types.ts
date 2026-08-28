@@ -103,7 +103,7 @@ export interface SettingsViewProps {
   focusArea?: 'sidebar' | 'content';
   focusedRowIndex?: number;
   onTabChange?: (tab: string) => void;
-  onUpdateSettings?: (updater: (s: SystemSettings) => void) => void;
+  onUpdateSettings?: (newSettings: SystemSettings) => void;
   onSelectContentArea?: () => void;
   onBack?: () => void;
   onSaveEmulator?: (emulator: Emulator) => void;

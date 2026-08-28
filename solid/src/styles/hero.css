@@ -150,7 +150,7 @@
   background: rgba(255, 255, 255, 0.08);
   border-color: var(--border-subtle);
   color: #fff;
-  backdrop-filter: blur(0.5rem);
+  backdrop-filter: var(--glass-blur-sm);
 }
 
 .hero-cta-btn.secondary-btn:hover {

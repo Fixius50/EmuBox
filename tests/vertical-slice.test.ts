@@ -257,6 +257,30 @@ navigator.popContainer();
 assert(navigator.getCurrentFocusId() === 'game-card-8', "Foco restaurado automáticamente a la tarjeta previa (game-card-8)");
 
 // ----------------------------------------------------------------------------
+// TEST 7: Detección Gráfica Inteligente & Pipeline GPU vs CPU Fallback
+// ----------------------------------------------------------------------------
+console.log("\nTEST 7: Detección Gráfica Inteligente & Pipeline GPU vs CPU Fallback...");
+const { GraphicsDetectorService } = await import('@services/graphics/graphics-detector.service');
+const graphicsDetector = new GraphicsDetectorService();
+
+// 1. Detección en entorno por defecto
+const defaultCaps = graphicsDetector.detect();
+assert(typeof defaultCaps.pipeline === 'string', `Pipeline detectado: ${defaultCaps.pipeline}`);
+assert(typeof defaultCaps.probeTimeMs === 'number' && defaultCaps.probeTimeMs < 50, `Sondeo gráfico ultra-rápido: ${defaultCaps.probeTimeMs}ms (<50ms)`);
+
+// 2. Simulación de entorno VMware SVGA3D / llvmpipe (CPU-compatible)
+const forcedCpuCaps = graphicsDetector.detect({ forceMode: 'cpu-compatible' });
+assert(forcedCpuCaps.pipeline === 'cpu-compatible', "Modo forzado cpu-compatible asignado con éxito");
+assert(forcedCpuCaps.isGpuAccelerated === false, "Aceleración de GPU desactivada en fallback");
+assert(forcedCpuCaps.recommendedBlur === false, "Filtros de blur desactivados en favor de superficies sólidas (0 CPU overhead)");
+
+// 3. Simulación de GPU dedicada (Accelerated)
+const forcedGpuCaps = graphicsDetector.detect({ forceMode: 'accelerated' });
+assert(forcedGpuCaps.pipeline === 'accelerated', "Modo forzado GPU acelerada asignado con éxito");
+assert(forcedGpuCaps.isGpuAccelerated === true, "Aceleración GPU activa en hardware directo");
+assert(forcedGpuCaps.recommendedBlur === true, "Desenfoques volumétricos y resplandores habilitados en GPU");
+
+// ----------------------------------------------------------------------------
 // RESUMEN FINAL
 // ----------------------------------------------------------------------------
 console.log("\n===============================================================================");

@@ -14,6 +14,20 @@
   --bg-card: rgba(12, 17, 28, 0.88);
   --bg-card-focused: rgba(22, 33, 56, 0.98);
 
+  /* Adaptive Glass & Rendering Tokens (Accelerated Mode Default) */
+  --glass-blur-sm: blur(0.5rem);
+  --glass-blur-md: blur(1rem);
+  --glass-blur-lg: blur(1.5rem);
+  --glass-blur-xl: blur(2rem);
+  --glass-backdrop-bg: rgba(15, 23, 42, 0.65);
+  --glass-backdrop-elevated: rgba(30, 41, 59, 0.75);
+  --glass-modal-bg: rgba(8, 12, 20, 0.85);
+
+  /* Adaptive Focus Shadows & Glows */
+  --glow-focus-shadow: 0 0 2rem rgba(0, 240, 255, 0.9), inset 0 0 1rem rgba(0, 240, 255, 0.3), 0 1rem 2.5rem rgba(0, 0, 0, 0.95);
+  --glow-modal-shadow: 0 0 3.125rem var(--neon-cyan-glow), 0 1.875rem 3.75rem rgba(0, 0, 0, 0.95);
+  --glow-card-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.85);
+
   /* Console Neon Accents */
   --neon-cyan: #00f0ff;
   --neon-cyan-glow: rgba(0, 240, 255, 0.45);
@@ -40,4 +54,24 @@
   --border-radius-md: 0.5rem;
   --border-radius-lg: 0.75rem;
   --border-radius-xl: 1rem;
+}
+
+/* ==========================================================================
+   CPU-COMPATIBLE / SOFTWARE RENDERER PIPELINE (VMware, llvmpipe, swrast)
+   Zero blur computation overhead, high contrast dark surfaces, 60 FPS target
+   ========================================================================== */
+[data-render-pipeline="cpu-compatible"] {
+  --glass-blur-sm: none;
+  --glass-blur-md: none;
+  --glass-blur-lg: none;
+  --glass-blur-xl: none;
+  --bg-surface-glass: rgba(10, 15, 26, 0.96);
+  --bg-surface-elevated: rgba(18, 26, 44, 0.98);
+  --glass-backdrop-bg: rgba(10, 15, 26, 0.96);
+  --glass-backdrop-elevated: rgba(18, 26, 44, 0.98);
+  --glass-modal-bg: rgba(6, 9, 16, 0.98);
+
+  --glow-focus-shadow: 0 0 0 2px var(--neon-cyan), 0 0.5rem 1.5rem rgba(0, 0, 0, 0.9);
+  --glow-modal-shadow: 0 0 0 2px var(--neon-cyan), 0 1rem 2.5rem rgba(0, 0, 0, 0.98);
+  --glow-card-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.9);
 }

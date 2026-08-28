@@ -9,8 +9,8 @@
   align-items: center;
   justify-content: space-between;
   border-bottom: 0.0625rem solid var(--border-subtle);
-  background: rgba(5, 7, 12, 0.7);
-  backdrop-filter: blur(1rem);
+  background: var(--glass-backdrop-bg);
+  backdrop-filter: var(--glass-blur-md);
   z-index: 50;
 }
 
