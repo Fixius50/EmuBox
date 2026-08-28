@@ -7,64 +7,57 @@ Este documento define la arquitectura de ciclo de vida y arranque del sistema **
 ## 1. Principio Fundamental: Desacoplamiento SSH vs Sesión Local
 
 ```
-                  ┌──────────────────────────────────────────────────┐
-                  │                 SESIÓN REMOTA                    │
-                  │             SSH (Admin / Tooling)                │
-                  │   - Instalación, configuración y diagnósticos    │
-                  │   - Cero dependencia de DISPLAY / Wayland local  │
-                  │   - Puede cerrarse sin afectar la consola        │
-                  └─────────────────────────┬────────────────────────┘
-                                            │
-                                  Aprovisiona y habilita
-                                            │
-                                            ▼
-                  ┌──────────────────────────────────────────────────┐
-                  │                 SISTEMA BASE                     │
-                  │         Arch Linux + Systemd (seat0)             │
-                  │   - Autologin en consola física (tty1)           │
-                  │   - Sesión de usuario emubox independiente       │
-                  └─────────────────────────┬────────────────────────┘
-                                            │
-                                    Lanza en pantalla
-                                            │
-                                            ▼
-                  ┌──────────────────────────────────────────────────┐
-                  │                 COMPOSITOR                       │
-                  │       Wayland: Gamescope / Cage (DRM/KMS)        │
-                  │   - Adquiere el nodo /dev/dri/card0              │
-                  │   - Resolución nativa y escalado FSR             │
-                  └─────────────────────────┬────────────────────────┘
-                                            │
-                                       Ejecuta
-                                            │
-                                            ▼
-                  ┌──────────────────────────────────────────────────┐
-                  │                 INTERFAZ                         │
-                  │      EmuBox OS (Tauri v2 + SolidJS 1.9)          │
-                  │   - Pantalla de la VM / Monitor HDMI / TV        │
-                  │   - Operación 100% por mando y teclado           │
-                  └──────────────────────────────────────────────────┘
+                    ┌──────────────────────────────────────────────────┐
+                    │                 1. SYSTEMD / TTY1                │
+                    │   - Autologin del usuario 'emubox' en seat0      │
+                    │   - Aislamiento de sesión PAM y D-Bus            │
+                    └─────────────────────────┬────────────────────────┘
+                                              │
+                                              ▼
+                    ┌──────────────────────────────────────────────────┐
+                    │                 2. CAGE KIOSK                    │
+                    │   - Compositor Wayland de sesión dedicada        │
+                    │   - Gestión limpia de asiento sin Desktop Env    │
+                    └─────────────────────────┬────────────────────────┘
+                                              │
+                                              ▼
+                    ┌──────────────────────────────────────────────────┐
+                    │                 3. GAMESCOPE                     │
+                    │   - Entorno de composición para videojuegos      │
+                    │   - Resolución 1080p/4K, FSR, DRM/KMS, FPS       │
+                    └─────────────────────────┬────────────────────────┘
+                                              │
+                                              ▼
+                    ┌──────────────────────────────────────────────────┐
+                    │                 4. EMUBOX OS                     │
+                    │   - Interfaz nativa Tauri v2 + SolidJS 1.9       │
+                    │   - Control 10-Foot UI por mando físico          │
+                    └──────────────────────────────────────────────────┘
 ```
 
-> 📌 **Regla de Oro**:  
-> **SSH es únicamente el mando de administración y mantenimiento remoto.**  
-> EmuBox jamás se ejecuta dentro de la sesión SSH ni depende de que exista una conexión activa. Toda la interfaz gráfica reside y se renderiza exclusivamente en la sesión física local de la máquina/pantalla.
+### ¿Por qué la combinación Cage + Gamescope?
+
+Cage y Gamescope no son alternativas excluyentes, sino **capas complementarias con propósitos diferenciados**:
+
+* **Cage (Capa de Sesión Wayland)**: Proporciona una sesión Wayland de kiosko minimalista y ultra-ligera en `tty1`. Su único trabajo es gestionar el asiento de hardware (`seat0`) y ejecutar una única aplicación sin arrastrar gestores de ventanas ni entornos de escritorio pesados (GNOME/KDE/XFCE).
+* **Gamescope (Capa de Composición y Rendimiento de Consola)**: Se ejecuta dentro de la sesión de Cage para brindar las capacidades avanzadas de una consola moderna de videojuegos (aislamiento de resolución, sincronización VSync estricta, escalado FSR/Integer scaling y gestión dinámica de ventanas de emuladores).
+* **EmuBox (Capa de Aplicación)**: El frontend WebKitGTK/Tauri que renderiza la interfaz cinematográfica Obsidian & Neón.
 
 ---
 
 ## 2. Flujo y Cadena de Arranque Autónomo
 
 1. **Arranque del Sistema**: Systemd alcanza el target `graphical.target`.
-2. **Autologin Local en TTY1**: `getty@tty1` inicia sesión automáticamente con el usuario del sistema (`emubox`) con sesión PAM válida y asignación de asiento `seat0`.
+2. **Autologin Local en TTY1**: `getty@tty1` inicia sesión automáticamente con el usuario `emubox` con sesión PAM válida y asignación de asiento `seat0`.
 3. **Inicialización de la Sesión Wayland**:
    - Se crea el directorio de runtime de usuario `$XDG_RUNTIME_DIR` (`/run/user/<uid>`).
    - Se asigna `$XDG_SESSION_TYPE=wayland` y el bus D-Bus de sesión.
-4. **Compositor de Consola (Gamescope)**:
-   - Gamescope toma el control del nodo DRM/KMS (`/dev/dri/card0`).
-   - Expone la variable `$WAYLAND_DISPLAY` para la ventana cliente.
-5. **Arranque de EmuBox**:
-   - EmuBox se conecta al socket de Wayland expuesto por Gamescope.
-   - La interfaz aparece a pantalla completa en la salida de vídeo física (10-foot UI a 60/120 FPS).
+4. **Lanzamiento de Cage**:
+   - Cage inicia como compositor Wayland raíz sobre la TTY1.
+5. **Anidación de Gamescope**:
+   - Cage invoca Gamescope con los parámetros de consola (`gamescope -f -W 1920 -H 1080 -r 60 -- /opt/emubox/bin/emubox`).
+6. **Arranque de EmuBox**:
+   - EmuBox se enlaza a Gamescope y se despliega en pantalla física a 60/120 FPS sin dependencia de SSH.
 
 ---
 
