@@ -60,6 +60,7 @@ solid/src/
 ## Documentación y Guías de Arquitectura
 
 - [Guía de Arquitectura, Refactorización y Estilo de Código](docs/architecture/refactoring-and-architecture-guidelines.md)
+- [Arquitectura de Arranque Autónomo y Sesión Wayland](docs/architecture/console-appliance-boot-architecture.md)
 - [Contratos de Backend y Servicios de Dominio](docs/architecture/backend-contracts.md)
 - [Convención de Archivos y Rutas XDG](docs/architecture/filesystem-convention.md)
 - [Especificación IPC Tauri/Rust](docs/architecture/tauri-rust-ipc-spec.md)
