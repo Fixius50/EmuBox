@@ -132,5 +132,3 @@ npm run build
 # Iniciar entorno de desarrollo web interactivo
 npm run dev
 ```
-
-sad

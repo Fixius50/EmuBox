@@ -127,24 +127,10 @@ EOF
 chmod +x /usr/local/bin/emubox
 ln -sf /usr/local/bin/emubox /usr/bin/emubox
 
-# 7. Instalar comando de actualizacion global /usr/local/bin/emubox-update
-cat << 'EOF' > /usr/local/bin/emubox-update
-#!/usr/bin/env bash
-set -euo pipefail
-
-EMUBOX_APP_DIR="/opt/emubox"
-echo "[EmuBox Update] Comprobando actualizaciones del repositorio..."
-
-cd "${EMUBOX_APP_DIR}"
-git fetch origin
-git pull --ff-only
-
-chmod +x "${EMUBOX_APP_DIR}/scripts/build.sh"
-bash "${EMUBOX_APP_DIR}/scripts/build.sh"
-
-echo "[OK] EmuBox actualizado correctamente en modo producción."
-EOF
-chmod +x /usr/local/bin/emubox-update
+# 7. Instalar comando de actualización global /usr/local/bin/emubox-update
+chmod +x "${EMUBOX_APP_DIR}/scripts/update-emubox.sh"
+ln -sf "${EMUBOX_APP_DIR}/scripts/update-emubox.sh" /usr/local/bin/emubox-update
 ln -sf /usr/local/bin/emubox-update /usr/bin/emubox-update
 
 log_ok "Binario nativo y comandos 'emubox' y 'emubox-update' registrados para producción."
+

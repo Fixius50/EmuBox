@@ -559,32 +559,8 @@ log_ok "Comandos emubox y emubox-launcher instalados."
 
 log_info "[13/15] Registrando emubox-update..."
 
-cat > /usr/local/bin/emubox-update <<'EOF'
-#!/usr/bin/env bash
-
-set -Eeuo pipefail
-
-EMUBOX_DIR="/opt/emubox"
-EMUBOX_USER="emubox"
-
-cd "${EMUBOX_DIR}"
-
-echo "[EmuBox Update] Actualizando repositorio..."
-
-git fetch origin
-git pull --ff-only
-
-echo "[EmuBox Update] Ejecutando build..."
-
-chown -R "${EMUBOX_USER}:${EMUBOX_USER}" "${EMUBOX_DIR}"
-
-runuser -u "${EMUBOX_USER}" -- \
-    bash "${EMUBOX_DIR}/scripts/build.sh"
-
-echo "[OK] EmuBox actualizado correctamente."
-EOF
-
-chmod 0755 /usr/local/bin/emubox-update
+chmod 0755 "${EMUBOX_DIR}/scripts/update-emubox.sh"
+ln -sf "${EMUBOX_DIR}/scripts/update-emubox.sh" /usr/local/bin/emubox-update
 ln -sf /usr/local/bin/emubox-update /usr/bin/emubox-update
 
 log_ok "emubox-update instalado."
