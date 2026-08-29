@@ -213,16 +213,17 @@ VM / Consola EmuBox ◄─────────── Compilar & Validar ◄�
 
 ---
 
-## 9. Hoja de Ruta de Desarrollo Tras la Validación de Arranque
+---
 
-Con el ciclo de encendido y el stack Wayland 100% blindados, el trabajo pasa directamente a las funcionalidades de consola:
+## 10. Consolidación Técnica de los Puntos Críticos del Sistema
 
-1. **Catálogo y Biblioteca**: Virtualización fluida sobre 10.000 juegos y animaciones Anime.js.
-2. **Experiencia 10-Foot UI**: Navegación espacial 2D por mando y mapeo de iconos dinámicos (PS/Xbox/Nintendo).
-3. **Gestión de ROMs y Almacenamiento**: Auto-montaje de pendrives USB y categorización automática por extensión.
-4. **Enrutamiento de Emuladores**: Selección inteligente de cores Vulkan Standalone vs Libretro.
-5. **Firmware y BIOS**: Escaneo y enlace automático por checksums criptográficos MD5/SHA1.
-6. **Backend Rust / Tauri IPC**: Conexión de eventos nativos de gamepad vía `gilrs` y telemetría de hardware.
-7. **Sistema de Actualizaciones Desacopladas (OTA)**: Descargas atómicas en `/opt/emubox/releases/`.
-8. **Pruebas en Hardware Físico**: Validación final del modo NATIVO con GPU dedicada AMD/NVIDIA (`Cage -> Gamescope -> EmuBox`).
+| Punto | Área | Mecanismo de Implementación | Comportamiento en VM vs Hardware Físico |
+| :--- | :--- | :--- | :--- |
+| **Punto 1** | **Arranque / Appliance** | `getty@tty1` + `emubox-autologin.conf` + `.bash_profile` + `/usr/local/bin/emubox-session` | Cero dependencia de X11 / GDM. Arranque autónomo e invisible hacia pantalla completa. |
+| **Punto 6** | **Actualización del Sistema** | `scripts/update-emubox.sh` (orquestado vía `./script.sh` [Opción 2]) | Pull `--ff-only`, delega build a `scripts/build.sh`, auto-stash, protección atómica ante fallos y reinicio de TTY1. |
+| **Punto 7** | **Gestión Gráfica Adaptativa** | `vulkaninfo --summary` activo + `systemd-detect-virt` + `/dev/dri` | **VMware / VirtualBox**: `Cage -> EmuBox` (Vulkan evitado). **HW Físico**: `Cage -> Gamescope -> EmuBox`. |
+| **Punto 8** | **Resolución Dinámica** | Sondeo de conectores DRM (`/sys/class/drm/*/modes`) | Ajuste automático a resolución nativa detectada (1080p/1440p/4K); fallback predeterminado: `1920x1080@60Hz`. |
+| **Punto 9** | **Entrada y Gamepad** | Permisos en grupos `input`, `uinput`, `video`, `seat` + eventos `gilrs` | Mando como entrada primaria, teclado como soporte, aislamiento total de sesiones remotas SSH (`pts/*`). |
+| **Punto 10** | **Recuperación y Robustez** | `StartLimitBurst=3` / `StartLimitIntervalSec=60s` + logging en `/var/log/emubox/` | Prevención de crash-loops; preservación de binario funcional si el build falla; consolas TTY2/TTY3 de rescate. |
+
 

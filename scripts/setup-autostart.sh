@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # ==============================================================================
 #  EMUBOX - AUTO START & ADAPTIVE CONSOLE APPLIANCE SETUP (ARCH LINUX)
-#  Configures:
-#    1. Single Clean Getty TTY1 Autologin (emubox-autologin.conf)
-#    2. Hardware-Adaptive Session Launcher with Vulkan / DRM Probing
-#    3. NATIVE mode (Cage -> Gamescope) on Vulkan GPUs / COMPATIBILITY mode (Cage) on VMs
+# ==============================================================================
+#
+# Implementa los Puntos 1, 7, 8, 9 y 10:
+#   - Punto 1: Arranque como Appliance dedicado en TTY1 sin sesión gráfica previa.
+#   - Punto 7: Detección gráfica adaptativa (VM sin Vulkan -> Cage / HW real -> Gamescope).
+#   - Punto 8: Detección dinámica de resolución DRM con fallback a 1080p.
+#   - Punto 9: Permisos de grupos para Gamepad (input, uinput, video, seat).
+#   - Punto 10: Política de recuperación anti-bucles (StartLimitBurst=3) y logs en /var/log/emubox/.
 # ==============================================================================
 
 set -euo pipefail
@@ -29,17 +33,17 @@ fi
 EMUBOX_UID="$(id -u "$EMUBOX_USER")"
 EMUBOX_HOME="$(getent passwd "$EMUBOX_USER" | cut -d: -f6)"
 
-echo "=========================================="
-echo "   EmuBox - Console Appliance Setup"
-echo "=========================================="
+echo "======================================================================"
+echo "         🎮 EmuBox - Configuración de Consola Appliance               "
+echo "======================================================================"
 echo "Usuario: $EMUBOX_USER (UID: $EMUBOX_UID)"
 echo "Home:    $EMUBOX_HOME"
 echo ""
 
 # ------------------------------------------------------------
-# 1. Preparar directorios del sistema y permisos
+# 1. Preparar directorios del sistema, logs y grupos de mando
 # ------------------------------------------------------------
-echo "[1/5] Preparando directorios del sistema y permisos..."
+echo "[1/5] Preparando directorios del sistema, permisos y grupos de entrada..."
 
 mkdir -p /etc/emubox
 mkdir -p /var/lib/emubox/{games,roms,saves,states,bios,covers,logs,screenshots}
@@ -49,14 +53,36 @@ chown -R "$EMUBOX_USER:$EMUBOX_USER" /var/lib/emubox
 chown -R "$EMUBOX_USER:$EMUBOX_USER" /var/log/emubox
 chmod -R 755 /var/log/emubox
 
+# Asegurar membresía en grupos para Gamepad (Punto 9) y Video/DRM
+for grp in video input uinput seat; do
+  if getent group "$grp" >/dev/null 2>&1; then
+    usermod -aG "$grp" "$EMUBOX_USER" 2>/dev/null || true
+  fi
+done
+
 # ------------------------------------------------------------
-# 2. Instalar lanzador de sesión adaptativo (/usr/local/bin/emubox-session)
+# 2. Instalar el Lanzador de Sesión Adaptativo (/usr/local/bin/emubox-session)
 # ------------------------------------------------------------
 echo "[2/5] Instalando lanzador de sesión adaptativo (/usr/local/bin/emubox-session)..."
 
 cat << 'EOF' > /usr/local/bin/emubox-session
 #!/usr/bin/env bash
+# ==============================================================================
+#  EMUBOX - SESSION MANAGER ADAPTATIVO (PUNTOS 1, 7, 8, 9, 10)
+# ==============================================================================
+
 set -euo pipefail
+
+LOG_FILE="/var/log/emubox/session.log"
+mkdir -p "$(dirname "${LOG_FILE}")" 2>/dev/null || true
+
+# Redirigir trazas de arranque a session.log
+exec > >(tee -a "${LOG_FILE}" 2>/dev/null || cat)
+exec 2>&1
+
+echo "======================================================================"
+echo "[EmuBox Session] Iniciando gestor de sesión: $(date '+%Y-%m-%d %H:%M:%S')"
+echo "======================================================================"
 
 export WEBKIT_DISABLE_DMABUF_RENDERER=1
 export GDK_BACKEND=wayland
@@ -65,11 +91,11 @@ export EMUBOX_HOME="${EMUBOX_HOME:-/var/lib/emubox}"
 
 EMUBOX_BIN="/opt/emubox/bin/emubox"
 if [[ ! -x "${EMUBOX_BIN}" ]]; then
-  echo "[ERROR] No existe el binario de EmuBox en ${EMUBOX_BIN}" >&2
+  echo "[ERROR] No existe el binario ejecutable en: ${EMUBOX_BIN}" >&2
   exit 1
 fi
 
-# 1. Detección de Virtualización
+# 1. Detección de Virtualización (Punto 7)
 if command -v systemd-detect-virt >/dev/null 2>&1 && systemd-detect-virt --quiet; then
   EMUBOX_VIRT="$(systemd-detect-virt)"
 else
@@ -85,7 +111,7 @@ if [[ -e /dev/dri/card0 || -e /dev/dri/renderD128 ]]; then
   HAS_DRM=1
 fi
 
-# 4. Detección de Vulkan REAL y operativo (comprobando existencia de GPU física)
+# 4. Detección de Vulkan REAL y funcional (Punto 7)
 HAS_VULKAN=0
 if command -v vulkaninfo >/dev/null 2>&1; then
   if vulkaninfo --summary 2>&1 | grep -qE 'deviceName|GPU0|GPU id'; then
@@ -93,50 +119,73 @@ if command -v vulkaninfo >/dev/null 2>&1; then
   fi
 fi
 
+# 5. Detección Dinámica de Resolución de Pantalla (Punto 8)
+TARGET_WIDTH=1920
+TARGET_HEIGHT=1080
+TARGET_REFRESH=60
+
+if [[ -d /sys/class/drm ]]; then
+  for mode_file in /sys/class/drm/*/modes; do
+    if [[ -f "$mode_file" && -s "$mode_file" ]]; then
+      FIRST_MODE="$(head -n 1 "$mode_file" 2>/dev/null || true)"
+      if [[ "$FIRST_MODE" =~ ^([0-9]+)x([0-9]+) ]]; then
+        DETECTED_W="${BASH_REMATCH[1]}"
+        DETECTED_H="${BASH_REMATCH[2]}"
+        if [[ "$DETECTED_W" -ge 1280 && "$DETECTED_H" -ge 720 ]]; then
+          TARGET_WIDTH="$DETECTED_W"
+          TARGET_HEIGHT="$DETECTED_H"
+          break
+        fi
+      fi
+    fi
+  done
+fi
+
 echo "======================================================================"
-echo "[EmuBox] Detección de Entorno Gráfico:"
+echo "[EmuBox Hardware Detection]:"
 echo "  - Virtualización: ${EMUBOX_VIRT}"
 echo "  - GPU:            ${GPU_DESC}"
-echo "  - DRM/KMS:        $([[ ${HAS_DRM} -eq 1 ]] && echo 'OK' || echo 'NO DISPONIBLE')"
+echo "  - DRM/KMS:        $([[ ${HAS_DRM} -eq 1 ]] && echo 'OK (/dev/dri)' || echo 'NO DISPONIBLE')"
 echo "  - Vulkan HW:      $([[ ${HAS_VULKAN} -eq 1 ]] && echo 'OPERATIVO (NATIVO)' || echo 'NO DETECTADO / INCOMPATIBLE')"
+echo "  - Resolución DRM: ${TARGET_WIDTH}x${TARGET_HEIGHT}@${TARGET_REFRESH}Hz"
 echo "======================================================================"
 
-# Orquestación de backend según capacidades reales
+# Orquestación D-Bus
 DBUS_RUN=""
 if command -v dbus-run-session >/dev/null 2>&1 && [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
   DBUS_RUN="dbus-run-session"
 fi
 
-# MODO NATIVO: GPU física con Vulkan 100% operativo + Gamescope disponible
+# MODO NATIVO: GPU física con soporte Vulkan real + Gamescope (Puntos 7 y 8)
 if [[ ${HAS_VULKAN} -eq 1 ]] && command -v gamescope >/dev/null 2>&1; then
   if command -v cage >/dev/null 2>&1; then
-    echo "[EmuBox] Modo: NATIVO (Cage -> Gamescope -> EmuBox)"
+    echo "[EmuBox Pipeline] Modo: NATIVO (Cage -> Gamescope -> EmuBox)"
     if [[ -n "${DBUS_RUN}" ]]; then
-      exec dbus-run-session cage -- gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
+      exec dbus-run-session cage -- gamescope -f -W "${TARGET_WIDTH}" -H "${TARGET_HEIGHT}" -r "${TARGET_REFRESH}" -- "${EMUBOX_BIN}" "$@"
     else
-      exec cage -- gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
+      exec cage -- gamescope -f -W "${TARGET_WIDTH}" -H "${TARGET_HEIGHT}" -r "${TARGET_REFRESH}" -- "${EMUBOX_BIN}" "$@"
     fi
   else
-    echo "[EmuBox] Modo: NATIVO DIRECTO (Gamescope -> EmuBox)"
+    echo "[EmuBox Pipeline] Modo: NATIVO DIRECTO (Gamescope -> EmuBox)"
     if [[ -n "${DBUS_RUN}" ]]; then
-      exec dbus-run-session gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
+      exec dbus-run-session gamescope -f -W "${TARGET_WIDTH}" -H "${TARGET_HEIGHT}" -r "${TARGET_REFRESH}" -- "${EMUBOX_BIN}" "$@"
     else
-      exec gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
+      exec gamescope -f -W "${TARGET_WIDTH}" -H "${TARGET_HEIGHT}" -r "${TARGET_REFRESH}" -- "${EMUBOX_BIN}" "$@"
     fi
   fi
 
-# MODO COMPATIBILIDAD (VMware, VirtualBox o GPU sin Vulkan directo): Cage Kiosk Wayland
+# MODO COMPATIBILIDAD (VMware, VirtualBox o GPU sin Vulkan funcional): Cage Kiosk Wayland
 elif command -v cage >/dev/null 2>&1; then
-  echo "[EmuBox] Modo: COMPATIBILIDAD VM/LEGACY (Cage Wayland Kiosk -> EmuBox)"
+  echo "[EmuBox Pipeline] Modo: COMPATIBILIDAD VM/LEGACY (Cage Wayland Kiosk -> EmuBox)"
   if [[ -n "${DBUS_RUN}" ]]; then
     exec dbus-run-session cage -- "${EMUBOX_BIN}" "$@"
   else
     exec cage -- "${EMUBOX_BIN}" "$@"
   fi
 
-# MODO FALLBACK DIRECTO
+# MODO FALLBACK DIRECTO (Punto 10)
 else
-  echo "[EmuBox] Modo: FALLBACK DIRECTO -> EmuBox"
+  echo "[EmuBox Pipeline] Modo: FALLBACK DIRECTO -> EmuBox"
   exec "${EMUBOX_BIN}" "$@"
 fi
 EOF
@@ -145,14 +194,14 @@ chmod 0755 /usr/local/bin/emubox-session
 ln -sf /usr/local/bin/emubox-session /usr/bin/emubox
 
 # ------------------------------------------------------------
-# 3. Configurar Autologin único y limpio en TTY1 (emubox-autologin.conf)
+# 3. Configurar Autologin Único y Limpio en TTY1 (Punto 1)
 # ------------------------------------------------------------
-echo "[3/5] Configurando Autologin único en TTY1 para el usuario $EMUBOX_USER..."
+echo "[3/5] Configurando Autologin en TTY1 (emubox-autologin.conf)..."
 
 GETTY_OVERRIDE_DIR="/etc/systemd/system/getty@tty1.service.d"
 mkdir -p "${GETTY_OVERRIDE_DIR}"
 
-# Eliminar duplicados previos
+# Eliminar cualquier configuración previa redundante
 rm -f "${GETTY_OVERRIDE_DIR}/autologin.conf"
 
 cat << EOF > "${GETTY_OVERRIDE_DIR}/emubox-autologin.conf"
@@ -167,15 +216,15 @@ TTYVTDisallocate=yes
 EOF
 
 # ------------------------------------------------------------
-# 4. Configurar autoarranque en .bash_profile para la TTY1 física
+# 4. Configurar Autoarranque en .bash_profile con Aislamiento PTS/SSH (Puntos 1 y 9)
 # ------------------------------------------------------------
-echo "[4/5] Configurando autoarranque en $EMUBOX_HOME/.bash_profile..."
+echo "[4/5] Configurando arranque exclusivo en consola física (/home/${EMUBOX_USER}/.bash_profile)..."
 
 BASH_PROFILE="${EMUBOX_HOME}/.bash_profile"
 if ! grep -q "emubox-session" "${BASH_PROFILE}" 2>/dev/null; then
   cat << 'EOF' >> "${BASH_PROFILE}"
 
-# EmuBox Console Appliance: Auto-launch Wayland session on physical TTY1
+# EmuBox Console Appliance: Auto-launch Wayland session exclusively on physical TTY1
 if [[ "$(tty 2>/dev/null || true)" == "/dev/tty1" ]] && \
    [[ -z "${WAYLAND_DISPLAY:-}" ]] && \
    [[ -z "${DISPLAY:-}" ]]; then
@@ -187,9 +236,9 @@ EOF
 fi
 
 # ------------------------------------------------------------
-# 5. Servicio systemd opcional de diagnóstico (Deshabilitado por defecto)
+# 5. Servicio de Diagnóstico con Protección Anti-Crash Loops (Punto 10)
 # ------------------------------------------------------------
-echo "[5/5] Registrando servicio de diagnóstico (deshabilitado por defecto)..."
+echo "[5/5] Registrando servicio de diagnóstico con límites de recuperación..."
 
 cat > "/etc/systemd/system/$SERVICE_NAME" <<EOF
 [Unit]
@@ -225,15 +274,17 @@ WantedBy=graphical.target
 EOF
 
 systemctl daemon-reload
-# Mantener deshabilitado para evitar conflictos con getty@tty1
+# Mantener deshabilitado por defecto para que el ciclo corra exclusivamente en getty@tty1
 systemctl disable "$SERVICE_NAME" 2>/dev/null || true
 
 echo ""
-echo "=========================================="
-echo "   Configuración Adaptativa Completada"
-echo "=========================================="
+echo "======================================================================"
+echo -e "\033[1;32m[ÉXITO] Configuración de Consola Appliance Completada\033[0m"
+echo "======================================================================"
 echo "1. Autologin TTY1:        ACTIVO ($EMUBOX_USER)"
-echo "2. Override limpio:       getty@tty1.service.d/emubox-autologin.conf"
-echo "3. Detección Inteligente: Vulkan HW -> Gamescope / VM sin Vulkan -> Cage"
-echo "4. Cero Bucle Infinito:   vkCreateInstance nunca romperá el arranque"
-echo "=========================================="
+echo "2. Detección Adaptativa:  Vulkan HW -> Gamescope / VM -> Cage"
+echo "3. Resolución Dinámica:   Sondeo DRM automático (Fallback 1080p)"
+echo "4. Permisos de Mando:     video, input, uinput, seat asignados"
+echo "5. Aislamiento SSH:       Las conexiones SSH (pts/*) NO interfieren"
+echo "6. Anti-Crash Loops:      Límite de reinicios fijado en 3 / 60s"
+echo "======================================================================"
