@@ -120,7 +120,30 @@ bash scripts/build.sh
 
 ---
 
-## 🧪 Pruebas y Compilación
+## 🧭 Centro de Control Interactivo (`script.sh`)
+
+Para evitar tener que recordar y escribir comandos largos, dispones de un menú interactivo en la raíz del proyecto:
+
+```bash
+# Dar permisos y ejecutar el menú interactivo
+chmod +x script.sh
+./script.sh
+```
+
+El menú te permite seleccionar con un solo número:
+* **[1] Compilar EmuBox**: Ejecuta `scripts/build.sh` (npm ci, Vite, Tauri Rust).
+* **[2] Actualizar desde GitHub**: Ejecuta `scripts/update-emubox.sh` (pull, build atómico y reinicio seguro).
+* **[3] Configurar Autoarranque**: Ejecuta `scripts/setup-autostart.sh` (TTY1 autologin y lanzador adaptativo).
+* **[4] Probar Lanzamiento**: Lanza la sesión Wayland en modo kiosko/consola.
+* **[5] Ejecutar Tests**: Ejecuta los 42 tests de arquitectura y contratos.
+* **[6] Iniciar Dev Server**: Inicia el servidor de desarrollo local de SolidJS.
+* **[7] Diagnosticar Entorno**: Muestra el estado de GPU, Vulkan, DRM, systemd y logs.
+* **[8] Reiniciar Consola Física**: Reinicia la sesión en `tty1`.
+* **[9] Instalación Completa Arch Linux**: Ejecuta el aprovisionamiento de dependencias.
+
+---
+
+## 🧪 Pruebas y Compilación Manual
 
 ```bash
 # Ejecutar suite de pruebas de arquitectura y contratos (42 pruebas automatizadas)
