@@ -59,23 +59,77 @@ solid/src/
 
 ## Documentación y Guías de Arquitectura
 
-- [Guía de Arquitectura, Refactorización y Estilo de Código](docs/architecture/refactoring-and-architecture-guidelines.md)
 - [Arquitectura de Arranque Autónomo y Sesión Wayland](docs/architecture/console-appliance-boot-architecture.md)
+- [Guía de Arquitectura, Refactorización y Estilo de Código](docs/architecture/refactoring-and-architecture-guidelines.md)
 - [Contratos de Backend y Servicios de Dominio](docs/architecture/backend-contracts.md)
 - [Convención de Archivos y Rutas XDG](docs/architecture/filesystem-convention.md)
 - [Especificación IPC Tauri/Rust](docs/architecture/tauri-rust-ipc-spec.md)
+- [Reportes de Diagnóstico de Entorno](docs/diagnostic-reports.md)
 
 ---
 
-## Pruebas y Compilación
+## 🛠️ Administración Remota por SSH
+
+EmuBox opera como una consola autónoma en pantalla física local (`tty1`). Para tareas de mantenimiento, desarrollo o diagnóstico desde otro PC, utiliza SSH:
+
+### 1. Obtener la IP de la Consola / VM
+En la máquina con EmuBox ejecuta:
+```bash
+ip addr  # o: hostname -I
+```
+
+### 2. Conectarse por SSH
+Desde tu terminal de desarrollo:
+```bash
+ssh emubox@<IP_DE_LA_CONSOLA>
+```
+* **Usuario por defecto**: `emubox`
+* **Contraseña interna**: `1234`
+
+> 📌 **Aislamiento Garantizado**: La sesión SSH se abre en un pseudo-terminal (`pts/*`), por lo que puedes conectarte, compilar, administrar y cerrar la sesión SSH sin interrumpir la interfaz gráfica que sigue ejecutándose en la pantalla.
+
+---
+
+## 🐙 Configuración de Git y Flujo de Trabajo
+
+Para trabajar sobre el código fuente directamente en la máquina o enviar contribuciones:
+
+### 1. Configurar Identidad de Git
+```bash
+git config --global user.name "Tu Nombre o Usuario"
+git config --global user.email "tu-email@ejemplo.com"
+```
+
+### 2. Configurar Autenticación SSH con GitHub
+Comprobar si existe clave SSH y verificar acceso:
+```bash
+ssh -T git@github.com
+```
+Asegurar que el repositorio remoto apunta a la URL SSH oficial:
+```bash
+cd /opt/emubox
+git remote set-url origin git@github.com:Fixius50/EmuBox.git
+```
+
+### 3. Ciclo Típico de Actualización y Despliegue
+```bash
+cd /opt/emubox
+git pull
+bash scripts/build.sh
+```
+
+---
+
+## 🧪 Pruebas y Compilación
 
 ```bash
-# Ejecutar suite de pruebas de arquitectura y contratos (34 pruebas automatizadas)
+# Ejecutar suite de pruebas de arquitectura y contratos (42 pruebas automatizadas)
 npm test
 
-# Compilar build optimizado de producción con Vite
+# Compilar bundle de producción para SolidJS
 npm run build
 
-# Iniciar entorno de desarrollo local
+# Iniciar entorno de desarrollo web interactivo
 npm run dev
 ```
+
