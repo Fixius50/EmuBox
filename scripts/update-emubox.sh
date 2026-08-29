@@ -91,8 +91,15 @@ echo "======================================================================"
 echo "[ÉXITO] EmuBox actualizado y compilado correctamente: ${REMOTE_COMMIT:0:7}"
 echo "======================================================================"
 
-# 4. Reinicio de sesión controlado si se ejecuta como root / systemd
-if [[ "$EUID" -eq 0 ]] && systemctl is-active --quiet getty@tty1; then
+# 4. Reinicio de sesión de consola controlado
+if systemctl is-active --quiet getty@tty1 2>/dev/null; then
   echo "[INFO] Reiniciando sesión de consola en TTY1 para cargar la nueva versión..."
-  systemctl restart getty@tty1 || true
+  if [[ "$EUID" -eq 0 ]]; then
+    systemctl restart getty@tty1 || true
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo systemctl restart getty@tty1 || true
+  else
+    echo "[AVISO] Para aplicar la nueva versión en pantalla, reinicia la sesión con: sudo systemctl restart getty@tty1"
+  fi
 fi
+

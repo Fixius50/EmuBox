@@ -23,9 +23,9 @@ show_header() {
   echo "                     🎮 EMUBOX OS - CONTROL CENTER                   "
   echo "======================================================================"
   echo -e "${NC}"
-  echo -e " Directorio activo: ${BOLD}${SCRIPT_DIR}${NC}"
-  echo -e " Usuario:           ${BOLD}$(whoami)${NC} (UID: $(id -u))"
-  echo -e " Terminal:          ${BOLD}$(tty 2>/dev/null || echo 'pts/ssh')${NC}"
+  echo -e " Directorio: ${BOLD}${SCRIPT_DIR}${NC}"
+  echo -e " Usuario:    ${BOLD}$(whoami)${NC} (UID: $(id -u))"
+  echo -e " Terminal:   ${BOLD}$(tty 2>/dev/null || echo 'pts/ssh')${NC}"
   echo "----------------------------------------------------------------------"
 }
 
@@ -35,11 +35,30 @@ pause_screen() {
   read -r _
 }
 
+run_and_check() {
+  local desc="$1"
+  shift
+  echo ""
+  echo -e "${CYAN}==> Ejecutando: ${desc}${NC}"
+  echo "----------------------------------------------------------------------"
+  
+  if "$@"; then
+    echo "----------------------------------------------------------------------"
+    echo -e "${GREEN}${BOLD}[ÉXITO] ${desc} finalizó correctamente.${NC}"
+    return 0
+  else
+    local code=$?
+    echo "----------------------------------------------------------------------"
+    echo -e "${RED}${BOLD}[ERROR] ${desc} falló con código de salida ${code}.${NC}"
+    return "${code}"
+  fi
+}
+
 while true; do
   show_header
   echo -e "${BOLD}Selecciona una opción:${NC}"
   echo ""
-  echo -e "  ${GREEN}1)${NC} ${BOLD}Compilar EmuBox${NC} (npm ci, Vite build, Tauri build -> bin/emubox)"
+  echo -e "  ${GREEN}1)${NC} ${BOLD}Compilar EmuBox${NC} (npm ci, Vite, Tauri Rust -> bin/emubox)"
   echo -e "  ${GREEN}2)${NC} ${BOLD}Actualizar desde GitHub${NC} (git pull, build atómico y reinicio seguro)"
   echo -e "  ${GREEN}3)${NC} ${BOLD}Configurar Autoarranque${NC} (getty@tty1, autologin, lanzador Wayland)"
   echo -e "  ${GREEN}4)${NC} ${BOLD}Probar Lanzamiento${NC} (Lanzar EmuBox con Cage / modo adaptativo)"
@@ -55,42 +74,40 @@ while true; do
 
   case "${OPTION}" in
     1)
-      echo ""
-      echo -e "${CYAN}==> Ejecutando: bash scripts/build.sh${NC}"
       chmod +x scripts/build.sh
-      bash scripts/build.sh || true
+      if run_and_check "Compilación EmuBox (scripts/build.sh)" bash scripts/build.sh; then
+        if systemctl is-active --quiet getty@tty1 2>/dev/null; then
+          echo ""
+          read -rp "¿Deseas recargar la sesión de consola en TTY1 para ver los cambios? [s/N]: " RELOAD
+          if [[ "${RELOAD}" =~ ^[sS]$ ]]; then
+            sudo systemctl restart getty@tty1 && echo -e "${GREEN}[OK] Sesión de consola recargada.${NC}"
+          fi
+        fi
+      fi
       pause_screen
       ;;
     2)
-      echo ""
-      echo -e "${CYAN}==> Ejecutando: bash scripts/update-emubox.sh${NC}"
       chmod +x scripts/update-emubox.sh
-      bash scripts/update-emubox.sh || true
+      run_and_check "Actualización desde GitHub (scripts/update-emubox.sh)" bash scripts/update-emubox.sh || true
       pause_screen
       ;;
     3)
-      echo ""
-      echo -e "${CYAN}==> Ejecutando con sudo: scripts/setup-autostart.sh${NC}"
       chmod +x scripts/setup-autostart.sh
-      sudo bash scripts/setup-autostart.sh || true
+      run_and_check "Configuración de Autoarranque (scripts/setup-autostart.sh)" sudo bash scripts/setup-autostart.sh || true
       pause_screen
       ;;
     4)
-      echo ""
-      echo -e "${CYAN}==> Ejecutando: bash scripts/run.sh${NC}"
       chmod +x scripts/run.sh
-      bash scripts/run.sh || true
+      run_and_check "Lanzamiento de EmuBox (scripts/run.sh)" bash scripts/run.sh || true
       pause_screen
       ;;
     5)
-      echo ""
-      echo -e "${CYAN}==> Ejecutando: npm test${NC}"
-      npm test || true
+      run_and_check "Suite de Tests (npm test)" npm test || true
       pause_screen
       ;;
     6)
       echo ""
-      echo -e "${CYAN}==> Ejecutando: npm run dev${NC}"
+      echo -e "${CYAN}==> Iniciando Vite Dev Server (Ctrl+C para salir)...${NC}"
       npm run dev || true
       pause_screen
       ;;
@@ -124,7 +141,11 @@ while true; do
     8)
       echo ""
       echo -e "${YELLOW}==> Reiniciando sesión de consola en TTY1...${NC}"
-      sudo systemctl restart getty@tty1 2>/dev/null && echo -e "${GREEN}[OK] getty@tty1 reiniciado.${NC}" || echo -e "${RED}[ERROR] No se pudo reiniciar.${NC}"
+      if sudo systemctl restart getty@tty1 2>/dev/null; then
+        echo -e "${GREEN}[OK] getty@tty1 reiniciado con éxito.${NC}"
+      else
+        echo -e "${RED}[ERROR] No se pudo reiniciar getty@tty1.${NC}"
+      fi
       pause_screen
       ;;
     9)
@@ -133,7 +154,7 @@ while true; do
       read -rp "¿Estás seguro de continuar? [s/N]: " CONFIRM
       if [[ "${CONFIRM}" =~ ^[sS]$ ]]; then
         chmod +x scripts/setup-arch.sh
-        sudo bash scripts/setup-arch.sh || true
+        run_and_check "Instalación de Sistema (scripts/setup-arch.sh)" sudo bash scripts/setup-arch.sh || true
       else
         echo "Operación cancelada."
       fi
