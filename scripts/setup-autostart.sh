@@ -158,8 +158,12 @@ rm -f "${GETTY_OVERRIDE_DIR}/autologin.conf"
 cat << EOF > "${GETTY_OVERRIDE_DIR}/emubox-autologin.conf"
 [Service]
 ExecStart=
-ExecStart=-/sbin/agetty -o '-p -f -- \\\\u' --noclear --autologin ${EMUBOX_USER} %I \$TERM
+ExecStart=-/usr/bin/agetty --autologin ${EMUBOX_USER} --noclear %I \$TERM
 Type=idle
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
 EOF
 
 # ------------------------------------------------------------
@@ -172,7 +176,10 @@ if ! grep -q "emubox-session" "${BASH_PROFILE}" 2>/dev/null; then
   cat << 'EOF' >> "${BASH_PROFILE}"
 
 # EmuBox Console Appliance: Auto-launch Wayland session on physical TTY1
-if [[ -z "$WAYLAND_DISPLAY" ]] && [[ -z "$DISPLAY" ]] && [[ "$(tty)" == "/dev/tty1" ]]; then
+if [[ "$(tty 2>/dev/null || true)" == "/dev/tty1" ]] && \
+   [[ -z "${WAYLAND_DISPLAY:-}" ]] && \
+   [[ -z "${DISPLAY:-}" ]]; then
+
   exec /usr/local/bin/emubox-session
 fi
 EOF

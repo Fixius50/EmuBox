@@ -165,13 +165,64 @@ La consola opera bajo la premisa de **cero fricción de red**:
 ## 6. Protocolo de Verificación Canónico (11 Pasos)
 
 1. Validar configuración de unidades systemd (`systemctl`).
-2. Validar override de `getty@tty1` (autologin).
+2. Validar override de `getty@tty1` (autologin con `emubox-autologin.conf`).
 3. Validar permisos de `/opt/emubox` (`emubox:emubox`).
 4. Validar socket y permisos de Wayland.
 5. Validar ejecución de Cage.
 6. Validar anidación de Gamescope.
 7. Validar arranque de NetworkManager.
 8. Validar renderizado de EmuBox en local.
-9. Reiniciar la VM / máquina física.
-10. Observar aparición automática de la interfaz en pantalla física.
+9. Reiniciar la VM / máquina física (`sudo reboot`).
+10. Observar aparición automática de la interfaz en pantalla física (Cold boot).
 11. Cerrar completamente la sesión SSH y verificar que la consola permanece 100% activa.
+
+---
+
+## 7. Administración Remota por SSH y Desacoplamiento de Pseudo-Terminales (`pts/*`)
+
+La administración se realiza de forma no invasiva por SSH sin interactuar con la sesión gráfica física:
+
+```bash
+ssh emubox@IP_DE_LA_VM
+```
+
+* **Aislamiento de Terminal**: La sesión SSH se asigna a `/dev/pts/X`. El archivo `/home/emubox/.bash_profile` comprueba estrictamente `[ "$(tty)" == "/dev/tty1" ]`, por lo que **conectarse o desconectarse por SSH jamás intentará arrancar una segunda instancia gráfica de EmuBox ni cerrará la que corre en pantalla**.
+* **Comprobación de IP**: Consultar mediante `ip addr` o `hostname -I`.
+
+---
+
+## 8. Flujo de Desarrollo y Despliegue con Git
+
+El código fuente principal reside y se compila en `/opt/emubox`, vinculado al repositorio remoto `Fixius50/EmuBox`:
+
+```text
+PC de Desarrollo ──────────────► Git Commit & Push ──────────────► GitHub (Fixius50/EmuBox)
+                                                                           │
+VM / Consola EmuBox ◄─────────── Compilar & Validar ◄──────────── Git Pull (SSH Auth)
+```
+
+### Autenticación y Despliegue Seguro:
+1. **Autenticación SSH para GitHub**: Verificar con `ssh -T git@github.com` antes de operaciones remotas.
+2. **Ciclo de Actualización**:
+   ```bash
+   cd /opt/emubox
+   git pull
+   bash scripts/build.sh
+   ```
+3. **Invariante de Despliegue**: Los ejecutables en `/usr/local/bin` son generados automáticamente por los scripts del repositorio; **prohibido editarlos manualmente**.
+
+---
+
+## 9. Hoja de Ruta de Desarrollo Tras la Validación de Arranque
+
+Con el ciclo de encendido y el stack Wayland 100% blindados, el trabajo pasa directamente a las funcionalidades de consola:
+
+1. **Catálogo y Biblioteca**: Virtualización fluida sobre 10.000 juegos y animaciones Anime.js.
+2. **Experiencia 10-Foot UI**: Navegación espacial 2D por mando y mapeo de iconos dinámicos (PS/Xbox/Nintendo).
+3. **Gestión de ROMs y Almacenamiento**: Auto-montaje de pendrives USB y categorización automática por extensión.
+4. **Enrutamiento de Emuladores**: Selección inteligente de cores Vulkan Standalone vs Libretro.
+5. **Firmware y BIOS**: Escaneo y enlace automático por checksums criptográficos MD5/SHA1.
+6. **Backend Rust / Tauri IPC**: Conexión de eventos nativos de gamepad vía `gilrs` y telemetría de hardware.
+7. **Sistema de Actualizaciones Desacopladas (OTA)**: Descargas atómicas en `/opt/emubox/releases/`.
+8. **Pruebas en Hardware Físico**: Validación final del modo NATIVO con GPU dedicada AMD/NVIDIA (`Cage -> Gamescope -> EmuBox`).
+
