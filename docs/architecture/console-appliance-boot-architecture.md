@@ -49,19 +49,59 @@ Cage y Gamescope no son alternativas excluyentes, sino **capas complementarias c
 
 ---
 
-## 2. Flujo y Cadena de Arranque Autónomo
+## 2. Flujo y Matriz de Decisión de Arranque Adaptativo
+
+```text
+                           ARRANQUE ARCH LINUX
+                                    │
+                                    ▼
+                             systemd / tty1
+                                    │
+                                    ▼
+                         Autologin usuario 'emubox'
+                                    │
+                                    ▼
+                         emubox-session-manager
+                                    │
+                    ┌───────────────┴───────────────┐
+                    ▼                               ▼
+          Detectar Hardware / VM           Sondear Vulkan Real
+          (systemd-detect-virt)           (vulkaninfo --summary)
+                    │                               │
+                    └───────────────┬───────────────┘
+                                    ▼
+                         ¿Vulkan HW Operativo?
+                                    │
+                    ┌───────────────┴───────────────┐
+                    ▼                               ▼
+            SÍ: MODO NATIVO                NO: MODO COMPATIBILIDAD
+        (Hardware PC dedicado)             (VMware / VirtualBox / Legacy)
+                    │                               │
+                    ▼                               ▼
+         Cage Wayland Kiosk              Cage Wayland Kiosk
+                    │                               │
+                    ▼                               │
+          Gamescope Compositor                      │
+          (1080p/4K FSR, VSync)                     │
+                    │                               │
+                    └───────────────┬───────────────┘
+                                    ▼
+                              EMUBOX TAURI OS
+                     (Pantalla física a 60 FPS estables)
+```
 
 1. **Arranque del Sistema**: Systemd alcanza el target `graphical.target`.
-2. **Autologin Local en TTY1**: `getty@tty1` inicia sesión automáticamente con el usuario `emubox` con sesión PAM válida y asignación de asiento `seat0`.
+2. **Autologin Local Único en TTY1**: `getty@tty1` inicia sesión automáticamente con el usuario `emubox` (mediante el archivo único `/etc/systemd/system/getty@tty1.service.d/emubox-autologin.conf`) con sesión PAM válida y asignación de asiento `seat0`.
 3. **Inicialización de la Sesión Wayland**:
    - Se crea el directorio de runtime de usuario `$XDG_RUNTIME_DIR` (`/run/user/<uid>`).
    - Se asigna `$XDG_SESSION_TYPE=wayland` y el bus D-Bus de sesión.
-4. **Lanzamiento de Cage**:
-   - Cage inicia como compositor Wayland raíz sobre la TTY1.
-5. **Anidación de Gamescope**:
-   - Cage invoca Gamescope con los parámetros de consola (`gamescope -f -W 1920 -H 1080 -r 60 -- /opt/emubox/bin/emubox`).
-6. **Arranque de EmuBox**:
-   - EmuBox se enlaza a Gamescope y se despliega en pantalla física a 60/120 FPS sin dependencia de SSH.
+4. **Sondeo de Capacidades Gráficas**:
+   - `emubox-session` realiza una comprobación activa de DRM (`/dev/dri/card0`) y de Vulkan real mediante `vulkaninfo --summary`.
+5. **Selección Dinámica del Compositor**:
+   - **Modo Nativo (GPU física con Vulkan OK)**: Lanza `Cage -> Gamescope -> EmuBox`.
+   - **Modo Compatibilidad (VM sin Vulkan físico)**: Lanza `Cage -> EmuBox` directamente, evitando de raíz el fallo `vkCreateInstance failed` de Gamescope.
+6. **Despliegue Visual**:
+   - EmuBox se renderiza a pantalla completa en la salida de vídeo física sin bucles de reinicio.
 
 ---
 

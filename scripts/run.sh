@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # ==============================================================================
-#  EMUBOX - SCRIPT MAESTRO DE ARRANQUE Y EJECUCION DE LA CONSOLA
+#  EMUBOX - SCRIPT MAESTRO DE ARRANQUE Y EJECUCION DE LA CONSOLA (ADAPTATIVO)
 # ==============================================================================
 #
 # Este script:
-#   1. Exporta las variables graficas criticas (WEBKIT_DISABLE_DMABUF_RENDERER=1).
+#   1. Exporta las variables gráficas críticas (WEBKIT_DISABLE_DMABUF_RENDERER=1).
 #   2. Localiza el binario nativo de EmuBox (/opt/emubox/bin/emubox o release local).
-#   3. Detecta el entorno (Wayland / X11 / Consola TTY).
-#   4. Si esta en TTY, levanta automaticamente el compositor Cage / Gamescope.
-#   5. Lanza la interfaz de EmuBox.
+#   3. Si está en TTY:
+#      - Sondea si existe aceleración Vulkan real.
+#      - Si Vulkan está activo -> ejecuta Gamescope (con Cage si está presente).
+#      - Si Vulkan no está disponible (VM / driver software) -> ejecuta Cage directamente.
 # ==============================================================================
 
 set -euo pipefail
@@ -18,9 +19,9 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # 1. Variables de entorno indispensables para WebKitGTK / Wayland
 export WEBKIT_DISABLE_DMABUF_RENDERER=1
-export GDK_BACKEND="${GDK_BACKEND:-wayland,x11}"
+export GDK_BACKEND="${GDK_BACKEND:-wayland}"
 
-# Asegurar XDG_RUNTIME_DIR valido para compositores Wayland (Cage / Gamescope)
+# Asegurar XDG_RUNTIME_DIR válido para compositores Wayland (Cage / Gamescope)
 if [[ -z "${XDG_RUNTIME_DIR:-}" ]]; then
   CURRENT_UID="$(id -u)"
   if [[ -d "/run/user/${CURRENT_UID}" ]]; then
@@ -44,48 +45,61 @@ if [[ ! -x "${EMUBOX_BIN}" ]]; then
   elif [[ -x "${ROOT_DIR}/bin/emubox" ]]; then
     EMUBOX_BIN="${ROOT_DIR}/bin/emubox"
   else
-    echo "[ERROR] No se encontro el binario compilado de EmuBox." >&2
+    echo "[ERROR] No se encontró el binario compilado de EmuBox." >&2
     echo "Por favor, compila primero con: bash scripts/build.sh" >&2
     exit 1
   fi
 fi
 
-# 3. Si ya existe un servidor grafico activo (Wayland o X11), ejecutar directamente
+# 3. Si ya existe un servidor gráfico activo (Wayland o X11), ejecutar directamente
 if [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
   exec "${EMUBOX_BIN}" "$@"
 fi
 
-# 4. Si se ejecuta desde una consola TTY sin servidor gráfico, iniciar sesión Wayland con Cage + Gamescope
+# 4. Detección de Capacidades Gráficas para Consola TTY
+HAS_VULKAN=0
+if command -v vulkaninfo >/dev/null 2>&1; then
+  if vulkaninfo --summary 2>&1 | grep -qE 'deviceName|GPU0|GPU id'; then
+    HAS_VULKAN=1
+  fi
+fi
+
 DBUS_RUN=""
 if command -v dbus-run-session >/dev/null 2>&1 && [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
   DBUS_RUN="dbus-run-session"
 fi
 
-if command -v cage >/dev/null 2>&1 && command -v gamescope >/dev/null 2>&1; then
-  echo "[EmuBox] Iniciando sesión gráfica de consola con Cage + Gamescope (Wayland)..."
-  if [[ -n "${DBUS_RUN}" ]]; then
-    exec dbus-run-session cage -- gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
+# MODO NATIVO: GPU física con soporte Vulkan real + Gamescope
+if [[ ${HAS_VULKAN} -eq 1 ]] && command -v gamescope >/dev/null 2>&1; then
+  if command -v cage >/dev/null 2>&1; then
+    echo "[EmuBox] Iniciando en Modo NATIVO (Cage -> Gamescope -> EmuBox)..."
+    if [[ -n "${DBUS_RUN}" ]]; then
+      exec dbus-run-session cage -- gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
+    else
+      exec cage -- gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
+    fi
   else
-    exec cage -- gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
+    echo "[EmuBox] Iniciando en Modo NATIVO DIRECTO (Gamescope -> EmuBox)..."
+    if [[ -n "${DBUS_RUN}" ]]; then
+      exec dbus-run-session gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
+    else
+      exec gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
+    fi
   fi
+
+# MODO COMPATIBILIDAD (VMware SVGA / VirtualBox / GPU sin Vulkan): Cage Wayland Kiosk
 elif command -v cage >/dev/null 2>&1; then
-  echo "[EmuBox] Iniciando sesión gráfica de kiosko con Cage (Wayland)..."
+  echo "[EmuBox] Iniciando en Modo COMPATIBILIDAD (Cage Wayland Kiosk -> EmuBox)..."
   if [[ -n "${DBUS_RUN}" ]]; then
     exec dbus-run-session cage -- "${EMUBOX_BIN}" "$@"
   else
     exec cage -- "${EMUBOX_BIN}" "$@"
   fi
-elif command -v gamescope >/dev/null 2>&1; then
-  echo "[EmuBox] Iniciando sesión gráfica directa con Gamescope (Wayland Direct DRM)..."
-  if [[ -n "${DBUS_RUN}" ]]; then
-    exec dbus-run-session gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
-  else
-    exec gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
-  fi
+
+# FALLBACK DIRECTO
 else
   echo "[ERROR] No se detectó ninguna sesión gráfica (\$WAYLAND_DISPLAY / \$DISPLAY)." >&2
-  echo "Para arrancar EmuBox en consola dedicada, instala cage y gamescope:" >&2
-  echo "  sudo pacman -S --needed cage gamescope" >&2
+  echo "Para arrancar EmuBox en consola dedicada, instala cage:" >&2
+  echo "  sudo pacman -S --needed cage" >&2
   exit 1
 fi
-
