@@ -82,3 +82,25 @@ El pipeline de construcción y empaquetado nativo (`scripts/build.sh`) funciona 
   3. **SSH** se mantiene estrictamente para tareas de administración remota, no para arrancar el entorno gráfico.
   4. El arranque de la interfaz se orquestará localmente en la TTY física (`/dev/tty1`) mediante autologin y sesión Wayland de usuario.
 
+---
+
+## 📑 Reporte 6: Validación Exitosa de Cage en DRM Directo & Arranque en Frío
+
+* **Fecha**: 29 de Agosto, 2026
+* **Hito Alcanzado**: **EmuBox desplegado con éxito en pantalla física a 1080p**.
+
+### Resultados de la Prueba en TTY1:
+```text
+✓ Detección de Virtualización: oracle (VirtualBox)
+✓ GPU Virtual: VMware SVGA II Adapter (Kernel: vmwgfx)
+✓ DRM/KMS: Activo en /dev/dri/card0 y /dev/dri/renderD128
+✓ Sondeo Vulkan: Incompatible en VM -> Modo COMPATIBILIDAD seleccionado automáticamente
+✓ Compositor: Cage Wayland Kiosk ejecutado directamente sobre DRM/EGL
+✓ Renderizado: EmuBox OS desplegado a pantalla completa (1920x1080)
+✓ Cero bucles de reinicio y cero dependencias de SSH
+```
+
+### Siguiente Paso:
+Validación del ciclo completo de arranque en frío (`sudo reboot`) comprobando el encendido autónomo desde UEFI/systemd hasta la interfaz visual sin intervención manual.
+
+
