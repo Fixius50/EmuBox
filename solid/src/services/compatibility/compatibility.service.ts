@@ -1,15 +1,13 @@
-import type { Game, Emulator, PlatformId, CompatibilityAssociation, ExecutionTarget } from '@contracts/game.types';
+import type { Game, Emulator, CompatibilityAssociation, ExecutionTarget } from '@contracts/game.types';
 import type { IEmuBoxBackend } from '@contracts/backend.types';
 
 export class CompatibilityService {
-  private associations: Map<string, CompatibilityAssociation[]> = new Map();
-
   constructor(private backend: IEmuBoxBackend) {}
 
   /**
    * Resuelve el destino exacto de ejecución (emulador, binario, argumentos y configs)
-   * consultando la jerarquía:
-   *   1. Asociación explícita del juego (Game -> Emulator)
+   * consultando la jerarquía persistida en SQLite:
+   *   1. Asociación explícita del juego (Game -> Emulator) con mayor prioridad o isDefault
    *   2. Emulador predeterminado de la plataforma (System -> Default Emulator)
    *   3. Primer emulador compatible activo
    */
@@ -24,15 +22,17 @@ export class CompatibilityService {
     let customArgs: string[] = [];
     let customConfigPath: string | undefined;
 
-    // 1. Si se especificó un emulador preferido explícito
+    // 1. Si se especificó un emulador preferido explícito en tiempo de llamada
     if (preferredEmulatorId) {
       targetEmulator = availableEmulators.find(e => e.id === preferredEmulatorId);
     }
 
-    // 2. Si no, buscar asociación guardada para este juego
+    // 2. Si no, consultar asociaciones persistidas en SQLite para este juego
     if (!targetEmulator) {
-      const gameAssocs = this.associations.get(game.id) || [];
-      const defaultAssoc = gameAssocs.find(a => a.enabled && a.isDefault) || gameAssocs.find(a => a.enabled);
+      const gameAssocs = await this.getAssociationsForGame(game.id);
+      const enabledAssocs = gameAssocs.filter(a => a.enabled);
+
+      const defaultAssoc = enabledAssocs.find(a => a.isDefault) || enabledAssocs[0];
       if (defaultAssoc) {
         targetEmulator = availableEmulators.find(e => e.id === defaultAssoc.emulatorId);
         customArgs = defaultAssoc.customArgs || [];
@@ -51,7 +51,7 @@ export class CompatibilityService {
 
     // 4. Fallback al primer emulador activo
     if (!targetEmulator) {
-      targetEmulator = availableEmulators[0];
+      targetEmulator = availableEmulators.find(e => e.status === 'active') || availableEmulators[0];
     }
 
     const command = targetEmulator.executable;
@@ -89,22 +89,23 @@ export class CompatibilityService {
   }
 
   /**
-   * Registra o actualiza la asociación entre un juego y un emulador
+   * Registra o actualiza la asociación entre un juego y un emulador en SQLite
    */
-  public setAssociation(association: CompatibilityAssociation): void {
-    const list = this.associations.get(association.gameId) || [];
-    const filtered = list.filter(a => a.emulatorId !== association.emulatorId);
-    if (association.isDefault) {
-      filtered.forEach(a => a.isDefault = false);
-    }
-    filtered.push(association);
-    this.associations.set(association.gameId, filtered);
+  public async setAssociation(association: CompatibilityAssociation): Promise<void> {
+    return this.backend.setGameAssociation(association);
   }
 
   /**
-   * Obtiene las asociaciones configuradas para un juego
+   * Elimina una asociación entre un juego y un emulador de SQLite
    */
-  public getAssociationsForGame(gameId: string): CompatibilityAssociation[] {
-    return this.associations.get(gameId) || [];
+  public async removeAssociation(gameId: string, emulatorId: string): Promise<void> {
+    return this.backend.removeGameAssociation(gameId, emulatorId);
+  }
+
+  /**
+   * Obtiene las asociaciones configuradas en SQLite para un juego
+   */
+  public async getAssociationsForGame(gameId: string): Promise<CompatibilityAssociation[]> {
+    return this.backend.getGameAssociations(gameId);
   }
 }

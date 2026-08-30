@@ -5,6 +5,8 @@ pub mod process_service;
 pub mod storage_service;
 pub mod diagnostics_service;
 pub mod bios_service;
+pub mod db_service;
+pub mod compatibility_service;
 
 pub use system_service::SystemService;
 pub use game_service::GameService;
@@ -13,3 +15,5 @@ pub use process_service::ProcessService;
 pub use storage_service::StorageService;
 pub use diagnostics_service::DiagnosticsService;
 pub use bios_service::BiosService;
+pub use db_service::DatabaseService;
+pub use compatibility_service::CompatibilityService;

@@ -4,7 +4,8 @@ import type {
   PlatformId,
   Emulator,
   SystemSettings,
-  EmuBoxConfig
+  EmuBoxConfig,
+  CompatibilityAssociation
 } from './game.types';
 
 import type {
@@ -141,6 +142,11 @@ export interface IEmuBoxBackend {
   getEmulatorStatus(id: string): Promise<'active' | 'inactive' | 'missing_bios'>;
   saveEmulator(emulator: Emulator): Promise<void>;
   deleteEmulator(id: string): Promise<void>;
+
+  // 4.1 Asociaciones Juego <-> Emulador (Compatibilidad SQLite)
+  getGameAssociations(gameId: string): Promise<CompatibilityAssociation[]>;
+  setGameAssociation(association: CompatibilityAssociation): Promise<void>;
+  removeGameAssociation(gameId: string, emulatorId: string): Promise<void>;
 
   // 5. Ejecución & Procesos de Juego
   launchGame(gameIdOrRequest: string | LaunchGameRequest, emulatorId?: string): Promise<LaunchResult>;

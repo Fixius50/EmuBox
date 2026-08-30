@@ -1,4 +1,4 @@
-import type { Game, Platform, Emulator, SystemSettings, EmuBoxConfig } from '@contracts/game.types';
+import type { Game, Platform, Emulator, SystemSettings, EmuBoxConfig, CompatibilityAssociation } from '@contracts/game.types';
 import type {
   IEmuBoxBackend,
   LaunchResult,
@@ -39,12 +39,19 @@ export class TauriBackendService implements IEmuBoxBackend {
 
   constructor(fallbackMock?: MockBackendService) {
     this.fallback = fallbackMock || new MockBackendService();
-    this.isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
+    this.isTauri = typeof window !== 'undefined' && (!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
   }
 
   private async invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-    if (this.isTauri && (window as any).__TAURI__?.core?.invoke) {
-      return (window as any).__TAURI__.core.invoke(cmd, args);
+    if (typeof window !== 'undefined') {
+      const internals = (window as any).__TAURI_INTERNALS__;
+      if (internals && typeof internals.invoke === 'function') {
+        return internals.invoke(cmd, args);
+      }
+      const tauri = (window as any).__TAURI__;
+      if (tauri?.core && typeof tauri.core.invoke === 'function') {
+        return tauri.core.invoke(cmd, args);
+      }
     }
     throw new Error('Tauri runtime not detected');
   }
@@ -214,6 +221,31 @@ export class TauriBackendService implements IEmuBoxBackend {
       await this.invoke('delete_emulator', { id });
     } catch {
       await this.fallback.deleteEmulator(id);
+    }
+  }
+
+  // 4.1 Asociaciones Juego <-> Emulador (SQLite)
+  public async getGameAssociations(gameId: string): Promise<CompatibilityAssociation[]> {
+    try {
+      return await this.invoke<CompatibilityAssociation[]>('get_game_associations', { gameId });
+    } catch {
+      return this.fallback.getGameAssociations(gameId);
+    }
+  }
+
+  public async setGameAssociation(association: CompatibilityAssociation): Promise<void> {
+    try {
+      await this.invoke('set_game_association', { association });
+    } catch {
+      await this.fallback.setGameAssociation(association);
+    }
+  }
+
+  public async removeGameAssociation(gameId: string, emulatorId: string): Promise<void> {
+    try {
+      await this.invoke('remove_game_association', { gameId, emulatorId });
+    } catch {
+      await this.fallback.removeGameAssociation(gameId, emulatorId);
     }
   }
 

@@ -179,11 +179,76 @@ assert(romPath === '~/.local/share/emubox/roms/ps2', `PathService resolvió ruta
 const biosStatus = await biosScanner.scanBios();
 assert(biosStatus.totalRequired > 0, `BiosScannerService detectó ${biosStatus.totalRequired} BIOS requeridas`);
 
-// CompatibilityService (Game <-> Emulator Resolver)
+// CompatibilityService (Game <-> Emulator Resolver & Persistent SQLite Associations)
 const compatibilityService = new CompatibilityService(backend);
 const sampleGame = (await gameService.getGamesForPlatform('ps1'))[0];
-const target = await compatibilityService.resolveExecutionTarget(sampleGame);
-assert(target.emulator.id.includes('duck') || target.emulator.supportedPlatforms.includes('ps1'), `CompatibilityService resolvió target de ejecución: ${target.emulator.name}`);
+
+// 1. Crear asociación
+await compatibilityService.setAssociation({
+  gameId: sampleGame.id,
+  emulatorId: 'duckstation',
+  priority: 10,
+  isDefault: true,
+  customArgs: ['-fastboot'],
+  customConfigPath: '/var/lib/emubox/emulators/duckstation/config/game_gt.ini',
+  enabled: true
+});
+
+// 2. Recuperar asociación
+const savedAssocs = await compatibilityService.getAssociationsForGame(sampleGame.id);
+assert(savedAssocs.length === 1 && savedAssocs[0].emulatorId === 'duckstation', `Compatibilidad: Asociación creada y recuperada para ${sampleGame.title}`);
+
+// 3. Modificar asociación (cambiar prioridad y customArgs)
+await compatibilityService.setAssociation({
+  gameId: sampleGame.id,
+  emulatorId: 'duckstation',
+  priority: 25,
+  isDefault: true,
+  customArgs: ['-fastboot', '-widescreen'],
+  customConfigPath: '/var/lib/emubox/emulators/duckstation/config/game_gt.ini',
+  enabled: true
+});
+const updatedAssocs = await compatibilityService.getAssociationsForGame(sampleGame.id);
+assert(updatedAssocs[0].priority === 25 && updatedAssocs[0].customArgs?.includes('-widescreen'), `Compatibilidad: Modificación de prioridad (25) y customArgs (-widescreen) persistida`);
+
+// 4. Asociación secundaria con menor prioridad
+await compatibilityService.setAssociation({
+  gameId: sampleGame.id,
+  emulatorId: 'retroarch',
+  priority: 5,
+  isDefault: false,
+  customArgs: [],
+  enabled: true
+});
+const multiAssocs = await compatibilityService.getAssociationsForGame(sampleGame.id);
+assert(multiAssocs.length === 2 && multiAssocs[0].isDefault === true, `Compatibilidad: Múltiples asociaciones N:M ordenadas con isDefault=true en primera posición`);
+
+// 5. Resolución de ExecutionTarget con argumentos y configs personalizados
+const resolvedTarget = await compatibilityService.resolveExecutionTarget(sampleGame);
+assert(
+  resolvedTarget.emulator.id === 'duckstation' &&
+  resolvedTarget.args.includes('-widescreen') &&
+  resolvedTarget.configPath === '/var/lib/emubox/emulators/duckstation/config/game_gt.ini',
+  `Compatibilidad: ExecutionTarget resuelto con éxito usando asociación específica, args y config`
+);
+
+// 6. Comprobación de enabled = false (debe ignorar la asociación deshabilitada)
+await compatibilityService.setAssociation({
+  gameId: sampleGame.id,
+  emulatorId: 'duckstation',
+  priority: 25,
+  isDefault: true,
+  customArgs: ['-fastboot'],
+  enabled: false
+});
+const fallbackTarget = await compatibilityService.resolveExecutionTarget(sampleGame);
+assert(fallbackTarget.emulator.id !== 'duckstation' || !fallbackTarget.args.includes('-fastboot'), `Compatibilidad: Asociación con enabled=false ignorada correctamente en la resolución`);
+
+// 7. Eliminar asociación
+await compatibilityService.removeAssociation(sampleGame.id, 'duckstation');
+await compatibilityService.removeAssociation(sampleGame.id, 'retroarch');
+const clearedAssocs = await compatibilityService.getAssociationsForGame(sampleGame.id);
+assert(clearedAssocs.length === 0, `Compatibilidad: Asociaciones eliminadas correctamente`);
 
 const compatibleEmus = await compatibilityService.getCompatibleEmulatorsForGame(sampleGame);
 assert(compatibleEmus.length > 0, `CompatibilityService encontró ${compatibleEmus.length} emuladores compatibles para ${sampleGame.title}`);

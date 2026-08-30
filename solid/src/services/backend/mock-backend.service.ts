@@ -1,4 +1,4 @@
-import type { Game, Platform, Emulator, SystemSettings, EmuBoxConfig } from '@contracts/game.types';
+import type { Game, Platform, Emulator, SystemSettings, EmuBoxConfig, CompatibilityAssociation } from '@contracts/game.types';
 import type {
   IEmuBoxBackend,
   LaunchResult,
@@ -88,6 +88,8 @@ export class MockBackendService implements IEmuBoxBackend {
     { id: 'flycast', name: 'Flycast (Vulkan Direct)', version: '2.4', supportedPlatforms: ['dreamcast'], coreType: 'standalone', status: 'active', executable: '/usr/bin/flycast', arguments: [] },
     { id: 'fbneo', name: 'FinalBurn Neo (Libretro Core)', version: '1.0.0.3', supportedPlatforms: ['arcade'], coreType: 'libretro', status: 'active', executable: '/usr/bin/retroarch', arguments: ['-L', '/usr/lib/libretro/fbneo_libretro.so'] }
   ];
+
+  private associations: Map<string, CompatibilityAssociation[]> = new Map();
 
   private config: EmuBoxConfig = {
     version: 1,
@@ -364,6 +366,32 @@ export class MockBackendService implements IEmuBoxBackend {
 
   public async deleteEmulator(id: string): Promise<void> {
     this.emulators = this.emulators.filter(e => e.id !== id);
+  }
+
+  // 4.1 Asociaciones Juego <-> Emulador
+  public async getGameAssociations(gameId: string): Promise<CompatibilityAssociation[]> {
+    const list = this.associations.get(gameId) || [];
+    return [...list].sort((a, b) => {
+      if (a.isDefault && !b.isDefault) return -1;
+      if (!a.isDefault && b.isDefault) return 1;
+      return b.priority - a.priority;
+    });
+  }
+
+  public async setGameAssociation(association: CompatibilityAssociation): Promise<void> {
+    const list = this.associations.get(association.gameId) || [];
+    const filtered = list.filter(a => a.emulatorId !== association.emulatorId);
+    if (association.isDefault) {
+      filtered.forEach(a => a.isDefault = false);
+    }
+    filtered.push(association);
+    this.associations.set(association.gameId, filtered);
+  }
+
+  public async removeGameAssociation(gameId: string, emulatorId: string): Promise<void> {
+    const list = this.associations.get(gameId) || [];
+    const filtered = list.filter(a => a.emulatorId !== emulatorId);
+    this.associations.set(gameId, filtered);
   }
 
   // 5. Ejecución & Procesos

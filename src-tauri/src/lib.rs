@@ -66,6 +66,11 @@ pub fn run() {
             // BIOS
             commands::bios::get_bios_requirements,
             commands::bios::scan_bios,
+
+            // Compatibility (Game <-> Emulator Associations)
+            commands::compatibility::get_game_associations,
+            commands::compatibility::set_game_association,
+            commands::compatibility::remove_game_association,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Resized(size) = event {

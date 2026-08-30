@@ -63,3 +63,15 @@ pub struct ScanGamesResult {
     pub updated_count: usize,
     pub errors: Vec<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GameEmulatorAssociation {
+    pub game_id: String,
+    pub emulator_id: String,
+    pub is_default: bool,
+    pub priority: i32,
+    pub custom_arguments: Vec<String>,
+    pub custom_config_path: Option<String>,
+    pub enabled: bool,
+}
