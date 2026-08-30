@@ -65,26 +65,12 @@ if command -v vulkaninfo >/dev/null 2>&1; then
   fi
 fi
 
-# 5. Detección Dinámica de Resolución de Pantalla (Punto 8)
-TARGET_WIDTH=1920
-TARGET_HEIGHT=1080
-TARGET_REFRESH=60
-
-if [[ -d /sys/class/drm ]]; then
-  for mode_file in /sys/class/drm/*/modes; do
-    if [[ -f "$mode_file" && -s "$mode_file" ]]; then
-      FIRST_MODE="$(head -n 1 "$mode_file" 2>/dev/null || true)"
-      if [[ "$FIRST_MODE" =~ ^([0-9]+)x([0-9]+) ]]; then
-        DETECTED_W="${BASH_REMATCH[1]}"
-        DETECTED_H="${BASH_REMATCH[2]}"
-        if [[ "$DETECTED_W" -ge 1280 && "$DETECTED_H" -ge 720 ]]; then
-          TARGET_WIDTH="$DETECTED_W"
-          TARGET_HEIGHT="$DETECTED_H"
-          break
-        fi
-      fi
-    fi
-  done
+# 5. Iniciar Watcher de resolución adaptativa en segundo plano si existe cage
+WATCHER_PID=""
+if [[ -f "${SCRIPT_DIR}/resize-watcher.sh" && -x "$(command -v cage 2>/dev/null || true)" ]]; then
+  bash "${SCRIPT_DIR}/resize-watcher.sh" >/dev/null 2>&1 &
+  WATCHER_PID=$!
+  trap '[[ -n "${WATCHER_PID:-}" ]] && kill -TERM "$WATCHER_PID" 2>/dev/null || true' EXIT INT TERM
 fi
 
 DBUS_RUN=""
@@ -95,18 +81,18 @@ fi
 # MODO NATIVO: GPU física con soporte Vulkan real + Gamescope
 if [[ ${HAS_VULKAN} -eq 1 ]] && command -v gamescope >/dev/null 2>&1; then
   if command -v cage >/dev/null 2>&1; then
-    echo "[EmuBox] Iniciando en Modo NATIVO (Cage -> Gamescope ${TARGET_WIDTH}x${TARGET_HEIGHT} -> EmuBox)..."
+    echo "[EmuBox] Iniciando en Modo NATIVO (Cage -> Gamescope -> EmuBox)..."
     if [[ -n "${DBUS_RUN}" ]]; then
-      exec dbus-run-session cage -- gamescope -f -W "${TARGET_WIDTH}" -H "${TARGET_HEIGHT}" -r "${TARGET_REFRESH}" -- "${EMUBOX_BIN}" "$@"
+      dbus-run-session cage -- gamescope -f -- "${EMUBOX_BIN}" "$@"
     else
-      exec cage -- gamescope -f -W "${TARGET_WIDTH}" -H "${TARGET_HEIGHT}" -r "${TARGET_REFRESH}" -- "${EMUBOX_BIN}" "$@"
+      cage -- gamescope -f -- "${EMUBOX_BIN}" "$@"
     fi
   else
-    echo "[EmuBox] Iniciando en Modo NATIVO DIRECTO (Gamescope ${TARGET_WIDTH}x${TARGET_HEIGHT} -> EmuBox)..."
+    echo "[EmuBox] Iniciando en Modo NATIVO DIRECTO (Gamescope -> EmuBox)..."
     if [[ -n "${DBUS_RUN}" ]]; then
-      exec dbus-run-session gamescope -f -W "${TARGET_WIDTH}" -H "${TARGET_HEIGHT}" -r "${TARGET_REFRESH}" -- "${EMUBOX_BIN}" "$@"
+      dbus-run-session gamescope -f -- "${EMUBOX_BIN}" "$@"
     else
-      exec gamescope -f -W "${TARGET_WIDTH}" -H "${TARGET_HEIGHT}" -r "${TARGET_REFRESH}" -- "${EMUBOX_BIN}" "$@"
+      gamescope -f -- "${EMUBOX_BIN}" "$@"
     fi
   fi
 
@@ -114,9 +100,9 @@ if [[ ${HAS_VULKAN} -eq 1 ]] && command -v gamescope >/dev/null 2>&1; then
 elif command -v cage >/dev/null 2>&1; then
   echo "[EmuBox] Iniciando en Modo COMPATIBILIDAD (Cage Wayland Kiosk -> EmuBox)..."
   if [[ -n "${DBUS_RUN}" ]]; then
-    exec dbus-run-session cage -- "${EMUBOX_BIN}" "$@"
+    dbus-run-session cage -- "${EMUBOX_BIN}" "$@"
   else
-    exec cage -- "${EMUBOX_BIN}" "$@"
+    cage -- "${EMUBOX_BIN}" "$@"
   fi
 
 # FALLBACK DIRECTO

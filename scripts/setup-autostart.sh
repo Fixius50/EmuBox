@@ -119,26 +119,10 @@ if command -v vulkaninfo >/dev/null 2>&1; then
   fi
 fi
 
-# 5. Detección Dinámica de Resolución de Pantalla (Punto 8)
-TARGET_WIDTH=1920
-TARGET_HEIGHT=1080
-TARGET_REFRESH=60
-
-if [[ -d /sys/class/drm ]]; then
-  for mode_file in /sys/class/drm/*/modes; do
-    if [[ -f "$mode_file" && -s "$mode_file" ]]; then
-      FIRST_MODE="$(head -n 1 "$mode_file" 2>/dev/null || true)"
-      if [[ "$FIRST_MODE" =~ ^([0-9]+)x([0-9]+) ]]; then
-        DETECTED_W="${BASH_REMATCH[1]}"
-        DETECTED_H="${BASH_REMATCH[2]}"
-        if [[ "$DETECTED_W" -ge 1280 && "$DETECTED_H" -ge 720 ]]; then
-          TARGET_WIDTH="$DETECTED_W"
-          TARGET_HEIGHT="$DETECTED_H"
-          break
-        fi
-      fi
-    fi
-  done
+# 5. Instalar servicio watcher de resolución dinámica
+if [[ -f "${SCRIPT_DIR}/resize-watcher.sh" ]]; then
+  cp -f "${SCRIPT_DIR}/resize-watcher.sh" /usr/local/bin/emubox-resize-watcher
+  chmod 0755 /usr/local/bin/emubox-resize-watcher
 fi
 
 echo "======================================================================"
@@ -147,7 +131,6 @@ echo "  - Virtualización: ${EMUBOX_VIRT}"
 echo "  - GPU:            ${GPU_DESC}"
 echo "  - DRM/KMS:        $([[ ${HAS_DRM} -eq 1 ]] && echo 'OK (/dev/dri)' || echo 'NO DISPONIBLE')"
 echo "  - Vulkan HW:      $([[ ${HAS_VULKAN} -eq 1 ]] && echo 'OPERATIVO (NATIVO)' || echo 'NO DETECTADO / INCOMPATIBLE')"
-echo "  - Resolución DRM: ${TARGET_WIDTH}x${TARGET_HEIGHT}@${TARGET_REFRESH}Hz"
 echo "======================================================================"
 
 # Orquestación D-Bus
@@ -156,42 +139,56 @@ if command -v dbus-run-session >/dev/null 2>&1 && [[ -z "${DBUS_SESSION_BUS_ADDR
   DBUS_RUN="dbus-run-session"
 fi
 
-# MODO NATIVO: GPU física con soporte Vulkan real + Gamescope (Puntos 7 y 8)
+# Iniciar Watcher de resolución adaptativa en segundo plano
+WATCHER_PID=""
+if [[ -x /usr/local/bin/emubox-resize-watcher ]]; then
+  /usr/local/bin/emubox-resize-watcher >/dev/null 2>&1 &
+  WATCHER_PID=$!
+  trap '[[ -n "${WATCHER_PID:-}" ]] && kill -TERM "$WATCHER_PID" 2>/dev/null || true' EXIT INT TERM
+fi
+
+# MODO NATIVO: GPU física con soporte Vulkan real + Gamescope
 if [[ ${HAS_VULKAN} -eq 1 ]] && command -v gamescope >/dev/null 2>&1; then
   if command -v cage >/dev/null 2>&1; then
     echo "[EmuBox Pipeline] Modo: NATIVO (Cage -> Gamescope -> EmuBox)"
     if [[ -n "${DBUS_RUN}" ]]; then
-      exec dbus-run-session cage -- gamescope -f -W "${TARGET_WIDTH}" -H "${TARGET_HEIGHT}" -r "${TARGET_REFRESH}" -- "${EMUBOX_BIN}" "$@"
+      dbus-run-session cage -- gamescope -f -- "${EMUBOX_BIN}" "$@"
     else
-      exec cage -- gamescope -f -W "${TARGET_WIDTH}" -H "${TARGET_HEIGHT}" -r "${TARGET_REFRESH}" -- "${EMUBOX_BIN}" "$@"
+      cage -- gamescope -f -- "${EMUBOX_BIN}" "$@"
     fi
   else
     echo "[EmuBox Pipeline] Modo: NATIVO DIRECTO (Gamescope -> EmuBox)"
     if [[ -n "${DBUS_RUN}" ]]; then
-      exec dbus-run-session gamescope -f -W "${TARGET_WIDTH}" -H "${TARGET_HEIGHT}" -r "${TARGET_REFRESH}" -- "${EMUBOX_BIN}" "$@"
+      dbus-run-session gamescope -f -- "${EMUBOX_BIN}" "$@"
     else
-      exec gamescope -f -W "${TARGET_WIDTH}" -H "${TARGET_HEIGHT}" -r "${TARGET_REFRESH}" -- "${EMUBOX_BIN}" "$@"
+      gamescope -f -- "${EMUBOX_BIN}" "$@"
     fi
   fi
 
-# MODO COMPATIBILIDAD (VMware, VirtualBox o GPU sin Vulkan funcional): Cage Kiosk Wayland
+# MODO COMPATIBILIDAD (VMware, VirtualBox o GPU sin Vulkan funcional): Cage Wayland Kiosk
 elif command -v cage >/dev/null 2>&1; then
   echo "[EmuBox Pipeline] Modo: COMPATIBILIDAD VM/LEGACY (Cage Wayland Kiosk -> EmuBox)"
   if [[ -n "${DBUS_RUN}" ]]; then
-    exec dbus-run-session cage -- "${EMUBOX_BIN}" "$@"
+    dbus-run-session cage -- "${EMUBOX_BIN}" "$@"
   else
-    exec cage -- "${EMUBOX_BIN}" "$@"
+    cage -- "${EMUBOX_BIN}" "$@"
   fi
 
-# MODO FALLBACK DIRECTO (Punto 10)
+# MODO FALLBACK DIRECTO
 else
   echo "[EmuBox Pipeline] Modo: FALLBACK DIRECTO -> EmuBox"
-  exec "${EMUBOX_BIN}" "$@"
+  "${EMUBOX_BIN}" "$@"
 fi
 EOF
 
 chmod 0755 /usr/local/bin/emubox-session
 ln -sf /usr/local/bin/emubox-session /usr/bin/emubox
+
+# Copiar también el script watcher a /usr/local/bin
+if [[ -f "${SCRIPT_DIR}/resize-watcher.sh" ]]; then
+  cp -f "${SCRIPT_DIR}/resize-watcher.sh" /usr/local/bin/emubox-resize-watcher
+  chmod 0755 /usr/local/bin/emubox-resize-watcher
+fi
 
 # ------------------------------------------------------------
 # 3. Configurar Autologin Único y Limpio en TTY1 (Punto 1)
