@@ -232,8 +232,8 @@ impl GameService {
         let errors = Vec::new();
 
         let platforms_to_scan: Vec<&PlatformSpec> = if let Some(req) = &request {
-            if let Some(target_plat) = &req.platform {
-                PLATFORM_SPECS.iter().filter(|p| p.id == target_plat).collect()
+            if let Some(target_plats) = &req.platforms {
+                PLATFORM_SPECS.iter().filter(|p| target_plats.iter().any(|target| target == p.id)).collect()
             } else {
                 PLATFORM_SPECS.iter().collect()
             }
@@ -374,13 +374,13 @@ impl GameService {
                     param_values.push(Box::new(target_plat));
                 }
             }
-            if let Some(q) = f.search_query {
+            if let Some(q) = f.search {
                 if !q.trim().is_empty() {
                     query.push_str(" AND title LIKE ?");
                     param_values.push(Box::new(format!("%{}%", q.trim())));
                 }
             }
-            if let Some(fav_only) = f.favorites_only {
+            if let Some(fav_only) = f.favorite {
                 if fav_only {
                     query.push_str(" AND favorite = 1");
                 }
