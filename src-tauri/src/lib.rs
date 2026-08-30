@@ -69,11 +69,11 @@ pub fn run() {
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Resized(size) = event {
-                let js_payload = format!(
-                    "window.dispatchEvent(new CustomEvent('emubox-resize', {{ detail: {{ width: {}, height: {} }} }}));",
-                    size.width, size.height
+                use tauri::Emitter;
+                let _ = window.emit(
+                    "emubox://window-resized",
+                    serde_json::json!({ "width": size.width, "height": size.height })
                 );
-                let _ = window.eval(&js_payload);
             }
         })
         .run(tauri::generate_context!())

@@ -37,7 +37,7 @@ impl DiagnosticsService {
             .arg("-c")
             .arg(cmd)
             .output()
-            .map_err(|e| EmuBoxError::ExecutionFailed(e.to_string()))?;
+            .map_err(|e| EmuBoxError::ProcessFailed(e.to_string()))?;
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();

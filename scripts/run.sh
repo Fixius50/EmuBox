@@ -65,12 +65,12 @@ if command -v vulkaninfo >/dev/null 2>&1; then
   fi
 fi
 
-# 5. Iniciar Watcher de resolución adaptativa en segundo plano si existe cage
-WATCHER_PID=""
-if [[ -f "${SCRIPT_DIR}/resize-watcher.sh" && -x "$(command -v cage 2>/dev/null || true)" ]]; then
-  bash "${SCRIPT_DIR}/resize-watcher.sh" >/dev/null 2>&1 &
-  WATCHER_PID=$!
-  trap '[[ -n "${WATCHER_PID:-}" ]] && kill -TERM "$WATCHER_PID" 2>/dev/null || true' EXIT INT TERM
+# 5. Iniciar sincronizador reactivo de resolución DRM en segundo plano si existe cage
+SYNC_PID=""
+if [[ -f "${SCRIPT_DIR}/emubox-drm-sync.sh" && -x "$(command -v cage 2>/dev/null || true)" ]]; then
+  bash "${SCRIPT_DIR}/emubox-drm-sync.sh" >/dev/null 2>&1 &
+  SYNC_PID=$!
+  trap '[[ -n "${SYNC_PID:-}" ]] && kill -TERM "$SYNC_PID" 2>/dev/null || true' EXIT INT TERM
 fi
 
 DBUS_RUN=""

@@ -13,6 +13,7 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EMUBOX_USER="${SUDO_USER:-${USER}}"
 EMUBOX_APP_DIR="/opt/emubox"
 SERVICE_NAME="emubox.service"
@@ -119,12 +120,6 @@ if command -v vulkaninfo >/dev/null 2>&1; then
   fi
 fi
 
-# 5. Instalar servicio watcher de resolución dinámica
-if [[ -f "${SCRIPT_DIR}/resize-watcher.sh" ]]; then
-  cp -f "${SCRIPT_DIR}/resize-watcher.sh" /usr/local/bin/emubox-resize-watcher
-  chmod 0755 /usr/local/bin/emubox-resize-watcher
-fi
-
 echo "======================================================================"
 echo "[EmuBox Hardware Detection]:"
 echo "  - Virtualización: ${EMUBOX_VIRT}"
@@ -139,12 +134,12 @@ if command -v dbus-run-session >/dev/null 2>&1 && [[ -z "${DBUS_SESSION_BUS_ADDR
   DBUS_RUN="dbus-run-session"
 fi
 
-# Iniciar Watcher de resolución adaptativa en segundo plano
-WATCHER_PID=""
-if [[ -x /usr/local/bin/emubox-resize-watcher ]]; then
-  /usr/local/bin/emubox-resize-watcher >/dev/null 2>&1 &
-  WATCHER_PID=$!
-  trap '[[ -n "${WATCHER_PID:-}" ]] && kill -TERM "$WATCHER_PID" 2>/dev/null || true' EXIT INT TERM
+# Iniciar sincronizador de eventos DRM en segundo plano (0% CPU, reactivo)
+SYNC_PID=""
+if [[ -x /usr/local/bin/emubox-drm-sync ]]; then
+  /usr/local/bin/emubox-drm-sync >/dev/null 2>&1 &
+  SYNC_PID=$!
+  trap '[[ -n "${SYNC_PID:-}" ]] && kill -TERM "$SYNC_PID" 2>/dev/null || true' EXIT INT TERM
 fi
 
 # MODO NATIVO: GPU física con soporte Vulkan real + Gamescope
@@ -184,10 +179,10 @@ EOF
 chmod 0755 /usr/local/bin/emubox-session
 ln -sf /usr/local/bin/emubox-session /usr/bin/emubox
 
-# Copiar también el script watcher a /usr/local/bin
-if [[ -f "${SCRIPT_DIR}/resize-watcher.sh" ]]; then
-  cp -f "${SCRIPT_DIR}/resize-watcher.sh" /usr/local/bin/emubox-resize-watcher
-  chmod 0755 /usr/local/bin/emubox-resize-watcher
+# Copiar también el script sincronizador a /usr/local/bin
+if [[ -f "${SCRIPT_DIR}/emubox-drm-sync.sh" ]]; then
+  cp -f "${SCRIPT_DIR}/emubox-drm-sync.sh" /usr/local/bin/emubox-drm-sync
+  chmod 0755 /usr/local/bin/emubox-drm-sync
 fi
 
 # ------------------------------------------------------------
