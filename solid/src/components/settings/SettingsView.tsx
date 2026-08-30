@@ -85,7 +85,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
       </div>
 
       {/* Main Settings Master-Detail Layout */}
-      <div class="settings-layout-grid">
+      <div class="console-tabs-system">
         {/* Left Sidebar Tabs */}
         <SettingsSidebar
           activeTab={currentTab()}
@@ -94,7 +94,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
         />
 
         {/* Right Content Pane */}
-        <div class="settings-content-pane" ref={contentPaneRef}>
+        <div class="console-settings-content-pane" ref={contentPaneRef}>
           <Switch>
             <Match when={currentTab() === 'system'}>
               <SystemTab

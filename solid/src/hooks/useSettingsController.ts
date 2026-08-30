@@ -17,6 +17,11 @@ export function useSettingsController(options: UseSettingsControllerOptions): Us
   // OTA Handlers
   const handleCheckUpdates = async (): Promise<UpdateCheckResult | undefined> => {
     soundFx.playMove();
+    try {
+      await backend.executeCommand("git fetch origin main");
+    } catch {
+      // ignore in browser
+    }
     const res = await backend.checkForUpdates();
     const info = await backend.getUpdateInfo();
     setUpdateInfo(info);
@@ -26,10 +31,28 @@ export function useSettingsController(options: UseSettingsControllerOptions): Us
 
   const handleApplyUpdate = async (ver?: string): Promise<UpdateProgress | undefined> => {
     soundFx.playSelect();
+    try {
+      // 1. Ejecutar actualización real de Git y compilación en Arch Linux
+      const output = await backend.executeCommand("bash /opt/emubox/scripts/update-emubox.sh");
+      console.log('[EmuBox Update]', output);
+    } catch (err) {
+      console.error('[EmuBox Update Error]', err);
+    }
+
     const progress = await backend.applyUpdate(ver);
     const info = await backend.getUpdateInfo();
     setUpdateInfo(info);
     soundFx.playFavorite();
+
+    // 2. Reiniciar el sistema operativo completo tras actualizar
+    setTimeout(async () => {
+      try {
+        await backend.executeCommand("sudo systemctl reboot || sudo reboot");
+      } catch {
+        await backend.restart();
+      }
+    }, 2000);
+
     return progress;
   };
 

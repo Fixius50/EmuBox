@@ -4,7 +4,7 @@ import type { SettingsSidebarProps } from '@contracts/settings.types';
 
 export const SettingsSidebar: Component<SettingsSidebarProps> = (props) => {
   return (
-    <div class="settings-sidebar">
+    <div class="console-sidebar-menu">
       <For each={SETTINGS_TABS}>
         {(tab) => {
           const isActive = () => props.activeTab === tab.id;
@@ -12,14 +12,15 @@ export const SettingsSidebar: Component<SettingsSidebarProps> = (props) => {
 
           return (
             <button
-              class={`settings-nav-btn ${isActive() ? 'active' : ''} ${isFocused() ? 'focused' : ''}`}
+              class={`sidebar-tab-trigger ${isActive() ? 'active' : ''} ${isFocused() ? 'focused-sidebar' : ''}`}
               onClick={() => props.onTabChange(tab.id)}
             >
-              <span class="settings-tab-tag">{tab.tag}</span>
-              <div class="settings-tab-meta">
-                <span class="settings-tab-name">{tab.name}</span>
-                <span class="settings-tab-desc">{tab.desc}</span>
+              <span class="tab-badge-icon">{tab.tag}</span>
+              <div class="tab-label-group">
+                <span class="tab-main-text">{tab.name}</span>
+                <span class="tab-sub-text">{tab.desc}</span>
               </div>
+              {isActive() && <div class="tab-neon-caret" />}
             </button>
           );
         }}
