@@ -56,10 +56,11 @@ pub fn run() {
             commands::input::get_gamepads,
             commands::input::get_gamepad_status,
 
-            // Diagnostics
+            // Diagnostics & Terminal
             commands::diagnostics::get_system_logs,
             commands::diagnostics::get_emubox_logs,
             commands::diagnostics::get_diagnostics,
+            commands::diagnostics::execute_command,
 
             // BIOS
             commands::bios::get_bios_requirements,

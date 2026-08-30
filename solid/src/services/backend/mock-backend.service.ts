@@ -633,6 +633,17 @@ export class MockBackendService implements IEmuBoxBackend {
       message: `Rollback completado con éxito. /opt/emubox/current apunta ahora a ${target.installPath}.`
     };
   }
+
+  public async executeCommand(cmd: string): Promise<string> {
+    const trimmed = cmd.trim();
+    if (trimmed === 'ip addr' || trimmed === 'ip a' || trimmed === 'hostname -I') {
+      return '127.0.0.1 (lo)\n192.168.1.150/24 (enp0s3)\ninet 192.168.1.150 brd 192.168.1.255 scope global dynamic enp0s3';
+    }
+    if (trimmed.includes('sshd') || trimmed.includes('ssh')) {
+      return '● sshd.service - OpenSSH Daemon\n     Loaded: loaded (/usr/lib/systemd/system/sshd.service; enabled)\n     Active: active (running) on port 22';
+    }
+    return `[Mock Terminal] Comando simulado ejecutado: ${cmd}\nResultado: OK (Simulación en navegador)`;
+  }
 }
 
 export { MockBackendService as MockBackend };

@@ -419,6 +419,14 @@ export class TauriBackendService implements IEmuBoxBackend {
       return this.fallback.rollbackToVersion(version);
     }
   }
+
+  public async executeCommand(cmd: string): Promise<string> {
+    try {
+      return await this.invoke<string>('execute_command', { command: cmd });
+    } catch {
+      return this.fallback.executeCommand(cmd);
+    }
+  }
 }
 
 export { TauriBackendService as TauriBackend };

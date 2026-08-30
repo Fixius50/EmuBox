@@ -165,10 +165,11 @@ export interface IEmuBoxBackend {
   getStorageInfo(): Promise<StorageInfo>;
   getStorageLocations(): Promise<Record<string, StorageLocation>>;
 
-  // 9. Diagnóstico & Logs
+  // 9. Diagnóstico, Terminal & Logs
   getSystemLogs(limit?: number): Promise<LogEntry[]>;
   getEmuBoxLogs(limit?: number): Promise<LogEntry[]>;
   getDiagnostics(): Promise<DiagnosticReport>;
+  executeCommand(cmd: string): Promise<string>;
 
   // 10. BIOS Scanner
   getBiosRequirements(): Promise<BiosStatus>;

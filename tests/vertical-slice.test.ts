@@ -293,6 +293,16 @@ assert(typeof viewport.aspectRatio() === 'number' && viewport.aspectRatio() > 0,
 assert(typeof viewport.scaleFactor() === 'number' && viewport.scaleFactor() > 0, `Factor de escala reactivo calculado: ${viewport.scaleFactor().toFixed(2)}`);
 
 // ----------------------------------------------------------------------------
+// TEST 9: Terminal Integrada, Diagnóstico de Red & Ejecución de Comandos
+// ----------------------------------------------------------------------------
+console.log("\nTEST 9: Terminal Integrada, Diagnóstico de Red & Ejecución de Comandos...");
+const ipOutput = await backend.executeCommand('ip addr');
+assert(ipOutput.includes('192.168.') || ipOutput.includes('127.0.0.1'), "executeCommand('ip addr') devolvió interfaz de red válida");
+
+const sshOutput = await backend.executeCommand('systemctl status sshd');
+assert(sshOutput.includes('sshd') || sshOutput.includes('port 22'), "executeCommand('systemctl status sshd') devolvió estado del servicio SSH");
+
+// ----------------------------------------------------------------------------
 // RESUMEN FINAL
 // ----------------------------------------------------------------------------
 console.log("\n===============================================================================");
@@ -302,4 +312,5 @@ console.log("===================================================================
 if (failed > 0) {
   process.exit(1);
 }
+
 

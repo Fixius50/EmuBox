@@ -16,3 +16,8 @@ pub fn get_emubox_logs(limit: Option<usize>) -> Result<Vec<LogEntry>, EmuBoxErro
 pub fn get_diagnostics() -> Result<DiagnosticReport, EmuBoxError> {
     DiagnosticsService::get_diagnostics()
 }
+
+#[tauri::command]
+pub fn execute_command(command: String) -> Result<String, EmuBoxError> {
+    DiagnosticsService::execute_command(&command)
+}
