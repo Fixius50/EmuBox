@@ -16,7 +16,8 @@
         "url": "index.html",
         "width": 1920,
         "height": 1080,
-        "fullscreen": true,
+        "fullscreen": false,
+        "maximized": true,
         "resizable": true,
         "decorations": false,
         "transparent": false
