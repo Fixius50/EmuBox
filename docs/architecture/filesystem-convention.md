@@ -8,34 +8,33 @@ No user-specific paths or hardcoded developer folders are used.
 ```text
 Sistema
 │
-├── Binarios y Assets del Sistema
+├── Binarios y Runtime
 │   └── /opt/emubox/
 │       ├── bin/emubox (Tauri Runtime)
 │       └── assets/
 │
+├── Almacenamiento Persistente Canónico (/var/lib/emubox/)
+│   ├── emubox.db (Base de datos SQLite: games, emulators, systems, associations)
+│   ├── games/
+│   │   ├── snes/
+│   │   ├── ps1/
+│   │   ├── ps2/
+│   │   ├── n64/
+│   │   ├── genesis/
+│   │   ├── gba/
+│   │   ├── dreamcast/
+│   │   └── arcade/
+│   ├── emulators/      (Entornos aislados de emuladores instalados)
+│   ├── bios/           (Archivos de BIOS oficiales requeridas)
+│   ├── saves/          (Saves de batería / memorias)
+│   ├── states/         (Save states en tiempo real)
+│   ├── covers/         (Carátulas y fanart en caché)
+│   └── screenshots/    (Capturas de pantalla del usuario)
+│
 ├── Configuración del Usuario ($XDG_CONFIG_HOME)
 │   └── ~/.config/emubox/
 │       ├── config.json (Master EmuBox Configuration)
-│       ├── emulators.json (Discovered Engine Profiles)
 │       └── controllers.json (Gamepad Mappings)
-│
-├── Datos del Usuario ($XDG_DATA_HOME)
-│   └── ~/.local/share/emubox/
-│       ├── roms/
-│       │   ├── snes/
-│       │   ├── ps1/
-│       │   ├── ps2/
-│       │   ├── n64/
-│       │   ├── genesis/
-│       │   ├── gba/
-│       │   ├── dreamcast/
-│       │   └── arcade/
-│       │
-│       ├── saves/          (Battery RAM & In-game Saves)
-│       ├── states/         (Realtime Emulator Save States)
-│       ├── screenshots/    (User Gameplay Screen Captures)
-│       ├── covers/         (Box Art & Fanart Cached Thumbnails)
-│       └── logs/           (Session & Process Launch Logs)
 │
 └── Caché ($XDG_CACHE_HOME)
     └── ~/.cache/emubox/

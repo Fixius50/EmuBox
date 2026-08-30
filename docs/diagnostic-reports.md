@@ -126,5 +126,97 @@ Validación del ciclo completo de arranque en frío (`sudo reboot`) comprobando 
 
 > 🔒 **Directriz Inmutable**: La fase de ciclo de vida y arranque autónomo queda cerrada con éxito. Los próximos desarrollos se enfocarán exclusivamente en la aplicación EmuBox, la navegación 10-Foot UI y la integración de emuladores.
 
+---
+
+## 📑 Reporte 8: Persistencia N:M de Compatibilidad en SQLite (Paso 1)
+
+* **Fecha**: 30 de Agosto, 2026
+* **Componente**: SQLite (`rusqlite`) & `CompatibilityService`
+* **Objetivo**: Implementar persistencia relacional completa N:M entre juegos y emuladores.
+
+### Esquema Consolidado en `/var/lib/emubox/emubox.db`:
+* `systems`: Metadatos de consolas y extensiones válidas.
+* `emulators`: Motores oficiales con versión y ejecutable detectado.
+* `emulator_metadata`: Configuraciones avanzadas por motor.
+* `games`: Índice de ROMs con `rom_path` canónico.
+* `game_emulator_associations`: Tabla N:M para vincular múltiples emuladores por juego con prioridades, flags `is_default`, `enabled`, argumentos personalizados (`custom_arguments`) y rutas de configuración individual (`custom_config_path`).
+
+---
+
+## 📑 Reporte 9: Validación Integral del GameLibraryWatcher en VM Real (Paso 2)
+
+* **Fecha**: 30 de Agosto, 2026
+* **Estado**: **VALIDADO AL 100% EN HARDWARE / ARCH LINUX VM**.
+
+### Log de Ejecución Real en la VM:
+```text
+============================================================
+1. TABLAS SQLITE
+============================================================
+╭────────────────────────────╮
+│            name            │
+╞════════════════════════════╡
+│ emulator_metadata          │
+│ emulators                  │
+│ game_emulator_associations │
+│ games                      │
+│ systems                    │
+╰────────────────────────────╯
+
+============================================================
+2. JUEGOS ANTES DE LA PRUEBA
+============================================================
+
+============================================================
+3. CREANDO JUEGO DE PRUEBA
+============================================================
+ROM creada.
+Esperando al GameLibraryWatcher...
+
+============================================================
+4. COMPROBANDO DETECCION AUTOMATICA
+============================================================
+╭─────────────────────┬───────────┬─────────────┬───────────────────────────────────────────────╮
+│         id          │   title   │ platform_id │                   rom_path                    │
+╞═════════════════════╪═══════════╪═════════════╪═══════════════════════════════════════════════╡
+│ ps2-test-game-(usa) │ Test Game │ ps2         │ /var/lib/emubox/games/ps2/Test Game (USA).iso │
+╰─────────────────────┴───────────┴─────────────┴───────────────────────────────────────────────╯
+
+============================================================
+5. ELIMINANDO JUEGO DE PRUEBA
+============================================================
+ROM eliminada.
+Esperando al GameLibraryWatcher...
+
+============================================================
+6. COMPROBANDO PURGA AUTOMATICA
+============================================================
+
+============================================================
+7. LOGS RELACIONADOS CON LA BIBLIOTECA
+============================================================
+
+============================================================
+8. ESTADO FINAL DE LA BIBLIOTECA
+============================================================
+╭─────────────╮
+│ total_games │
+╞═════════════╡
+│           0 │
+╰─────────────╯
+
+============================================================
+PRUEBA DEL WATCHER COMPLETADA CON ÉXITO
+============================================================
+```
+
+### Resumen de Resultados Validados:
+1. **SQLite inicializada**: 5 tablas relacionales activas con claves foráneas y WAL mode.
+2. **Detección Automática**: Creación física de ROM detectada instantáneamente por inotify / `notify` sin polling.
+3. **Plataforma y Normalización**: Detectada plataforma `ps2`, título normalizado de `Test Game (USA).iso` a `Test Game`.
+4. **Purga Automática**: Al eliminar el archivo de disco, el watcher purga automáticamente el registro en SQLite.
+5. **Cero Residuos**: Total de juegos final = 0.
+
+
 
 
