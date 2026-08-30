@@ -23,6 +23,11 @@ fi
 
 cd "${EMUBOX_DIR}"
 
+# Asegurar permisos de usuario sobre el árbol de trabajo (evita colisiones si un build previo se corrió como root)
+if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+  sudo chown -R "$(id -u):$(id -g)" "${EMUBOX_DIR}" 2>/dev/null || true
+fi
+
 log_info "Iniciando proceso de compilacion de EmuBox..."
 
 # ------------------------------------------------------------------------------
@@ -96,7 +101,11 @@ log_ok "Dependencias npm preparadas."
 # 4. Compilacion del frontend SolidJS
 # ------------------------------------------------------------------------------
 log_step "Compilando frontend SolidJS..."
-rm -rf solid/dist
+if ! rm -rf solid/dist 2>/dev/null; then
+  if command -v sudo >/dev/null 2>&1; then
+    sudo rm -rf solid/dist 2>/dev/null || true
+  fi
+fi
 
 BUILD_LOG="${LOG_DIR}/npm-build.log"
 : > "${BUILD_LOG}"

@@ -77,6 +77,9 @@ fi
 
 # 3. Delegar compilación al script maestro build.sh
 echo "[4/5] Compilando nueva versión mediante scripts/build.sh..."
+if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+  sudo chown -R "$(id -u):$(id -g)" "${EMUBOX_DIR}" 2>/dev/null || true
+fi
 chmod +x "${EMUBOX_DIR}/scripts/build.sh"
 
 if ! bash "${EMUBOX_DIR}/scripts/build.sh"; then
