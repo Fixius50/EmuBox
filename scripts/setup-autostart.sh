@@ -96,36 +96,85 @@ if [[ ! -x "${EMUBOX_BIN}" ]]; then
   exit 1
 fi
 
-# 1. Detección de Virtualización (Punto 7)
+# 1. Detección de Virtualización
 if command -v systemd-detect-virt >/dev/null 2>&1 && systemd-detect-virt --quiet; then
   EMUBOX_VIRT="$(systemd-detect-virt)"
 else
   EMUBOX_VIRT="none"
 fi
 
-# 2. Detección de GPU PCI
-GPU_DESC="$(lspci -nnk 2>/dev/null | grep -A2 -Ei 'VGA compatible controller|3D controller|Display controller' | head -n 2 | tr '\n' ' ' || echo 'Generic/Unknown')"
+# 2. Detección de GPU, Driver y Vendor mediante PCI/DRM
+GPU_INFO="$(lspci -nnk 2>/dev/null | grep -A3 -Ei 'VGA compatible controller|3D controller|Display controller' | head -n 4 || true)"
+GPU_DEVICE="$(echo "$GPU_INFO" | grep -Ei 'VGA|3D|Display' | sed -E 's/^[^:]+: //; s/ \(rev .*\)//' | head -n 1)"
+[[ -z "$GPU_DEVICE" ]] && GPU_DEVICE="Dispositivo Gráfico Genérico / Desconocido"
 
-# 3. Detección de DRM/KMS
-HAS_DRM=0
-if [[ -e /dev/dri/card0 || -e /dev/dri/renderD128 ]]; then
-  HAS_DRM=1
+GPU_DRIVER="$(echo "$GPU_INFO" | grep -Ei 'Kernel driver in use:' | awk '{print $NF}' | head -n 1)"
+[[ -z "$GPU_DRIVER" ]] && GPU_DRIVER="desconocido"
+
+GPU_VENDOR="Desconocido"
+if echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'AMD|ATI|Radeon|amdgpu'; then
+  GPU_VENDOR="AMD"
+elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'Intel|i915|xe'; then
+  GPU_VENDOR="Intel"
+elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'NVIDIA|nvidia|nouveau'; then
+  GPU_VENDOR="NVIDIA"
+elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'VMware|vmwgfx|VirtualBox|vboxvideo|virtio|qxl'; then
+  GPU_VENDOR="Virtual / Emulada"
 fi
 
-# 4. Detección de Vulkan REAL y funcional (Punto 7)
-HAS_VULKAN=0
+# 3. Detección de Renderer y Aceleración Real por Hardware (Descartando llvmpipe/software)
+RENDERER_DESC="Software / Genérico"
+HAS_GPU_ACCEL=0
+HAS_HW_VULKAN=0
+
+# Comprobar Vulkan y detectar si es driver físico o software rasterizer (llvmpipe)
 if command -v vulkaninfo >/dev/null 2>&1; then
-  if vulkaninfo --summary 2>&1 | grep -qE 'deviceName|GPU0|GPU id'; then
-    HAS_VULKAN=1
+  VK_SUMMARY="$(vulkaninfo --summary 2>&1 || true)"
+  VK_DEVICE="$(echo "$VK_SUMMARY" | grep -Ei 'deviceName' | head -n 1 | sed -E 's/.*= //; s/^[ \t]*//' || true)"
+  
+  if [[ -n "$VK_DEVICE" ]]; then
+    if echo "$VK_DEVICE" | grep -Eiq 'llvmpipe|softpipe|swrast|Software'; then
+      RENDERER_DESC="llvmpipe (CPU Software Rasterizer)"
+      HAS_GPU_ACCEL=0
+      HAS_HW_VULKAN=0
+    else
+      RENDERER_DESC="$VK_DEVICE"
+      HAS_GPU_ACCEL=1
+      HAS_HW_VULKAN=1
+    fi
   fi
 fi
 
+# Si Vulkan no dio respuesta positiva, verificar aceleración por OpenGL (Mesa)
+if [[ $HAS_GPU_ACCEL -eq 0 ]] && command -v glxinfo >/dev/null 2>&1; then
+  GL_RENDERER="$(glxinfo -B 2>/dev/null | grep -Ei 'OpenGL renderer string:' | sed -E 's/.*: //; s/^[ \t]*//' || true)"
+  if [[ -n "$GL_RENDERER" ]]; then
+    if echo "$GL_RENDERER" | grep -Eiq 'llvmpipe|softpipe|swrast'; then
+      RENDERER_DESC="llvmpipe (CPU Software Rasterizer)"
+      HAS_GPU_ACCEL=0
+    elif [[ "$GPU_VENDOR" =~ ^(AMD|Intel|NVIDIA)$ ]]; then
+      RENDERER_DESC="$GL_RENDERER"
+      HAS_GPU_ACCEL=1
+    fi
+  fi
+fi
+
+# Determinar Pipeline Definitivo
+PIPELINE="Cage -> EmuBox (Fallback CPU / Software Rendering)"
+if [[ $HAS_GPU_ACCEL -eq 1 ]] && command -v gamescope >/dev/null 2>&1; then
+  PIPELINE="Gamescope -> EmuBox (GPU Acelerada por Hardware)"
+fi
+
 echo "======================================================================"
-echo "[EmuBox Hardware Detection]:"
-echo "  - Virtualización: ${EMUBOX_VIRT}"
-echo "  - GPU:            ${GPU_DESC}"
-echo "  - DRM/KMS:        $([[ ${HAS_DRM} -eq 1 ]] && echo 'OK (/dev/dri)' || echo 'NO DISPONIBLE')"
-echo "  - Vulkan HW:      $([[ ${HAS_VULKAN} -eq 1 ]] && echo 'OPERATIVO (NATIVO)' || echo 'NO DETECTADO / INCOMPATIBLE')"
+echo "[EmuBox Graphics Hardware Detection]:"
+echo "  - Entorno Virtualizado: ${EMUBOX_VIRT}"
+echo "  - GPU Vendor:           ${GPU_VENDOR}"
+echo "  - GPU Device:           ${GPU_DEVICE}"
+echo "  - Kernel Driver:        ${GPU_DRIVER}"
+echo "  - Renderer:             ${RENDERER_DESC}"
+echo "  - Aceleración GPU:      $([[ ${HAS_GPU_ACCEL} -eq 1 ]] && echo 'SÍ (NATIVA)' || echo 'NO (CPU SOFTWARE)')"
+echo "  - Vulkan Hardware:      $([[ ${HAS_HW_VULKAN} -eq 1 ]] && echo 'SÍ' || echo 'NO / SOFTWARE')"
+echo "  - Pipeline:             ${PIPELINE}"
 echo "======================================================================"
 
 # Orquestación D-Bus
@@ -142,37 +191,28 @@ if [[ -x /usr/local/bin/emubox-drm-sync ]]; then
   trap '[[ -n "${SYNC_PID:-}" ]] && kill -TERM "$SYNC_PID" 2>/dev/null || true' EXIT INT TERM
 fi
 
-# MODO NATIVO: GPU física con soporte Vulkan real + Gamescope
-if [[ ${HAS_VULKAN} -eq 1 ]] && command -v gamescope >/dev/null 2>&1; then
-  if command -v cage >/dev/null 2>&1; then
-    echo "[EmuBox Pipeline] Modo: NATIVO (Cage -> Gamescope -> EmuBox)"
-    if [[ -n "${DBUS_RUN}" ]]; then
-      dbus-run-session cage -- gamescope -f -- "${EMUBOX_BIN}" "$@"
-    else
-      cage -- gamescope -f -- "${EMUBOX_BIN}" "$@"
-    fi
-  else
-    echo "[EmuBox Pipeline] Modo: NATIVO DIRECTO (Gamescope -> EmuBox)"
-    if [[ -n "${DBUS_RUN}" ]]; then
-      dbus-run-session gamescope -f -- "${EMUBOX_BIN}" "$@"
-    else
-      gamescope -f -- "${EMUBOX_BIN}" "$@"
-    fi
-  fi
-
-# MODO COMPATIBILIDAD (VMware, VirtualBox o GPU sin Vulkan funcional): Cage Wayland Kiosk
-elif command -v cage >/dev/null 2>&1; then
-  echo "[EmuBox Pipeline] Modo: COMPATIBILIDAD VM/LEGACY (Cage Wayland Kiosk -> EmuBox)"
+# 1. PIPELINE PRINCIPAL (GPU Acelerada): Gamescope directo
+if [[ $HAS_GPU_ACCEL -eq 1 ]] && command -v gamescope >/dev/null 2>&1; then
+  echo "[EmuBox] Ejecutando Pipeline Acelerado: Gamescope -> EmuBox"
   if [[ -n "${DBUS_RUN}" ]]; then
-    dbus-run-session cage -- "${EMUBOX_BIN}" "$@"
+    exec dbus-run-session gamescope -f -- "${EMUBOX_BIN}" "$@"
   else
-    cage -- "${EMUBOX_BIN}" "$@"
+    exec gamescope -f -- "${EMUBOX_BIN}" "$@"
   fi
 
-# MODO FALLBACK DIRECTO
+# 2. PIPELINE DE EMERGENCIA / SOFTWARE (CPU / llvmpipe / VM sin aceleración): Cage Kiosk
+elif command -v cage >/dev/null 2>&1; then
+  echo "[EmuBox] Ejecutando Pipeline de Emergencia (CPU Software): Cage -> EmuBox"
+  if [[ -n "${DBUS_RUN}" ]]; then
+    exec dbus-run-session cage -- "${EMUBOX_BIN}" "$@"
+  else
+    exec cage -- "${EMUBOX_BIN}" "$@"
+  fi
+
+# 3. MODO FALLBACK DIRECTO
 else
-  echo "[EmuBox Pipeline] Modo: FALLBACK DIRECTO -> EmuBox"
-  "${EMUBOX_BIN}" "$@"
+  echo "[EmuBox] Ejecutando en Modo Directo -> EmuBox"
+  exec "${EMUBOX_BIN}" "$@"
 fi
 EOF
 

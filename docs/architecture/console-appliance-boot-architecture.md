@@ -39,9 +39,9 @@ Este documento define la arquitectura de ciclo de vida, arranque autónomo y pol
 
 Cage y Gamescope no son alternativas excluyentes, sino **capas complementarias con propósitos diferenciados**:
 
-* **Cage (Capa de Sesión Wayland / Kiosko)**: Proporciona una sesión Wayland minimalista y ultra-ligera en `tty1`. Su único trabajo es gestionar el asiento de hardware (`seat0`) y ejecutar una única aplicación sin arrastrar gestores de ventanas ni entornos de escritorio pesados (GNOME/KDE/XFCE).
-* **Gamescope (Capa de Composición y Rendimiento de Consola)**: Se ejecuta dentro de la sesión de Cage para brindar las capacidades avanzadas de una consola moderna de videojuegos (aislamiento de resolución, sincronización VSync estricta, escalado FSR/Integer scaling y gestión dinámica de ventanas de emuladores).
-* **EmuBox (Capa de Aplicación)**: El frontend WebKitGTK/Tauri que renderiza la interfaz cinematográfica Obsidian & Neón.
+* **Gamescope (Capa de Composición y Rendimiento para GPU Acelerada)**: Se ejecuta directamente para brindar las capacidades avanzadas de una consola moderna de videojuegos (DRM/KMS directo, sincronización VSync estricta, escalado FSR y gestión dinámica de ventanas de emuladores en GPUs AMD/Intel/NVIDIA).
+* **Cage (Capa de Sesión de Emergencia / Fallback CPU)**: Proporciona una sesión Wayland minimalista y ultra-ligera en `tty1` cuando no existe aceleración gráfica física por hardware (`llvmpipe`, `softpipe` o entornos de virtualización sin aceleración funcional).
+* **EmuBox (Capa de Aplicación)**: El frontend WebKitGTK/Tauri que renderiza la interfaz cinematográfica Obsidian & Neón con SolidJS 1.9.
 
 > 📌 **Regla de Oro de Administración**:  
 > **SSH es exclusivamente una puerta de mantenimiento, diagnóstico y despliegue remoto.**  
@@ -65,29 +65,29 @@ Cage y Gamescope no son alternativas excluyentes, sino **capas complementarias c
                                     │
                     ┌───────────────┴───────────────┐
                     ▼                               ▼
-          Detectar Hardware / VM           Sondear Vulkan Real
-          (systemd-detect-virt)           (vulkaninfo --summary)
+          Detectar Hardware / Driver       Sondear Renderer Real
+         (amdgpu / i915 / xe / nvidia)     (Descartar llvmpipe/soft)
                     │                               │
                     └───────────────┬───────────────┘
                                     ▼
-                         ¿Vulkan HW Operativo?
+                      ¿Aceleración GPU por Hardware?
                                     │
                     ┌───────────────┴───────────────┐
                     ▼                               ▼
-            SÍ: MODO NATIVO                NO: MODO COMPATIBILIDAD
-        (Hardware PC dedicado)             (VMware / VirtualBox / Legacy)
+            SÍ: GPU ACELERADA               NO: FALLBACK CPU
+        (AMD, Intel, NVIDIA nativo)     (llvmpipe / Software / VM)
                     │                               │
                     ▼                               ▼
-         Cage Wayland Kiosk              Cage Wayland Kiosk
-                    │                               │
-                    ▼                               │
-          Gamescope Compositor                      │
-          (1080p/4K FSR, VSync)                     │
+          Gamescope Compositor              Cage Wayland Kiosk
+        (DRM/KMS directo, FSR)              (Wayland Kiosk liviano)
                     │                               │
                     └───────────────┬───────────────┘
                                     ▼
-                              EMUBOX TAURI OS
-                     (Pantalla física a 60 FPS estables)
+                        emubox-drm-sync (udev 0% CPU)
+                                    │
+                                    ▼
+                             EMUBOX TAURI OS
+                   (Resolución y Viewport 100% Dinámicos)
 ```
 
 1. **Arranque del Sistema**: Systemd alcanza el target `graphical.target`.
@@ -95,13 +95,14 @@ Cage y Gamescope no son alternativas excluyentes, sino **capas complementarias c
 3. **Inicialización de la Sesión Wayland**:
    - Se crea el directorio de runtime de usuario `$XDG_RUNTIME_DIR` (`/run/user/<uid>`).
    - Se asigna `$XDG_SESSION_TYPE=wayland` y el bus D-Bus de sesión.
-4. **Sondeo de Capacidades Gráficas**:
-   - `emubox-session` realiza una comprobación activa de DRM (`/dev/dri/card0`) y de Vulkan real mediante `vulkaninfo --summary`.
-5. **Selección Dinámica del Compositor**:
-   - **Modo Nativo (GPU física con Vulkan OK)**: Lanza `Cage -> Gamescope -> EmuBox`.
-   - **Modo Compatibilidad (VM sin Vulkan físico)**: Lanza `Cage -> EmuBox` directamente, evitando de raíz el fallo `vkCreateInstance failed` de Gamescope.
-6. **Despliegue Visual**:
-   - EmuBox se renderiza a pantalla completa en la salida de vídeo física sin bucles de reinicio.
+4. **Sondeo de Capacidades Gráficas y Renderer**:
+   - `emubox-session` realiza una comprobación activa de PCI/DRM y analiza el renderer OpenGL/Vulkan, descartando expresamente rasterizadores software como `llvmpipe` o `softpipe`.
+5. **Selección del Pipeline**:
+   - **GPU Acelerada (Hardware Real)**: Lanza `Gamescope -> EmuBox`.
+   - **Fallback CPU (Emergencia)**: Lanza `Cage -> EmuBox` directamente cuando no hay aceleración física.
+6. **Sincronización Dinámica de Resolución (`emubox-drm-sync`)**:
+   - Permanece en segundo plano bloqueado en el socket de `udevadm monitor` (0% CPU).
+   - Ante eventos `HOTPLUG=1` del kernel (redimensionado de ventana en hipervisores o cambio de TV/monitor en hardware), sincroniza `wlr-randr` en caliente hacia la UI SolidJS sin resoluciones fijas ni reinicios de la aplicación.
 
 ---
 
@@ -110,8 +111,9 @@ Cage y Gamescope no son alternativas excluyentes, sino **capas complementarias c
 | Componente | Tecnología Seleccionada | Razón Arquitectónica |
 | :--- | :--- | :--- |
 | **Protocolo de Pantalla** | **Wayland puro** (sin Xorg/X11) | Menor latencia de entrada, sincronización perfecta sin tearing, estándar moderno de Linux. |
-| **Compositor Principal** | **Gamescope** | Compositor micro-Wayland de Valve/SteamOS optimizado para juegos, DRM-KMS directo y FSR. |
-| **Compositor Kiosko Alternativo** | **Cage** | Compositor Wayland minimalista de ventana única para entornos ligeros o pruebas. |
+| **Pipeline GPU Principal** | **Gamescope** | Compositor micro-Wayland de Valve/SteamOS optimizado para juegos, DRM-KMS directo y FSR para GPUs AMD/Intel/NVIDIA. |
+| **Pipeline CPU de Emergencia** | **Cage** | Compositor Wayland minimalista de ventana única para renderizado software por CPU (`llvmpipe`) o entornos de virtualización. |
+| **Sincronización de Resolución** | **emubox-drm-sync (udev)** | Listener reactivo puro de eventos `SUBSYSTEM=drm, HOTPLUG=1` con 0% de uso de CPU y propagación en caliente al viewport de SolidJS. |
 | **Motor Frontend** | **WebKitGTK 4.1 + Tauri v2** | Renderizado HTML/CSS de ultra-alto rendimiento con reactividad de grano fino en SolidJS. |
 | **Pipeline de Renderizado** | **Autónomo (GPU vs CPU)** | Detección automática en arranque; fallback transparente sin blur pesado en entornos sin GPU acelerada. |
 | **Sesión & Ciclo de Vida** | **Systemd + getty@tty1** | Persistencia total ante reinicios sin dependencia de conexiones de red externas. |

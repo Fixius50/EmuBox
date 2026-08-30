@@ -57,6 +57,33 @@ solid/src/
 2. **Nivel 2: Catálogo del Sistema (`PlatformGamesView.tsx`)**: Hero banner cinemático superior y estante virtualizado (*TanStack Virtual*) con entrada escalonada (*Anime.js Stagger*).
 3. **Nivel 3: Selector de Motor de Emulación (`EmulatorSelectorModal.tsx`)**: Diálogo Kobalte para elegir entre binarios Standalone (Vulkan) o núcleos Libretro antes del arranque DRM/KMS.
 
+---
+
+## 🖥️ Pipeline Gráfico y Sincronización de Resolución Dinámica
+
+EmuBox implementa una arquitectura gráfica desacoplada y adaptativa:
+
+```text
+                                 EMUBOX OS
+                                     │
+                     ┌───────────────┴───────────────┐
+                     ▼                               ▼
+             GPU ACELERADA                      SOLO CPU
+            (AMD/Intel/NVIDIA)           (llvmpipe / Software / VM)
+                     │                               │
+                     ▼                               ▼
+                 GAMESCOPE                          CAGE
+                     │                               │
+                     └───────────────┬───────────────┘
+                                     ▼
+                                 EMUBOX UI
+                     (Tauri v2 + WebKitGTK + SolidJS)
+```
+
+* **GPU Acelerada (Nativa)**: `Gamescope -> EmuBox` en hardware con drivers AMD (`amdgpu`/RADV), Intel (`i915`/`xe`) o NVIDIA.
+* **Fallback CPU (Emergencia)**: `Cage -> EmuBox` cuando el renderer es software (`llvmpipe`, `softpipe`) o máquinas virtuales sin aceleración funcional.
+* **Sincronización Event-Driven (`emubox-drm-sync`)**: Escucha eventos nativos del kernel Linux (`SUBSYSTEM=drm`, `HOTPLUG=1`) mediante `udevadm` (0% CPU, sin polling). Al redimensionar la ventana o cambiar de monitor, adapta la superficie Wayland y la UI SolidJS en caliente sin resoluciones fijas ni reinicios.
+
 ## Documentación y Guías de Arquitectura
 
 - [Arquitectura de Arranque Autónomo y Sesión Wayland](docs/architecture/console-appliance-boot-architecture.md)
