@@ -131,18 +131,6 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
                 onUpdateSettings={handleUpdate}
               />
             </Match>
-
-            <Match when={currentTab() === 'update'}>
-              <UpdateTab
-                settings={props.settings}
-                updateInfo={props.updateInfo}
-                isRowFocused={isRowFocused}
-                onSelectContentArea={props.onSelectContentArea}
-                onUpdateSettings={handleUpdate}
-                onCheckUpdates={props.onCheckUpdates}
-                onApplyUpdate={props.onApplyUpdate}
-              />
-            </Match>
           </Switch>
         </div>
       </div>

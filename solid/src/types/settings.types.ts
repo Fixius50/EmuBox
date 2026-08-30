@@ -5,7 +5,7 @@ import type { SystemStore } from '@stores/system.store';
 import type { SoundFxService } from '@services/audio/sound-fx.service';
 import type { IEmuBoxBackend } from './backend.types';
 
-export type SettingsTabId = 'system' | 'emulators' | 'audio' | 'gamepad' | 'update';
+export type SettingsTabId = 'system' | 'emulators' | 'audio' | 'gamepad';
 
 export interface TabItem {
   id: SettingsTabId;
@@ -15,11 +15,10 @@ export interface TabItem {
 }
 
 export const SETTINGS_TABS: readonly TabItem[] = [
-  { id: 'system', name: 'Sistema & Pantalla', tag: 'OS', desc: 'Hardware, GPU, 1080p, VSync' },
+  { id: 'system', name: 'Sistema & Pantalla', tag: 'OS', desc: 'Hardware, GPU, Auto-Update, VSync' },
   { id: 'emulators', name: 'Núcleos & Emuladores', tag: 'EMU', desc: 'Cores Libretro, Binarios' },
   { id: 'audio', name: 'Audio & Sintetizador', tag: 'SND', desc: 'Volumen, Efectos UI' },
-  { id: 'gamepad', name: 'Mando & Controles', tag: 'PAD', desc: 'Dispositivos Conectados' },
-  { id: 'update', name: 'Actualización & OTA', tag: 'OTA', desc: 'GitHub Releases, Auto-Update' }
+  { id: 'gamepad', name: 'Mando & Controles', tag: 'PAD', desc: 'Dispositivos Conectados' }
 ] as const;
 
 export interface GamepadDeviceInfo {

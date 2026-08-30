@@ -72,7 +72,10 @@ if ! git pull --ff-only origin "${BRANCH}"; then
   echo "[ERROR CRÍTICO] 'git pull --ff-only' no pudo aplicarse limpiamente." >&2
   echo "[SEGURIDAD] La versión actual en ejecución NO ha sido alterada." >&2
   echo "----------------------------------------------------------------------" >&2
-  exit 1
+# Guardar copia de seguridad del commit y binario actuales antes de compilar
+PREV_COMMIT="${LOCAL_COMMIT}"
+if [[ -f "${EMUBOX_DIR}/bin/emubox" ]]; then
+  cp -f "${EMUBOX_DIR}/bin/emubox" "${EMUBOX_DIR}/bin/emubox.backup" 2>/dev/null || true
 fi
 
 # 3. Delegar compilación al script maestro build.sh
@@ -85,7 +88,14 @@ chmod +x "${EMUBOX_DIR}/scripts/build.sh"
 if ! bash "${EMUBOX_DIR}/scripts/build.sh"; then
   echo "======================================================================" >&2
   echo "[ERROR CRÍTICO] La compilación falló durante 'scripts/build.sh'." >&2
-  echo "[SEGURIDAD] La sesión activa NO será reiniciada para evitar caídas de la consola." >&2
+  echo "[ROLLBACK INTELIGENTE] Revirtiendo código al commit previo funcional (${PREV_COMMIT:0:7})..." >&2
+  git reset --hard "${PREV_COMMIT}" || true
+  if [[ -f "${EMUBOX_DIR}/bin/emubox.backup" ]]; then
+    cp -f "${EMUBOX_DIR}/bin/emubox.backup" "${EMUBOX_DIR}/bin/emubox" 2>/dev/null || true
+    chmod +x "${EMUBOX_DIR}/bin/emubox" 2>/dev/null || true
+    echo "[ROLLBACK INTELIGENTE] Binario anterior restaurado con éxito." >&2
+  fi
+  echo "[SEGURIDAD] La sesión activa continuará ejecutando la versión estable previa." >&2
   echo "[LOGS] Revisa los detalles del fallo en: ${LOG_FILE}" >&2
   echo "======================================================================" >&2
   exit 1

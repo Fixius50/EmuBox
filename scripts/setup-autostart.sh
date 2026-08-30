@@ -47,7 +47,8 @@ echo ""
 echo "[1/5] Preparando directorios del sistema, permisos y grupos de entrada..."
 
 mkdir -p /etc/emubox
-mkdir -p /var/lib/emubox/{games,roms,saves,states,bios,covers,logs,screenshots}
+mkdir -p /var/lib/emubox/{emulators,games,saves,states,bios,covers,logs,screenshots}
+ln -sf /var/lib/emubox/games /var/lib/emubox/roms 2>/dev/null || true
 mkdir -p /var/log/emubox
 
 chown -R "$EMUBOX_USER:$EMUBOX_USER" /var/lib/emubox

@@ -53,6 +53,29 @@ export interface Emulator {
   arguments: string[];
 }
 
+export interface SystemDefinition extends Platform {
+  extensions: string[];
+  gamesDirectory: string;
+}
+
+export interface CompatibilityAssociation {
+  gameId: string;
+  emulatorId: string;
+  priority: number;
+  isDefault: boolean;
+  customArgs?: string[];
+  customConfigPath?: string;
+  enabled: boolean;
+}
+
+export interface ExecutionTarget {
+  game: Game;
+  emulator: Emulator;
+  command: string;
+  args: string[];
+  configPath?: string;
+}
+
 export type PerformanceMode = 'high-performance' | 'balanced' | 'power-saver' | 'ultra-boost';
 
 export interface SystemSettings {

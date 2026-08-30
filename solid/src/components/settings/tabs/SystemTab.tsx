@@ -42,7 +42,7 @@ export const SystemTab: Component<SystemTabProps> = (props) => {
       <div class="panel-header-block">
         <div class="panel-header-titles">
           <h3 class="panel-section-title">Ajustes del Sistema y Motor Gráfico</h3>
-          <p class="panel-section-desc">Configuración de bajo nivel para Arch Linux y Gamescope KMS</p>
+          <p class="panel-section-desc">Configuración de bajo nivel de EmuBox OS en Arch Linux</p>
         </div>
       </div>
 
@@ -59,40 +59,57 @@ export const SystemTab: Component<SystemTabProps> = (props) => {
           </Badge>
         </SettingCardRow>
 
-        {/* Row 1: Vulkan Renderer */}
+        {/* Row 1: Pipeline Gráfico */}
         <SettingCardRow
-          title="Controlador Gráfico Vulkan"
-          description="Pipeline Mesa RADV con soporte para shaders asíncronos"
+          title="Pipeline Gráfico Adaptativo"
+          description="Gamescope para GPU acelerada / Cage para renderizado por software"
           isFocused={props.isRowFocused(1)}
           onClick={props.onSelectContentArea}
         >
           <Badge variant="highlight">
-            RADV VULKAN 1.3
+            AUTO (HARDWARE KMS)
           </Badge>
         </SettingCardRow>
 
         {/* Row 2: Resolution */}
         <SettingCardRow
-          title="Resolución de Salida"
-          description="Resolución nativa renderizada por Gamescope"
+          title="Resolución y Geometría"
+          description="Adaptación automática en caliente ante cambios en la salida DRM"
           isFocused={props.isRowFocused(2)}
           onClick={props.onSelectContentArea}
         >
           <Badge variant="default">
-            1920x1080 @ 60HZ
+            DINÁMICA (AUTO-AJUSTE)
           </Badge>
         </SettingCardRow>
 
         {/* Row 3: VSync */}
         <SettingSwitch
           title="Sincronización Vertical (VSync)"
-          description="Elimina el desgarro de pantalla mediante triple buffering adaptativo"
+          description="Elimina el desgarro de pantalla mediante sincronización KMS"
           checked={props.settings?.display?.vsync ?? true}
           isFocused={props.isRowFocused(3)}
           onChange={(val) => {
             props.onSelectContentArea?.();
             props.onUpdateSettings((s) => {
               s.display.vsync = val;
+            });
+          }}
+        />
+
+        {/* Row 4: Auto-Updates */}
+        <SettingSwitch
+          title="Actualizaciones Automáticas del Sistema"
+          description="Comprobación y aplicación atómica de versiones estables en arranque"
+          checked={props.settings?.updates?.autoUpdate ?? true}
+          isFocused={props.isRowFocused(4)}
+          onChange={(val) => {
+            props.onSelectContentArea?.();
+            props.onUpdateSettings((s) => {
+              if (!s.updates) {
+                s.updates = { autoUpdate: true, channel: 'stable', checkOnStartup: true };
+              }
+              s.updates.autoUpdate = val;
             });
           }}
         />

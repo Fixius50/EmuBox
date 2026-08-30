@@ -13,6 +13,7 @@ import { StorageService } from '@services/storage/storage.service';
 import { ProcessService } from '@services/process/process.service';
 import { BiosScannerService } from '@services/bios/bios-scanner.service';
 import { UpdateService } from '@services/update/update.service';
+import { CompatibilityService } from '@services/compatibility/compatibility.service';
 import { EmuBoxError } from '@contracts/errors.types';
 
 import type { InputAction } from '@contracts/input.types';
@@ -177,6 +178,15 @@ assert(romPath === '~/.local/share/emubox/roms/ps2', `PathService resolvió ruta
 
 const biosStatus = await biosScanner.scanBios();
 assert(biosStatus.totalRequired > 0, `BiosScannerService detectó ${biosStatus.totalRequired} BIOS requeridas`);
+
+// CompatibilityService (Game <-> Emulator Resolver)
+const compatibilityService = new CompatibilityService(backend);
+const sampleGame = (await gameService.getGamesForPlatform('ps1'))[0];
+const target = await compatibilityService.resolveExecutionTarget(sampleGame);
+assert(target.emulator.id.includes('duck') || target.emulator.supportedPlatforms.includes('ps1'), `CompatibilityService resolvió target de ejecución: ${target.emulator.name}`);
+
+const compatibleEmus = await compatibilityService.getCompatibleEmulatorsForGame(sampleGame);
+assert(compatibleEmus.length > 0, `CompatibilityService encontró ${compatibleEmus.length} emuladores compatibles para ${sampleGame.title}`);
 
 // Error model check
 const err = new EmuBoxError('EmulatorNotInstalled', 'PCSX2 no encontrado');
