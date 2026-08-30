@@ -70,19 +70,20 @@ solid/src/
 
 ## 🛠️ Administración Remota por SSH
 
-EmuBox opera como una consola autónoma en pantalla física local (`tty1`). Para tareas de mantenimiento, desarrollo o diagnóstico desde otro PC, utiliza SSH:
+EmuBox opera como una consola autónoma en pantalla física local (`tty1`). Para tareas de mantenimiento, desarrollo o diagnóstico desde tu PC anfitrión u otro equipo:
 
-### 1. Obtener la IP de la Consola / VM
-En la máquina con EmuBox ejecuta:
+### 1. Conexión Local (Máquina Virtual / VirtualBox con Reenvío de Puertos)
+Si estás desarrollando en local con VirtualBox (configuración NAT con Port Forwarding `2222 -> 22`):
 ```bash
-ip addr  # o: hostname -I
+ssh -p 2222 emubox@127.0.0.1
 ```
 
-### 2. Conectarse por SSH
-Desde tu terminal de desarrollo:
+### 2. Conexión en Red Local / Hardware Físico (IP Directa)
+Si la máquina o consola está conectada a tu red local (o adaptador puente):
 ```bash
 ssh emubox@<IP_DE_LA_CONSOLA>
 ```
+* Obtener IP en la máquina: `hostname -I` o `ip addr`
 * **Usuario por defecto**: `emubox`
 * **Contraseña interna**: `1234`
 

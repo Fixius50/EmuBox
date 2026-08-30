@@ -182,12 +182,16 @@ La consola opera bajo la premisa de **cero fricción de red**:
 
 La administración se realiza de forma no invasiva por SSH sin interactuar con la sesión gráfica física:
 
-```bash
-ssh emubox@IP_DE_LA_VM
-```
-
+* **Conexión Local (VirtualBox NAT Port Forwarding `2222 -> 22`)**:
+  ```bash
+  ssh -p 2222 emubox@127.0.0.1
+  ```
+* **Conexión en Red Local / Hardware Físico**:
+  ```bash
+  ssh emubox@<IP_DE_LA_CONSOLA>
+  ```
+* **Credenciales por defecto**: Usuario `emubox`, contraseña `1234`.
 * **Aislamiento de Terminal**: La sesión SSH se asigna a `/dev/pts/X`. El archivo `/home/emubox/.bash_profile` comprueba estrictamente `[ "$(tty)" == "/dev/tty1" ]`, por lo que **conectarse o desconectarse por SSH jamás intentará arrancar una segunda instancia gráfica de EmuBox ni cerrará la que corre en pantalla**.
-* **Comprobación de IP**: Consultar mediante `ip addr` o `hostname -I`.
 
 ---
 
