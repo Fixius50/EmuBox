@@ -51,11 +51,8 @@ export class ViewportService {
     });
   }
 
-  private handleResize = () => {
-    if (typeof window === 'undefined') return;
-
-    const newWidth = window.innerWidth || document.documentElement.clientWidth || 1920;
-    const newHeight = window.innerHeight || document.documentElement.clientHeight || 1080;
+  public updateDimensions(newWidth: number, newHeight: number) {
+    if (newWidth <= 0 || newHeight <= 0) return;
 
     const [currentWidth, setWidth] = this.widthSignal;
     const [currentHeight, setHeight] = this.heightSignal;
@@ -67,10 +64,27 @@ export class ViewportService {
       setHeight(newHeight);
     }
 
-    // Sync CSS custom properties for hardware-accelerated layouts
-    document.documentElement.style.setProperty('--viewport-width', `${newWidth}px`);
-    document.documentElement.style.setProperty('--viewport-height', `${newHeight}px`);
-    document.documentElement.style.setProperty('--viewport-scale', `${newWidth / 1920}`);
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.setProperty('--viewport-width', `${newWidth}px`);
+      document.documentElement.style.setProperty('--viewport-height', `${newHeight}px`);
+      document.documentElement.style.setProperty('--viewport-scale', `${newWidth / 1920}`);
+      
+      // Force subpixel reflow on stage elements
+      const root = document.querySelector('.emubox-1080p-root') as HTMLElement;
+      if (root) {
+        root.style.width = `${newWidth}px`;
+        root.style.height = `${newHeight}px`;
+      }
+    }
+  }
+
+  private handleResize = () => {
+    if (typeof window === 'undefined') return;
+
+    const newWidth = window.innerWidth || document.documentElement.clientWidth || 1920;
+    const newHeight = window.innerHeight || document.documentElement.clientHeight || 1080;
+
+    this.updateDimensions(newWidth, newHeight);
   };
 
   public init() {
@@ -92,6 +106,13 @@ export class ViewportService {
       });
       this.resizeObserver.observe(document.documentElement);
     }
+
+    // 4. Custom window event for IPC triggers
+    window.addEventListener('emubox-resize', ((e: CustomEvent<{ width: number; height: number }>) => {
+      if (e.detail && e.detail.width > 0 && e.detail.height > 0) {
+        this.updateDimensions(e.detail.width, e.detail.height);
+      }
+    }) as EventListener);
 
     // Initial pass
     this.handleResize();

@@ -67,6 +67,15 @@ pub fn run() {
             commands::bios::get_bios_requirements,
             commands::bios::scan_bios,
         ])
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Resized(size) = event {
+                let js_payload = format!(
+                    "window.dispatchEvent(new CustomEvent('emubox-resize', {{ detail: {{ width: {}, height: {} }} }}));",
+                    size.width, size.height
+                );
+                let _ = window.eval(&js_payload);
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running emubox application");
 }
