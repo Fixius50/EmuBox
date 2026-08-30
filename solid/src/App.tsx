@@ -1,4 +1,4 @@
-import { Component, createMemo, onMount, createSignal, Show } from 'solid-js';
+import { Component, createMemo, onMount, onCleanup, createSignal, Show } from 'solid-js';
 
 // Types
 import type { Game } from '@contracts/game.types';
@@ -8,6 +8,7 @@ import { MockBackendService } from '@services/backend/mock-backend.service';
 import { TauriBackendService } from '@services/backend/tauri-backend.service';
 import { SoundFxService } from '@services/audio/sound-fx.service';
 import { GraphicsDetectorService } from '@services/graphics/graphics-detector.service';
+import { ViewportService } from '@services/system/viewport.service';
 
 // Stores
 import { createLibraryStore } from '@stores/library.store';
@@ -35,6 +36,9 @@ import gamesDataset from '@data/games-10000.json';
 
 export const App: Component = () => {
   // 1. Singletons & Stores Initialization
+  const viewport = ViewportService.getInstance();
+  onCleanup(() => viewport.destroy());
+
   const graphicsDetector = new GraphicsDetectorService();
   graphicsDetector.detect();
 

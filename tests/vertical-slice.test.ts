@@ -281,6 +281,18 @@ assert(forcedGpuCaps.isGpuAccelerated === true, "Aceleración GPU activa en hard
 assert(forcedGpuCaps.recommendedBlur === true, "Desenfoques volumétricos y resplandores habilitados en GPU");
 
 // ----------------------------------------------------------------------------
+// TEST 8: Viewport Reactivo & Redimensionado en Caliente (Dynamic Resizing)
+// ----------------------------------------------------------------------------
+console.log("\nTEST 8: Viewport Reactivo & Redimensionado en Caliente...");
+const { ViewportService } = await import('@services/system/viewport.service');
+const viewport = ViewportService.getInstance();
+
+assert(typeof viewport.width() === 'number' && viewport.width() > 0, `Ancho reactivo inicial obtenido: ${viewport.width()}px`);
+assert(typeof viewport.height() === 'number' && viewport.height() > 0, `Alto reactivo inicial obtenido: ${viewport.height()}px`);
+assert(typeof viewport.aspectRatio() === 'number' && viewport.aspectRatio() > 0, `Relación de aspecto reactiva calculada: ${viewport.aspectRatio().toFixed(2)}`);
+assert(typeof viewport.scaleFactor() === 'number' && viewport.scaleFactor() > 0, `Factor de escala reactivo calculado: ${viewport.scaleFactor().toFixed(2)}`);
+
+// ----------------------------------------------------------------------------
 // RESUMEN FINAL
 // ----------------------------------------------------------------------------
 console.log("\n===============================================================================");
@@ -290,3 +302,4 @@ console.log("===================================================================
 if (failed > 0) {
   process.exit(1);
 }
+

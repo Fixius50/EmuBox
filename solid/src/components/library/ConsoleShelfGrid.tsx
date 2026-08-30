@@ -1,6 +1,7 @@
 import { Component, For, createEffect } from 'solid-js';
 import { createVirtualizer } from '@tanstack/solid-virtual';
 import type { Game } from '@contracts/game.types';
+import { ViewportService } from '@services/system/viewport.service';
 
 interface ConsoleShelfGridProps {
   games: Game[];
@@ -15,6 +16,7 @@ export const ROW_HEIGHT = 205; // compact height in px
 
 export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
   let scrollContainerRef!: HTMLDivElement;
+  const viewport = ViewportService.getInstance();
 
   const virtualizer = createVirtualizer({
     get count() {
@@ -23,6 +25,13 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
     getScrollElement: () => scrollContainerRef,
     estimateSize: () => ROW_HEIGHT,
     overscan: 4
+  });
+
+  // Re-measure virtual rows dynamically when viewport dimensions change in hot runtime
+  createEffect(() => {
+    viewport.width();
+    viewport.height();
+    virtualizer.measure();
   });
 
   // Automatically scroll viewport and virtualizer whenever focusedIndex changes
