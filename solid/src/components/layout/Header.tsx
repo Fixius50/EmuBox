@@ -4,7 +4,6 @@ import type { InputDeviceStatus } from '@contracts/input.types';
 interface HeaderProps {
   inputStatus: InputDeviceStatus;
   totalGamesCount: number;
-  onOpenTerminal?: () => void;
 }
 
 export const Header: Component<HeaderProps> = (props) => {
@@ -44,27 +43,8 @@ export const Header: Component<HeaderProps> = (props) => {
       {/* 2. Center: Clean Minimalist Space */}
       <div class="header-center-spacer" />
 
-      {/* 3. Right: Terminal Pill, Device Controller Status & Real-time Clock */}
+      {/* 3. Right: Device Controller Status & Real-time Clock */}
       <div class="console-telemetry-cluster">
-        {props.onOpenTerminal && (
-          <button
-            class="telemetry-chip"
-            onClick={props.onOpenTerminal}
-            title="Abrir Terminal de Diagnóstico y Red (F12)"
-            style={{
-              background: "rgba(0, 240, 255, 0.15)",
-              border: "1px solid #00f0ff",
-              color: "#00f0ff",
-              cursor: "pointer",
-              "font-weight": "700",
-              gap: "0.35rem"
-            }}
-          >
-            <span>💻</span>
-            <span>TERMINAL / RED [F12]</span>
-          </button>
-        )}
-
         <div class="telemetry-chip input-status-chip">
           <span class="status-indicator-dot online"></span>
           <span class="chip-label">{props.inputStatus.deviceName}</span>

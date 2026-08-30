@@ -160,6 +160,7 @@ export interface IEmuBoxBackend {
   sleep(): Promise<void>;
   logout(): Promise<void>;
   restartAppSession(): Promise<void>;
+  exitToLinuxShell(): Promise<void>;
 
   // 8. Almacenamiento & XDG
   getStorageInfo(): Promise<StorageInfo>;

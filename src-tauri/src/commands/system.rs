@@ -70,3 +70,9 @@ pub fn system_logout() -> Result<(), EmuBoxError> {
     log::info!("System logout requested");
     Ok(())
 }
+
+#[tauri::command]
+pub fn exit_to_linux_shell() -> Result<(), EmuBoxError> {
+    log::info!("Exit to Linux Shell requested by user");
+    SystemService::exit_to_linux_shell()
+}

@@ -479,6 +479,10 @@ export class MockBackendService implements IEmuBoxBackend {
     console.log('[MockBackend] EmuBox session restart simulated (Arch Linux remains untouched)');
   }
 
+  public async exitToLinuxShell(): Promise<void> {
+    console.log('[MockBackend] Exit to Linux Shell simulated');
+  }
+
   // 8. Almacenamiento & XDG
   public async getStorageInfo(): Promise<StorageInfo> {
     return {

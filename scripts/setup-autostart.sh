@@ -229,7 +229,20 @@ if [[ "$(tty 2>/dev/null || true)" == "/dev/tty1" ]] && \
    [[ -z "${WAYLAND_DISPLAY:-}" ]] && \
    [[ -z "${DISPLAY:-}" ]]; then
 
-  exec /usr/local/bin/emubox-session
+  if [[ -f /tmp/emubox-drop-shell ]]; then
+    rm -f /tmp/emubox-drop-shell
+    echo ""
+    echo "======================================================================"
+    echo "  🎮 EmuBox - Salida a Consola Linux (TTY1)"
+    echo "======================================================================"
+    echo "  Has salido de la interfaz gráfica a la terminal de Arch Linux."
+    echo "  - Para abrir el Centro de Control:  ./script.sh"
+    echo "  - Para volver a iniciar EmuBox:     /usr/local/bin/emubox-session"
+    echo "======================================================================"
+    echo ""
+  else
+    exec /usr/local/bin/emubox-session
+  fi
 fi
 EOF
   chown "$EMUBOX_USER:$EMUBOX_USER" "${BASH_PROFILE}"

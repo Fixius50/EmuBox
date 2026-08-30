@@ -68,4 +68,9 @@ impl SystemService {
             config_generated: true,
         })
     }
+
+    pub fn exit_to_linux_shell() -> Result<(), EmuBoxError> {
+        let _ = std::fs::write("/tmp/emubox-drop-shell", "1");
+        std::process::exit(0);
+    }
 }

@@ -328,6 +328,14 @@ export class TauriBackendService implements IEmuBoxBackend {
     }
   }
 
+  public async exitToLinuxShell(): Promise<void> {
+    try {
+      await this.invoke('exit_to_linux_shell');
+    } catch {
+      await this.fallback.exitToLinuxShell();
+    }
+  }
+
   // 8. Almacenamiento & XDG
   public async getStorageInfo(): Promise<StorageInfo> {
     try {

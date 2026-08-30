@@ -30,7 +30,6 @@ import { PlatformGamesView } from '@components/library/PlatformGamesView';
 import { EmulatorSelectorModal } from '@components/modals/EmulatorSelectorModal';
 import { SettingsView } from '@components/settings/SettingsView';
 import { MaintenanceModal } from '@components/modals/MaintenanceModal';
-import { TerminalModal } from '@components/modals/TerminalModal';
 
 // Initial Mock Dataset
 import gamesDataset from '@data/games-10000.json';
@@ -55,19 +54,17 @@ export const App: Component = () => {
   const [activeSettingsTab, setActiveSettingsTab] = createSignal<string>('system');
   const [settingsFocusArea, setSettingsFocusArea] = createSignal<'sidebar' | 'content'>('sidebar');
   const [settingsRowIndex, setSettingsRowIndex] = createSignal<number>(0);
-  const [isTerminalOpen, setIsTerminalOpen] = createSignal<boolean>(false);
 
-  // Global hotkey to open integrated terminal/network overlay (F12, F1, Ctrl+T, Backtick)
+  // Global hotkey: F12 (o Ctrl+Q) cierra la interfaz gráfica y sale a la consola Linux (TTY1)
   onMount(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
         e.key === 'F12' ||
-        e.key === 'F1' ||
-        (e.ctrlKey && e.key.toLowerCase() === 't') ||
-        e.key === '`'
+        (e.ctrlKey && e.key.toLowerCase() === 'q') ||
+        (e.ctrlKey && e.altKey && e.key.toLowerCase() === 't')
       ) {
         e.preventDefault();
-        setIsTerminalOpen((prev) => !prev);
+        backend.exitToLinuxShell();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -187,7 +184,6 @@ export const App: Component = () => {
       <Header
         inputStatus={inputStatus()}
         totalGamesCount={libraryStore.games().length}
-        onOpenTerminal={() => setIsTerminalOpen(true)}
       />
 
       <Show when={navigationStore.currentSection() === 'library'}>
@@ -285,12 +281,6 @@ export const App: Component = () => {
         backend={backend}
         focusedIndex={modalStore.maintenanceIndex()}
         onSelectIndex={(idx) => modalStore.setMaintenanceIndex(idx)}
-      />
-
-      <TerminalModal
-        isOpen={isTerminalOpen()}
-        onClose={() => setIsTerminalOpen(false)}
-        backend={backend}
       />
     </Shell>
   );

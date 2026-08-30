@@ -24,6 +24,7 @@ pub fn run() {
             commands::system::system_restart,
             commands::system::system_sleep,
             commands::system::system_logout,
+            commands::system::exit_to_linux_shell,
 
             // Games
             commands::games::get_games,
