@@ -51,7 +51,7 @@ export const PlatformGamesView: Component<PlatformGamesViewProps> = (props) => {
             handleBack();
           }}
         >
-          <span class="back-key-bubble">B</span>
+          <span class="back-icon-arrow">←</span>
           <span>CONSOLAS</span>
         </button>
 

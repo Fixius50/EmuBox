@@ -59,7 +59,7 @@ export const HeroSection: Component<HeroSectionProps> = (props) => {
                   id="btn-hero-play"
                   onClick={() => props.onPlayGame(game())}
                 >
-                  <span>[A] JUGAR AHORA</span>
+                  <span>JUGAR</span>
                 </button>
 
                 <button
@@ -67,7 +67,7 @@ export const HeroSection: Component<HeroSectionProps> = (props) => {
                   id="btn-hero-details"
                   onClick={() => props.onOpenDetails(game())}
                 >
-                  <span>MÁS DETALLES</span>
+                  <span>DETALLES</span>
                 </button>
 
                 <button
@@ -76,7 +76,7 @@ export const HeroSection: Component<HeroSectionProps> = (props) => {
                   title="Alternar Favorito"
                   onClick={() => props.onToggleFavorite(game().id)}
                 >
-                  <span>[X] {game().favorite ? 'FAVORITO' : 'AÑADIR A FAVORITOS'}</span>
+                  <span>{game().favorite ? '★ EN FAVORITOS' : '☆ AÑADIR A FAVORITOS'}</span>
                 </button>
               </div>
             </div>

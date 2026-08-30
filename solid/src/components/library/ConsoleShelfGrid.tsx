@@ -1,7 +1,9 @@
-import { Component, For, createEffect } from 'solid-js';
+import { Component, For, createEffect, onMount, createSignal, Show } from 'solid-js';
 import { createVirtualizer } from '@tanstack/solid-virtual';
 import type { Game } from '@contracts/game.types';
 import { ViewportService } from '@services/system/viewport.service';
+import { ConsoleHardwareVisual } from '@components/common/ConsoleHardwareVisual';
+import { animateStaggerShelf } from '@animations/shelf-animations';
 
 interface ConsoleShelfGridProps {
   games: Game[];
@@ -25,6 +27,12 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
     getScrollElement: () => scrollContainerRef,
     estimateSize: () => ROW_HEIGHT,
     overscan: 4
+  });
+
+  onMount(() => {
+    setTimeout(() => {
+      animateStaggerShelf('.console-shelf-card');
+    }, 40);
   });
 
   // Re-measure virtual rows dynamically when viewport dimensions change in hot runtime
@@ -83,6 +91,16 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
                   {(game, colIdx) => {
                     const globalIdx = () => startIndex + colIdx();
                     const isCardFocused = () => props.focusedIndex === globalIdx();
+                    const [hasImageError, setHasImageError] = createSignal(false);
+
+                    const hasValidCover = () => {
+                      return Boolean(
+                        game.coverImage &&
+                        !game.coverImage.includes('placeholder') &&
+                        !game.coverImage.includes('data:image/svg+xml;utf8,<svg') &&
+                        !hasImageError()
+                      );
+                    };
 
                     return (
                       <div
@@ -95,12 +113,29 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
                         onMouseEnter={() => props.onFocusIndex(globalIdx())}
                       >
                         <div class="card-cover-media">
-                          <img
-                            src={game.coverImage}
-                            alt={game.title}
-                            class="card-img"
-                            loading="lazy"
-                          />
+                          <Show
+                            when={hasValidCover()}
+                            fallback={
+                              <div class="card-default-cover-fallback">
+                                <div class="fallback-backdrop-glow" />
+                                <ConsoleHardwareVisual
+                                  platformId={game.platform}
+                                  size="sm"
+                                  class="fallback-svg-icon"
+                                />
+                                <div class="fallback-title-overlay">{game.title}</div>
+                              </div>
+                            }
+                          >
+                            <img
+                              src={game.coverImage}
+                              alt={game.title}
+                              class="card-img"
+                              loading="lazy"
+                              onError={() => setHasImageError(true)}
+                            />
+                          </Show>
+
                           <div class="card-glass-gloss"></div>
 
                           {game.favorite && (
