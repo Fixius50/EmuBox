@@ -88,6 +88,8 @@ export interface ScanGamesResult {
   scannedCount: number;
   addedCount: number;
   updatedCount: number;
+  removedCount: number;
+  totalCount: number;
   errors: string[];
 }
 

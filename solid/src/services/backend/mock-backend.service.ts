@@ -320,6 +320,8 @@ export class MockBackendService implements IEmuBoxBackend {
       scannedCount: this.games.length,
       addedCount: 0,
       updatedCount: this.games.length,
+      removedCount: 0,
+      totalCount: this.games.length,
       errors: []
     };
   }

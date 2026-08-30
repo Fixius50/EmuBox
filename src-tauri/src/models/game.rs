@@ -7,7 +7,6 @@ pub struct Game {
     pub title: String,
     pub platform: String,
     pub platform_name: String,
-    pub emulator_id: String,
     pub release_year: u32,
     pub genre: String,
     pub developer: String,
@@ -15,12 +14,13 @@ pub struct Game {
     pub rating: f32,
     pub favorite: bool,
     pub cover_image: String,
-    pub backdrop_image: String,
+    pub backdrop_image: Option<String>,
     pub description: String,
     pub play_time_minutes: u32,
-    pub last_played: Option<String>,
     pub rom_path: Option<String>,
     pub file_size_mb: Option<f32>,
+    pub last_played: Option<String>,
+    pub emulator_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,6 +61,8 @@ pub struct ScanGamesResult {
     pub scanned_count: usize,
     pub added_count: usize,
     pub updated_count: usize,
+    pub removed_count: usize,
+    pub total_count: usize,
     pub errors: Vec<String>,
 }
 

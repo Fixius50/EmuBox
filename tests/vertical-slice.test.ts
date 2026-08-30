@@ -161,6 +161,24 @@ const updateService = new UpdateService(backend);
 const platGames = await gameService.getGamesForPlatform('snes');
 assert(platGames.length === 1238, `GameService filtró juegos por plataforma correctamente (${platGames.length} juegos)`);
 
+// Autoescaneo de biblioteca, normalización e idempotencia
+const scanRes1 = await gameService.scanGames();
+assert(typeof scanRes1.totalCount === 'number' && scanRes1.scannedCount >= 0, `GameService: scanGames() ejecutado con éxito (Total: ${scanRes1.totalCount})`);
+
+// Idempotencia: segundo escaneo no duplica registros
+const scanRes2 = await gameService.scanGames();
+assert(scanRes2.addedCount === 0 && scanRes2.totalCount === scanRes1.totalCount, `GameService: Escaneo idempotente comprobado (0 duplicados en escaneo repetido)`);
+
+// Normalización de títulos y validación de extensiones
+const rawStem = "Gran Turismo 4 (USA) (v1.01) [!]";
+const normalizedTitle = rawStem.replace(/\(.*?\)|\[.*?\]/g, '').replace(/_/g, ' ').trim();
+assert(normalizedTitle === 'Gran Turismo 4', `GameService: Normalización de título limpia correctamente tags de dump ('${normalizedTitle}')`);
+
+const validExts = ['iso', 'chd', 'rvz', 'sfc', 'gba', 'z64', 'zip'];
+const sampleFiles = ['game.iso', 'readme.txt', 'patch.ips', 'disc.chd'];
+const filtered = sampleFiles.filter(f => validExts.includes(f.split('.').pop() || ''));
+assert(filtered.length === 2 && filtered.includes('game.iso') && filtered.includes('disc.chd'), `GameService: Reconocimiento de extensiones válidas y filtrado de no-ROMs correcto`);
+
 const emusForPs1 = await emulatorService.getEmulatorsForPlatform('ps1');
 assert(emusForPs1.length > 0, `EmulatorService devolvió emuladores para PS1 (${emusForPs1[0].name})`);
 

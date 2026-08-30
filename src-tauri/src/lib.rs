@@ -9,6 +9,18 @@ use state::AppState;
 pub fn run() {
     tauri::Builder::default()
         .manage(AppState::new())
+        .setup(|_app| {
+            // 1. Iniciar escaneo inicial en segundo plano sin bloquear arranque de UI
+            std::thread::spawn(|| {
+                let _ = services::EmulatorService::scan_emulators();
+                let _ = services::GameService::scan_games(None);
+            });
+
+            // 2. Iniciar watcher reactivo del sistema de archivos (inotify / notify)
+            services::GameLibraryWatcher::start_watching(None);
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             // System & Environment
             commands::system::get_system_info,

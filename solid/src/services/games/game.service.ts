@@ -23,4 +23,8 @@ export class GameService {
   public async getPlatforms(): Promise<Platform[]> {
     return this.backend.getPlatforms();
   }
+
+  public async scanGames(request?: import('@contracts/backend.types').ScanGamesRequest): Promise<import('@contracts/backend.types').ScanGamesResult> {
+    return this.backend.scanGames(request);
+  }
 }

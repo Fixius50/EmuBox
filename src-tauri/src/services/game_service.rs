@@ -5,20 +5,20 @@ use crate::models::{Game, Platform, GameFilter, ScanGamesRequest, ScanGamesResul
 use crate::errors::EmuBoxError;
 use crate::services::db_service::DatabaseService;
 
-struct PlatformSpec {
-    id: &'static str,
-    name: &'static str,
-    short_name: &'static str,
-    manufacturer: &'static str,
-    generation: u32,
-    release_year: u32,
-    color: &'static str,
-    icon: &'static str,
-    default_emulator_id: &'static str,
-    extensions: &'static [&'static str],
+pub struct PlatformSpec {
+    pub id: &'static str,
+    pub name: &'static str,
+    pub short_name: &'static str,
+    pub manufacturer: &'static str,
+    pub generation: u32,
+    pub release_year: u32,
+    pub color: &'static str,
+    pub icon: &'static str,
+    pub default_emulator_id: &'static str,
+    pub extensions: &'static [&'static str],
 }
 
-const PLATFORM_SPECS: &[PlatformSpec] = &[
+pub const PLATFORM_SPECS: &[PlatformSpec] = &[
     PlatformSpec {
         id: "ps2",
         name: "PlayStation 2",
@@ -156,8 +156,21 @@ const PLATFORM_SPECS: &[PlatformSpec] = &[
 pub struct GameService;
 
 impl GameService {
-    fn clean_title_from_filename(stem: &str) -> String {
+    pub fn get_canonical_games_dir() -> PathBuf {
+        let base = Path::new("/var/lib/emubox/games");
+        if base.exists() || fs::create_dir_all(base).is_ok() {
+            base.to_path_buf()
+        } else {
+            let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+            let fallback = PathBuf::from(home).join(".local/share/emubox/games");
+            let _ = fs::create_dir_all(&fallback);
+            fallback
+        }
+    }
+
+    pub fn clean_title_from_filename(stem: &str) -> String {
         let mut title = stem.to_string();
+        // Eliminar tags en paréntesis como (USA), (Europe), (v1.0), (Disc 1)
         while let Some(start) = title.find('(') {
             if let Some(end) = title[start..].find(')') {
                 title.replace_range(start..start + end + 1, "");
@@ -165,6 +178,7 @@ impl GameService {
                 break;
             }
         }
+        // Eliminar tags en corchetes como [!], [b1], [En,Es]
         while let Some(start) = title.find('[') {
             if let Some(end) = title[start..].find(']') {
                 title.replace_range(start..start + end + 1, "");
@@ -178,7 +192,6 @@ impl GameService {
     pub fn get_platforms() -> Result<Vec<Platform>, EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
 
-        // Sincronizar tabla de sistemas en SQLite
         for p in PLATFORM_SPECS {
             let exts_json = serde_json::to_string(&p.extensions).unwrap_or_else(|_| "[]".to_string());
             conn.execute(
@@ -215,6 +228,7 @@ impl GameService {
         let mut scanned_count = 0;
         let mut added_count = 0;
         let mut updated_count = 0;
+        let mut removed_count = 0;
         let errors = Vec::new();
 
         let platforms_to_scan: Vec<&PlatformSpec> = if let Some(req) = &request {
@@ -227,10 +241,15 @@ impl GameService {
             PLATFORM_SPECS.iter().collect()
         };
 
-        let base_dirs = [
-            PathBuf::from("/var/lib/emubox/games"),
-            PathBuf::from("/var/lib/emubox/roms"),
-        ];
+        let custom_dir = request.as_ref().and_then(|r| r.roms_directory.as_ref().map(PathBuf::from));
+        let base_dirs: Vec<PathBuf> = if let Some(dir) = custom_dir {
+            vec![dir]
+        } else {
+            vec![
+                Self::get_canonical_games_dir(),
+                PathBuf::from("/var/lib/emubox/roms"),
+            ]
+        };
 
         for plat in platforms_to_scan {
             for base_dir in &base_dirs {
@@ -239,50 +258,7 @@ impl GameService {
                     continue;
                 }
 
-                if let Ok(entries) = fs::read_dir(&plat_dir) {
-                    for entry in entries.flatten() {
-                        let path = entry.path();
-                        if path.is_file() {
-                            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-                            if plat.extensions.contains(&ext.as_str()) {
-                                scanned_count += 1;
-                                let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("Unknown");
-                                let clean_title = Self::clean_title_from_filename(stem);
-                                let rom_path_str = path.to_string_lossy().to_string();
-                                let file_size = entry.metadata().map(|m| m.len()).unwrap_or(0);
-                                let game_id = format!("{}-{}", plat.id, stem.replace(' ', "-").to_lowercase());
-
-                                let res = conn.execute(
-                                    "INSERT INTO games (id, title, platform_id, platform_name, release_year, genre, developer, publisher, rating, rom_path, file_size_bytes, description)
-                                     VALUES (?1, ?2, ?3, ?4, ?5, 'Classic', ?6, ?6, 4.5, ?7, ?8, ?9)
-                                     ON CONFLICT(rom_path) DO UPDATE SET
-                                       title = excluded.title,
-                                       platform_id = excluded.platform_id,
-                                       file_size_bytes = excluded.file_size_bytes;",
-                                    params![
-                                        game_id,
-                                        clean_title,
-                                        plat.id,
-                                        plat.name,
-                                        plat.release_year,
-                                        plat.manufacturer,
-                                        rom_path_str,
-                                        file_size,
-                                        format!("Juego oficial de {}", plat.name)
-                                    ]
-                                );
-
-                                if let Ok(affected) = res {
-                                    if affected > 0 {
-                                        added_count += 1;
-                                    } else {
-                                        updated_count += 1;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                Self::scan_directory_recursive(&plat_dir, plat, &conn, &mut scanned_count, &mut added_count, &mut updated_count);
             }
         }
 
@@ -297,18 +273,93 @@ impl GameService {
             if let Ok(mapped) = rows {
                 for item in mapped.flatten() {
                     if !Path::new(&item.1).exists() {
-                        let _ = conn.execute("DELETE FROM games WHERE id = ?1;", params![item.0]);
+                        if let Ok(aff) = conn.execute("DELETE FROM games WHERE id = ?1;", params![item.0]) {
+                            if aff > 0 {
+                                removed_count += aff;
+                            }
+                        }
                     }
                 }
             }
         }
 
+        let total_count: usize = conn.query_row(
+            "SELECT COUNT(*) FROM games;",
+            [],
+            |row| row.get(0)
+        ).unwrap_or(0);
+
         Ok(ScanGamesResult {
             scanned_count,
             added_count,
             updated_count,
+            removed_count,
+            total_count,
             errors,
         })
+    }
+
+    fn scan_directory_recursive(
+        dir: &Path,
+        plat: &PlatformSpec,
+        conn: &rusqlite::Connection,
+        scanned: &mut usize,
+        added: &mut usize,
+        updated: &mut usize,
+    ) {
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    Self::scan_directory_recursive(&path, plat, conn, scanned, added, updated);
+                } else if path.is_file() {
+                    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+                    if plat.extensions.contains(&ext.as_str()) {
+                        *scanned += 1;
+                        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("Unknown");
+                        let clean_title = Self::clean_title_from_filename(stem);
+                        let rom_path_str = path.to_string_lossy().to_string();
+                        let file_size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+                        let game_id = format!("{}-{}", plat.id, stem.replace(' ', "-").to_lowercase());
+
+                        // Comprobar si ya existía antes del insert
+                        let exists_before: bool = conn.query_row(
+                            "SELECT 1 FROM games WHERE rom_path = ?1 LIMIT 1;",
+                            params![rom_path_str],
+                            |_| Ok(true)
+                        ).unwrap_or(false);
+
+                        let res = conn.execute(
+                            "INSERT INTO games (id, title, platform_id, platform_name, release_year, genre, developer, publisher, rating, rom_path, file_size_bytes, description)
+                             VALUES (?1, ?2, ?3, ?4, ?5, 'Classic', ?6, ?6, 4.5, ?7, ?8, ?9)
+                             ON CONFLICT(rom_path) DO UPDATE SET
+                               title = excluded.title,
+                               platform_id = excluded.platform_id,
+                               file_size_bytes = excluded.file_size_bytes;",
+                            params![
+                                game_id,
+                                clean_title,
+                                plat.id,
+                                plat.name,
+                                plat.release_year,
+                                plat.manufacturer,
+                                rom_path_str,
+                                file_size,
+                                format!("Juego oficial de {}", plat.name)
+                            ]
+                        );
+
+                        if res.is_ok() {
+                            if !exists_before {
+                                *added += 1;
+                            } else {
+                                *updated += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     pub fn get_games(filter: Option<GameFilter>) -> Result<Vec<Game>, EmuBoxError> {
@@ -374,6 +425,9 @@ impl GameService {
                 backdrop_image,
                 description,
                 rom_path,
+                file_size_mb: None,
+                last_played: None,
+                emulator_id: None,
             })
         }).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
 
@@ -427,6 +481,9 @@ impl GameService {
                 backdrop_image,
                 description,
                 rom_path,
+                file_size_mb: None,
+                last_played: None,
+                emulator_id: None,
             })
         }).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
 
