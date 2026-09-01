@@ -11,7 +11,7 @@ impl EmulatorProfile for Pcsx2 {
     fn supported_platforms(&self) -> &'static [&'static str] { &["ps2"] }
     fn core_type(&self) -> &'static str { "standalone" }
     fn default_arguments(&self) -> &'static [&'static str] { &["-fullscreen", "-batch"] }
-    fn version_flag(&self) -> &'static str { "--version" }
+    fn version_flag(&self) -> &'static str { "" }
 
     /// Verificado contra PCSX2 Qt (PCSX2.ini, sección [EmuCore/GS], clave Renderer).
     /// Asigna "Vulkan" cuando la GPU soporta Vulkan o "OpenGL" en caso contrario.

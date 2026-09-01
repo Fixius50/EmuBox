@@ -88,6 +88,9 @@ impl EmulatorService {
     }
 
     fn probe_official_version(binary_path: &Path, flag: &str) -> String {
+        if flag.trim().is_empty() {
+            return "Instalado (Oficial)".to_string();
+        }
         if let Ok(output) = Command::new(binary_path).arg(flag).output() {
             let text = if output.status.success() {
                 String::from_utf8_lossy(&output.stdout).to_string()

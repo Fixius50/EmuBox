@@ -12,7 +12,7 @@ impl EmulatorProfile for DuckStation {
     fn supported_platforms(&self) -> &'static [&'static str] { &["ps1"] }
     fn core_type(&self) -> &'static str { "standalone" }
     fn default_arguments(&self) -> &'static [&'static str] { &["-fullscreen", "-batch"] }
-    fn version_flag(&self) -> &'static str { "--version" }
+    fn version_flag(&self) -> &'static str { "" }
 
     /// Verificado contra DuckStation Qt (`settings.ini`, sección `[GPU]`, clave `Renderer`).
     /// Asigna "Vulkan" cuando la GPU soporta Vulkan o "OpenGL" en caso contrario.

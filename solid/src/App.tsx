@@ -119,7 +119,7 @@ export const App: Component = () => {
   });
 
   // 4. Composable Logic Hooks
-  const { launchWithEmulator } = useGameLauncher({ backend, modalStore, soundFx });
+  const { launchWithEmulator, launchGameDirect } = useGameLauncher({ backend, systemStore, modalStore, soundFx });
 
   const { handleAction } = useConsoleNavigation({
     navigationStore,
@@ -150,6 +150,9 @@ export const App: Component = () => {
     },
     onExitPlatform: () => {
       navigationStore.setLibraryViewMode('wheel');
+    },
+    onSelectGame: (g) => {
+      launchGameDirect(g);
     }
   });
 
@@ -230,8 +233,7 @@ export const App: Component = () => {
             focusedIndex={navigationStore.focusedGameIndex()}
             onFocusIndex={(idx) => navigationStore.setFocusedGameIndex(idx)}
             onSelectGame={(g) => {
-              soundFx.playSelect();
-              modalStore.openEmulatorSelector(g);
+              launchGameDirect(g);
             }}
             onBackToPlatforms={() => {
               soundFx.playBack();

@@ -27,6 +27,7 @@ interface UseConsoleNavigationOptions {
   onAdjustCurrentSlider?: (delta: number) => void;
   onEnterPlatform?: () => void;
   onExitPlatform?: () => void;
+  onSelectGame?: (game: Game) => void;
 }
 
 export function useConsoleNavigation(options: UseConsoleNavigationOptions) {
@@ -47,7 +48,8 @@ export function useConsoleNavigation(options: UseConsoleNavigationOptions) {
     onToggleCurrentSetting,
     onAdjustCurrentSlider,
     onEnterPlatform,
-    onExitPlatform
+    onExitPlatform,
+    onSelectGame
   } = options;
 
   let transitionCooldownUntil = 0;
@@ -332,7 +334,11 @@ export function useConsoleNavigation(options: UseConsoleNavigationOptions) {
                   soundFx.playSelect();
                   const targetGame = focusedGame();
                   if (targetGame) {
-                    modalStore.openEmulatorSelector(targetGame);
+                    if (onSelectGame) {
+                      onSelectGame(targetGame);
+                    } else {
+                      modalStore.openEmulatorSelector(targetGame);
+                    }
                   }
                 }
                 break;
