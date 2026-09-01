@@ -48,6 +48,8 @@ export class GameScannerService {
         scannedCount: scanned,
         addedCount: 0,
         updatedCount: scanned,
+        removedCount: 0,
+        totalCount: scanned,
         errors: []
       }
     };
