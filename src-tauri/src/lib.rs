@@ -13,6 +13,9 @@ pub fn run() {
             // 1. Iniciar escaneo inicial en segundo plano sin bloquear arranque de UI
             std::thread::spawn(|| {
                 let _ = services::EmulatorService::scan_emulators();
+                if let Ok(hardware) = services::SystemService::get_hardware_info() {
+                    let _ = services::EmulatorService::apply_hardware_profile(&hardware);
+                }
                 let _ = services::GameService::scan_games(None);
             });
 
@@ -49,6 +52,7 @@ pub fn run() {
             commands::emulators::get_emulators,
             commands::emulators::get_emulator_by_id,
             commands::emulators::scan_emulators,
+            commands::emulators::apply_hardware_profile,
             commands::emulators::get_emulator_status,
             commands::emulators::save_emulator,
             commands::emulators::delete_emulator,

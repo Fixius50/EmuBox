@@ -4,126 +4,15 @@ use rusqlite::params;
 use crate::models::Emulator;
 use crate::errors::EmuBoxError;
 use crate::services::db_service::DatabaseService;
-
-struct OfficialEmulatorDef {
-    id: &'static str,
-    official_name: &'static str,
-    binary_candidates: &'static [&'static str],
-    supported_platforms: &'static [&'static str],
-    core_type: &'static str,
-    default_arguments: &'static [&'static str],
-    version_flag: &'static str,
-}
-
-const OFFICIAL_EMULATORS: &[OfficialEmulatorDef] = &[
-    OfficialEmulatorDef {
-        id: "pcsx2",
-        official_name: "PCSX2",
-        binary_candidates: &["pcsx2-qt", "pcsx2", "PCSX2.AppImage"],
-        supported_platforms: &["ps2"],
-        core_type: "standalone",
-        default_arguments: &["-fullscreen", "-batch"],
-        version_flag: "--version",
-    },
-    OfficialEmulatorDef {
-        id: "duckstation",
-        official_name: "DuckStation",
-        binary_candidates: &["duckstation-qt", "duckstation-nogui", "DuckStation.AppImage"],
-        supported_platforms: &["ps1"],
-        core_type: "standalone",
-        default_arguments: &["-fullscreen", "-batch"],
-        version_flag: "--version",
-    },
-    OfficialEmulatorDef {
-        id: "dolphin",
-        official_name: "Dolphin Emulator",
-        binary_candidates: &["dolphin-emu", "Dolphin.AppImage"],
-        supported_platforms: &["gamecube", "wii"],
-        core_type: "standalone",
-        default_arguments: &["-b", "-e"],
-        version_flag: "--version",
-    },
-    OfficialEmulatorDef {
-        id: "retroarch",
-        official_name: "RetroArch",
-        binary_candidates: &["retroarch"],
-        supported_platforms: &["snes", "genesis", "nes", "gba", "gb", "arcade", "n64", "ps1"],
-        core_type: "libretro",
-        default_arguments: &["-f"],
-        version_flag: "--version",
-    },
-    OfficialEmulatorDef {
-        id: "ppsspp",
-        official_name: "PPSSPP",
-        binary_candidates: &["ppsspp", "PPSSPPQt", "PPSSPPSDL"],
-        supported_platforms: &["psp"],
-        core_type: "standalone",
-        default_arguments: &["--fullscreen"],
-        version_flag: "--version",
-    },
-    OfficialEmulatorDef {
-        id: "mgba",
-        official_name: "mGBA",
-        binary_candidates: &["mgba-qt", "mgba"],
-        supported_platforms: &["gba", "gbc", "gb"],
-        core_type: "standalone",
-        default_arguments: &["-f"],
-        version_flag: "-v",
-    },
-    OfficialEmulatorDef {
-        id: "melonds",
-        official_name: "melonDS",
-        binary_candidates: &["melonds", "melonDS"],
-        supported_platforms: &["nds"],
-        core_type: "standalone",
-        default_arguments: &["-f"],
-        version_flag: "--version",
-    },
-    OfficialEmulatorDef {
-        id: "flycast",
-        official_name: "Flycast",
-        binary_candidates: &["flycast", "Flycast.AppImage"],
-        supported_platforms: &["dreamcast", "arcade"],
-        core_type: "standalone",
-        default_arguments: &["-config", "window:fullscreen=1"],
-        version_flag: "--version",
-    },
-    OfficialEmulatorDef {
-        id: "rpcs3",
-        official_name: "RPCS3",
-        binary_candidates: &["rpcs3", "RPCS3.AppImage"],
-        supported_platforms: &["ps3"],
-        core_type: "standalone",
-        default_arguments: &["--no-gui"],
-        version_flag: "--version",
-    },
-    OfficialEmulatorDef {
-        id: "cemu",
-        official_name: "Cemu",
-        binary_candidates: &["cemu", "Cemu.AppImage"],
-        supported_platforms: &["wiiu"],
-        core_type: "standalone",
-        default_arguments: &["-f", "-g"],
-        version_flag: "--version",
-    },
-    OfficialEmulatorDef {
-        id: "ryujinx",
-        official_name: "Ryujinx",
-        binary_candidates: &["ryujinx", "Ryujinx.AppImage"],
-        supported_platforms: &["switch"],
-        core_type: "standalone",
-        default_arguments: &["--fullscreen"],
-        version_flag: "--version",
-    },
-];
+use crate::services::emulators::{self, EmulatorProfile};
 
 pub struct EmulatorService;
 
 impl EmulatorService {
-    fn find_binary_path(def: &OfficialEmulatorDef) -> Option<PathBuf> {
+    fn find_binary_path(profile: &dyn EmulatorProfile) -> Option<PathBuf> {
         let emu_dir = Path::new("/var/lib/emubox/emulators");
-        for candidate in def.binary_candidates {
-            let nested_path = emu_dir.join(def.id).join(candidate);
+        for candidate in profile.binary_candidates() {
+            let nested_path = emu_dir.join(profile.id()).join(candidate);
             if nested_path.is_file() {
                 return Some(nested_path);
             }
@@ -133,7 +22,7 @@ impl EmulatorService {
             }
         }
 
-        for candidate in def.binary_candidates {
+        for candidate in profile.binary_candidates() {
             for prefix in &["/usr/local/bin", "/usr/bin", "/opt"] {
                 let p = Path::new(prefix).join(candidate);
                 if p.is_file() {
@@ -142,7 +31,7 @@ impl EmulatorService {
             }
         }
 
-        for candidate in def.binary_candidates {
+        for candidate in profile.binary_candidates() {
             if let Ok(output) = Command::new("which").arg(candidate).output() {
                 if output.status.success() {
                     let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -179,16 +68,16 @@ impl EmulatorService {
         let conn = DatabaseService::get_connection()?;
         let mut list = Vec::new();
 
-        for def in OFFICIAL_EMULATORS {
-            let (status, executable, version) = if let Some(binary_path) = Self::find_binary_path(def) {
-                let raw_version = Self::probe_official_version(&binary_path, def.version_flag);
+        for profile in emulators::registry() {
+            let (status, executable, version) = if let Some(binary_path) = Self::find_binary_path(profile.as_ref()) {
+                let raw_version = Self::probe_official_version(&binary_path, profile.version_flag());
                 ("active".to_string(), binary_path.to_string_lossy().to_string(), raw_version)
             } else {
                 ("inactive".to_string(), "".to_string(), "No instalado".to_string())
             };
 
-            let platforms_json = serde_json::to_string(&def.supported_platforms).unwrap_or_else(|_| "[]".to_string());
-            let args_json = serde_json::to_string(&def.default_arguments).unwrap_or_else(|_| "[]".to_string());
+            let platforms_json = serde_json::to_string(&profile.supported_platforms()).unwrap_or_else(|_| "[]".to_string());
+            let args_json = serde_json::to_string(&profile.default_arguments()).unwrap_or_else(|_| "[]".to_string());
 
             conn.execute(
                 "INSERT INTO emulators (id, official_name, version, supported_platforms_json, core_type, status, executable_path, default_arguments_json)
@@ -198,11 +87,11 @@ impl EmulatorService {
                    status = excluded.status,
                    executable_path = excluded.executable_path,
                    default_arguments_json = excluded.default_arguments_json;",
-                params![def.id, def.official_name, version, platforms_json, def.core_type, status, executable, args_json]
+                params![profile.id(), profile.official_name(), version, platforms_json, profile.core_type(), status, executable, args_json]
             ).map_err(|e| EmuBoxError::StorageUnavailable(format!("Error guardando emulador en SQLite: {}", e)))?;
 
             // Metadata específica por emulador
-            let config_dir = format!("/var/lib/emubox/emulators/{}/config", def.id);
+            let config_dir = format!("/var/lib/emubox/emulators/{}/config", profile.id());
             let bios_dir = "/var/lib/emubox/bios".to_string();
             let saves_dir = "/var/lib/emubox/saves".to_string();
             let states_dir = "/var/lib/emubox/states".to_string();
@@ -211,22 +100,47 @@ impl EmulatorService {
                 "INSERT INTO emulator_metadata (emulator_id, config_dir, bios_dir, saves_dir, states_dir, renderer)
                  VALUES (?1, ?2, ?3, ?4, ?5, 'auto')
                  ON CONFLICT(emulator_id) DO NOTHING;",
-                params![def.id, config_dir, bios_dir, saves_dir, states_dir]
+                params![profile.id(), config_dir, bios_dir, saves_dir, states_dir]
             ).map_err(|e| EmuBoxError::StorageUnavailable(format!("Error guardando metadata de emulador: {}", e)))?;
 
             list.push(Emulator {
-                id: def.id.to_string(),
-                name: def.official_name.to_string(),
+                id: profile.id().to_string(),
+                name: profile.official_name().to_string(),
                 version,
-                supported_platforms: def.supported_platforms.iter().map(|s| s.to_string()).collect(),
-                core_type: def.core_type.to_string(),
+                supported_platforms: profile.supported_platforms().iter().map(|s| s.to_string()).collect(),
+                core_type: profile.core_type().to_string(),
                 status,
                 executable,
-                arguments: def.default_arguments.iter().map(|s| s.to_string()).collect(),
+                arguments: profile.default_arguments().iter().map(|s| s.to_string()).collect(),
             });
         }
 
         Ok(list)
+    }
+
+    /// Aplica el perfil de hardware detectado: cada emulador registrado en
+    /// `services::emulators` resuelve y persiste su propio renderer óptimo (metadata
+    /// SQLite + configuración nativa si la tiene implementada), sin intervención del
+    /// usuario. Debe ejecutarse tras `scan_emulators` y cada vez que cambie el hardware
+    /// (hotplug de GPU/monitor).
+    pub fn apply_hardware_profile(hardware: &crate::models::HardwareInfo) -> Result<(), EmuBoxError> {
+        let conn = DatabaseService::get_connection()?;
+        let vulkan_ok = hardware.vulkan_driver_version.is_some() && hardware.gpu_vendor != "generic";
+
+        for profile in emulators::registry() {
+            let renderer = match profile.core_type() {
+                "libretro" => if vulkan_ok { "vulkan" } else { "gl" },
+                _ => if vulkan_ok { "vulkan" } else { "opengl" },
+            };
+            conn.execute(
+                "UPDATE emulator_metadata SET renderer = ?1 WHERE emulator_id = ?2;",
+                params![renderer, profile.id()]
+            ).map_err(|e| EmuBoxError::StorageUnavailable(format!("Error aplicando perfil de hardware a {}: {}", profile.id(), e)))?;
+
+            profile.apply_hardware_config(hardware)?;
+        }
+
+        Ok(())
     }
 
     pub fn get_emulators() -> Result<Vec<Emulator>, EmuBoxError> {

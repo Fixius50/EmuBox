@@ -17,6 +17,15 @@ pub fn scan_emulators() -> Result<Vec<Emulator>, EmuBoxError> {
     EmulatorService::scan_emulators()
 }
 
+/// Reaplica el perfil de renderer automático (metadata SQLite + configs nativas)
+/// según el hardware real detectado. Pensado para dispararse tras un hotplug de
+/// GPU/monitor (p. ej. desde `emubox-drm-sync`), sin intervención del usuario.
+#[tauri::command]
+pub fn apply_hardware_profile() -> Result<(), EmuBoxError> {
+    let hardware = crate::services::SystemService::get_hardware_info()?;
+    EmulatorService::apply_hardware_profile(&hardware)
+}
+
 #[tauri::command]
 pub fn get_emulator_status(id: String) -> Result<String, EmuBoxError> {
     EmulatorService::get_emulator_status(id)

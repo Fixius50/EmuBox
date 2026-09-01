@@ -1,0 +1,12 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^python -c \"import paramiko, sys; print\\('paramiko ok'\\)\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^python -m pip install --user paramiko$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

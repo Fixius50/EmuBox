@@ -1,6 +1,7 @@
 pub mod system_service;
 pub mod game_service;
 pub mod emulator_service;
+pub mod emulators;
 pub mod process_service;
 pub mod storage_service;
 pub mod diagnostics_service;

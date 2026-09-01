@@ -116,6 +116,26 @@ ssh emubox@<IP_DE_LA_CONSOLA>
 
 > 📌 **Aislamiento Garantizado**: La sesión SSH se abre en un pseudo-terminal (`pts/*`), por lo que puedes conectarte, compilar, administrar y cerrar la sesión SSH sin interrumpir la interfaz gráfica que sigue ejecutándose en la pantalla.
 
+### 3. Acceso sin Contraseña para Agentes/Automatización (Clave Pública)
+Para permitir que un agente (Copilot, scripts CI, etc.) opere sobre la VM sin depender de contraseñas interactivas ni exponerlas, autoriza una clave pública dedicada:
+
+1. **En tu equipo anfitrión**, genera un par de claves dedicado (si no existe):
+   ```bash
+   ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_emubox -N "" -C "agente-emubox-vm"
+   ```
+2. **Desde una sesión ya autenticada por contraseña en la VM**, autoriza la clave pública generada:
+   ```bash
+   mkdir -p ~/.ssh && chmod 700 ~/.ssh
+   echo "<contenido-de-id_ed25519_emubox.pub>" >> ~/.ssh/authorized_keys
+   chmod 600 ~/.ssh/authorized_keys
+   ```
+3. **Conecta sin contraseña** usando la clave privada:
+   ```bash
+   ssh -p 2222 -i ~/.ssh/id_ed25519_emubox -o BatchMode=yes emubox@127.0.0.1
+   ```
+
+> ⚠️ **Nota de seguridad**: Si tras varios intentos fallidos de contraseña aparece `Permission denied` de forma persistente, revisa `pam_faillock` (bloqueo temporal por intentos fallidos) con `sudo journalctl -u sshd -n 50`, no necesariamente es una contraseña incorrecta.
+
 ---
 
 ## 🐙 Configuración de Git y Flujo de Trabajo
