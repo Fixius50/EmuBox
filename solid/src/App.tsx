@@ -161,9 +161,21 @@ export const App: Component = () => {
   onMount(async () => {
     await systemStore.loadSystemData();
     try {
-      const allGames = gamesDataset as unknown as Game[];
-      mockBackend.setGames(allGames);
-      await libraryStore.loadGames(allGames);
+      if (backend.isTauriEnvironment) {
+        // Escanear y cargar juegos reales del sistema Linux (/var/lib/emubox/games)
+        await backend.scanGames();
+        await libraryStore.loadGames();
+      } else {
+        // Entorno de desarrollo en navegador web sin runtime Tauri
+        const realGames = await backend.getGames();
+        if (realGames && realGames.length > 0) {
+          await libraryStore.loadGames(realGames);
+        } else {
+          const allGames = gamesDataset as unknown as Game[];
+          mockBackend.setGames(allGames);
+          await libraryStore.loadGames(allGames);
+        }
+      }
     } catch {
       await libraryStore.loadGames();
     }

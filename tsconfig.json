@@ -12,6 +12,7 @@
     "strict": false,
     "skipLibCheck": true,
     "paths": {
+      "*": ["./*"],
       "@contracts/*": ["./solid/src/types/*"],
       "@services/*": ["./solid/src/services/*"],
       "@stores/*": ["./solid/src/stores/*"],

@@ -42,6 +42,10 @@ export class TauriBackendService implements IEmuBoxBackend {
     this.isTauri = typeof window !== 'undefined' && (!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
   }
 
+  public get isTauriEnvironment(): boolean {
+    return this.isTauri || (typeof window !== 'undefined' && (!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__));
+  }
+
   private async invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
     if (typeof window !== 'undefined') {
       const internals = (window as any).__TAURI_INTERNALS__;
