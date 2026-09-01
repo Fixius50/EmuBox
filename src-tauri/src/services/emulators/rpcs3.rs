@@ -1,7 +1,6 @@
 use super::EmulatorProfile;
 
-/// No disponible en repos oficiales de Arch; requiere AUR (build muy largo). No
-/// instalado en este entorno todavía.
+/// Binario instalado en el sistema (`/usr/bin/rpcs3`).
 pub struct Rpcs3;
 
 impl EmulatorProfile for Rpcs3 {
@@ -12,7 +11,4 @@ impl EmulatorProfile for Rpcs3 {
     fn core_type(&self) -> &'static str { "standalone" }
     fn default_arguments(&self) -> &'static [&'static str] { &["--no-gui"] }
     fn version_flag(&self) -> &'static str { "--version" }
-
-    // TODO: implementar apply_hardware_config cuando se instale y se verifique su
-    // archivo real (`config.yml`, clave `Video > Renderer`, "Vulkan" | "OpenGL").
 }

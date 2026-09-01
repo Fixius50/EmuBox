@@ -1,7 +1,6 @@
 use super::EmulatorProfile;
 
-/// No disponible en repos oficiales de Arch; requiere AUR (build largo). No instalado
-/// en este entorno todavía.
+/// Binario instalado en el sistema (`/usr/bin/cemu`).
 pub struct Cemu;
 
 impl EmulatorProfile for Cemu {
@@ -12,7 +11,4 @@ impl EmulatorProfile for Cemu {
     fn core_type(&self) -> &'static str { "standalone" }
     fn default_arguments(&self) -> &'static [&'static str] { &["-f", "-g"] }
     fn version_flag(&self) -> &'static str { "--version" }
-
-    // TODO: implementar apply_hardware_config cuando se instale y se verifique su
-    // archivo real (`settings.xml`, `<Graphic><api>`, 0=OpenGL/1=Vulkan aproximado).
 }

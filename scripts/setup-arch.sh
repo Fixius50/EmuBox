@@ -426,13 +426,18 @@ log_info "[11/15] Creando estructura de datos..."
 
 mkdir -p \
     /var/lib/emubox/games \
-    /var/lib/emubox/roms \
     /var/lib/emubox/saves \
     /var/lib/emubox/states \
     /var/lib/emubox/bios \
     /var/lib/emubox/covers \
     /var/lib/emubox/logs \
     /var/lib/emubox/screenshots
+
+# Enlace simbólico de compatibilidad: roms -> games
+if [[ -d /var/lib/emubox/roms && ! -L /var/lib/emubox/roms ]]; then
+    rm -rf /var/lib/emubox/roms
+fi
+ln -sfn /var/lib/emubox/games /var/lib/emubox/roms
 
 USER_HOME="$(getent passwd "${EMUBOX_USER}" | cut -d: -f6)"
 
