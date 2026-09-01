@@ -9,12 +9,51 @@ use crate::services::emulators::{self, EmulatorProfile};
 pub struct EmulatorService;
 
 impl EmulatorService {
+    fn provision_dedicated_environment(profile: &dyn EmulatorProfile, source_binary: &Path) -> PathBuf {
+        let emu_dir = Path::new("/var/lib/emubox/emulators").join(profile.id());
+        let bin_dir = emu_dir.join("bin");
+        let config_dir = emu_dir.join("config");
+        let logs_dir = emu_dir.join("logs");
+
+        let _ = std::fs::create_dir_all(&bin_dir);
+        let _ = std::fs::create_dir_all(&config_dir);
+        let _ = std::fs::create_dir_all(&logs_dir);
+
+        if source_binary.starts_with(&emu_dir) {
+            return source_binary.to_path_buf();
+        }
+
+        let binary_name = source_binary
+            .file_name()
+            .unwrap_or_else(|| std::ffi::OsStr::new(profile.id()));
+        let target_symlink = bin_dir.join(binary_name);
+
+        if target_symlink.exists() || std::fs::symlink_metadata(&target_symlink).is_ok() {
+            let _ = std::fs::remove_file(&target_symlink);
+        }
+
+        #[cfg(unix)]
+        {
+            let _ = std::os::unix::fs::symlink(source_binary, &target_symlink);
+        }
+
+        if target_symlink.is_file() {
+            target_symlink
+        } else {
+            source_binary.to_path_buf()
+        }
+    }
+
     fn find_binary_path(profile: &dyn EmulatorProfile) -> Option<PathBuf> {
         let emu_dir = Path::new("/var/lib/emubox/emulators");
         for candidate in profile.binary_candidates() {
-            let nested_path = emu_dir.join(profile.id()).join(candidate);
-            if nested_path.is_file() {
-                return Some(nested_path);
+            let nested_bin = emu_dir.join(profile.id()).join("bin").join(candidate);
+            if nested_bin.is_file() {
+                return Some(nested_bin);
+            }
+            let direct_nested = emu_dir.join(profile.id()).join(candidate);
+            if direct_nested.is_file() {
+                return Some(direct_nested);
             }
             let direct_path = emu_dir.join(candidate);
             if direct_path.is_file() {
@@ -26,7 +65,7 @@ impl EmulatorService {
             for prefix in &["/usr/local/bin", "/usr/bin", "/opt"] {
                 let p = Path::new(prefix).join(candidate);
                 if p.is_file() {
-                    return Some(p);
+                    return Some(Self::provision_dedicated_environment(profile, &p));
                 }
             }
         }
@@ -38,7 +77,7 @@ impl EmulatorService {
                     if !path_str.is_empty() {
                         let p = PathBuf::from(path_str);
                         if p.is_file() {
-                            return Some(p);
+                            return Some(Self::provision_dedicated_environment(profile, &p));
                         }
                     }
                 }
@@ -235,5 +274,35 @@ impl EmulatorService {
         conn.execute("DELETE FROM emulators WHERE id = ?1;", params![id])
             .map_err(|e| EmuBoxError::StorageUnavailable(format!("Error al eliminar emulador de SQLite: {}", e)))?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct MockTestProfile;
+    impl EmulatorProfile for MockTestProfile {
+        fn id(&self) -> &'static str { "test_emu" }
+        fn official_name(&self) -> &'static str { "Test Emulator" }
+        fn binary_candidates(&self) -> &'static [&'static str] { &["test_emu"] }
+        fn supported_platforms(&self) -> &'static [&'static str] { &["snes"] }
+        fn core_type(&self) -> &'static str { "standalone" }
+        fn default_arguments(&self) -> &'static [&'static str] { &[] }
+        fn version_flag(&self) -> &'static str { "--version" }
+    }
+
+    #[test]
+    fn test_provision_dedicated_environment() {
+        let temp_bin = std::env::temp_dir().join(format!("test-bin-{}", std::process::id()));
+        let _ = std::fs::write(&temp_bin, "#!/bin/sh\necho test");
+
+        let profile = MockTestProfile;
+        let provisioned = EmulatorService::provision_dedicated_environment(&profile, &temp_bin);
+
+        assert!(provisioned.to_string_lossy().contains("/var/lib/emubox/emulators/test_emu/bin/"));
+        assert!(provisioned.is_file());
+
+        let _ = std::fs::remove_file(&temp_bin);
     }
 }
