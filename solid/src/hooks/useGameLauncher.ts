@@ -18,10 +18,9 @@ export function useGameLauncher(options: UseGameLauncherOptions) {
     soundFx.playSelect();
     try {
       const result = await backend.launchGame(game.id, emulator.id);
-      alert(`[EMUBOX LAUNCHER]\n\n${result.message}\nMotor: ${emulator.name}\nPID: ${result.pid}`);
+      console.log(`[GameLauncher] Juego iniciado: ${result.message} (Motor: ${emulator.name}, PID: ${result.pid})`);
     } catch (err: any) {
       console.error('[GameLauncher] Error al iniciar sesión:', err);
-      alert(`[EMUBOX LAUNCHER - ERROR]\n\nNo se pudo lanzar el juego: ${err?.message || err}`);
     } finally {
       modalStore.closeEmulatorSelector();
       modalStore.closeConfirmLaunch();
@@ -43,10 +42,9 @@ export function useGameLauncher(options: UseGameLauncherOptions) {
 
       const emulatorId = targetEmulator ? targetEmulator.id : '';
       const result = await backend.launchGame(game.id, emulatorId);
-      alert(`[EMUBOX LAUNCHER]\n\n${result.message}\nMotor: ${targetEmulator ? targetEmulator.name : 'Auto'}\nPID: ${result.pid}`);
+      console.log(`[GameLauncher] Juego iniciado: ${result.message} (Motor: ${targetEmulator ? targetEmulator.name : 'Auto'}, PID: ${result.pid})`);
     } catch (err: any) {
       console.error('[GameLauncher] Error al lanzar juego:', err);
-      alert(`[EMUBOX LAUNCHER - ERROR]\n\nNo se pudo lanzar el juego: ${err?.message || err}`);
     } finally {
       modalStore.closeEmulatorSelector();
       modalStore.closeConfirmLaunch();
