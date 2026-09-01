@@ -513,3 +513,47 @@ impl GameService {
         Ok(new_fav == 1)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_clean_title_from_filename() {
+        assert_eq!(GameService::clean_title_from_filename("2048 (World) (Homebrew)"), "2048");
+        assert_eq!(GameService::clean_title_from_filename("Gran_Turismo_4_[v1.0]_(USA)"), "Gran Turismo 4");
+        assert_eq!(GameService::clean_title_from_filename("Super_Mario_World"), "Super Mario World");
+    }
+
+    #[test]
+    fn test_scan_games_directory() {
+        let temp_dir = std::env::temp_dir().join(format!("emubox-game-test-{}", std::process::id()));
+        let snes_dir = temp_dir.join("snes");
+        fs::create_dir_all(&snes_dir).unwrap();
+
+        let rom_file = snes_dir.join("Test_Game_(USA)_(v1.0).sfc");
+        fs::write(&rom_file, "TEST_ROM_CONTENT").unwrap();
+
+        let scan_req = ScanGamesRequest {
+            platforms: Some(vec!["snes".to_string()]),
+            roms_directory: Some(temp_dir.to_string_lossy().to_string()),
+            deep_scan: None,
+        };
+
+        let res = GameService::scan_games(Some(scan_req)).unwrap();
+        assert!(res.scanned_count >= 1);
+
+        let games = GameService::get_games(Some(GameFilter {
+            platform: Some("snes".to_string()),
+            search: Some("Test Game".to_string()),
+            favorite: None,
+            limit: None,
+            offset: None,
+        })).unwrap();
+
+        assert!(!games.is_empty());
+        assert_eq!(games[0].title, "Test Game");
+
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+}
