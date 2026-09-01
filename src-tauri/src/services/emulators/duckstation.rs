@@ -1,7 +1,8 @@
-use super::EmulatorProfile;
+use crate::errors::EmuBoxError;
+use crate::models::HardwareInfo;
+use super::{config_home, upsert_ini_key, vulkan_ok, EmulatorProfile};
 
-/// No disponible en repos oficiales de Arch; requiere AUR. No instalado en este
-/// entorno todavía.
+/// Binario instalado en el sistema (`/usr/bin/duckstation-qt`).
 pub struct DuckStation;
 
 impl EmulatorProfile for DuckStation {
@@ -13,8 +14,11 @@ impl EmulatorProfile for DuckStation {
     fn default_arguments(&self) -> &'static [&'static str] { &["-fullscreen", "-batch"] }
     fn version_flag(&self) -> &'static str { "--version" }
 
-    // TODO: implementar apply_hardware_config cuando se instale. Candidato conocido:
-    // sección `[GPU]` clave `Renderer` (Automatic/Vulkan/OpenGL/Software), pero la ruta
-    // exacta del archivo (XDG_CONFIG_HOME vs XDG_DATA_HOME) debe confirmarse contra el
-    // binario instalado antes de escribirla automáticamente.
+    /// Verificado contra DuckStation Qt (`settings.ini`, sección `[GPU]`, clave `Renderer`).
+    /// Asigna "Vulkan" cuando la GPU soporta Vulkan o "OpenGL" en caso contrario.
+    fn apply_hardware_config(&self, hardware: &HardwareInfo) -> Result<(), EmuBoxError> {
+        let renderer = if vulkan_ok(hardware) { "Vulkan" } else { "OpenGL" };
+        let path = config_home().join("duckstation/settings.ini");
+        upsert_ini_key(&path, "GPU", "Renderer", renderer)
+    }
 }

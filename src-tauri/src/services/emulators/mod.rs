@@ -193,4 +193,25 @@ mod tests {
         assert!(content.contains("FirstRun = False"));
         fs::remove_dir_all(&dir).unwrap();
     }
+
+    #[test]
+    fn duckstation_and_pcsx2_hardware_config_test() {
+        let dir = std::env::temp_dir().join(format!("emubox-test-{}", std::process::id() + 4));
+        fs::create_dir_all(&dir).unwrap();
+        let duck_path = dir.join("duckstation/settings.ini");
+        let pcsx2_path = dir.join("PCSX2/ini/PCSX2.ini");
+
+        upsert_ini_key(&duck_path, "GPU", "Renderer", "Vulkan").unwrap();
+        upsert_ini_key(&pcsx2_path, "EmuCore/GS", "Renderer", "Vulkan").unwrap();
+
+        let duck_content = fs::read_to_string(&duck_path).unwrap();
+        let pcsx2_content = fs::read_to_string(&pcsx2_path).unwrap();
+
+        assert!(duck_content.contains("[GPU]"));
+        assert!(duck_content.contains("Renderer = Vulkan"));
+        assert!(pcsx2_content.contains("[EmuCore/GS]"));
+        assert!(pcsx2_content.contains("Renderer = Vulkan"));
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
 }
