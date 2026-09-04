@@ -3,7 +3,7 @@ import type { AppSection, LibraryViewMode } from '@contracts/navigation.types';
 
 export function createNavigationStore() {
   const [currentSection, setCurrentSection] = createSignal<AppSection>('library');
-  const [libraryViewMode, setLibraryViewMode] = createSignal<LibraryViewMode>('wheel');
+  const [libraryViewMode, setLibraryViewMode] = createSignal<LibraryViewMode>('games');
   const [wheelPlatformIndex, setWheelPlatformIndex] = createSignal<number>(0);
   const [focusedGameIndex, setFocusedGameIndex] = createSignal<number>(0);
 

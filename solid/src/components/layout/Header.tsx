@@ -4,6 +4,8 @@ import type { InputDeviceStatus } from '@contracts/input.types';
 interface HeaderProps {
   inputStatus: InputDeviceStatus;
   totalGamesCount: number;
+  currentSection: 'library' | 'settings';
+  onNavigate: (section: 'library' | 'settings') => void;
 }
 
 export const Header: Component<HeaderProps> = (props) => {
@@ -42,6 +44,21 @@ export const Header: Component<HeaderProps> = (props) => {
 
       {/* 2. Center: Clean Minimalist Space */}
       <div class="header-center-spacer" />
+
+      <nav class="console-main-navigation" aria-label="Navegación principal">
+        <button
+          class={`nav-blade-btn ${props.currentSection === 'library' ? 'active' : ''}`}
+          onClick={() => props.onNavigate('library')}
+        >
+          Juegos
+        </button>
+        <button
+          class={`nav-blade-btn ${props.currentSection === 'settings' ? 'active' : ''}`}
+          onClick={() => props.onNavigate('settings')}
+        >
+          Ajustes
+        </button>
+      </nav>
 
       {/* 3. Right: Device Controller Status & Real-time Clock */}
       <div class="console-telemetry-cluster">

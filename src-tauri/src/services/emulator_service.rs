@@ -218,10 +218,8 @@ impl EmulatorService {
         }).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
 
         let mut list = Vec::new();
-        for r in rows {
-            if let Ok(emu) = r {
-                list.push(emu);
-            }
+        for emulator in rows.flatten() {
+            list.push(emulator);
         }
 
         if list.is_empty() {

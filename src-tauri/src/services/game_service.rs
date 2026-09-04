@@ -469,10 +469,8 @@ impl GameService {
         }).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
 
         let mut list = Vec::new();
-        for r in rows {
-            if let Ok(g) = r {
-                list.push(g);
-            }
+        for game in rows.flatten() {
+            list.push(game);
         }
 
         Ok(list)

@@ -78,7 +78,7 @@ impl DownloadService {
         let mut stmt = conn.prepare("SELECT id, game_id, source_id, platform, destination_path, status, progress, downloaded_bytes, total_bytes, speed_bytes_per_second, error FROM download_jobs WHERE id = ?1")
             .map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
         let mut rows = stmt.query_map(params![id], Self::row_to_job).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
-        Ok(rows.next().transpose().map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?)
+        rows.next().transpose().map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))
     }
 
     pub fn start(id: String) -> Result<DownloadJob, EmuBoxError> {
@@ -101,7 +101,7 @@ impl DownloadService {
             }
             Self::start_next_queued();
         });
-        Self::get_job(&id)?.ok_or_else(|| EmuBoxError::NotFound(id))
+        Self::get_job(&id)?.ok_or(EmuBoxError::NotFound(id))
     }
 
     pub fn pause(id: &str) -> Result<DownloadJob, EmuBoxError> {
@@ -111,7 +111,7 @@ impl DownloadService {
     }
 
     pub fn resume(id: String) -> Result<DownloadJob, EmuBoxError> {
-        if let Some(control) = active_jobs().lock().unwrap().get(&id) { control.paused.store(false, Ordering::Relaxed); return Self::get_job(&id)?.ok_or_else(|| EmuBoxError::NotFound(id)); }
+        if let Some(control) = active_jobs().lock().unwrap().get(&id) { control.paused.store(false, Ordering::Relaxed); return Self::get_job(&id)?.ok_or(EmuBoxError::NotFound(id)); }
         Self::start(id)
     }
 
@@ -172,7 +172,7 @@ impl DownloadService {
     fn destination_path(platform: &str, uri: &str) -> Result<PathBuf, EmuBoxError> {
         if !platform.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') || platform.is_empty() { return Err(EmuBoxError::InvalidConfiguration("Plataforma inválida".to_string())); }
         let url = reqwest::Url::parse(uri).map_err(|e| EmuBoxError::InvalidConfiguration(e.to_string()))?;
-        let filename = url.path_segments().and_then(|segments| segments.filter(|s| !s.is_empty()).next_back()).unwrap_or("download.bin");
+        let filename = url.path_segments().and_then(|mut segments| segments.rfind(|s| !s.is_empty())).unwrap_or("download.bin");
         let filename = filename.replace(['/', '\\'], "_");
         let filename = if filename.is_empty() { "download.bin" } else { filename.as_str() };
         Ok(Path::new(DOWNLOAD_ROOT).join(platform).join(filename))

@@ -27,6 +27,9 @@
 /* 8. 3D Perspective Shelf Grid & Cards */
 @import './shelf.css';
 
+/* 8.5. Unified game library with console filter sidebar */
+@import './game-library.css';
+
 /* 9. Console Modal Blades (Kobalte Dialogs) */
 @import './modals.css';
 

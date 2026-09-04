@@ -25,8 +25,7 @@ import { useSettingsController } from '@hooks/useSettingsController';
 // Components
 import { Shell } from '@components/layout/Shell';
 import { Header } from '@components/layout/Header';
-import { PlatformWheel, PlatformWheelHandle } from '@components/platforms/PlatformWheel';
-import { PlatformGamesView } from '@components/library/PlatformGamesView';
+import { GameLibraryView } from '@components/library/GameLibraryView';
 import { EmulatorSelectorModal } from '@components/modals/EmulatorSelectorModal';
 import { SettingsView } from '@components/settings/SettingsView';
 import { MaintenanceModal } from '@components/modals/MaintenanceModal';
@@ -71,7 +70,7 @@ export const App: Component = () => {
     onCleanup(() => window.removeEventListener('keydown', handleKeyDown));
   });
 
-  let platformWheelHandle: PlatformWheelHandle | undefined;
+  const [selectedPlatform, setSelectedPlatform] = createSignal<string>('all');
 
   // 2. Settings Controller (Business Logic & OTA Lifecycle)
   const {
@@ -92,15 +91,10 @@ export const App: Component = () => {
   });
 
   // 3. Computed View Memos
-  const activePlatform = createMemo(() => {
-    const list = systemStore.platforms();
-    return list.length === 0 ? null : (list[navigationStore.wheelPlatformIndex()] || list[0] || null);
-  });
-
   const platformGames = createMemo(() => {
     const all = libraryStore.games();
-    const plat = activePlatform();
-    return plat ? all.filter((g) => g.platform === plat.id) : all;
+    const platform = selectedPlatform();
+    return platform === 'all' ? all : all.filter((game) => game.platform === platform);
   });
 
   const focusedGame = createMemo(() => {
@@ -110,10 +104,8 @@ export const App: Component = () => {
   });
 
   const ambientBackdrop = createMemo(() => {
-    if (navigationStore.libraryViewMode() === 'games') {
-      const g = focusedGame();
-      if (g) return g.backdropImage || g.coverImage;
-    }
+    const game = focusedGame();
+    if (game) return game.backdropImage || game.coverImage;
     return '';
   });
 
@@ -139,16 +131,9 @@ export const App: Component = () => {
     onSettingsRowIndexChange: (idx) => setSettingsRowIndex(idx),
     onToggleCurrentSetting: handleToggleCurrentSetting,
     onAdjustCurrentSlider: handleAdjustCurrentSlider,
-    onEnterPlatform: () => {
-      if (platformWheelHandle) {
-        platformWheelHandle.triggerEnter();
-      } else {
-        navigationStore.setFocusedGameIndex(0);
-        navigationStore.setLibraryViewMode('games');
-      }
-    },
+    onEnterPlatform: () => navigationStore.setLibraryViewMode('games'),
     onExitPlatform: () => {
-      navigationStore.setLibraryViewMode('wheel');
+      navigationStore.setLibraryViewMode('games');
     },
     onSelectGame: (g) => {
       launchGameDirect(g);
@@ -198,52 +183,31 @@ export const App: Component = () => {
       <Header
         inputStatus={inputStatus()}
         totalGamesCount={libraryStore.games().length}
+        currentSection={navigationStore.currentSection() === 'settings' ? 'settings' : 'library'}
+        onNavigate={(section) => {
+          navigationStore.setCurrentSection(section);
+          if (section === 'library') navigationStore.setLibraryViewMode('games');
+        }}
       />
 
       <Show when={navigationStore.currentSection() === 'library'}>
-        <Show when={navigationStore.libraryViewMode() === 'wheel'}>
-          <PlatformWheel
-            ref={(handle) => { platformWheelHandle = handle; }}
+        <GameLibraryView
+            games={libraryStore.games()}
             platforms={systemStore.platforms()}
-            selectedIndex={navigationStore.wheelPlatformIndex()}
-            onSelectPlatform={() => {
-              soundFx.playSelect();
-              navigationStore.setFocusedGameIndex(0);
-              navigationStore.setLibraryViewMode('games');
-            }}
-            onSelectSection={(section) => {
-              soundFx.playSelect();
-              setSettingsFocusArea('sidebar');
-              navigationStore.setCurrentSection(section);
-            }}
-            onNavigateIndex={(idx) => {
-              soundFx.playMove();
-              navigationStore.setWheelPlatformIndex(idx);
-            }}
-            getGamesCountForPlatform={(id) => libraryStore.games().filter((g) => g.platform === id).length}
-            getPreviewGamesForPlatform={(id) => libraryStore.games().filter((g) => g.platform === id)}
-          />
-        </Show>
-
-        <Show when={navigationStore.libraryViewMode() === 'games' && activePlatform()}>
-          <PlatformGamesView
-            platform={activePlatform()!}
-            games={platformGames()}
+            selectedPlatform={selectedPlatform()}
             focusedIndex={navigationStore.focusedGameIndex()}
+            onSelectPlatform={(platform) => {
+              soundFx.playSelect();
+              setSelectedPlatform(platform);
+              navigationStore.setFocusedGameIndex(0);
+            }}
             onFocusIndex={(idx) => navigationStore.setFocusedGameIndex(idx)}
-            onSelectGame={(g) => {
-              launchGameDirect(g);
-            }}
-            onBackToPlatforms={() => {
-              soundFx.playBack();
-              navigationStore.setLibraryViewMode('wheel');
-            }}
+            onSelectGame={launchGameDirect}
             onToggleFavorite={(id) => {
               soundFx.playFavorite();
               libraryStore.toggleFavorite(id);
             }}
-          />
-        </Show>
+        />
       </Show>
 
       <Show when={navigationStore.currentSection() === 'settings'}>
@@ -269,7 +233,7 @@ export const App: Component = () => {
           onBack={() => {
             soundFx.playBack();
             navigationStore.setCurrentSection('library');
-            navigationStore.setLibraryViewMode('wheel');
+            navigationStore.setLibraryViewMode('games');
           }}
         />
       </Show>

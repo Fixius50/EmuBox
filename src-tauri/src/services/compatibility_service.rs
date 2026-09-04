@@ -80,10 +80,8 @@ impl CompatibilityService {
         }).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
 
         let mut list = Vec::new();
-        for r in rows {
-            if let Ok(assoc) = r {
-                list.push(assoc);
-            }
+        for association in rows.flatten() {
+            list.push(association);
         }
 
         Ok(list)
