@@ -1,9 +1,12 @@
-use crate::models::{SystemInfo, HardwareInfo, DisplayInfo, AudioInfo, FirstRunDetectionResult};
+use crate::models::{SystemInfo, HardwareInfo, DisplayInfo, AudioInfo, FirstRunDetectionResult, EmuBoxConfig, SystemSettings};
 use crate::errors::EmuBoxError;
 use crate::services::EmulatorService;
 use crate::services::paths;
 use std::fs;
 use std::process::Command;
+
+const DEFAULT_CONFIG_JSON: &str = include_str!("../../../data/config/config.json");
+const DEFAULT_SETTINGS_JSON: &str = include_str!("../../../data/settings.json");
 
 pub struct SystemService;
 
@@ -310,6 +313,57 @@ impl SystemService {
         }
 
         gamepads
+    }
+
+    /// Lee `/etc/emubox/config.json`; si no existe todavía (primer arranque antes
+    /// de que el instalador lo copie), cae al `config.json` empaquetado con la app.
+    pub fn get_config() -> Result<EmuBoxConfig, EmuBoxError> {
+        let raw = fs::read_to_string(paths::config_file())
+            .unwrap_or_else(|_| DEFAULT_CONFIG_JSON.to_string());
+        serde_json::from_str(&raw)
+            .map_err(|e| EmuBoxError::InvalidConfiguration(format!("config.json inválido: {}", e)))
+    }
+
+    pub fn save_config(config: EmuBoxConfig) -> Result<(), EmuBoxError> {
+        let path = paths::config_file();
+        if let Some(parent) = std::path::Path::new(&path).parent() {
+            fs::create_dir_all(parent).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
+        }
+        let serialized = serde_json::to_string_pretty(&config)
+            .map_err(|e| EmuBoxError::Unknown(format!("No se pudo serializar config.json: {}", e)))?;
+        fs::write(&path, serialized).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))
+    }
+
+    /// Lee `/etc/emubox/settings.json`; cae al empaquetado con la app y, si falta
+    /// alguna sección esperada por la UI (p. ej. `library`), la completa con
+    /// valores por defecto para que el frontend nunca reciba campos undefined.
+    pub fn get_settings() -> Result<SystemSettings, EmuBoxError> {
+        let raw = fs::read_to_string(paths::settings_file())
+            .unwrap_or_else(|_| DEFAULT_SETTINGS_JSON.to_string());
+        let mut value: serde_json::Value = serde_json::from_str(&raw)
+            .map_err(|e| EmuBoxError::InvalidConfiguration(format!("settings.json inválido: {}", e)))?;
+
+        if !value.get("library").is_some_and(|v| v.is_object()) {
+            value["library"] = serde_json::json!({
+                "datasetLimit": 10000,
+                "showMissingCovers": true,
+                "defaultPlatform": "all"
+            });
+        }
+
+        serde_json::from_value(value)
+            .map_err(|e| EmuBoxError::Unknown(format!("No se pudo interpretar settings.json: {}", e)))
+    }
+
+    pub fn save_settings(settings: SystemSettings) -> Result<bool, EmuBoxError> {
+        let path = paths::settings_file();
+        if let Some(parent) = std::path::Path::new(&path).parent() {
+            fs::create_dir_all(parent).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
+        }
+        let serialized = serde_json::to_string_pretty(&settings)
+            .map_err(|e| EmuBoxError::Unknown(format!("No se pudo serializar settings.json: {}", e)))?;
+        fs::write(&path, serialized).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
+        Ok(true)
     }
 }
 

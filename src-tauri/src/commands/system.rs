@@ -29,22 +29,22 @@ pub fn first_run_detection() -> Result<FirstRunDetectionResult, EmuBoxError> {
 
 #[tauri::command]
 pub fn get_config() -> Result<EmuBoxConfig, EmuBoxError> {
-    Err(EmuBoxError::NotFound("Config not yet loaded from disk".to_string()))
+    SystemService::get_config()
 }
 
 #[tauri::command]
-pub fn save_config(_config: EmuBoxConfig) -> Result<(), EmuBoxError> {
-    Ok(())
+pub fn save_config(config: EmuBoxConfig) -> Result<(), EmuBoxError> {
+    SystemService::save_config(config)
 }
 
 #[tauri::command]
 pub fn get_settings() -> Result<SystemSettings, EmuBoxError> {
-    Err(EmuBoxError::NotFound("Settings not found".to_string()))
+    SystemService::get_settings()
 }
 
 #[tauri::command]
-pub fn save_settings(_settings: SystemSettings) -> Result<bool, EmuBoxError> {
-    Ok(true)
+pub fn save_settings(settings: SystemSettings) -> Result<bool, EmuBoxError> {
+    SystemService::save_settings(settings)
 }
 
 #[tauri::command]

@@ -156,6 +156,25 @@ export const App: Component = () => {
 
   // 5. Initial Dataset Bootstrap
   onMount(async () => {
+    // Sonda de diagnóstico: confirma si el puente IPC de Tauri existe en este webview.
+    try {
+      const internals = (window as any).__TAURI_INTERNALS__;
+      const globalTauri = (window as any).__TAURI__;
+      const probeInfo = JSON.stringify({
+        hasInternals: !!internals,
+        hasGlobalTauri: !!globalTauri,
+        invokeType: typeof internals?.invoke,
+        isTauriEnvironment: backend.isTauriEnvironment
+      });
+      if (internals?.invoke) {
+        await internals.invoke('frontend_probe', { message: probeInfo });
+      } else {
+        console.error('[EmuBox] Puente Tauri no detectado:', probeInfo);
+      }
+    } catch (probeError) {
+      console.error('[EmuBox] Sonda de diagnóstico falló:', probeError);
+    }
+
     let unlistenLibraryUpdated: (() => void) | undefined;
 
     if (typeof window !== 'undefined') {

@@ -1,20 +1,34 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+#[cfg(not(test))]
+use std::path::Path;
+#[cfg(not(test))]
 use std::fs;
 use rusqlite::Connection;
 use crate::errors::EmuBoxError;
+#[cfg(not(test))]
 use crate::services::paths;
 
 pub struct DatabaseService;
 
 impl DatabaseService {
     pub fn get_db_path() -> PathBuf {
-        let base = Path::new(paths::DATA_DIR);
-        if base.exists() || fs::create_dir_all(base).is_ok() {
-            PathBuf::from(paths::database_path())
-        } else {
-            let fallback = PathBuf::from("/tmp/emubox");
-            let _ = fs::create_dir_all(&fallback);
-            fallback.join("emubox.db")
+        // Los tests nunca deben tocar la base de datos real de producción: cada
+        // proceso de test obtiene su propio archivo aislado bajo /tmp.
+        #[cfg(test)]
+        {
+            let isolated = std::env::temp_dir().join(format!("emubox-test-{}.db", std::process::id()));
+            return isolated;
+        }
+        #[cfg(not(test))]
+        {
+            let base = Path::new(paths::DATA_DIR);
+            if base.exists() || fs::create_dir_all(base).is_ok() {
+                PathBuf::from(paths::database_path())
+            } else {
+                let fallback = PathBuf::from("/tmp/emubox");
+                let _ = fs::create_dir_all(&fallback);
+                fallback.join("emubox.db")
+            }
         }
     }
 

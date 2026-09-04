@@ -50,3 +50,11 @@ pub fn downloads_cache_dir() -> String {
 pub fn download_links_file() -> String {
     format!("{CONFIG_DIR}/download-links.txt")
 }
+
+pub fn config_file() -> String {
+    format!("{CONFIG_DIR}/config.json")
+}
+
+pub fn settings_file() -> String {
+    format!("{CONFIG_DIR}/settings.json")
+}
