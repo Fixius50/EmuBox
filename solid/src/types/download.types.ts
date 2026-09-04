@@ -38,3 +38,27 @@ export interface CreateDownloadRequest {
   platform: string;
   source: DownloadSource;
 }
+
+export interface HydraDownloadItem {
+  title: string;
+  uris: string[];
+  fileSize?: string | number;
+  uploadDate?: string;
+  platform?: string;
+  gameId?: string;
+  sourceId?: string;
+  checksum?: string;
+  genre?: string;
+  developer?: string;
+  publisher?: string;
+  rating?: number;
+  coverImage?: string;
+  backdropImage?: string;
+  description?: string;
+}
+
+export interface HydraDownloadManifest {
+  name?: string;
+  downloads: HydraDownloadItem[];
+  platform?: string;
+}

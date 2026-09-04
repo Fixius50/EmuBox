@@ -8,6 +8,16 @@ pub fn import_download_links() -> Result<Vec<DownloadJob>, EmuBoxError> {
 }
 
 #[tauri::command]
+pub fn import_downloads_from_json(json_content: String) -> Result<Vec<DownloadJob>, EmuBoxError> {
+    DownloadService::import_from_json(&json_content)
+}
+
+#[tauri::command]
+pub fn import_downloads_from_url(url: String) -> Result<Vec<DownloadJob>, EmuBoxError> {
+    DownloadService::import_from_url(&url)
+}
+
+#[tauri::command]
 pub fn import_and_start_downloads() -> Result<Vec<DownloadJob>, EmuBoxError> {
     DownloadService::import_and_start()
 }

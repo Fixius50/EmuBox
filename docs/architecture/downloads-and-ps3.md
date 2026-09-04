@@ -12,10 +12,22 @@ custom arguments are applied before `ProcessService` starts RPCS3.
 
 Authorized JSON manifest URLs can be entered one per line in
 `/etc/emubox/download-links.txt`. Blank lines and `#` comments are ignored.
-Each manifest is an array or an object with `games[]`; entries provide `platform`
-and a direct HTTP/HTTPS `url`, with optional `name`, `gameId`, `checksum` and
-`sizeBytes`. `import_download_links` creates queued jobs automatically and never
-treats the manifest itself as a game file.
+EmuBox supports two manifest formats:
+
+1. **Hydra-compatible format (Standard):**
+   An object with `downloads[]` (or root array of download items) containing:
+   `title`, `uris` (array of download URLs/magnets), `fileSize` (human-readable string
+   e.g. `"13.58 GB"`, `"450 MB"` or bytes), and `uploadDate` (ISO 8601 string).
+   EmuBox automatically infers the target platform based on title tags (e.g. `[PS1]`,
+   `[PS2]`, `[PS3]`, `[PSP]`, `[SNES]`), file extensions (`.pkg`, `.sfc`, etc.), and source
+   hints, defaulting to PC/Linux.
+2. **Legacy EmuBox format:**
+   An array or object with `games[]` providing `platform` and a direct HTTP/HTTPS `url`,
+   with optional `name`, `gameId`, `checksum` and `sizeBytes`.
+
+`import_download_links`, `import_downloads_from_json`, and `import_downloads_from_url`
+create queued jobs automatically and register the games in the catalog so that they are
+immediately visible in the library.
 
 EmuBox owns the download lifecycle. `DownloadService` stores sources and jobs
 in SQLite and writes HTTP downloads to:
@@ -27,10 +39,9 @@ in SQLite and writes HTTP downloads to:
 Downloads are written to a sibling `.part` file and renamed only after the
 transfer completes. An optional SHA-256 checksum is verified before completion.
 The library watcher then discovers the final file and `GameService` updates the
-library. Download code never inserts games directly into the games table.
+library. Download code never inserts games directly into the games table without going
+through the catalog and scanner pipeline.
 
-Only HTTP/HTTPS sources are enabled in the initial implementation. Torrent and
-magnet sources are rejected until a dedicated adapter is implemented and
-audited. Hydra is not embedded, does not launch games, and does not manage the
-EmuBox library; its queue, retry, resume, and progress patterns are reference
-material only.
+Sources of type HTTP/HTTPS are automatically queued for download execution.
+Torrent and magnet sources are registered in the catalog and SQLite sources table,
+while their direct execution remains reserved for a dedicated adapter.

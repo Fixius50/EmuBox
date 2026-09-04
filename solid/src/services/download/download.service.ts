@@ -35,4 +35,17 @@ export class DownloadService {
   public downloadGame(gameId: string): Promise<DownloadJob> {
     return this.backend.downloadGame(gameId);
   }
+
+  public importFromJson(jsonContent: string | object): Promise<DownloadJob[]> {
+    const content = typeof jsonContent === 'string' ? jsonContent : JSON.stringify(jsonContent);
+    return this.backend.importDownloadsFromJson(content);
+  }
+
+  public importFromUrl(url: string): Promise<DownloadJob[]> {
+    return this.backend.importDownloadsFromUrl(url);
+  }
+
+  public importDownloadLinks(): Promise<DownloadJob[]> {
+    return this.backend.importDownloadLinks();
+  }
 }

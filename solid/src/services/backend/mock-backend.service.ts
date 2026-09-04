@@ -742,5 +742,205 @@ export class MockBackendService implements IEmuBoxBackend {
     this.downloads.push(job);
     return job;
   }
+
+  public async importDownloadsFromJson(jsonContent: string): Promise<DownloadJob[]> {
+    const parsed = typeof jsonContent === 'string' ? JSON.parse(jsonContent) : jsonContent;
+    const newJobs: DownloadJob[] = [];
+
+    const downloads = parsed.downloads || (Array.isArray(parsed) && parsed[0]?.uris ? parsed : undefined);
+    if (downloads && Array.isArray(downloads)) {
+      for (const item of downloads) {
+        const title = item.title?.trim();
+        if (!title) continue;
+        const uris: string[] = Array.isArray(item.uris) ? item.uris : [];
+        if (uris.length === 0) continue;
+
+        const platform = inferMockPlatform(title, uris, item.platform, parsed.platform, parsed.name);
+        const totalBytes = parseMockFileSize(item.fileSize);
+        const primaryUri = uris.find((u: string) => u.startsWith('http://') || u.startsWith('https://')) || uris[0];
+
+        const gameId = item.gameId || `download-${platform}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+        const sourceId = item.sourceId || `source-${platform}-${primaryUri.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+
+        let game = this.games.find(g => g.id === gameId);
+        if (!game) {
+          game = {
+            id: gameId,
+            title,
+            platform: (platform as any),
+            platformName: platform.toUpperCase(),
+            releaseYear: item.uploadDate ? parseInt(item.uploadDate.slice(0, 4), 10) || 2020 : 2020,
+            genre: item.genre || 'Desconocido',
+            developer: item.developer || 'Desconocido',
+            publisher: item.publisher || 'Desconocido',
+            rating: item.rating || 4.5,
+            playTimeMinutes: 0,
+            favorite: false,
+            coverImage: item.coverImage || '',
+            backdropImage: item.backdropImage,
+            description: item.description || '',
+            installed: false,
+          };
+          this.games.push(game);
+        }
+
+        const job: DownloadJob = {
+          id: `download-${Date.now()}-${newJobs.length}`,
+          gameId,
+          sourceId,
+          platform,
+          destinationPath: `${paths.getRomsDir(platform)}/${title.replace(/[\/\\]/g, '_')}.bin`,
+          status: 'queued',
+          progress: 0,
+          downloadedBytes: 0,
+          totalBytes,
+          speedBytesPerSecond: 0,
+        };
+        this.downloads.push(job);
+        newJobs.push(job);
+      }
+      return newJobs;
+    }
+
+    const games = parsed.games || (Array.isArray(parsed) ? parsed : []);
+    for (const entry of games) {
+      const platform = entry.platform || 'pc';
+      const name = entry.name || entry.title || 'Untitled';
+      const uri = entry.url || entry.uri || '';
+      if (!uri) continue;
+      const gameId = entry.gameId || `download-${platform}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+
+      let game = this.games.find(g => g.id === gameId);
+      if (!game) {
+        game = {
+          id: gameId,
+          title: name,
+          platform: (platform as any),
+          platformName: platform.toUpperCase(),
+          releaseYear: entry.releaseYear || 2020,
+          genre: entry.genre || 'Desconocido',
+          developer: entry.developer || 'Desconocido',
+          publisher: entry.publisher || 'Desconocido',
+          rating: entry.rating || 4.5,
+          playTimeMinutes: 0,
+          favorite: false,
+          coverImage: entry.coverImage || '',
+          description: entry.description || '',
+          installed: false,
+        };
+        this.games.push(game);
+      }
+
+      const job: DownloadJob = {
+        id: `download-${Date.now()}-${newJobs.length}`,
+        gameId,
+        sourceId: entry.sourceId || `source-${gameId}`,
+        platform,
+        destinationPath: `${paths.getRomsDir(platform)}/${name}.bin`,
+        status: 'queued',
+        progress: 0,
+        downloadedBytes: 0,
+        totalBytes: entry.sizeBytes || parseMockFileSize(entry.fileSize),
+        speedBytesPerSecond: 0,
+      };
+      this.downloads.push(job);
+      newJobs.push(job);
+    }
+    return newJobs;
+  }
+
+  public async importDownloadsFromUrl(url: string): Promise<DownloadJob[]> {
+    const res = await fetch(url);
+    const json = await res.json();
+    return this.importDownloadsFromJson(JSON.stringify(json));
+  }
+
+  public async importDownloadLinks(): Promise<DownloadJob[]> {
+    return this.downloads;
+  }
 }
+
+function parseMockFileSize(fileSize?: string | number): number | undefined {
+  if (fileSize === undefined || fileSize === null) return undefined;
+  if (typeof fileSize === 'number') return fileSize;
+  const trimmed = fileSize.trim();
+  if (!trimmed) return undefined;
+  if (/^\d+$/.test(trimmed)) return parseInt(trimmed, 10);
+
+  const match = trimmed.match(/^([\d.,]+)\s*([A-Za-z]+)?$/);
+  if (!match) return undefined;
+
+  const num = parseFloat(match[1].replace(',', '.'));
+  if (isNaN(num)) return undefined;
+
+  const unit = (match[2] || '').toUpperCase();
+  const multipliers: Record<string, number> = {
+    TB: 1024 ** 4,
+    TIB: 1024 ** 4,
+    GB: 1024 ** 3,
+    GIB: 1024 ** 3,
+    MB: 1024 ** 2,
+    MIB: 1024 ** 2,
+    KB: 1024,
+    KIB: 1024,
+    B: 1,
+    BYTES: 1,
+    BYTE: 1,
+  };
+
+  return Math.round(num * (multipliers[unit] || 1));
+}
+
+function inferMockPlatform(title: string, uris: string[], itemPlatform?: string, manifestPlatform?: string, manifestHint?: string): string {
+  if (itemPlatform) return itemPlatform.toLowerCase();
+  if (manifestPlatform) return manifestPlatform.toLowerCase();
+
+  const titleLower = title.toLowerCase();
+  if (titleLower.includes('[pc]') || titleLower.includes('(pc)') || titleLower.includes('steamrip') || titleLower.includes('gog')) return 'pc';
+  if (titleLower.includes('[ps3]') || titleLower.includes('(ps3)') || titleLower.includes('ps3') || titleLower.includes('rpcs3')) return 'ps3';
+  if (titleLower.includes('[ps2]') || titleLower.includes('(ps2)') || titleLower.includes('pcsx2')) return 'ps2';
+  if (titleLower.includes('[ps1]') || titleLower.includes('(ps1)') || titleLower.includes('[psx]') || titleLower.includes('(psx)') || titleLower.includes('duckstation')) return 'ps1';
+  if (titleLower.includes('[psp]') || titleLower.includes('(psp)') || titleLower.includes('ppsspp')) return 'psp';
+  if (titleLower.includes('[wiiu]') || titleLower.includes('(wiiu)') || titleLower.includes('cemu')) return 'wiiu';
+  if (titleLower.includes('[wii]') || titleLower.includes('(wii)')) return 'wii';
+  if (titleLower.includes('[gamecube]') || titleLower.includes('(gamecube)') || titleLower.includes('[gcn]') || titleLower.includes('dolphin')) return 'gamecube';
+  if (titleLower.includes('[snes]') || titleLower.includes('(snes)') || titleLower.includes('super nintendo')) return 'snes';
+  if (titleLower.includes('[gba]') || titleLower.includes('(gba)') || titleLower.includes('game boy advance') || titleLower.includes('mgba')) return 'gba';
+  if (titleLower.includes('[n64]') || titleLower.includes('(n64)') || titleLower.includes('nintendo 64')) return 'n64';
+  if (titleLower.includes('[nds]') || titleLower.includes('(nds)') || titleLower.includes('nintendo ds') || titleLower.includes('melonds')) return 'nds';
+  if (titleLower.includes('[genesis]') || titleLower.includes('(genesis)') || titleLower.includes('megadrive')) return 'genesis';
+  if (titleLower.includes('[dreamcast]') || titleLower.includes('(dreamcast)') || titleLower.includes('flycast')) return 'dreamcast';
+  if (titleLower.includes('[arcade]') || titleLower.includes('(arcade)') || titleLower.includes('mame')) return 'arcade';
+
+  for (const uri of uris) {
+    const u = uri.toLowerCase();
+    if (u.includes('.pkg')) return 'ps3';
+    if (u.includes('.sfc') || u.includes('.smc')) return 'snes';
+    if (u.includes('.gba')) return 'gba';
+    if (u.includes('.z64') || u.includes('.n64') || u.includes('.v64')) return 'n64';
+    if (u.includes('.nds')) return 'nds';
+    if (u.includes('.cdi') || u.includes('.gdi')) return 'dreamcast';
+    if (u.includes('.rvz') || u.includes('.gcm')) return 'gamecube';
+    if (u.includes('.wua')) return 'wiiu';
+    if (u.includes('.pbp')) return 'psp';
+    if (u.includes('steamrip') || u.includes('gog') || u.includes('.exe')) return 'pc';
+  }
+
+  if (manifestHint) {
+    const h = manifestHint.toLowerCase();
+    if (h.includes('psx-roms') || h.includes('ps1')) return 'ps1';
+    if (h.includes('ps2')) return 'ps2';
+    if (h.includes('ps3')) return 'ps3';
+    if (h.includes('psp')) return 'psp';
+    if (h.includes('snes')) return 'snes';
+    if (h.includes('gba')) return 'gba';
+    if (h.includes('n64')) return 'n64';
+    if (h.includes('nds')) return 'nds';
+    if (h.includes('linux') || h.includes('pc') || h.includes('repack')) return 'pc';
+    if (h.includes('psx')) return 'ps1';
+  }
+
+  return 'pc';
+}
+
 export { MockBackendService as MockBackend };

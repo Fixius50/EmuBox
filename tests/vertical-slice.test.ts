@@ -401,6 +401,53 @@ const sshOutput = await backend.executeCommand('systemctl status sshd');
 assert(sshOutput.includes('sshd') || sshOutput.includes('port 22'), "executeCommand('systemctl status sshd') devolvió estado del servicio SSH");
 
 // ----------------------------------------------------------------------------
+// TEST 10: Importación y Procesamiento de Manifiestos con formato { downloads: [...] }
+// ----------------------------------------------------------------------------
+console.log("\nTEST 10: Importación y Procesamiento de Manifiestos con formato { downloads: [...] }...");
+const { DownloadService: FrontendDownloadService } = await import('@services/download/download.service');
+const downloadService = new FrontendDownloadService(backend);
+
+const hydraSample = {
+  name: "Hydra PC & PSX Repacks",
+  downloads: [
+    {
+      title: "Crash Bandicoot: Warped [PS1]",
+      uris: [
+        "https://example.com/roms/crash3.chd",
+        "magnet:?xt=urn:btih:crash3btih&dn=Crash.Bandicoot.3.chd"
+      ],
+      fileSize: "450 MB",
+      uploadDate: "2021-04-26T18:11:37.000Z"
+    },
+    {
+      title: "Dead Rising 3",
+      uris: [
+        "magnet:?xt=urn:btih:fa4cc7ffe5545fc063da8c228bb4676c0179416a&dn=Dead.Rising.3.SteamRip.LP&tr=udp%3A%2F%2Fbt.rutor.org%3A2710"
+      ],
+      fileSize: "13.58 GB",
+      uploadDate: "2014-09-30T10:53:57.000Z"
+    }
+  ]
+};
+
+const importedJobs = await downloadService.importFromJson(hydraSample);
+
+assert(importedJobs.length === 2, `Manifiesto con downloads[] procesado: ${importedJobs.length} trabajos creados`);
+assert(importedJobs[0].platform === 'ps1', `Plataforma inferida para Crash Bandicoot [PS1]: ${importedJobs[0].platform}`);
+assert(importedJobs[1].platform === 'pc', `Plataforma por defecto inferida para Dead Rising 3: ${importedJobs[1].platform}`);
+
+// Verificación de parseo de tamaño de archivo a bytes
+const expectedCrashBytes = 450 * 1024 * 1024;
+assert(importedJobs[0].totalBytes === expectedCrashBytes, `Tamaño 450 MB convertido a bytes: ${importedJobs[0].totalBytes} == ${expectedCrashBytes}`);
+
+const expectedDeadRisingBytes = Math.round(13.58 * 1024 * 1024 * 1024);
+assert(importedJobs[1].totalBytes === expectedDeadRisingBytes, `Tamaño 13.58 GB convertido a bytes: ${importedJobs[1].totalBytes} == ${expectedDeadRisingBytes}`);
+
+// Verificación de juego agregado al catálogo de la biblioteca
+const crashGame = await backend.getGame(importedJobs[0].gameId);
+assert(crashGame !== null && crashGame.title === "Crash Bandicoot: Warped [PS1]", `Juego registrado en el catálogo desde el manifiesto: ${crashGame?.title}`);
+
+// ----------------------------------------------------------------------------
 // RESUMEN FINAL
 // ----------------------------------------------------------------------------
 console.log("\n===============================================================================");
@@ -410,5 +457,3 @@ console.log("===================================================================
 if (failed > 0) {
   process.exit(1);
 }
-
-
