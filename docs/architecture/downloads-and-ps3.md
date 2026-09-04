@@ -10,11 +10,12 @@ custom arguments are applied before `ProcessService` starts RPCS3.
 
 ## Downloads
 
-Authorized direct download links can be entered one per line in
+Authorized JSON manifest URLs can be entered one per line in
 `/etc/emubox/download-links.txt`. Blank lines and `#` comments are ignored.
-The platform must be present as a path segment, for example `/gba/demo.gba` or
-`/ps3/game.pkg`. `import_download_links` creates queued jobs and infers the
-filename and game id; it does not treat JSON manifests as game files.
+Each manifest is an array or an object with `games[]`; entries provide `platform`
+and a direct HTTP/HTTPS `url`, with optional `name`, `gameId`, `checksum` and
+`sizeBytes`. `import_download_links` creates queued jobs automatically and never
+treats the manifest itself as a game file.
 
 EmuBox owns the download lifecycle. `DownloadService` stores sources and jobs
 in SQLite and writes HTTP downloads to:

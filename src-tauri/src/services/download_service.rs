@@ -43,28 +43,43 @@ impl DownloadService {
             if !matches!(url.scheme(), "http" | "https") {
                 return Err(EmuBoxError::InvalidConfiguration(format!("Solo se aceptan enlaces HTTP/HTTPS en línea {}", line_number + 1)));
             }
-            let platform = url.path_segments()
-                .and_then(|segments| segments.filter(|segment| !segment.is_empty()).find(|segment| Self::supported_platform(segment)))
-                .ok_or_else(|| EmuBoxError::InvalidConfiguration(format!("No se pudo inferir la plataforma en línea {}", line_number + 1)))?;
-            let filename = url.path_segments()
-                .and_then(|mut segments| segments.rfind(|segment| !segment.is_empty()))
-                .unwrap_or("download.bin");
-            if filename.eq_ignore_ascii_case("download.json") || filename.ends_with(".json") {
-                return Err(EmuBoxError::InvalidConfiguration(format!("El enlace de la línea {} parece un manifiesto JSON, no un archivo de juego", line_number + 1)));
+            let manifest = Client::new().get(link).send()
+                .map_err(|e| EmuBoxError::Unknown(format!("No se pudo descargar el manifiesto de la línea {}: {}", line_number + 1, e)))?
+                .text()
+                .map_err(|e| EmuBoxError::Unknown(format!("No se pudo leer el manifiesto de la línea {}: {}", line_number + 1, e)))?;
+            let parsed: serde_json::Value = serde_json::from_str(&manifest)
+                .map_err(|e| EmuBoxError::InvalidConfiguration(format!("JSON inválido en línea {}: {}", line_number + 1, e)))?;
+            let entries = parsed.get("games").and_then(|games| games.as_array()).cloned()
+                .or_else(|| parsed.as_array().cloned())
+                .ok_or_else(|| EmuBoxError::InvalidConfiguration(format!("El manifiesto de la línea {} debe ser un array o contener games[]", line_number + 1)))?;
+            for (entry_index, entry) in entries.iter().enumerate() {
+                let platform = entry.get("platform").and_then(|value| value.as_str()).unwrap_or("");
+                if !Self::supported_platform(platform) {
+                    return Err(EmuBoxError::InvalidConfiguration(format!("Plataforma inválida en línea {}, entrada {}", line_number + 1, entry_index + 1)));
+                }
+                let download_uri = entry.get("url").and_then(|value| value.as_str()).unwrap_or("");
+                let download_url = reqwest::Url::parse(download_uri)
+                    .map_err(|e| EmuBoxError::InvalidConfiguration(format!("URL de juego inválida en línea {}: {}", line_number + 1, e)))?;
+                if !matches!(download_url.scheme(), "http" | "https") {
+                    return Err(EmuBoxError::InvalidConfiguration(format!("Solo se aceptan URLs HTTP/HTTPS en línea {}, entrada {}", line_number + 1, entry_index + 1)));
+                }
+                let name = entry.get("name").and_then(|value| value.as_str()).map(str::to_string)
+                    .or_else(|| download_url.path_segments().and_then(|mut segments| segments.rfind(|segment| !segment.is_empty())).map(|value| value.rsplit_once('.').map(|(stem, _)| stem).unwrap_or(value).replace(['_', '-'], " ")))
+                    .ok_or_else(|| EmuBoxError::InvalidConfiguration(format!("Falta name o filename en línea {}, entrada {}", line_number + 1, entry_index + 1)))?;
+                let game_id = entry.get("gameId").and_then(|value| value.as_str()).map(str::to_string)
+                    .unwrap_or_else(|| format!("download-{}-{}", platform, slug(&name)));
+                let source = DownloadSource {
+                    id: entry.get("sourceId").and_then(|value| value.as_str()).map(str::to_string).unwrap_or_else(|| format!("source-{}-{}", platform, slug(download_uri))),
+                    game_id: game_id.clone(),
+                    name,
+                    source_type: DownloadSourceType::Http,
+                    uri: download_uri.to_string(),
+                    size_bytes: entry.get("sizeBytes").and_then(|value| value.as_u64()),
+                    checksum: entry.get("checksum").and_then(|value| value.as_str()).map(str::to_string),
+                    available: entry.get("available").and_then(|value| value.as_bool()).unwrap_or(true),
+                };
+                jobs.push(Self::create_job(CreateDownloadRequest { game_id, platform: platform.to_string(), source })?);
             }
-            let name = filename.rsplit_once('.').map(|(stem, _)| stem).unwrap_or(filename).replace(['_', '-'], " ");
-            let game_id = format!("download-{}-{}", platform, slug(&name));
-            let source = DownloadSource {
-                id: format!("source-{}-{}", platform, slug(link)),
-                game_id: game_id.clone(),
-                name: name.clone(),
-                source_type: DownloadSourceType::Http,
-                uri: link.to_string(),
-                size_bytes: None,
-                checksum: None,
-                available: true,
-            };
-            jobs.push(Self::create_job(CreateDownloadRequest { game_id, platform: platform.to_string(), source })?);
         }
         Ok(jobs)
     }

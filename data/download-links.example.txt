@@ -1,4 +1,5 @@
-# Una URL directa por línea. Se ignoran líneas vacías y comentarios tras '#'.
-# La plataforma debe aparecer como segmento de la URL: /ps3/, /gba/, /snes/, etc.
-# Solo se aceptan HTTP/HTTPS y archivos de juego directos, no manifiestos JSON.
-# https://example.org/homebrew/gba/demo.gba
+# Una URL de manifiesto JSON por línea. Se ignoran líneas vacías y comentarios tras '#'.
+# El JSON debe ser un array o un objeto con games[]. Cada entrada requiere platform y url.
+# Campos opcionales: gameId, sourceId, name, sizeBytes, checksum y available.
+# Solo se aceptan URLs HTTPS/HTTP autorizadas para el manifiesto y para cada juego.
+# https://example.org/emubox/homebrew-manifest.json
