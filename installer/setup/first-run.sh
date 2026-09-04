@@ -14,12 +14,15 @@ echo "  -> Ejecutando detección de primer arranque (First Run)..."
 
 # 1. Detect GPU Vendor
 GPU_VENDOR="generic"
-if lspci 2>/dev/null | grep -i 'vga\|3d\|display' | grep -iq 'amd\|radeon'; then
-  GPU_VENDOR="amd"
-elif lspci 2>/dev/null | grep -i 'vga\|3d\|display' | grep -iq 'nvidia'; then
+GPU_INFO="$(lspci -nnk 2>/dev/null | grep -A3 -Ei 'VGA compatible controller|3D controller|Display controller' || true)"
+if echo "${GPU_INFO}" | grep -Eiq 'VMware|vmwgfx|VirtualBox|vboxvideo|virtio|qxl'; then
+  GPU_VENDOR="generic"
+elif echo "${GPU_INFO}" | grep -Eiq 'NVIDIA|nvidia|nouveau'; then
   GPU_VENDOR="nvidia"
-elif lspci 2>/dev/null | grep -i 'vga\|3d\|display' | grep -iq 'intel'; then
+elif echo "${GPU_INFO}" | grep -Eiq 'Intel|i915|xe'; then
   GPU_VENDOR="intel"
+elif echo "${GPU_INFO}" | grep -Eiq 'AMD|ATI|Radeon|amdgpu'; then
+  GPU_VENDOR="amd"
 fi
 echo "  ✓ GPU detectada: ${GPU_VENDOR}"
 

@@ -198,7 +198,18 @@ export const App: Component = () => {
       if (backend.isTauriEnvironment) {
         // Escanear y cargar juegos reales del sistema Linux (/var/lib/emubox/games)
         await backend.scanGames();
-        await libraryStore.loadGames();
+        const installedGames = await backend.getGames();
+        if (installedGames.length > 0) {
+          await libraryStore.loadGames(installedGames);
+        } else {
+          // El JSON es el catalogo visible; las fuentes autorizadas se importan aparte.
+          const catalogGames = (gamesDataset as unknown as Game[]).map((game) => ({
+            ...game,
+            installed: false
+          }));
+          mockBackend.setGames(catalogGames);
+          await libraryStore.loadGames(catalogGames);
+        }
       } else {
         // Entorno de desarrollo en navegador web sin runtime Tauri
         const realGames = await backend.getGames();

@@ -198,12 +198,12 @@ export class MockBackendService implements IEmuBoxBackend {
 
   constructor(initialGames?: Game[]) {
     if (initialGames) {
-      this.games = initialGames.map(game => ({ ...game, installed: game.installed ?? true }));
+      this.games = initialGames.map(game => ({ ...game, installed: game.installed ?? false }));
     }
   }
 
   public setGames(games: Game[]): void {
-    this.games = games.map(game => ({ ...game, installed: game.installed ?? true }));
+    this.games = games.map(game => ({ ...game, installed: game.installed ?? false }));
   }
 
   // 1. Sistema & Hardware Telemetry

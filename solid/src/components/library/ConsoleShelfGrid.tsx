@@ -166,6 +166,9 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
                             <span>{game.releaseYear}</span>
                             <span class="card-rating">★ {game.rating.toFixed(1)}</span>
                           </div>
+                          <div class="card-detail-line" title={`${game.genre} · ${game.developer} · ${game.publisher}`}>
+                            {game.genre} · {game.developer}
+                          </div>
                         </div>
                       </div>
                     );

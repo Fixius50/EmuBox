@@ -14,7 +14,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EMUBOX_USER="${SUDO_USER:-${USER}}"
+EMUBOX_USER="root"
 EMUBOX_APP_DIR="/opt/emubox"
 SERVICE_NAME="emubox.service"
 
@@ -118,14 +118,14 @@ GPU_DRIVER="$(echo "$GPU_INFO" | grep -Ei 'Kernel driver in use:' | awk '{print 
 [[ -z "$GPU_DRIVER" ]] && GPU_DRIVER="desconocido"
 
 GPU_VENDOR="Desconocido"
-if echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'AMD|ATI|Radeon|amdgpu'; then
-  GPU_VENDOR="AMD"
-elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'Intel|i915|xe'; then
-  GPU_VENDOR="Intel"
+if echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'VMware|vmwgfx|VirtualBox|vboxvideo|virtio|qxl'; then
+  GPU_VENDOR="Virtual / Emulada"
 elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'NVIDIA|nvidia|nouveau'; then
   GPU_VENDOR="NVIDIA"
-elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'VMware|vmwgfx|VirtualBox|vboxvideo|virtio|qxl'; then
-  GPU_VENDOR="Virtual / Emulada"
+elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'Intel|i915|xe'; then
+  GPU_VENDOR="Intel"
+elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'AMD|ATI|Radeon|amdgpu'; then
+  GPU_VENDOR="AMD"
 fi
 
 # 3. Detección de Renderer y Aceleración Real por Hardware (Descartando llvmpipe/software)
@@ -318,7 +318,7 @@ Environment=XDG_SESSION_TYPE=wayland
 
 StandardOutput=append:/var/log/emubox/emubox.log
 StandardError=append:/var/log/emubox/emubox-error.log
-NoNewPrivileges=true
+NoNewPrivileges=false
 
 [Install]
 WantedBy=graphical.target

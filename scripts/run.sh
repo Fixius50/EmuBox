@@ -66,14 +66,14 @@ GPU_DRIVER="$(echo "$GPU_INFO" | grep -Ei 'Kernel driver in use:' | awk '{print 
 [[ -z "$GPU_DRIVER" ]] && GPU_DRIVER="desconocido"
 
 GPU_VENDOR="Desconocido"
-if echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'AMD|ATI|Radeon|amdgpu'; then
-  GPU_VENDOR="AMD"
-elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'Intel|i915|xe'; then
-  GPU_VENDOR="Intel"
+if echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'VMware|vmwgfx|VirtualBox|vboxvideo|virtio|qxl'; then
+  GPU_VENDOR="Virtual / Emulada"
 elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'NVIDIA|nvidia|nouveau'; then
   GPU_VENDOR="NVIDIA"
-elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'VMware|vmwgfx|VirtualBox|vboxvideo|virtio|qxl'; then
-  GPU_VENDOR="Virtual / Emulada"
+elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'Intel|i915|xe'; then
+  GPU_VENDOR="Intel"
+elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'AMD|ATI|Radeon|amdgpu'; then
+  GPU_VENDOR="AMD"
 fi
 
 # 5. Detección de Renderer y Aceleración Real por Hardware (Descartando llvmpipe/software)

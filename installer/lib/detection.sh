@@ -31,12 +31,16 @@ detect_distribution() {
 detect_gpu() {
   local gpu="generic"
   if command -v lspci >/dev/null 2>&1; then
-    if lspci | grep -i 'vga\|3d\|display' | grep -iq 'amd\|radeon'; then
-      gpu="amd"
-    elif lspci | grep -i 'vga\|3d\|display' | grep -iq 'nvidia'; then
+    local gpu_info
+    gpu_info="$(lspci -nnk 2>/dev/null | grep -A3 -Ei 'VGA compatible controller|3D controller|Display controller' || true)"
+    if echo "${gpu_info}" | grep -Eiq 'VMware|vmwgfx|VirtualBox|vboxvideo|virtio|qxl'; then
+      gpu="generic"
+    elif echo "${gpu_info}" | grep -Eiq 'NVIDIA|nvidia|nouveau'; then
       gpu="nvidia"
-    elif lspci | grep -i 'vga\|3d\|display' | grep -iq 'intel'; then
+    elif echo "${gpu_info}" | grep -Eiq 'Intel|i915|xe'; then
       gpu="intel"
+    elif echo "${gpu_info}" | grep -Eiq 'AMD|ATI|Radeon|amdgpu'; then
+      gpu="amd"
     fi
   fi
   echo "${gpu}"

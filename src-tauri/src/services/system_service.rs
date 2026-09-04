@@ -266,12 +266,14 @@ impl SystemService {
             for line in output.lines() {
                 if line.contains("VGA compatible controller") || line.contains("3D controller") {
                     let lower = line.to_lowercase();
-                    let vendor = if lower.contains("amd") || lower.contains("ati") {
-                        "amd"
+                    let vendor = if lower.contains("vmware") || lower.contains("virtualbox") || lower.contains("virtio") || lower.contains("qxl") {
+                        "generic"
                     } else if lower.contains("nvidia") {
                         "nvidia"
                     } else if lower.contains("intel") {
                         "intel"
+                    } else if lower.contains("amd") || lower.contains("ati") || lower.contains("radeon") {
+                        "amd"
                     } else {
                         "generic"
                     };
