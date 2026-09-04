@@ -8,8 +8,10 @@ interface PlatformGamesViewProps {
   platform: Platform;
   games: Game[];
   focusedIndex: number;
+  downloadingIds: Set<string>;
   onFocusIndex: (idx: number) => void;
   onSelectGame: (game: Game) => void;
+  onDownloadGame: (game: Game) => void;
   onBackToPlatforms: () => void;
   onToggleFavorite: (gameId: string) => void;
 }
@@ -63,7 +65,9 @@ export const PlatformGamesView: Component<PlatformGamesViewProps> = (props) => {
 
       <HeroSection
         focusedGame={focusedGame()}
+        downloadingIds={props.downloadingIds}
         onPlayGame={(game) => props.onSelectGame(game)}
+        onDownloadGame={(game) => props.onDownloadGame(game)}
         onOpenDetails={(game) => props.onSelectGame(game)}
         onToggleFavorite={(id) => props.onToggleFavorite(id)}
       />
@@ -71,7 +75,9 @@ export const PlatformGamesView: Component<PlatformGamesViewProps> = (props) => {
       <ConsoleShelfGrid
         games={props.games}
         focusedIndex={props.focusedIndex}
+        downloadingIds={props.downloadingIds}
         onSelectGame={props.onSelectGame}
+        onDownloadGame={props.onDownloadGame}
         onFocusIndex={props.onFocusIndex}
         onToggleFavorite={props.onToggleFavorite}
       />

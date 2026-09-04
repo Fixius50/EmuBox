@@ -3,7 +3,9 @@ import type { Game } from '@contracts/game.types';
 
 interface HeroSectionProps {
   focusedGame: Game | null;
+  downloadingIds: Set<string>;
   onPlayGame: (game: Game) => void;
+  onDownloadGame: (game: Game) => void;
   onOpenDetails: (game: Game) => void;
   onToggleFavorite: (id: string) => void;
 }
@@ -54,13 +56,27 @@ export const HeroSection: Component<HeroSectionProps> = (props) => {
               </div>
 
               <div class="hero-actions-row">
-                <button
-                  class="hero-cta-btn primary-play-btn"
-                  id="btn-hero-play"
-                  onClick={() => props.onPlayGame(game())}
+                <Show
+                  when={game().installed}
+                  fallback={
+                    <button
+                      class="hero-cta-btn primary-play-btn"
+                      id="btn-hero-download"
+                      disabled={props.downloadingIds.has(game().id)}
+                      onClick={() => props.onDownloadGame(game())}
+                    >
+                      <span>{props.downloadingIds.has(game().id) ? 'DESCARGANDO...' : 'DESCARGAR'}</span>
+                    </button>
+                  }
                 >
-                  <span>JUGAR</span>
-                </button>
+                  <button
+                    class="hero-cta-btn primary-play-btn"
+                    id="btn-hero-play"
+                    onClick={() => props.onPlayGame(game())}
+                  >
+                    <span>JUGAR</span>
+                  </button>
+                </Show>
 
                 <button
                   class="hero-cta-btn secondary-btn"

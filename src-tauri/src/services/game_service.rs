@@ -335,7 +335,7 @@ impl GameService {
             if conn.execute(
                 "INSERT INTO games (id, title, platform_id, platform_name, release_year, genre, developer, publisher, rating, rom_path, file_size_bytes, description)
                  VALUES (?1, ?2, ?3, ?4, ?5, 'Classic', ?6, ?6, 4.5, ?7, 0, ?8)
-                 ON CONFLICT(rom_path) DO UPDATE SET title = excluded.title, platform_id = excluded.platform_id;",
+                 ON CONFLICT(rom_path) DO UPDATE SET file_size_bytes = excluded.file_size_bytes;",
                 params![game_id, clean_title, plat.id, plat.name, plat.release_year, plat.manufacturer, rom_path, format!("Juego oficial de {}", plat.name)],
             ).is_ok() {
                 if exists_before { *updated += 1; } else { *added += 1; }
@@ -369,8 +369,6 @@ impl GameService {
                             "INSERT INTO games (id, title, platform_id, platform_name, release_year, genre, developer, publisher, rating, rom_path, file_size_bytes, description)
                              VALUES (?1, ?2, ?3, ?4, ?5, 'Classic', ?6, ?6, 4.5, ?7, ?8, ?9)
                              ON CONFLICT(rom_path) DO UPDATE SET
-                               title = excluded.title,
-                               platform_id = excluded.platform_id,
                                file_size_bytes = excluded.file_size_bytes;",
                             params![
                                 game_id,
@@ -460,6 +458,7 @@ impl GameService {
                 cover_image,
                 backdrop_image,
                 description,
+                installed: rom_path.is_some(),
                 rom_path,
                 file_size_mb: None,
                 last_played: None,
@@ -514,6 +513,7 @@ impl GameService {
                 cover_image,
                 backdrop_image,
                 description,
+                installed: rom_path.is_some(),
                 rom_path,
                 file_size_mb: None,
                 last_played: None,
@@ -546,6 +546,64 @@ impl GameService {
 
         Ok(new_fav == 1)
     }
+
+    /// Crea o actualiza la entrada de catálogo de un juego (metadatos) sin tocar
+    /// `rom_path`, de modo que un juego pendiente de descarga ya aparezca en la
+    /// biblioteca y no pierda su estado de instalado en re-importaciones del manifest.
+    pub fn upsert_catalog_entry(entry: CatalogEntry) -> Result<(), EmuBoxError> {
+        let conn = DatabaseService::get_connection()?;
+        conn.execute(
+            "INSERT INTO games (id, title, platform_id, platform_name, release_year, genre, developer, publisher, rating, cover_image, backdrop_image, description)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+             ON CONFLICT(id) DO UPDATE SET
+               title = excluded.title,
+               platform_id = excluded.platform_id,
+               platform_name = excluded.platform_name,
+               release_year = excluded.release_year,
+               genre = excluded.genre,
+               developer = excluded.developer,
+               publisher = excluded.publisher,
+               rating = excluded.rating,
+               cover_image = excluded.cover_image,
+               backdrop_image = excluded.backdrop_image,
+               description = excluded.description;",
+            params![
+                entry.id, entry.title, entry.platform_id, entry.platform_name, entry.release_year,
+                entry.genre, entry.developer, entry.publisher, entry.rating,
+                entry.cover_image, entry.backdrop_image, entry.description
+            ],
+        ).map_err(|e| EmuBoxError::StorageUnavailable(format!("Error guardando catálogo de juego: {}", e)))?;
+        Ok(())
+    }
+
+    /// Marca un juego de catálogo como instalado una vez la descarga ha terminado.
+    pub fn mark_installed(game_id: &str, rom_path: &str, file_size_bytes: u64) -> Result<(), EmuBoxError> {
+        let conn = DatabaseService::get_connection()?;
+        conn.execute(
+            "UPDATE games SET rom_path = ?1, file_size_bytes = ?2 WHERE id = ?3;",
+            params![rom_path, file_size_bytes as i64, game_id],
+        ).map_err(|e| EmuBoxError::StorageUnavailable(format!("Error marcando juego como instalado: {}", e)))?;
+        Ok(())
+    }
+
+    pub fn platform_name(platform_id: &str) -> String {
+        PLATFORM_SPECS.iter().find(|p| p.id == platform_id).map(|p| p.name.to_string()).unwrap_or_else(|| platform_id.to_string())
+    }
+}
+
+pub struct CatalogEntry {
+    pub id: String,
+    pub title: String,
+    pub platform_id: String,
+    pub platform_name: String,
+    pub release_year: Option<u32>,
+    pub genre: Option<String>,
+    pub developer: Option<String>,
+    pub publisher: Option<String>,
+    pub rating: Option<f32>,
+    pub cover_image: Option<String>,
+    pub backdrop_image: Option<String>,
+    pub description: Option<String>,
 }
 
 #[cfg(test)]

@@ -8,7 +8,9 @@ import { animateStaggerShelf } from '@animations/shelf-animations';
 interface ConsoleShelfGridProps {
   games: Game[];
   focusedIndex: number;
+  downloadingIds: Set<string>;
   onSelectGame: (game: Game) => void;
+  onDownloadGame: (game: Game) => void;
   onFocusIndex: (index: number) => void;
   onToggleFavorite: (id: string) => void;
 }
@@ -108,7 +110,11 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
                         id={`shelf-card-${game.id}`}
                         onClick={() => {
                           props.onFocusIndex(globalIdx());
-                          props.onSelectGame(game);
+                          if (game.installed) {
+                            props.onSelectGame(game);
+                          } else {
+                            props.onDownloadGame(game);
+                          }
                         }}
                         onMouseEnter={() => props.onFocusIndex(globalIdx())}
                       >
@@ -142,6 +148,12 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
                           {game.favorite && (
                             <div class="card-fav-badge" title="Favorito">
                               ★
+                            </div>
+                          )}
+
+                          {!game.installed && (
+                            <div class="card-download-badge" title="Pendiente de descarga">
+                              {props.downloadingIds.has(game.id) ? 'DESCARGANDO...' : 'DESCARGAR'}
                             </div>
                           )}
                         </div>

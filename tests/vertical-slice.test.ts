@@ -72,7 +72,7 @@ unhookAction();
 // TEST 2: Backend Desacoplado & Operaciones sobre 10.000 Juegos
 // ----------------------------------------------------------------------------
 console.log("\nTEST 2: Backend Desacoplado & Operaciones sobre 10.000 Juegos...");
-const mockBackend = new MockBackend(games10000 as Game[]);
+const mockBackend = new MockBackend(games10000 as unknown as Game[]);
 const backend = new TauriBackend(mockBackend);
 
 // Filtrado de 10.000 items

@@ -207,6 +207,10 @@ export class TauriBackendService implements IEmuBoxBackend {
     return this.invoke<DownloadJob>('cancel_download', { id });
   }
 
+  public async downloadGame(gameId: string): Promise<DownloadJob> {
+    return this.resolve('download_game', { gameId }, () => this.fallback.downloadGame(gameId));
+  }
+
   public async stopGame(): Promise<void> {
     return this.resolve('stop_game', undefined, () => this.fallback.stopGame());
   }

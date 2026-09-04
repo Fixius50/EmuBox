@@ -50,6 +50,16 @@ export const App: Component = () => {
   const navigationStore = createNavigationStore();
   const modalStore = createModalStore();
 
+  const handleGameActivate = (game: Game) => {
+    if (game.installed) {
+      soundFx.playSelect();
+      modalStore.openEmulatorSelector(game);
+    } else {
+      soundFx.playSelect();
+      libraryStore.downloadGame(game.id);
+    }
+  };
+
   const [activeSettingsTab, setActiveSettingsTab] = createSignal<string>('system');
   const [settingsFocusArea, setSettingsFocusArea] = createSignal<'sidebar' | 'content'>('sidebar');
   const [settingsRowIndex, setSettingsRowIndex] = createSignal<number>(0);
@@ -110,7 +120,7 @@ export const App: Component = () => {
   });
 
   // 4. Composable Logic Hooks
-  const { launchWithEmulator, launchGameDirect } = useGameLauncher({ backend, systemStore, modalStore, soundFx });
+  const { launchWithEmulator } = useGameLauncher({ backend, systemStore, modalStore, soundFx });
 
   const { handleAction } = useConsoleNavigation({
     navigationStore,
@@ -136,7 +146,7 @@ export const App: Component = () => {
       navigationStore.setLibraryViewMode('games');
     },
     onSelectGame: (g) => {
-      launchGameDirect(g);
+      handleGameActivate(g);
     }
   });
 
@@ -220,7 +230,9 @@ export const App: Component = () => {
               navigationStore.setFocusedGameIndex(0);
             }}
             onFocusIndex={(idx) => navigationStore.setFocusedGameIndex(idx)}
-            onSelectGame={launchGameDirect}
+            downloadingIds={libraryStore.downloadingIds()}
+            onSelectGame={handleGameActivate}
+            onDownloadGame={(g) => libraryStore.downloadGame(g.id)}
             onToggleFavorite={(id) => {
               soundFx.playFavorite();
               libraryStore.toggleFavorite(id);

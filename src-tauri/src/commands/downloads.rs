@@ -46,3 +46,8 @@ pub fn resume_download(id: String) -> Result<DownloadJob, EmuBoxError> {
 pub fn cancel_download(id: String) -> Result<DownloadJob, EmuBoxError> {
     DownloadService::cancel(&id)
 }
+
+#[tauri::command]
+pub fn download_game(game_id: String) -> Result<DownloadJob, EmuBoxError> {
+    DownloadService::download_game(game_id)
+}

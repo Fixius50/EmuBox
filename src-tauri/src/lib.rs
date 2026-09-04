@@ -7,6 +7,9 @@ pub mod commands;
 use tauri::Emitter;
 use state::AppState;
 
+/// Intervalo entre comprobaciones periódicas de los manifiestos de descarga.
+const MANIFEST_POLL_INTERVAL_SECS: u64 = 120;
+
 pub fn run() {
     tauri::Builder::default()
         .manage(AppState::new())
@@ -26,6 +29,19 @@ pub fn run() {
 
             // 2. Iniciar watcher reactivo del sistema de archivos (inotify / notify)
             services::GameLibraryWatcher::start_watching(None, Some(app.handle().clone()));
+
+            // 3. Consultar periódicamente los manifiestos de descarga y añadir en
+            // caliente el catálogo nuevo, sin esperar a reiniciar la consola.
+            let poll_handle = app.handle().clone();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(std::time::Duration::from_secs(MANIFEST_POLL_INTERVAL_SECS));
+                if let Ok(jobs) = services::DownloadService::import_and_start() {
+                    let _ = poll_handle.emit("library-updated", serde_json::json!({
+                        "reason": "periodic-manifest-check",
+                        "jobCount": jobs.len()
+                    }));
+                }
+            });
 
             Ok(())
         })
@@ -103,6 +119,7 @@ pub fn run() {
             commands::downloads::cancel_download,
             commands::downloads::import_download_links,
             commands::downloads::import_and_start_downloads,
+            commands::downloads::download_game,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Resized(size) = event {

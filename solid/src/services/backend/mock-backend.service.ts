@@ -198,12 +198,12 @@ export class MockBackendService implements IEmuBoxBackend {
 
   constructor(initialGames?: Game[]) {
     if (initialGames) {
-      this.games = initialGames;
+      this.games = initialGames.map(game => ({ ...game, installed: game.installed ?? true }));
     }
   }
 
   public setGames(games: Game[]): void {
-    this.games = games;
+    this.games = games.map(game => ({ ...game, installed: game.installed ?? true }));
   }
 
   // 1. Sistema & Hardware Telemetry
@@ -723,6 +723,24 @@ export class MockBackendService implements IEmuBoxBackend {
   public async pauseDownload(id: string): Promise<DownloadJob> { return this.updateDownload(id, 'paused'); }
   public async resumeDownload(id: string): Promise<DownloadJob> { return this.updateDownload(id, 'downloading'); }
   public async cancelDownload(id: string): Promise<DownloadJob> { return this.updateDownload(id, 'cancelled'); }
-}
 
+  public async downloadGame(gameId: string): Promise<DownloadJob> {
+    const game = this.games.find(g => g.id === gameId);
+    if (game) game.installed = true;
+    const job: DownloadJob = {
+      id: `download-${gameId}`,
+      gameId,
+      sourceId: `source-${gameId}`,
+      platform: game?.platform || 'all',
+      destinationPath: `${paths.getRomsDir(game?.platform)}/${gameId}`,
+      status: 'completed',
+      progress: 100,
+      downloadedBytes: 0,
+      totalBytes: 0,
+      speedBytesPerSecond: 0,
+    };
+    this.downloads.push(job);
+    return job;
+  }
+}
 export { MockBackendService as MockBackend };

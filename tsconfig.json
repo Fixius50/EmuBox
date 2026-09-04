@@ -10,6 +10,7 @@
     "jsxImportSource": "solid-js",
     "strict": false,
     "skipLibCheck": true,
+    "incremental": false,
     "paths": {
       "@contracts/*": ["./solid/src/types/*"],
       "@services/*": ["./solid/src/services/*"],

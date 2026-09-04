@@ -9,6 +9,7 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
   const [favoritesOnly, setFavoritesOnly] = createSignal<boolean>(false);
   const [datasetLimit, setDatasetLimit] = createSignal<number>(10000);
   const [isLoading, setIsLoading] = createSignal<boolean>(false);
+  const [downloadingIds, setDownloadingIds] = createSignal<Set<string>>(new Set());
 
   const loadGames = async (preloadedGames?: Game[]) => {
     setIsLoading(true);
@@ -61,6 +62,30 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
     );
   };
 
+  const downloadGame = async (gameId: string) => {
+    setDownloadingIds(prev => new Set(prev).add(gameId));
+    const clear = () => setDownloadingIds(prev => {
+      const next = new Set(prev);
+      next.delete(gameId);
+      return next;
+    });
+    try {
+      const job = await backend.downloadGame(gameId);
+      const poll = async () => {
+        const jobs = await backend.getDownloadJobs();
+        const current = jobs.find(j => j.id === job.id);
+        if (!current || current.status === 'completed' || current.status === 'failed' || current.status === 'cancelled') {
+          clear();
+          return;
+        }
+        setTimeout(poll, 2000);
+      };
+      setTimeout(poll, 2000);
+    } catch {
+      clear();
+    }
+  };
+
   return {
     games,
     setGames,
@@ -75,7 +100,9 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
     isLoading,
     loadGames,
     filteredGames,
-    toggleFavorite
+    toggleFavorite,
+    downloadingIds,
+    downloadGame
   };
 }
 

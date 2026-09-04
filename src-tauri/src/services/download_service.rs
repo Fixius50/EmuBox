@@ -12,6 +12,7 @@ use rusqlite::params;
 use crate::errors::EmuBoxError;
 use crate::models::{CreateDownloadRequest, DownloadJob, DownloadSource, DownloadSourceType, DownloadStatus};
 use crate::services::db_service::DatabaseService;
+use crate::services::game_service::{CatalogEntry, GameService};
 use crate::services::paths;
 
 struct RuntimeControl {
@@ -68,13 +69,27 @@ impl DownloadService {
                 let source = DownloadSource {
                     id: entry.get("sourceId").and_then(|value| value.as_str()).map(str::to_string).unwrap_or_else(|| format!("source-{}-{}", platform, slug(download_uri))),
                     game_id: game_id.clone(),
-                    name,
+                    name: name.clone(),
                     source_type: DownloadSourceType::Http,
                     uri: download_uri.to_string(),
                     size_bytes: entry.get("sizeBytes").and_then(|value| value.as_u64()),
                     checksum: entry.get("checksum").and_then(|value| value.as_str()).map(str::to_string),
                     available: entry.get("available").and_then(|value| value.as_bool()).unwrap_or(true),
                 };
+                let _ = GameService::upsert_catalog_entry(CatalogEntry {
+                    id: game_id.clone(),
+                    title: name,
+                    platform_id: platform.to_string(),
+                    platform_name: GameService::platform_name(platform),
+                    release_year: entry.get("releaseYear").and_then(|value| value.as_u64()).map(|value| value as u32),
+                    genre: entry.get("genre").and_then(|value| value.as_str()).map(str::to_string),
+                    developer: entry.get("developer").and_then(|value| value.as_str()).map(str::to_string),
+                    publisher: entry.get("publisher").and_then(|value| value.as_str()).map(str::to_string),
+                    rating: entry.get("rating").and_then(|value| value.as_f64()).map(|value| value as f32),
+                    cover_image: entry.get("coverImage").and_then(|value| value.as_str()).map(str::to_string),
+                    backdrop_image: entry.get("backdropImage").and_then(|value| value.as_str()).map(str::to_string),
+                    description: entry.get("description").and_then(|value| value.as_str()).map(str::to_string),
+                });
                 jobs.push(Self::create_job(CreateDownloadRequest { game_id, platform: platform.to_string(), source })?);
             }
         }
@@ -110,6 +125,20 @@ impl DownloadService {
     pub fn create_job(request: CreateDownloadRequest) -> Result<DownloadJob, EmuBoxError> {
         let source = request.source;
         Self::create_source(source.clone())?;
+        let _ = GameService::upsert_catalog_entry(CatalogEntry {
+            id: request.game_id.clone(),
+            title: source.name.clone(),
+            platform_id: request.platform.clone(),
+            platform_name: GameService::platform_name(&request.platform),
+            release_year: None,
+            genre: None,
+            developer: None,
+            publisher: None,
+            rating: None,
+            cover_image: None,
+            backdrop_image: None,
+            description: None,
+        });
         let destination = Self::destination_path(&request.platform, &source.uri)?;
         let existing = DatabaseService::get_connection()?.query_row(
             "SELECT id FROM download_jobs WHERE source_id = ?1 AND status IN ('queued', 'downloading', 'paused', 'completed') ORDER BY rowid DESC LIMIT 1",
@@ -147,6 +176,37 @@ impl DownloadService {
         Self::list_jobs()
     }
 
+    /// Descarga un juego de catálogo a partir de su `gameId`, reutilizando la fuente
+    /// importada desde el manifiesto o creada manualmente para ese juego.
+    pub fn download_game(game_id: String) -> Result<DownloadJob, EmuBoxError> {
+        let conn = DatabaseService::get_connection()?;
+        let platform: String = conn.query_row(
+            "SELECT platform_id FROM games WHERE id = ?1",
+            params![game_id],
+            |row| row.get(0),
+        ).map_err(|_| EmuBoxError::NotFound(format!("Juego no encontrado en el catálogo: {}", game_id)))?;
+
+        let (source_id, name, uri, size_bytes, checksum, available): (String, String, String, Option<u64>, Option<String>, i64) = conn.query_row(
+            "SELECT id, name, uri, size_bytes, checksum, available FROM download_sources WHERE game_id = ?1 AND available = 1 ORDER BY rowid DESC LIMIT 1",
+            params![game_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?)),
+        ).map_err(|_| EmuBoxError::NotFound(format!("No hay fuente de descarga disponible para: {}", game_id)))?;
+
+        let source = DownloadSource {
+            id: source_id,
+            game_id: game_id.clone(),
+            name,
+            source_type: DownloadSourceType::Http,
+            uri,
+            size_bytes,
+            checksum,
+            available: available != 0,
+        };
+
+        let job = Self::create_job(CreateDownloadRequest { game_id, platform, source })?;
+        Self::start(job.id)
+    }
+
     pub fn get_job(id: &str) -> Result<Option<DownloadJob>, EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
         let mut stmt = conn.prepare("SELECT id, game_id, source_id, platform, destination_path, status, progress, downloaded_bytes, total_bytes, speed_bytes_per_second, error FROM download_jobs WHERE id = ?1")
@@ -168,7 +228,7 @@ impl DownloadService {
         Self::update_status(&id, DownloadStatus::Downloading, None)?;
         let worker_id = id.clone();
         thread::spawn(move || {
-            let result = Self::run_http(worker_id.clone(), source_uri, checksum, job.destination_path, paused, cancelled);
+            let result = Self::run_http(worker_id.clone(), job.game_id.clone(), source_uri, checksum, job.destination_path, paused, cancelled);
             active_jobs().lock().unwrap().remove(&worker_id);
             if let Err(error) = result {
                 let _ = Self::update_status(&worker_id, DownloadStatus::Failed, Some(error.to_string()));
@@ -195,7 +255,7 @@ impl DownloadService {
         Self::get_job(id)?.ok_or_else(|| EmuBoxError::NotFound(id.to_string()))
     }
 
-    fn run_http(id: String, uri: String, checksum: Option<String>, destination: String, paused: Arc<AtomicBool>, cancelled: Arc<AtomicBool>) -> Result<(), EmuBoxError> {
+    fn run_http(id: String, game_id: String, uri: String, checksum: Option<String>, destination: String, paused: Arc<AtomicBool>, cancelled: Arc<AtomicBool>) -> Result<(), EmuBoxError> {
         let destination = PathBuf::from(destination);
         let parent = destination.parent().ok_or_else(|| EmuBoxError::InvalidConfiguration("Destino inválido".to_string()))?;
         fs::create_dir_all(parent).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
@@ -243,6 +303,8 @@ impl DownloadService {
             }
         }
         Self::update_status(&id, DownloadStatus::Completed, None)?;
+        let file_size = fs::metadata(&destination).map(|metadata| metadata.len()).unwrap_or(0);
+        let _ = GameService::mark_installed(&game_id, &destination.to_string_lossy(), file_size);
         Ok(())
     }
 

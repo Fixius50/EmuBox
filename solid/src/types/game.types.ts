@@ -43,6 +43,7 @@ export interface Game {
   backdropImage?: string;
   description: string;
   romPath?: string;
+  installed: boolean;
 }
 
 export interface Emulator {

@@ -197,4 +197,5 @@ export interface IEmuBoxBackend {
   pauseDownload(id: string): Promise<DownloadJob>;
   resumeDownload(id: string): Promise<DownloadJob>;
   cancelDownload(id: string): Promise<DownloadJob>;
+  downloadGame(gameId: string): Promise<DownloadJob>;
 }

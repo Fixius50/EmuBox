@@ -31,4 +31,8 @@ export class DownloadService {
   public cancel(jobId: string): Promise<DownloadJob> {
     return this.backend.cancelDownload(jobId);
   }
+
+  public downloadGame(gameId: string): Promise<DownloadJob> {
+    return this.backend.downloadGame(gameId);
+  }
 }

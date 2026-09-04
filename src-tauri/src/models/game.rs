@@ -21,6 +21,7 @@ pub struct Game {
     pub file_size_mb: Option<f32>,
     pub last_played: Option<String>,
     pub emulator_id: Option<String>,
+    pub installed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
