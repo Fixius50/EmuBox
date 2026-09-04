@@ -34,3 +34,17 @@
    - Diálogo modal con Kobalte para elegir el motor de emulación (*Standalone* vs *Libretro Core*) y los argumentos de renderizado.
 4. **Sintetizador Web Audio API**:
    - Efectos de sonido procedurales para navegación, confirmación y cancelación sin archivos de audio pesados.
+
+## 4. Estado de la fase de juegos
+
+La fase de catálogo e integración de juegos está completada:
+
+- el dataset `data/games-10000.json` alimenta el catálogo visible cuando SQLite no contiene ROMs instaladas;
+- las tarjetas exponen plataforma, año, valoración, género y desarrollador;
+- la navegación usa virtualización para 10.000 entradas;
+- `DESCARGAR` y `JUGAR` dependen del estado instalado;
+- `DownloadService` procesa fuentes autorizadas importadas desde manifiestos;
+- el watcher y el escaneo actualizan SQLite cuando aparece una ROM;
+- el selector de emulador y `CompatibilityService` resuelven el lanzamiento.
+
+El JSON de catálogo no es una fuente de distribución. Una descarga solo está disponible cuando existe una fuente autorizada para su `gameId`. La arquitectura vigente está en `docs/architecture/current-state.md`.

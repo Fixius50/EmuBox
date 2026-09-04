@@ -10,6 +10,11 @@ custom arguments are applied before `ProcessService` starts RPCS3.
 
 ## Downloads
 
+La fase de integración de juegos y descargas está implementada. El catálogo
+puede mostrar metadatos antes de que exista una ROM local; la descarga concreta
+requiere una fuente autorizada registrada para el `gameId`. El dataset JSON de
+catálogo no contiene enlaces de ROM.
+
 Authorized JSON manifest URLs can be entered one per line in
 `/etc/emubox/download-links.txt`. Blank lines and `#` comments are ignored.
 EmuBox supports two manifest formats:
@@ -26,8 +31,10 @@ EmuBox supports two manifest formats:
    with optional `name`, `gameId`, `checksum` and `sizeBytes`.
 
 `import_download_links`, `import_downloads_from_json`, and `import_downloads_from_url`
-create queued jobs automatically and register the games in the catalog so that they are
-immediately visible in the library.
+create jobs and register games in the catalog so that their metadata is immediately
+visible. The UI invokes `download_game` for a registered source and refreshes the
+library after completion, changing the card from `DESCARGAR` to `JUGAR` when the
+scanner finds the ROM.
 
 EmuBox owns the download lifecycle. `DownloadService` stores sources and jobs
 in SQLite and writes HTTP downloads to:
@@ -44,4 +51,4 @@ through the catalog and scanner pipeline.
 
 Sources of type HTTP/HTTPS are automatically queued for download execution.
 Torrent and magnet sources are registered in the catalog and SQLite sources table,
-while their direct execution remains reserved for a dedicated adapter.
+while their direct execution remains reserved for a dedicated adapter.

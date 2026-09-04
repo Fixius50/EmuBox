@@ -9,7 +9,7 @@ Este documento define la arquitectura de ciclo de vida, arranque autónomo y pol
 ```
                     ┌──────────────────────────────────────────────────┐
                     │                 1. SYSTEMD / TTY1                │
-                    │   - Autologin del usuario 'emubox' en seat0      │
+                    │   - Autologin de la appliance en seat0           │
                     │   - Aislamiento de sesión PAM y D-Bus de usuario │
                     └─────────────────────────┬────────────────────────┘
                                               │
@@ -58,7 +58,7 @@ Cage y Gamescope no son alternativas excluyentes, sino **capas complementarias c
                              systemd / tty1
                                     │
                                     ▼
-                         Autologin usuario 'emubox'
+                         Autologin de la appliance
                                     │
                                     ▼
                          emubox-session-manager
@@ -91,7 +91,7 @@ Cage y Gamescope no son alternativas excluyentes, sino **capas complementarias c
 ```
 
 1. **Arranque del Sistema**: Systemd alcanza el target `graphical.target`.
-2. **Autologin Local Único en TTY1**: `getty@tty1` inicia sesión automáticamente con el usuario `emubox` (mediante el archivo único `/etc/systemd/system/getty@tty1.service.d/emubox-autologin.conf`) con sesión PAM válida y asignación de asiento `seat0`.
+2. **Autologin Local Único en TTY1**: `getty@tty1` inicia la sesión de la appliance mediante `/etc/systemd/system/getty@tty1.service.d/emubox-autologin.conf`, con sesión PAM válida y asignación de asiento `seat0`. La configuración actual puede ejecutar la sesión como `root` para el acceso directo requerido a DRM y rutas del sistema; SSH permanece aislado.
 3. **Inicialización de la Sesión Wayland**:
    - Se crea el directorio de runtime de usuario `$XDG_RUNTIME_DIR` (`/run/user/<uid>`).
    - Se asigna `$XDG_SESSION_TYPE=wayland` y el bus D-Bus de sesión.
@@ -103,6 +103,10 @@ Cage y Gamescope no son alternativas excluyentes, sino **capas complementarias c
 6. **Sincronización Dinámica de Resolución (`emubox-drm-sync`)**:
    - Permanece en segundo plano bloqueado en el socket de `udevadm monitor` (0% CPU).
    - Ante eventos `HOTPLUG=1` del kernel (redimensionado de ventana en hipervisores o cambio de TV/monitor en hardware), sincroniza `wlr-randr` en caliente hacia la UI SolidJS sin resoluciones fijas ni reinicios de la aplicación.
+
+7. **Recarga systemd**: los instaladores ejecutan `systemctl daemon-reload` tras crear unidades del sistema y `systemctl --user daemon-reload` tras crear unidades de usuario.
+
+8. **Catálogo de juegos**: Tauri escanea primero `/var/lib/emubox/games` y SQLite. Si no hay ROMs, SolidJS carga `data/games-10000.json` como catálogo visible con estado no instalado.
 
 ---
 

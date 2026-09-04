@@ -2,6 +2,24 @@
 
 Este documento registra la cronología de diagnósticos, pruebas de compilación, hallazgos de arquitectura y resolución de incidencias en el entorno de desarrollo y ejecución de **EmuBox (Arch Linux / Dedicated 10-Foot Console)**.
 
+## Estado consolidado actual
+
+La fase de catálogo e integración de juegos está completada. La UI muestra el
+dataset JSON de 10.000 títulos cuando SQLite está vacío, expone sus metadatos en
+hero y tarjetas, y mantiene el flujo `DESCARGAR` -> escaneo de ROM -> `JUGAR`.
+Las descargas dependen de fuentes autorizadas importadas mediante manifiestos;
+el JSON de catálogo no contiene enlaces de distribución.
+
+La arquitectura vigente combina SolidJS/Kobalte, Tauri/Rust por IPC, SQLite y
+filesystem como persistencia, `GameLibraryWatcher` para cambios locales,
+`DownloadService` para trabajos autorizados y arranque `systemd/getty@tty1` con
+Gamescope en GPU real o Cage en fallback de VM/software. El resumen canónico está
+en [current-state.md](architecture/current-state.md).
+
+Validación registrada: typecheck y build correctos, 68 pruebas pasadas, chequeos
+de arquitectura y codificación correctos, NTP sincronizado y VMware SVGA
+identificada como GPU virtual genérica.
+
 ---
 
 ## 📑 Reporte 1: Auditoría de Arquitectura NPM y Frontend SolidJS

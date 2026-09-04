@@ -2,6 +2,19 @@
 
 EmuBox es una interfaz de usuario cinematográfica de 10 pies (10-Foot UI) para consolas de emulación dedicadas bajo **Arch Linux (Direct DRM/KMS + Gamescope Compositor)**.
 
+## Estado actual
+
+La fase de catálogo e integración de juegos está completada. El catálogo JSON de
+10.000 títulos se muestra aunque SQLite todavía no contenga ROMs instaladas, y
+las tarjetas exponen plataforma, año, valoración, género y desarrollador. El
+flujo distingue `DESCARGAR` de `JUGAR`; al terminar una descarga autorizada y
+detectar la ROM, la biblioteca se actualiza y habilita el lanzamiento.
+
+El JSON contiene metadatos, no enlaces de ROM. Las descargas requieren fuentes
+autorizadas importadas mediante manifiestos en `/etc/emubox/download-links.txt`
+o mediante IPC. La arquitectura vigente está en
+[Estado actual de EmuBox](docs/architecture/current-state.md).
+
 ---
 
 ## 🏛️ El Cuarteto Arquitectónico Inmutable
@@ -92,6 +105,7 @@ EmuBox implementa una arquitectura gráfica desacoplada y adaptativa:
 - [Convención de Archivos y Rutas XDG](docs/architecture/filesystem-convention.md)
 - [Especificación IPC Tauri/Rust](docs/architecture/tauri-rust-ipc-spec.md)
 - [Reportes de Diagnóstico de Entorno](docs/diagnostic-reports.md)
+- [Estado actual de EmuBox](docs/architecture/current-state.md)
 
 ---
 
@@ -179,15 +193,11 @@ chmod +x script.sh
 ```
 
 El menú te permite seleccionar con un solo número:
-* **[1] Compilar EmuBox**: Ejecuta `scripts/build.sh` (npm ci, Vite, Tauri Rust).
-* **[2] Actualizar desde GitHub**: Ejecuta `scripts/update-emubox.sh` (pull, build atómico y reinicio seguro).
-* **[3] Configurar Autoarranque**: Ejecuta `scripts/setup-autostart.sh` (TTY1 autologin y lanzador adaptativo).
-* **[4] Probar Lanzamiento**: Lanza la sesión Wayland en modo kiosko/consola.
-* **[5] Ejecutar Tests**: Ejecuta los 42 tests de arquitectura y contratos.
-* **[6] Iniciar Dev Server**: Inicia el servidor de desarrollo local de SolidJS.
-* **[7] Diagnosticar Entorno**: Muestra el estado de GPU, Vulkan, DRM, systemd y logs.
-* **[8] Reiniciar Consola Física**: Reinicia la sesión en `tty1`.
-* **[9] Instalación Completa Arch Linux**: Ejecuta el aprovisionamiento de dependencias.
+* **[1] Compilar EmuBox**: Ejecuta `scripts/build.sh` (frontend + binario Tauri).
+* **[2] Actualizar desde GitHub**: Ejecuta `scripts/update-emubox.sh` (pull, build y despliegue).
+* **[3] Configurar Appliance**: Ejecuta `scripts/setup-autostart.sh` (permisos, autologin y servicios).
+* **[4] Diagnosticar Entorno**: Muestra GPU, Vulkan, DRM, systemd y logs.
+* **[5] Instalación Completa Arch Linux**: Ejecuta el aprovisionamiento inicial.
 
 ---
 
