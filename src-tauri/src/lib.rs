@@ -17,6 +17,7 @@ pub fn run() {
                     let _ = services::EmulatorService::apply_hardware_profile(&hardware);
                 }
                 let _ = services::GameService::scan_games(None);
+                let _ = services::DownloadService::import_and_start();
             });
 
             // 2. Iniciar watcher reactivo del sistema de archivos (inotify / notify)
@@ -97,6 +98,7 @@ pub fn run() {
             commands::downloads::resume_download,
             commands::downloads::cancel_download,
             commands::downloads::import_download_links,
+            commands::downloads::import_and_start_downloads,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Resized(size) = event {

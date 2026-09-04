@@ -114,6 +114,14 @@ impl DownloadService {
         let source = request.source;
         Self::create_source(source.clone())?;
         let destination = Self::destination_path(&request.platform, &source.uri)?;
+        let existing = DatabaseService::get_connection()?.query_row(
+            "SELECT id FROM download_jobs WHERE source_id = ?1 AND status IN ('queued', 'downloading', 'paused', 'completed') ORDER BY rowid DESC LIMIT 1",
+            params![source.id],
+            |row| row.get::<_, String>(0),
+        ).ok();
+        if let Some(existing_id) = existing {
+            return Self::get_job(&existing_id)?.ok_or_else(|| EmuBoxError::NotFound(existing_id));
+        }
         let id = format!("download-{}", uuid_like());
         let conn = DatabaseService::get_connection()?;
         conn.execute(
@@ -130,6 +138,16 @@ impl DownloadService {
             .map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
         let rows = stmt.query_map([], Self::row_to_job).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
         Ok(rows.flatten().collect())
+    }
+
+    pub fn import_and_start() -> Result<Vec<DownloadJob>, EmuBoxError> {
+        let jobs = Self::import_link_file()?;
+        for job in &jobs {
+            if matches!(job.status, DownloadStatus::Queued | DownloadStatus::Paused) {
+                let _ = Self::start(job.id.clone());
+            }
+        }
+        Self::list_jobs()
     }
 
     pub fn get_job(id: &str) -> Result<Option<DownloadJob>, EmuBoxError> {

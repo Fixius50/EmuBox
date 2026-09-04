@@ -8,6 +8,11 @@ pub fn import_download_links() -> Result<Vec<DownloadJob>, EmuBoxError> {
 }
 
 #[tauri::command]
+pub fn import_and_start_downloads() -> Result<Vec<DownloadJob>, EmuBoxError> {
+    DownloadService::import_and_start()
+}
+
+#[tauri::command]
 pub fn create_download_source(source: DownloadSource) -> Result<DownloadSource, EmuBoxError> {
     DownloadService::create_source(source)
 }
