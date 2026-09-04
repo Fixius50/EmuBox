@@ -15,7 +15,7 @@
     "lint": "eslint .",
     "format:check": "prettier --check eslint.config.mjs scripts/verify.mjs package.json tsconfig.json",
     "format": "prettier --write eslint.config.mjs scripts/verify.mjs package.json tsconfig.json",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node ./node_modules/typescript/bin/tsc --project ./tsconfig.json --noEmit --pretty false",
     "verify": "node scripts/verify.mjs",
     "mojibake:check": "node scripts/mojibake-check.mjs",
     "quality:text": "npm run mojibake:check",

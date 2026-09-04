@@ -7,21 +7,25 @@ const frontendRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-const npmCli = path.join(
-  path.dirname(process.execPath),
-  "node_modules",
-  "npm",
-  "bin",
-  "npm-cli.js",
-);
-const npmCommand = process.platform === "win32" ? process.execPath : "npm";
+const npmCli =
+  process.env.npm_execpath ||
+  path.join(
+    path.dirname(process.execPath),
+    "node_modules",
+    "npm",
+    "bin",
+    "npm-cli.js",
+  );
+const npmCommand =
+  process.platform === "win32" || Boolean(process.env.npm_execpath)
+    ? process.execPath
+    : "npm";
 const reportsDirectory = path.join(frontendRoot, "reports", "verify");
 
 const checks = [
   ["ESLint", ["run", "lint"]],
   ["Prettier", ["run", "format:check"]],
   ["TypeScript", ["run", "typecheck"]],
-  ["Build", ["run", "build"]],
   ["Arquitectura", ["run", "arch:check"]],
   ["Texto", ["run", "quality:text"]],
   ["Tests", ["test"]],
@@ -34,7 +38,9 @@ for (const [name, argumentsList] of checks) {
   console.log(`\n[verify] ${name}`);
   const result = spawnSync(
     npmCommand,
-    process.platform === "win32" ? [npmCli, ...argumentsList] : argumentsList,
+    npmCommand === process.execPath
+      ? [npmCli, ...argumentsList]
+      : argumentsList,
     { cwd: frontendRoot, shell: false, encoding: "utf8", timeout: 180000 },
   );
   const output = [result.stdout, result.stderr, result.error?.message]

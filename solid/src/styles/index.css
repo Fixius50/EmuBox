@@ -47,3 +47,6 @@
 
 /* 14. Keyframe Animations & Glow */
 @import './animations.css';
+
+/* Final large-screen console direction */
+@import './console-redesign.css';

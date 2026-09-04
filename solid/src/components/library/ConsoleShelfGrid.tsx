@@ -13,8 +13,8 @@ interface ConsoleShelfGridProps {
   onToggleFavorite: (id: string) => void;
 }
 
-export const ITEMS_PER_ROW = 6;
-export const ROW_HEIGHT = 205; // compact height in px
+export const ITEMS_PER_ROW = 5;
+export const ROW_HEIGHT = 300;
 
 export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
   let scrollContainerRef!: HTMLDivElement;
@@ -112,6 +112,7 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
                         }}
                         onMouseEnter={() => props.onFocusIndex(globalIdx())}
                       >
+                        <div class="case-spine-mark">{game.platform}</div>
                         <div class="card-cover-media">
                           <Show
                             when={hasValidCover()}
@@ -136,7 +137,7 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
                             />
                           </Show>
 
-                          <div class="card-glass-gloss"></div>
+                          <div class="card-case-highlight"></div>
 
                           {game.favorite && (
                             <div class="card-fav-badge" title="Favorito">
