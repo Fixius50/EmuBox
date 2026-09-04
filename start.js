@@ -32,11 +32,11 @@ function freePort(port) {
           if (pid && pid !== '0' && pid !== process.pid.toString()) {
             try {
               execSync(`taskkill /F /T /PID ${pid}`, { stdio: 'ignore' });
-            } catch (e) {}
+            } catch {}
           }
         }
       }
-    } catch (e) {}
+    } catch {}
   }
 }
 
@@ -45,11 +45,11 @@ function killActiveChild() {
     if (process.platform === 'win32') {
       try {
         execSync(`taskkill /F /T /PID ${activeChild.pid}`, { stdio: 'ignore' });
-      } catch (e) {}
+      } catch {}
     } else {
       try {
         activeChild.kill('SIGKILL');
-      } catch (e) {}
+      } catch {}
     }
     activeChild = null;
   }

@@ -1,5 +1,5 @@
 import type { Accessor, Setter } from 'solid-js';
-import type { SystemSettings, Emulator, PerformanceMode } from './game.types';
+import type { SystemSettings, Emulator } from './game.types';
 import type { UpdateInfo, UpdateCheckResult, UpdateProgress } from './update.types';
 import type { SystemStore } from '@stores/system.store';
 import type { SoundFxService } from '@services/audio/sound-fx.service';

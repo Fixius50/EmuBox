@@ -24,8 +24,7 @@ import type {
   UpdateCheckResult,
   UpdateProgress,
   RollbackResult,
-  UpdateChannel,
-  InstalledReleaseInfo
+  UpdateChannel
 } from '@contracts/backend.types';
 
 export class MockBackendService implements IEmuBoxBackend {
@@ -315,7 +314,7 @@ export class MockBackendService implements IEmuBoxBackend {
     return this.getGame(id);
   }
 
-  public async scanGames(request?: ScanGamesRequest): Promise<ScanGamesResult> {
+  public async scanGames(_request?: ScanGamesRequest): Promise<ScanGamesResult> {
     return {
       scannedCount: this.games.length,
       addedCount: 0,
@@ -628,7 +627,6 @@ export class MockBackendService implements IEmuBoxBackend {
   }
 
   public async applyUpdate(targetVersion: string = 'v1.0.1'): Promise<UpdateProgress> {
-    const prevVersion = this.updateInfo.currentVersion;
     this.updateInfo.installedReleases.forEach(r => { r.isCurrent = false; });
     this.updateInfo.installedReleases.unshift({
       version: targetVersion,

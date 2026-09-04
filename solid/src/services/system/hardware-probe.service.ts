@@ -51,7 +51,7 @@ export class HardwareProbeService {
 
   private detectRefreshRate() {
     let count = 0;
-    let startTime = performance.now();
+    const startTime = performance.now();
 
     const step = (time: number) => {
       count++;

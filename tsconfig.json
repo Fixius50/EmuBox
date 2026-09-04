@@ -21,14 +21,6 @@
       "@data/*": ["./data/*"]
     }
   },
-  "include": [
-    "tests/**/*",
-    "data/**/*",
-    "benchmarks/**/*",
-    "solid/src/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "include": ["tests/**/*", "data/**/*", "benchmarks/**/*", "solid/src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

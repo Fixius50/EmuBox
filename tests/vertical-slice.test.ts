@@ -50,7 +50,7 @@ inputManager.registerProvider(keyboardProvider);
 inputManager.registerProvider(gamepadProvider);
 inputManager.registerProvider(tauriProvider);
 
-let receivedActions: InputAction[] = [];
+const receivedActions: InputAction[] = [];
 const unhookAction = inputManager.onAction((action) => {
   receivedActions.push(action);
 });

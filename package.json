@@ -11,7 +11,15 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "test": "npx tsx tests/vertical-slice.test.ts",
-    "start": "node start.js"
+    "start": "node start.js",
+    "lint": "eslint .",
+    "format:check": "prettier --check eslint.config.mjs scripts/verify.mjs package.json tsconfig.json",
+    "format": "prettier --write eslint.config.mjs scripts/verify.mjs package.json tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "verify": "node scripts/verify.mjs",
+    "mojibake:check": "node scripts/mojibake-check.mjs",
+    "quality:text": "npm run mojibake:check",
+    "arch:check": "node scripts/architecture-check.mjs"
   },
   "dependencies": {
     "@kobalte/core": "^0.13.8",
@@ -21,10 +29,17 @@
     "solid-js": "^1.9.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tauri-apps/cli": "^2.0.0",
     "@types/node": "^22.0.0",
+    "eslint": "^10.9.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.6",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.6",
     "tsx": "^4.19.0",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.69.0",
     "vite": "^6.1.0",
     "vite-plugin-solid": "^2.11.0"
   },

@@ -8,7 +8,6 @@ import { SystemTab } from './tabs/SystemTab';
 import { EmulatorsTab } from './tabs/EmulatorsTab';
 import { AudioTab } from './tabs/AudioTab';
 import { GamepadTab } from './tabs/GamepadTab';
-import { UpdateTab } from './tabs/UpdateTab';
 import { EmulatorCrudModal } from './modals/EmulatorCrudModal';
 
 // Animations

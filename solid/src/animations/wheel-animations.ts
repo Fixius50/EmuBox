@@ -1,11 +1,11 @@
-import { animate, stagger } from 'animejs';
+import { animate } from 'animejs';
 
 /**
  * Coordinates console card-passing and dial-turn animations on the wide 3D arch using Anime.js.
  */
 export function animateConsoleCardSwitch(
   cardsTarget: HTMLElement[] | NodeListOf<HTMLElement> | string,
-  direction: number = 1,
+  _direction: number = 1,
   onComplete?: () => void
 ): void {
   // Pulse and glide the cards along the arch

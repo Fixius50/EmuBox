@@ -1,5 +1,5 @@
-import { Component, For, onMount, createEffect, Show, createSignal } from 'solid-js';
-import { animate, stagger } from 'animejs';
+import { Component, For, onMount, Show, createSignal } from 'solid-js';
+import { animate } from 'animejs';
 import type { PlatformWheelProps, WheelItem } from '@contracts/wheel.types';
 import { usePlatformWheelLayout } from './usePlatformWheelLayout';
 import { ConsoleHardwareVisual } from '@components/common/ConsoleHardwareVisual';

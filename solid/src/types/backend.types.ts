@@ -12,8 +12,7 @@ import type {
   SystemInfo,
   HardwareInfo,
   DisplayInfo,
-  AudioInfo,
-  PowerAction
+  AudioInfo
 } from './system.types';
 
 import type {
@@ -23,8 +22,7 @@ import type {
 
 import type {
   ProcessStatus,
-  RunningGameInfo,
-  ProcessLaunchConfig
+  RunningGameInfo
 } from './process.types';
 
 import type {
@@ -38,8 +36,7 @@ import type {
 } from './diagnostics.types';
 
 import type {
-  BiosStatus,
-  BiosRequirement
+  BiosStatus
 } from './bios.types';
 
 import type {

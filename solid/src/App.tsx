@@ -82,8 +82,7 @@ export const App: Component = () => {
     handleSaveEmulator,
     handleDeleteEmulator,
     handleToggleCurrentSetting,
-    handleAdjustCurrentSlider,
-    triggerVibrationTest
+    handleAdjustCurrentSlider
   } = useSettingsController({
     systemStore,
     soundFx,
