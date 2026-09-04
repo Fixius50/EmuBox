@@ -173,8 +173,7 @@ impl GameService {
         if base.exists() || fs::create_dir_all(base).is_ok() {
             base.to_path_buf()
         } else {
-            let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-            let fallback = PathBuf::from(home).join(".local/share/emubox/games");
+            let fallback = PathBuf::from("/tmp/emubox/games");
             let _ = fs::create_dir_all(&fallback);
             fallback
         }

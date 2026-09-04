@@ -426,12 +426,13 @@ log_info "[11/15] Creando estructura de datos..."
 
 mkdir -p \
     /var/lib/emubox/games \
+    /var/lib/emubox/emulators \
     /var/lib/emubox/saves \
     /var/lib/emubox/states \
     /var/lib/emubox/bios \
-    /var/lib/emubox/covers \
-    /var/lib/emubox/logs \
     /var/lib/emubox/screenshots
+
+mkdir -p /etc/emubox /var/cache/emubox/{shaders,metadata,covers,downloads} /var/log/emubox /run/emubox
 
 # Enlace simbólico de compatibilidad: roms -> games
 if [[ -d /var/lib/emubox/roms && ! -L /var/lib/emubox/roms ]]; then
@@ -441,22 +442,11 @@ ln -sfn /var/lib/emubox/games /var/lib/emubox/roms
 
 USER_HOME="$(getent passwd "${EMUBOX_USER}" | cut -d: -f6)"
 
-mkdir -p \
-    "${USER_HOME}/.local/share/emubox/roms" \
-    "${USER_HOME}/.local/share/emubox/saves" \
-    "${USER_HOME}/.local/share/emubox/states" \
-    "${USER_HOME}/.local/share/emubox/bios" \
-    "${USER_HOME}/.local/share/emubox/covers" \
-    "${USER_HOME}/.local/share/emubox/logs" \
-    "${USER_HOME}/.local/share/emubox/screenshots" \
-    "${USER_HOME}/.config/emubox" \
-    "${USER_HOME}/.cache/emubox"
-
 chown -R "${EMUBOX_USER}:${EMUBOX_GROUP}" \
     /var/lib/emubox \
-    "${USER_HOME}/.local/share/emubox" \
-    "${USER_HOME}/.config/emubox" \
-    "${USER_HOME}/.cache/emubox"
+    /var/cache/emubox \
+    /var/log/emubox \
+    /run/emubox
 
 log_ok "Estructura de datos creada."
 
@@ -630,8 +620,11 @@ echo "Binario:              ${EMUBOX_DIR}/bin/emubox"
 echo "Comando:              emubox"
 echo "Actualizacion:        emubox-update"
 echo "Datos:                /var/lib/emubox"
-echo "Datos usuario:        ${USER_HOME}/.local/share/emubox"
-echo "Configuracion:        ${USER_HOME}/.config/emubox"
+echo "Datos persistentes:   /var/lib/emubox"
+echo "Configuracion:        /etc/emubox"
+echo "Cache:                /var/cache/emubox"
+echo "Logs:                 /var/log/emubox"
+echo "Runtime:              /run/emubox"
 echo "Logs:                 ${LOG_DIR}"
 echo "Servicio:             emubox.service"
 echo ""

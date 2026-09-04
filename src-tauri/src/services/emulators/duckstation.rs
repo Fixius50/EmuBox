@@ -18,7 +18,7 @@ impl EmulatorProfile for DuckStation {
     /// Asigna "Vulkan" cuando la GPU soporta Vulkan o "OpenGL" en caso contrario.
     fn apply_hardware_config(&self, hardware: &HardwareInfo) -> Result<(), EmuBoxError> {
         let renderer = if vulkan_ok(hardware) { "Vulkan" } else { "OpenGL" };
-        let path = config_home().join("duckstation/settings.ini");
+        let path = config_home().join("duckstation/config/settings.ini");
         upsert_ini_key(&path, "GPU", "Renderer", renderer)
     }
 }

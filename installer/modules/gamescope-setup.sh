@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 log_step "Preparando perfil de compositor Gamescope para 1080p 60Hz..."
 
-ENV_FILE="${EMUBOX_CONFIG_DIR}/emubox.env"
+ENV_FILE="/etc/emubox/emubox.env"
 if [[ ! -f "${ENV_FILE}" ]]; then
   cat > "${ENV_FILE}" << 'EOF'
 # Gamescope Compositor Settings for EmuBox Dedicated Console

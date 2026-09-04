@@ -1,12 +1,12 @@
 {
   "version": 1,
   "paths": {
-    "roms": "~/.local/share/emubox/roms",
-    "saves": "~/.local/share/emubox/saves",
-    "states": "~/.local/share/emubox/states",
-    "screenshots": "~/.local/share/emubox/screenshots",
-    "covers": "~/.local/share/emubox/covers",
-    "logs": "~/.local/share/emubox/logs"
+    "roms": "/var/lib/emubox/games",
+    "saves": "/var/lib/emubox/saves",
+    "states": "/var/lib/emubox/states",
+    "screenshots": "/var/lib/emubox/screenshots",
+    "covers": "/var/cache/emubox/covers",
+    "logs": "/var/log/emubox"
   },
   "display": {
     "resolution": "1920x1080",

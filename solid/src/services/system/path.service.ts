@@ -1,5 +1,5 @@
 /**
- * PathService: Centralizes all XDG directory resolution and path generation.
+ * PathService: Centralizes all EmuBox appliance directory resolution.
  * Guarantees that no UI component ever hardcodes paths.
  */
 export class PathService {
@@ -8,9 +8,9 @@ export class PathService {
   private baseCacheDir: string;
 
   constructor(customConfig?: string, customData?: string, customCache?: string) {
-    this.baseConfigDir = customConfig || '~/.config/emubox';
-    this.baseDataDir = customData || '~/.local/share/emubox';
-    this.baseCacheDir = customCache || '~/.cache/emubox';
+    this.baseConfigDir = customConfig || '/etc/emubox';
+    this.baseDataDir = customData || '/var/lib/emubox';
+    this.baseCacheDir = customCache || '/var/cache/emubox';
   }
 
   public getConfigDir(): string {
@@ -34,7 +34,7 @@ export class PathService {
   }
 
   public getRomsDir(platform?: string): string {
-    return platform ? `${this.baseDataDir}/roms/${platform}` : `${this.baseDataDir}/roms`;
+    return platform ? `${this.baseDataDir}/games/${platform}` : `${this.baseDataDir}/games`;
   }
 
   public getSavesDir(platform?: string): string {
@@ -50,7 +50,7 @@ export class PathService {
   }
 
   public getCoversDir(): string {
-    return `${this.baseDataDir}/covers`;
+    return `${this.baseCacheDir}/covers`;
   }
 
   public getBiosDir(): string {

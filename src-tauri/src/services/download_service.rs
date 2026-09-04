@@ -14,6 +14,7 @@ use crate::models::{CreateDownloadRequest, DownloadJob, DownloadSource, Download
 use crate::services::db_service::DatabaseService;
 
 const DOWNLOAD_ROOT: &str = "/var/lib/emubox/games";
+const DOWNLOAD_CACHE_ROOT: &str = "/var/cache/emubox/downloads";
 
 struct RuntimeControl {
     paused: Arc<AtomicBool>,
@@ -125,7 +126,9 @@ impl DownloadService {
         let destination = PathBuf::from(destination);
         let parent = destination.parent().ok_or_else(|| EmuBoxError::InvalidConfiguration("Destino inválido".to_string()))?;
         fs::create_dir_all(parent).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
-        let partial = PathBuf::from(format!("{}.part", destination.to_string_lossy()));
+        let partial_name = destination.file_name().and_then(|name| name.to_str()).unwrap_or("download.bin");
+        let partial = Path::new(DOWNLOAD_CACHE_ROOT).join(format!("{}.part", partial_name));
+        fs::create_dir_all(DOWNLOAD_CACHE_ROOT).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
         let existing = partial.metadata().map(|m| m.len()).unwrap_or(0);
         let client = Client::new();
         let mut request = client.get(&uri);

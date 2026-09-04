@@ -192,7 +192,7 @@ const isRunning = await processService.isGameRunning();
 assert(typeof isRunning === 'boolean', `ProcessService comprobó estado de proceso: running=${isRunning}`);
 
 const romPath = pathService.getRomsDir('ps2');
-assert(romPath === '~/.local/share/emubox/roms/ps2', `PathService resolvió ruta XDG: ${romPath}`);
+assert(romPath === '/var/lib/emubox/games/ps2', `PathService resolvió ruta del appliance: ${romPath}`);
 
 const biosStatus = await biosScanner.scanBios();
 assert(biosStatus.totalRequired > 0, `BiosScannerService detectó ${biosStatus.totalRequired} BIOS requeridas`);

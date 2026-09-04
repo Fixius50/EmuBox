@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 # ==============================================================================
 #  EMUBOX SETUP - FIRST-RUN DETECTOR & VERSIONED CONFIG GENERATOR
-#  Auto-detects GPU, displays, controllers and generates ~/.config/emubox/config.json
+#  Auto-detects GPU, displays, controllers and generates /etc/emubox/config.json
 # ==============================================================================
 
 set -euo pipefail
 
-XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
-EMUBOX_CONFIG_DIR="${XDG_CONFIG_HOME}/emubox"
+EMUBOX_CONFIG_DIR="/etc/emubox"
+EMUBOX_DATA_DIR="/var/lib/emubox"
 CONFIG_JSON="${EMUBOX_CONFIG_DIR}/config.json"
 
 echo "  -> Ejecutando detección de primer arranque (First Run)..."
@@ -31,12 +30,12 @@ if [[ ! -f "${CONFIG_JSON}" ]]; then
 {
   "version": 1,
   "paths": {
-    "roms": "${XDG_DATA_HOME}/emubox/roms",
-    "saves": "${XDG_DATA_HOME}/emubox/saves",
-    "states": "${XDG_DATA_HOME}/emubox/states",
-    "screenshots": "${XDG_DATA_HOME}/emubox/screenshots",
-    "covers": "${XDG_DATA_HOME}/emubox/covers",
-    "logs": "${XDG_DATA_HOME}/emubox/logs"
+    "roms": "${EMUBOX_DATA_DIR}/games",
+    "saves": "${EMUBOX_DATA_DIR}/saves",
+    "states": "${EMUBOX_DATA_DIR}/states",
+    "screenshots": "${EMUBOX_DATA_DIR}/screenshots",
+    "covers": "/var/cache/emubox/covers",
+    "logs": "/var/log/emubox"
   },
   "display": {
     "resolution": "1920x1080",

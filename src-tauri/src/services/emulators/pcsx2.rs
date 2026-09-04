@@ -17,7 +17,7 @@ impl EmulatorProfile for Pcsx2 {
     /// Asigna "Vulkan" cuando la GPU soporta Vulkan o "OpenGL" en caso contrario.
     fn apply_hardware_config(&self, hardware: &HardwareInfo) -> Result<(), EmuBoxError> {
         let renderer = if vulkan_ok(hardware) { "Vulkan" } else { "OpenGL" };
-        let path = config_home().join("PCSX2/ini/PCSX2.ini");
+        let path = config_home().join("pcsx2/config/PCSX2.ini");
         upsert_ini_key(&path, "EmuCore/GS", "Renderer", renderer)
     }
 }

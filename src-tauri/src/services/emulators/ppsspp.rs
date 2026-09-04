@@ -22,7 +22,7 @@ impl EmulatorProfile for Ppsspp {
     /// `TryParse` lo lea directamente como entero.
     fn apply_hardware_config(&self, hardware: &HardwareInfo) -> Result<(), EmuBoxError> {
         let backend = if vulkan_ok(hardware) { "3" } else { "0" };
-        let path = config_home().join("ppsspp/PSP/SYSTEM/ppsspp.ini");
+        let path = config_home().join("ppsspp/config/PSP/SYSTEM/ppsspp.ini");
         upsert_ini_key(&path, "Graphics", "GraphicsBackend", backend)
     }
 }

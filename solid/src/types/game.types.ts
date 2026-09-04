@@ -116,7 +116,7 @@ export interface SystemSettings {
 
 /**
  * Single, Central, Versioned EmuBox Configuration Model.
- * Mirrors ~/.config/emubox/config.json in production Arch Linux installations.
+ * Mirrors /etc/emubox/config.json in production Arch Linux installations.
  */
 export interface EmuBoxConfig {
   version: number;

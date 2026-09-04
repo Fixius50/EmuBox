@@ -54,13 +54,7 @@ pub fn registry() -> Vec<Box<dyn EmulatorProfile>> {
 }
 
 pub(crate) fn config_home() -> PathBuf {
-    if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
-        if !xdg.is_empty() {
-            return PathBuf::from(xdg);
-        }
-    }
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/emubox".to_string());
-    PathBuf::from(home).join(".config")
+    PathBuf::from("/var/lib/emubox/emulators")
 }
 
 /// Inserta o reemplaza `key = "value"` en un archivo de configuración plano sin

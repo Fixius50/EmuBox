@@ -32,7 +32,7 @@ export function useMaintenanceController(options: UseMaintenanceOptions): UseMai
       variant: 'default',
       action: async () => {
         setIsLoading(true);
-        setFeedbackMsg('Comprobando y asegurando directorios en ~/.local/share/emubox...');
+        setFeedbackMsg('Comprobando y asegurando directorios del appliance EmuBox...');
         await options.backend.getStorageLocations();
         setTimeout(() => {
           setIsLoading(false);

@@ -130,14 +130,14 @@ export const UpdateTab: Component<UpdateTabProps> = (props) => {
           <Badge variant="default" style={{ "font-size": "0.625rem" }}>ROMS</Badge>
           <div>
             <div class="safety-title">ROMs & BIOS Intactas</div>
-            <div class="safety-desc">~/.local/share/emubox/roms</div>
+            <div class="safety-desc">/var/lib/emubox/games</div>
           </div>
         </div>
         <div class="safety-guarantee-card">
           <Badge variant="default" style={{ "font-size": "0.625rem" }}>SAVES</Badge>
           <div>
             <div class="safety-title">Partidas & Saves Seguras</div>
-            <div class="safety-desc">~/.local/share/emubox/saves</div>
+            <div class="safety-desc">/var/lib/emubox/saves</div>
           </div>
         </div>
         <div class="safety-guarantee-card">

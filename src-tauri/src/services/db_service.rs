@@ -11,8 +11,7 @@ impl DatabaseService {
         if base.exists() || fs::create_dir_all(base).is_ok() {
             base.join("emubox.db")
         } else {
-            let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-            let fallback = PathBuf::from(home).join(".config/emubox");
+            let fallback = PathBuf::from("/tmp/emubox");
             let _ = fs::create_dir_all(&fallback);
             fallback.join("emubox.db")
         }

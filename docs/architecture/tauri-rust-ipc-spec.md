@@ -12,16 +12,16 @@ This document specifies the exact IPC commands and signatures that the upcoming 
 | :--- | :--- | :--- | :--- |
 | `get_system_info` | *None* | `SystemInfo` | Queries kernel, GPU adapter via Vulkan/DRM, and Gamescope compositor status |
 | `first_run_detection` | *None* | `FirstRunDetectionResult` | Probes for GPU vendor, connected controllers, and installed engine binaries |
-| `get_config` | *None* | `EmuBoxConfig` | Reads and parses `~/.config/emubox/config.json` |
-| `save_config` | `{ config: EmuBoxConfig }` | `void` | Writes atomized JSON to `~/.config/emubox/config.json` |
+| `get_config` | *None* | `EmuBoxConfig` | Reads and parses `/etc/emubox/config.json` |
+| `save_config` | `{ config: EmuBoxConfig }` | `void` | Writes atomized JSON to `/etc/emubox/config.json` |
 | `get_settings` | *None* | `SystemSettings` | Quick settings compatibility accessor |
 | `save_settings` | `{ settings: SystemSettings }` | `boolean` | Quick settings persistence |
-| `scan_games` | `{ request?: ScanGamesRequest }` | `ScanGamesResult` | Traverses `~/.local/share/emubox/roms/*` and generates metadata |
+| `scan_games` | `{ request?: ScanGamesRequest }` | `ScanGamesResult` | Traverses `/var/lib/emubox/games/*` and generates metadata |
 | `get_games` | `{ filter?: GameFilter }` | `Vec<Game>` | Returns filtered and indexed game catalog |
 | `get_game_by_id` | `{ id: String }` | `Option<Game>` | Returns specific game record |
 | `toggle_favorite` | `{ gameId: String }` | `boolean` | Atomically updates favorite flag |
 | `get_platforms` | *None* | `Vec<Platform>` | Returns system platforms |
-| `get_emulators` | *None* | `Vec<Emulator>` | Reads `~/.config/emubox/emulators.json` and verifies binary existence |
+| `get_emulators` | *None* | `Vec<Emulator>` | Reads SQLite and verifies binary existence |
 | `save_emulator` | `{ emulator: Emulator }` | `void` | Adds or updates emulator configuration |
 | `delete_emulator` | `{ id: String }` | `void` | Removes emulator profile |
 | `launch_game` | `{ request: LaunchGameRequest }` | `LaunchResult` | Spawns emulator subprocess inside Gamescope session and tracks PID |
@@ -34,8 +34,7 @@ This document specifies the exact IPC commands and signatures that the upcoming 
 
 When `launch_game` is invoked:
 1. Rust reads the emulator profile from configuration.
-2. Resolves ROM absolute path inside `~/.local/share/emubox/roms/<platform>/`.
-3. If Gamescope is enabled:
+2. Resolves ROM absolute path inside `/var/lib/emubox/games/<platform>`.
    ```bash
    gamescope -W 1920 -H 1080 -f -r <refreshRate> -- <executable> <arguments> <romPath>
    ```

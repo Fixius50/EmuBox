@@ -47,14 +47,16 @@ echo ""
 echo "[1/5] Preparando directorios del sistema, permisos y grupos de entrada..."
 
 mkdir -p /etc/emubox
-mkdir -p /var/lib/emubox/{emulators,games,saves,states,bios,covers,logs,screenshots}
+mkdir -p /var/lib/emubox/{emulators,games,saves,states,bios,screenshots}
 if [[ -d /var/lib/emubox/roms && ! -L /var/lib/emubox/roms ]]; then
   rm -rf /var/lib/emubox/roms
 fi
 ln -sfn /var/lib/emubox/games /var/lib/emubox/roms
 mkdir -p /var/log/emubox
+mkdir -p /var/cache/emubox/{shaders,metadata,covers,downloads} /run/emubox
 
 chown -R "$EMUBOX_USER:$EMUBOX_USER" /var/lib/emubox
+chown -R "$EMUBOX_USER:$EMUBOX_USER" /var/cache/emubox /run/emubox
 chown -R "$EMUBOX_USER:$EMUBOX_USER" /var/log/emubox
 chmod -R 755 /var/log/emubox
 

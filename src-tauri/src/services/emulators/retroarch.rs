@@ -21,7 +21,7 @@ impl EmulatorProfile for RetroArch {
     /// todos renderizan a través del video driver del frontend.
     fn apply_hardware_config(&self, hardware: &HardwareInfo) -> Result<(), EmuBoxError> {
         let driver = if vulkan_ok(hardware) { "vulkan" } else { "glcore" };
-        let path = config_home().join("retroarch/retroarch.cfg");
+        let path = config_home().join("retroarch/config/retroarch.cfg");
         upsert_flat_key(&path, "video_driver", driver)
     }
 }

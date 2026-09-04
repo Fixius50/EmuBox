@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 # ==============================================================================
 #  EMUBOX SETUP - EMULATOR BINARY DISCOVERY & REGISTRATION
-#  Discovers installed emulators and generates ~/.config/emubox/emulators.json
+#  Discovers installed emulators and generates /etc/emubox/emulators.json
 # ==============================================================================
 
 set -euo pipefail
 
-XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-EMUBOX_CONFIG_DIR="${XDG_CONFIG_HOME}/emubox"
+EMUBOX_CONFIG_DIR="/etc/emubox"
 EMULATORS_JSON="${EMUBOX_CONFIG_DIR}/emulators.json"
 
 echo "  -> Detectando ejecutables de emuladores en el sistema..."
