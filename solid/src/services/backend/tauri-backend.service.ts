@@ -61,95 +61,59 @@ export class TauriBackendService implements IEmuBoxBackend {
     throw new Error('Tauri runtime not detected');
   }
 
+  // Only browser-dev (non-Tauri) sessions use the mock; real IPC failures must surface, not be masked.
+  private async resolve<T>(cmd: string, args: Record<string, unknown> | undefined, fallback: () => Promise<T> | T): Promise<T> {
+    if (!this.isTauriEnvironment) {
+      return fallback();
+    }
+    return this.invoke<T>(cmd, args);
+  }
+
   // 1. Sistema & Hardware Telemetry
   public async getSystemInfo(): Promise<SystemInfo> {
-    try {
-      return await this.invoke<SystemInfo>('get_system_info');
-    } catch {
-      return this.fallback.getSystemInfo();
-    }
+    return this.resolve('get_system_info', undefined, () => this.fallback.getSystemInfo());
   }
 
   public async getHardwareInfo(): Promise<HardwareInfo> {
-    try {
-      return await this.invoke<HardwareInfo>('get_hardware_info');
-    } catch {
-      return this.fallback.getHardwareInfo();
-    }
+    return this.resolve('get_hardware_info', undefined, () => this.fallback.getHardwareInfo());
   }
 
   public async getDisplayInfo(): Promise<DisplayInfo> {
-    try {
-      return await this.invoke<DisplayInfo>('get_display_info');
-    } catch {
-      return this.fallback.getDisplayInfo();
-    }
+    return this.resolve('get_display_info', undefined, () => this.fallback.getDisplayInfo());
   }
 
   public async getAudioInfo(): Promise<AudioInfo> {
-    try {
-      return await this.invoke<AudioInfo>('get_audio_info');
-    } catch {
-      return this.fallback.getAudioInfo();
-    }
+    return this.resolve('get_audio_info', undefined, () => this.fallback.getAudioInfo());
   }
 
   public async runFirstRunDetection(): Promise<FirstRunDetectionResult> {
-    try {
-      return await this.invoke<FirstRunDetectionResult>('first_run_detection');
-    } catch {
-      return this.fallback.runFirstRunDetection();
-    }
+    return this.resolve('first_run_detection', undefined, () => this.fallback.runFirstRunDetection());
   }
 
   // 2. Configuración
   public async getConfig(): Promise<EmuBoxConfig> {
-    try {
-      return await this.invoke<EmuBoxConfig>('get_config');
-    } catch {
-      return this.fallback.getConfig();
-    }
+    return this.resolve('get_config', undefined, () => this.fallback.getConfig());
   }
 
   public async saveConfig(config: EmuBoxConfig): Promise<void> {
-    try {
-      await this.invoke('save_config', { config });
-    } catch {
-      await this.fallback.saveConfig(config);
-    }
+    return this.resolve('save_config', { config }, () => this.fallback.saveConfig(config));
   }
 
   public async getSettings(): Promise<SystemSettings> {
-    try {
-      return await this.invoke<SystemSettings>('get_settings');
-    } catch {
-      return this.fallback.getSettings();
-    }
+    return this.resolve('get_settings', undefined, () => this.fallback.getSettings());
   }
 
   public async saveSettings(settings: SystemSettings): Promise<boolean> {
-    try {
-      return await this.invoke<boolean>('save_settings', { settings });
-    } catch {
-      return this.fallback.saveSettings(settings);
-    }
+    return this.resolve('save_settings', { settings }, () => this.fallback.saveSettings(settings));
   }
 
   // 3. Biblioteca & Juegos
   public async getGames(filter?: GameFilter): Promise<Game[]> {
-    try {
-      return await this.invoke<Game[]>('get_games', { filter });
-    } catch {
-      return this.fallback.getGames(filter);
-    }
+    return this.resolve('get_games', { filter }, () => this.fallback.getGames(filter));
   }
 
   public async getGame(id: string): Promise<Game | null> {
-    try {
-      return await this.invoke<Game | null>('get_game_by_id', { id });
-    } catch {
-      return this.fallback.getGame(id);
-    }
+    return this.resolve('get_game_by_id', { id }, () => this.fallback.getGame(id));
   }
 
   public async getGameById(id: string): Promise<Game | null> {
@@ -157,114 +121,62 @@ export class TauriBackendService implements IEmuBoxBackend {
   }
 
   public async scanGames(request?: ScanGamesRequest): Promise<ScanGamesResult> {
-    try {
-      return await this.invoke<ScanGamesResult>('scan_games', { request });
-    } catch {
-      return this.fallback.scanGames(request);
-    }
+    return this.resolve('scan_games', { request }, () => this.fallback.scanGames(request));
   }
 
   public async getPlatforms(): Promise<Platform[]> {
-    try {
-      return await this.invoke<Platform[]>('get_platforms');
-    } catch {
-      return this.fallback.getPlatforms();
-    }
+    return this.resolve('get_platforms', undefined, () => this.fallback.getPlatforms());
   }
 
   public async toggleFavorite(gameId: string): Promise<boolean> {
-    try {
-      return await this.invoke<boolean>('toggle_favorite', { gameId });
-    } catch {
-      return this.fallback.toggleFavorite(gameId);
-    }
+    return this.resolve('toggle_favorite', { gameId }, () => this.fallback.toggleFavorite(gameId));
   }
 
   // 4. Emuladores (CRUD)
   public async getEmulators(): Promise<Emulator[]> {
-    try {
-      return await this.invoke<Emulator[]>('get_emulators');
-    } catch {
-      return this.fallback.getEmulators();
-    }
+    return this.resolve('get_emulators', undefined, () => this.fallback.getEmulators());
   }
 
   public async getEmulator(id: string): Promise<Emulator | null> {
-    try {
-      return await this.invoke<Emulator | null>('get_emulator_by_id', { id });
-    } catch {
-      return this.fallback.getEmulator(id);
-    }
+    return this.resolve('get_emulator_by_id', { id }, () => this.fallback.getEmulator(id));
   }
 
   public async scanEmulators(): Promise<Emulator[]> {
-    try {
-      return await this.invoke<Emulator[]>('scan_emulators');
-    } catch {
-      return this.fallback.scanEmulators();
-    }
+    return this.resolve('scan_emulators', undefined, () => this.fallback.scanEmulators());
   }
 
   public async getEmulatorStatus(id: string): Promise<'active' | 'inactive' | 'missing_bios'> {
-    try {
-      return await this.invoke<'active' | 'inactive' | 'missing_bios'>('get_emulator_status', { id });
-    } catch {
-      return this.fallback.getEmulatorStatus(id);
-    }
+    return this.resolve('get_emulator_status', { id }, () => this.fallback.getEmulatorStatus(id));
   }
 
   public async saveEmulator(emulator: Emulator): Promise<void> {
-    try {
-      await this.invoke('save_emulator', { emulator });
-    } catch {
-      await this.fallback.saveEmulator(emulator);
-    }
+    return this.resolve('save_emulator', { emulator }, () => this.fallback.saveEmulator(emulator));
   }
 
   public async deleteEmulator(id: string): Promise<void> {
-    try {
-      await this.invoke('delete_emulator', { id });
-    } catch {
-      await this.fallback.deleteEmulator(id);
-    }
+    return this.resolve('delete_emulator', { id }, () => this.fallback.deleteEmulator(id));
   }
 
   // 4.1 Asociaciones Juego <-> Emulador (SQLite)
   public async getGameAssociations(gameId: string): Promise<CompatibilityAssociation[]> {
-    try {
-      return await this.invoke<CompatibilityAssociation[]>('get_game_associations', { gameId });
-    } catch {
-      return this.fallback.getGameAssociations(gameId);
-    }
+    return this.resolve('get_game_associations', { gameId }, () => this.fallback.getGameAssociations(gameId));
   }
 
   public async setGameAssociation(association: CompatibilityAssociation): Promise<void> {
-    try {
-      await this.invoke('set_game_association', { association });
-    } catch {
-      await this.fallback.setGameAssociation(association);
-    }
+    return this.resolve('set_game_association', { association }, () => this.fallback.setGameAssociation(association));
   }
 
   public async removeGameAssociation(gameId: string, emulatorId: string): Promise<void> {
-    try {
-      await this.invoke('remove_game_association', { gameId, emulatorId });
-    } catch {
-      await this.fallback.removeGameAssociation(gameId, emulatorId);
-    }
+    return this.resolve('remove_game_association', { gameId, emulatorId }, () => this.fallback.removeGameAssociation(gameId, emulatorId));
   }
 
   // 5. Ejecución & Procesos
   public async launchGame(gameIdOrRequest: string | LaunchGameRequest, emulatorId?: string): Promise<LaunchResult> {
-    try {
-      const request: LaunchGameRequest = typeof gameIdOrRequest === 'string'
-        ? { gameId: gameIdOrRequest, emulatorId: emulatorId || '' }
-        : gameIdOrRequest;
+    const request: LaunchGameRequest = typeof gameIdOrRequest === 'string'
+      ? { gameId: gameIdOrRequest, emulatorId: emulatorId || '' }
+      : gameIdOrRequest;
 
-      return await this.invoke<LaunchResult>('launch_game', { request });
-    } catch {
-      return this.fallback.launchGame(gameIdOrRequest, emulatorId);
-    }
+    return this.resolve('launch_game', { request }, () => this.fallback.launchGame(gameIdOrRequest, emulatorId));
   }
 
   public async createDownloadSource(source: DownloadSource): Promise<DownloadSource> {
@@ -296,209 +208,109 @@ export class TauriBackendService implements IEmuBoxBackend {
   }
 
   public async stopGame(): Promise<void> {
-    try {
-      await this.invoke('stop_game');
-    } catch {
-      await this.fallback.stopGame();
-    }
+    return this.resolve('stop_game', undefined, () => this.fallback.stopGame());
   }
 
   public async isGameRunning(): Promise<boolean> {
-    try {
-      return await this.invoke<boolean>('is_game_running');
-    } catch {
-      return this.fallback.isGameRunning();
-    }
+    return this.resolve('is_game_running', undefined, () => this.fallback.isGameRunning());
   }
 
   public async getRunningGame(): Promise<RunningGameInfo | null> {
-    try {
-      return await this.invoke<RunningGameInfo | null>('get_running_game');
-    } catch {
-      return this.fallback.getRunningGame();
-    }
+    return this.resolve('get_running_game', undefined, () => this.fallback.getRunningGame());
   }
 
   public async getProcessStatus(): Promise<ProcessStatus> {
-    try {
-      return await this.invoke<ProcessStatus>('get_process_status');
-    } catch {
-      return this.fallback.getProcessStatus();
-    }
+    return this.resolve('get_process_status', undefined, () => this.fallback.getProcessStatus());
   }
 
   public async killProcess(pid: number): Promise<boolean> {
-    try {
-      return await this.invoke<boolean>('kill_process', { pid });
-    } catch {
-      return this.fallback.killProcess(pid);
-    }
+    return this.resolve('kill_process', { pid }, () => this.fallback.killProcess(pid));
   }
 
   // 6. Input / Gamepads
   public async getGamepads(): Promise<GamepadDevice[]> {
-    try {
-      return await this.invoke<GamepadDevice[]>('get_gamepads');
-    } catch {
-      return this.fallback.getGamepads();
-    }
+    return this.resolve('get_gamepads', undefined, () => this.fallback.getGamepads());
   }
 
   public async getGamepadStatus(): Promise<GamepadStatus> {
-    try {
-      return await this.invoke<GamepadStatus>('get_gamepad_status');
-    } catch {
-      return this.fallback.getGamepadStatus();
-    }
+    return this.resolve('get_gamepad_status', undefined, () => this.fallback.getGamepadStatus());
   }
 
   // 7. Sistema Operativo & Energía
   public async shutdown(): Promise<void> {
-    try {
-      await this.invoke('system_shutdown');
-    } catch {
-      await this.fallback.shutdown();
-    }
+    return this.resolve('system_shutdown', undefined, () => this.fallback.shutdown());
   }
 
   public async restart(): Promise<void> {
-    try {
-      await this.invoke('system_restart');
-    } catch {
-      await this.fallback.restart();
-    }
+    return this.resolve('system_restart', undefined, () => this.fallback.restart());
   }
 
   public async sleep(): Promise<void> {
-    try {
-      await this.invoke('system_sleep');
-    } catch {
-      await this.fallback.sleep();
-    }
+    return this.resolve('system_sleep', undefined, () => this.fallback.sleep());
   }
 
   public async logout(): Promise<void> {
-    try {
-      await this.invoke('system_logout');
-    } catch {
-      await this.fallback.logout();
-    }
+    return this.resolve('system_logout', undefined, () => this.fallback.logout());
   }
 
   public async restartAppSession(): Promise<void> {
-    try {
-      await this.invoke('restart_app_session');
-    } catch {
-      await this.fallback.restartAppSession();
-    }
+    return this.resolve('restart_app_session', undefined, () => this.fallback.restartAppSession());
   }
 
   public async exitToLinuxShell(): Promise<void> {
-    try {
-      await this.invoke('exit_to_linux_shell');
-    } catch {
-      await this.fallback.exitToLinuxShell();
-    }
+    return this.resolve('exit_to_linux_shell', undefined, () => this.fallback.exitToLinuxShell());
   }
 
   // 8. Almacenamiento & XDG
   public async getStorageInfo(): Promise<StorageInfo> {
-    try {
-      return await this.invoke<StorageInfo>('get_storage_info');
-    } catch {
-      return this.fallback.getStorageInfo();
-    }
+    return this.resolve('get_storage_info', undefined, () => this.fallback.getStorageInfo());
   }
 
   public async getStorageLocations(): Promise<Record<string, StorageLocation>> {
-    try {
-      return await this.invoke<Record<string, StorageLocation>>('get_storage_locations');
-    } catch {
-      return this.fallback.getStorageLocations();
-    }
+    return this.resolve('get_storage_locations', undefined, () => this.fallback.getStorageLocations());
   }
 
   // 9. Diagnóstico & Logs
   public async getSystemLogs(limit?: number): Promise<LogEntry[]> {
-    try {
-      return await this.invoke<LogEntry[]>('get_system_logs', { limit });
-    } catch {
-      return this.fallback.getSystemLogs(limit);
-    }
+    return this.resolve('get_system_logs', { limit }, () => this.fallback.getSystemLogs(limit));
   }
 
   public async getEmuBoxLogs(limit?: number): Promise<LogEntry[]> {
-    try {
-      return await this.invoke<LogEntry[]>('get_emubox_logs', { limit });
-    } catch {
-      return this.fallback.getEmuBoxLogs(limit);
-    }
+    return this.resolve('get_emubox_logs', { limit }, () => this.fallback.getEmuBoxLogs(limit));
   }
 
   public async getDiagnostics(): Promise<DiagnosticReport> {
-    try {
-      return await this.invoke<DiagnosticReport>('get_diagnostics');
-    } catch {
-      return this.fallback.getDiagnostics();
-    }
+    return this.resolve('get_diagnostics', undefined, () => this.fallback.getDiagnostics());
   }
 
   // 10. BIOS Scanner
   public async getBiosRequirements(): Promise<BiosStatus> {
-    try {
-      return await this.invoke<BiosStatus>('get_bios_requirements');
-    } catch {
-      return this.fallback.getBiosRequirements();
-    }
+    return this.resolve('get_bios_requirements', undefined, () => this.fallback.getBiosRequirements());
   }
 
   public async scanBios(): Promise<BiosStatus> {
-    try {
-      return await this.invoke<BiosStatus>('scan_bios');
-    } catch {
-      return this.fallback.scanBios();
-    }
+    return this.resolve('scan_bios', undefined, () => this.fallback.scanBios());
   }
 
   // 11. Actualización OTA & Mantenimiento Desacoplado
   public async getUpdateInfo(): Promise<UpdateInfo> {
-    try {
-      return await this.invoke<UpdateInfo>('get_update_info');
-    } catch {
-      return this.fallback.getUpdateInfo();
-    }
+    return this.resolve('get_update_info', undefined, () => this.fallback.getUpdateInfo());
   }
 
   public async checkForUpdates(channel?: UpdateChannel): Promise<UpdateCheckResult> {
-    try {
-      return await this.invoke<UpdateCheckResult>('check_for_updates', { channel });
-    } catch {
-      return this.fallback.checkForUpdates(channel);
-    }
+    return this.resolve('check_for_updates', { channel }, () => this.fallback.checkForUpdates(channel));
   }
 
   public async applyUpdate(targetVersion?: string): Promise<UpdateProgress> {
-    try {
-      return await this.invoke<UpdateProgress>('apply_update', { targetVersion });
-    } catch {
-      return this.fallback.applyUpdate(targetVersion);
-    }
+    return this.resolve('apply_update', { targetVersion }, () => this.fallback.applyUpdate(targetVersion));
   }
 
   public async rollbackToVersion(version: string): Promise<RollbackResult> {
-    try {
-      return await this.invoke<RollbackResult>('rollback_to_version', { version });
-    } catch {
-      return this.fallback.rollbackToVersion(version);
-    }
+    return this.resolve('rollback_to_version', { version }, () => this.fallback.rollbackToVersion(version));
   }
 
   public async executeCommand(cmd: string): Promise<string> {
-    try {
-      return await this.invoke<string>('execute_command', { command: cmd });
-    } catch {
-      return this.fallback.executeCommand(cmd);
-    }
+    return this.resolve('execute_command', { command: cmd }, () => this.fallback.executeCommand(cmd));
   }
 }
 

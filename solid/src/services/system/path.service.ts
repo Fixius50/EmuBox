@@ -6,11 +6,13 @@ export class PathService {
   private baseConfigDir: string;
   private baseDataDir: string;
   private baseCacheDir: string;
+  private baseLogDir: string;
 
-  constructor(customConfig?: string, customData?: string, customCache?: string) {
+  constructor(customConfig?: string, customData?: string, customCache?: string, customLog?: string) {
     this.baseConfigDir = customConfig || '/etc/emubox';
     this.baseDataDir = customData || '/var/lib/emubox';
     this.baseCacheDir = customCache || '/var/cache/emubox';
+    this.baseLogDir = customLog || '/var/log/emubox';
   }
 
   public getConfigDir(): string {
@@ -53,12 +55,16 @@ export class PathService {
     return `${this.baseCacheDir}/covers`;
   }
 
+  public getShadersDir(): string {
+    return `${this.baseCacheDir}/shaders`;
+  }
+
   public getBiosDir(): string {
     return `${this.baseDataDir}/bios`;
   }
 
   public getLogsDir(): string {
-    return `${this.baseDataDir}/logs`;
+    return this.baseLogDir;
   }
 
   public getCacheDir(): string {

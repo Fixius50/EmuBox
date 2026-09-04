@@ -5,12 +5,13 @@ use crate::models::Emulator;
 use crate::errors::EmuBoxError;
 use crate::services::db_service::DatabaseService;
 use crate::services::emulators::{self, EmulatorProfile};
+use crate::services::paths;
 
 pub struct EmulatorService;
 
 impl EmulatorService {
     fn provision_dedicated_environment(profile: &dyn EmulatorProfile, source_binary: &Path) -> PathBuf {
-        let emu_dir = Path::new("/var/lib/emubox/emulators").join(profile.id());
+        let emu_dir = PathBuf::from(paths::emulator_dir(profile.id()));
         let bin_dir = emu_dir.join("bin");
         let config_dir = emu_dir.join("config");
         let logs_dir = emu_dir.join("logs");
@@ -45,7 +46,7 @@ impl EmulatorService {
     }
 
     fn find_binary_path(profile: &dyn EmulatorProfile) -> Option<PathBuf> {
-        let emu_dir = Path::new("/var/lib/emubox/emulators");
+        let emu_dir = PathBuf::from(paths::emulators_dir());
         for candidate in profile.binary_candidates() {
             let nested_bin = emu_dir.join(profile.id()).join("bin").join(candidate);
             if nested_bin.is_file() {
@@ -133,10 +134,10 @@ impl EmulatorService {
             ).map_err(|e| EmuBoxError::StorageUnavailable(format!("Error guardando emulador en SQLite: {}", e)))?;
 
             // Metadata específica por emulador
-            let config_dir = format!("/var/lib/emubox/emulators/{}/config", profile.id());
-            let bios_dir = "/var/lib/emubox/bios".to_string();
-            let saves_dir = "/var/lib/emubox/saves".to_string();
-            let states_dir = "/var/lib/emubox/states".to_string();
+            let config_dir = paths::emulator_config_dir(profile.id());
+            let bios_dir = paths::bios_dir();
+            let saves_dir = paths::saves_dir();
+            let states_dir = paths::states_dir();
 
             conn.execute(
                 "INSERT INTO emulator_metadata (emulator_id, config_dir, bios_dir, saves_dir, states_dir, renderer)

@@ -19,6 +19,36 @@ impl ProcessService {
             .unwrap_or(0)
     }
 
+    fn resolve_executable_path(executable: &str) -> Option<std::path::PathBuf> {
+        let trimmed = executable.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+
+        let direct = std::path::Path::new(trimmed);
+        if direct.is_absolute() && direct.exists() {
+            return Some(direct.to_path_buf());
+        }
+
+        if direct.exists() {
+            return Some(direct.to_path_buf());
+        }
+
+        if let Ok(output) = Command::new("which").arg(trimmed).output() {
+            if output.status.success() {
+                let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !path.is_empty() {
+                    let resolved = std::path::PathBuf::from(path);
+                    if resolved.exists() {
+                        return Some(resolved);
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
     pub fn launch_game(request: LaunchGameRequest) -> Result<LaunchResult, EmuBoxError> {
         // 1. Validar si ya hay un juego en ejecución
         {
@@ -45,11 +75,14 @@ impl ProcessService {
             (!requested_id.is_empty()).then_some(requested_id),
         )?;
 
-        let executable_path = emulator.executable.clone();
-        if executable_path.is_empty() || !Path::new(&executable_path).exists() {
+        let executable_path = Self::resolve_executable_path(&emulator.executable)
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_else(|| emulator.executable.clone());
+
+        if executable_path.is_empty() || Self::resolve_executable_path(&executable_path).is_none() {
             return Err(EmuBoxError::EmulatorNotInstalled(format!(
-                "El emulador '{}' no está instalado o no se encuentra en {}",
-                emulator.name, executable_path
+                "El emulador '{}' no está instalado o no se encuentra en PATH",
+                emulator.name
             )));
         }
 

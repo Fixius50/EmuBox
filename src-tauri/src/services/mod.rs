@@ -1,3 +1,4 @@
+pub mod paths;
 pub mod system_service;
 pub mod game_service;
 pub mod emulator_service;

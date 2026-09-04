@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 #  EMUBOX OS - MASTER INSTALLER & BOOTSTRAP ORCHESTRATOR FOR ARCH LINUX
-#  Idempotent, Safe, Modular and Compliant with XDG Base Directory Specification
+#  Idempotent, Safe, Modular and Compliant with the appliance filesystem layout
 # ==============================================================================
 
 set -euo pipefail

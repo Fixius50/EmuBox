@@ -1,10 +1,9 @@
 use crate::models::{SystemInfo, HardwareInfo, DisplayInfo, AudioInfo, FirstRunDetectionResult};
 use crate::errors::EmuBoxError;
 use crate::services::EmulatorService;
+use crate::services::paths;
 use std::fs;
 use std::process::Command;
-
-const ROMS_DIRECTORY: &str = "/var/lib/emubox/games";
 
 pub struct SystemService;
 
@@ -98,7 +97,7 @@ impl SystemService {
             vulkan_supported,
             gamepads_detected: Self::detect_gamepads(),
             installed_emulators,
-            roms_directory_found: std::path::Path::new(ROMS_DIRECTORY).is_dir(),
+            roms_directory_found: std::path::Path::new(&paths::games_dir()).is_dir(),
             config_generated: true,
         })
     }

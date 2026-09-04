@@ -45,7 +45,7 @@ export interface IEmuBoxBackend {
   getSystemInfo(): Promise<SystemInfo>;
   runFirstRunDetection(): Promise<FirstRunDetectionResult>;
 
-  // Central Versioned Configuration (XDG Base Directory)
+  // Central Versioned Configuration (system appliance config)
   getConfig(): Promise<EmuBoxConfig>;
   saveConfig(config: EmuBoxConfig): Promise<void>;
 
@@ -95,7 +95,7 @@ Telemetry representing hardware capabilities, display composition, and Linux ker
 ### `EmuBoxConfig`
 Single, central, versioned JSON configuration model:
 * `version`: Schema version number.
-* `paths`: Standard XDG paths for `roms`, `saves`, `states`, `screenshots`, `covers`, `logs`.
+* `paths`: Canonical appliance paths for `roms`, `saves`, `states`, `screenshots`, `covers`, `logs` under `/etc/emubox` and the system data/cache directories.
 * `display`: `resolution`, `refreshRate`, `fullscreen`, `vsync`, `gamescopeEnabled`, `gamescopeScaling`, `crtShader`.
 * `audio`: `volume`, `uiSoundEffects`, `backgroundMusic`, `latencyMs`.
 * `input`: `deadzone`, `vibrationEnabled`, `swapSouthEastButtons`, `pollRateHz`.

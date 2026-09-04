@@ -4,24 +4,28 @@ pub mod services;
 pub mod state;
 pub mod commands;
 
+use tauri::Emitter;
 use state::AppState;
 
 pub fn run() {
     tauri::Builder::default()
         .manage(AppState::new())
-        .setup(|_app| {
+        .setup(|app| {
+            let app_handle = app.handle().clone();
+
             // 1. Iniciar escaneo inicial en segundo plano sin bloquear arranque de UI
-            std::thread::spawn(|| {
+            std::thread::spawn(move || {
                 let _ = services::EmulatorService::scan_emulators();
                 if let Ok(hardware) = services::SystemService::get_hardware_info() {
                     let _ = services::EmulatorService::apply_hardware_profile(&hardware);
                 }
                 let _ = services::GameService::scan_games(None);
                 let _ = services::DownloadService::import_and_start();
+                let _ = app_handle.emit("library-updated", serde_json::json!({ "reason": "initial-scan" }));
             });
 
             // 2. Iniciar watcher reactivo del sistema de archivos (inotify / notify)
-            services::GameLibraryWatcher::start_watching(None);
+            services::GameLibraryWatcher::start_watching(None, Some(app.handle().clone()));
 
             Ok(())
         })

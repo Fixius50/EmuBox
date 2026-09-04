@@ -3,6 +3,7 @@ use std::sync::mpsc::channel;
 use std::time::Duration;
 use std::thread;
 use notify::{Watcher, RecommendedWatcher, RecursiveMode, Event, EventKind};
+use tauri::Emitter;
 use crate::services::game_service::GameService;
 
 pub struct GameLibraryWatcher;
@@ -10,7 +11,7 @@ pub struct GameLibraryWatcher;
 impl GameLibraryWatcher {
     /// Inicia el watcher reactivo de eventos del sistema de archivos en segundo plano.
     /// No realiza polling: se bloquea en el canal de eventos de notify (inotify en Linux).
-    pub fn start_watching(watch_path: Option<PathBuf>) {
+    pub fn start_watching(watch_path: Option<PathBuf>, app_handle: Option<tauri::AppHandle>) {
         thread::spawn(move || {
             let target_dir = watch_path.unwrap_or_else(GameService::get_canonical_games_dir);
             if !target_dir.exists() {
@@ -34,18 +35,29 @@ impl GameLibraryWatcher {
 
             log::info!("[GameLibraryWatcher] Observando eventos reactivos en: {}", target_dir.display());
 
-            // Procesar eventos bloqueantes del canal del kernel (0% CPU en reposo)
             while let Ok(res) = rx.recv() {
                 match res {
                     Ok(event) => {
                         if Self::is_relevant_event(&event) {
                             log::info!("[GameLibraryWatcher] Evento de sistema de archivos detectado ({:?}), sincronizando biblioteca...", event.kind);
-                            // Pequeño debounce para permitir que escrituras/copias de archivos grandes finalicen
                             thread::sleep(Duration::from_millis(500));
-                            // Drenar cualquier otro evento acumulado durante la copia
                             while rx.try_recv().is_ok() {}
 
-                            let _ = GameService::scan_games(None);
+                            if let Ok(result) = GameService::scan_games(None) {
+                                if let Some(handle) = &app_handle {
+                                    let _ = handle.emit("library-updated", serde_json::json!({
+                                        "scannedCount": result.scanned_count,
+                                        "addedCount": result.added_count,
+                                        "updatedCount": result.updated_count,
+                                        "removedCount": result.removed_count,
+                                        "totalCount": result.total_count,
+                                        "timestamp": std::time::SystemTime::now()
+                                            .duration_since(std::time::UNIX_EPOCH)
+                                            .unwrap_or_default()
+                                            .as_millis()
+                                    }));
+                                }
+                            }
                         }
                     }
                     Err(e) => {
@@ -65,7 +77,7 @@ impl GameLibraryWatcher {
                     }
                     if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
                         let lower = ext.to_lowercase();
-                        matches!(lower.as_str(), "iso" | "chd" | "cso" | "bin" | "cue" | "rvz" | "gcm" | "sfc" | "smc" | "gba" | "z64" | "n64" | "md" | "gen" | "cdi" | "pbp" | "nds" | "zip" | "7z")
+                        matches!(lower.as_str(), "iso" | "chd" | "cso" | "bin" | "cue" | "rvz" | "gcm" | "sfc" | "smc" | "gba" | "z64" | "n64" | "md" | "gen" | "cdi" | "pbp" | "nds" | "pkg" | "zip" | "7z")
                     } else {
                         false
                     }

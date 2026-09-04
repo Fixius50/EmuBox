@@ -169,9 +169,9 @@ pub struct GameService;
 
 impl GameService {
     pub fn get_canonical_games_dir() -> PathBuf {
-        let base = Path::new("/var/lib/emubox/games");
-        if base.exists() || fs::create_dir_all(base).is_ok() {
-            base.to_path_buf()
+        let base = PathBuf::from(crate::services::paths::games_dir());
+        if base.exists() || fs::create_dir_all(&base).is_ok() {
+            base
         } else {
             let fallback = PathBuf::from("/tmp/emubox/games");
             let _ = fs::create_dir_all(&fallback);

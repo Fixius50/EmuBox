@@ -12,10 +12,7 @@ use rusqlite::params;
 use crate::errors::EmuBoxError;
 use crate::models::{CreateDownloadRequest, DownloadJob, DownloadSource, DownloadSourceType, DownloadStatus};
 use crate::services::db_service::DatabaseService;
-
-const DOWNLOAD_ROOT: &str = "/var/lib/emubox/games";
-const DOWNLOAD_CACHE_ROOT: &str = "/var/cache/emubox/downloads";
-const DOWNLOAD_LINKS_FILE: &str = "/etc/emubox/download-links.txt";
+use crate::services::paths;
 
 struct RuntimeControl {
     paused: Arc<AtomicBool>,
@@ -32,8 +29,8 @@ pub struct DownloadService;
 
 impl DownloadService {
     pub fn import_link_file() -> Result<Vec<DownloadJob>, EmuBoxError> {
-        let content = fs::read_to_string(DOWNLOAD_LINKS_FILE)
-            .map_err(|e| EmuBoxError::StorageUnavailable(format!("No se pudo leer {}: {}", DOWNLOAD_LINKS_FILE, e)))?;
+        let content = fs::read_to_string(paths::download_links_file())
+            .map_err(|e| EmuBoxError::StorageUnavailable(format!("No se pudo leer {}: {}", paths::download_links_file(), e)))?;
         let mut jobs = Vec::new();
         for (line_number, line) in content.lines().enumerate() {
             let link = line.split('#').next().unwrap_or("").trim();
@@ -203,8 +200,9 @@ impl DownloadService {
         let parent = destination.parent().ok_or_else(|| EmuBoxError::InvalidConfiguration("Destino inválido".to_string()))?;
         fs::create_dir_all(parent).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
         let partial_name = destination.file_name().and_then(|name| name.to_str()).unwrap_or("download.bin");
-        let partial = Path::new(DOWNLOAD_CACHE_ROOT).join(format!("{}.part", partial_name));
-        fs::create_dir_all(DOWNLOAD_CACHE_ROOT).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
+        let cache_root = paths::downloads_cache_dir();
+        let partial = Path::new(&cache_root).join(format!("{}.part", partial_name));
+        fs::create_dir_all(&cache_root).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
         let existing = partial.metadata().map(|m| m.len()).unwrap_or(0);
         let client = Client::new();
         let mut request = client.get(&uri);
@@ -254,7 +252,7 @@ impl DownloadService {
         let filename = url.path_segments().and_then(|mut segments| segments.rfind(|s| !s.is_empty())).unwrap_or("download.bin");
         let filename = filename.replace(['/', '\\'], "_");
         let filename = if filename.is_empty() { "download.bin" } else { filename.as_str() };
-        Ok(Path::new(DOWNLOAD_ROOT).join(platform).join(filename))
+        Ok(Path::new(&paths::games_dir()).join(platform).join(filename))
     }
 
     fn update_status(id: &str, status: DownloadStatus, error: Option<String>) -> Result<(), EmuBoxError> {
@@ -298,7 +296,7 @@ mod tests {
     #[test]
     fn destination_is_confined_to_platform_directory() {
         let destination = DownloadService::destination_path("ps3", "https://example.test/files/game.pkg").unwrap();
-        assert_eq!(destination, Path::new(DOWNLOAD_ROOT).join("ps3/game.pkg"));
+        assert_eq!(destination, Path::new(&paths::games_dir()).join("ps3/game.pkg"));
         assert!(DownloadService::destination_path("../ps3", "https://example.test/game.pkg").is_err());
     }
 

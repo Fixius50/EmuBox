@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-#  EMUBOX SETUP - XDG BASE DIRECTORY HIERARCHY INITIALIZER
+#  EMUBOX SETUP - APPLIANCE FILESYSTEM HIERARCHY INITIALIZER
 # ==============================================================================
 
 set -euo pipefail

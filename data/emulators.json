@@ -70,6 +70,16 @@
     "arguments": ["--fullscreen"]
   },
   {
+    "id": "rpcs3",
+    "name": "RPCS3",
+    "version": "0.0.34",
+    "supportedPlatforms": ["ps3"],
+    "coreType": "standalone",
+    "status": "active",
+    "executable": "rpcs3",
+    "arguments": []
+  },
+  {
     "id": "fbneo",
     "name": "FinalBurn Neo",
     "version": "1.0.0.3",

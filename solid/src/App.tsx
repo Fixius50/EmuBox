@@ -146,6 +146,24 @@ export const App: Component = () => {
 
   // 5. Initial Dataset Bootstrap
   onMount(async () => {
+    let unlistenLibraryUpdated: (() => void) | undefined;
+
+    if (typeof window !== 'undefined') {
+      const tauri = (window as any).__TAURI__;
+      const eventApi = tauri?.event;
+      if (eventApi?.listen) {
+        unlistenLibraryUpdated = await eventApi.listen('library-updated', async () => {
+          await libraryStore.loadGames();
+        });
+      }
+    }
+
+    onCleanup(() => {
+      if (unlistenLibraryUpdated) {
+        unlistenLibraryUpdated();
+      }
+    });
+
     await systemStore.loadSystemData();
     try {
       if (backend.isTauriEnvironment) {

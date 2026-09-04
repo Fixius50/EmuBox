@@ -2,14 +2,15 @@ use std::path::{Path, PathBuf};
 use std::fs;
 use rusqlite::Connection;
 use crate::errors::EmuBoxError;
+use crate::services::paths;
 
 pub struct DatabaseService;
 
 impl DatabaseService {
     pub fn get_db_path() -> PathBuf {
-        let base = Path::new("/var/lib/emubox");
+        let base = Path::new(paths::DATA_DIR);
         if base.exists() || fs::create_dir_all(base).is_ok() {
-            base.join("emubox.db")
+            PathBuf::from(paths::database_path())
         } else {
             let fallback = PathBuf::from("/tmp/emubox");
             let _ = fs::create_dir_all(&fallback);

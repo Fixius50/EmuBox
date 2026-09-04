@@ -27,6 +27,9 @@ import type {
   UpdateChannel
 } from '@contracts/backend.types';
 import type { CreateDownloadRequest, DownloadJob, DownloadSource } from '@contracts/download.types';
+import { PathService } from '@services/system/path.service';
+
+const paths = new PathService();
 
 export class MockBackendService implements IEmuBoxBackend {
   private games: Game[] = [];
@@ -87,6 +90,7 @@ export class MockBackendService implements IEmuBoxBackend {
     { id: 'genesis_plus_gx', name: 'Genesis Plus GX (Libretro Core)', version: '1.7.4', supportedPlatforms: ['genesis'], coreType: 'libretro', status: 'active', executable: '/usr/bin/retroarch', arguments: ['-L', '/usr/lib/libretro/genesis_plus_gx_libretro.so'] },
     { id: 'mgba', name: 'mGBA (Vulkan - Standalone)', version: '0.10.3', supportedPlatforms: ['gba'], coreType: 'standalone', status: 'active', executable: '/usr/bin/mgba-qt', arguments: ['-f'] },
     { id: 'flycast', name: 'Flycast (Vulkan Direct)', version: '2.4', supportedPlatforms: ['dreamcast'], coreType: 'standalone', status: 'active', executable: '/usr/bin/flycast', arguments: [] },
+    { id: 'rpcs3', name: 'RPCS3', version: '0.0.34', supportedPlatforms: ['ps3'], coreType: 'standalone', status: 'active', executable: 'rpcs3', arguments: [] },
     { id: 'fbneo', name: 'FinalBurn Neo (Libretro Core)', version: '1.0.0.3', supportedPlatforms: ['arcade'], coreType: 'libretro', status: 'active', executable: '/usr/bin/retroarch', arguments: ['-L', '/usr/lib/libretro/fbneo_libretro.so'] }
   ];
 
@@ -95,12 +99,12 @@ export class MockBackendService implements IEmuBoxBackend {
   private config: EmuBoxConfig = {
     version: 1,
     paths: {
-      roms: '/var/lib/emubox/games',
-      saves: '/var/lib/emubox/saves',
-      states: '/var/lib/emubox/states',
-      screenshots: '/var/lib/emubox/screenshots',
-      covers: '/var/cache/emubox/covers',
-      logs: '/var/log/emubox'
+      roms: paths.getRomsDir(),
+      saves: paths.getSavesDir(),
+      states: paths.getStatesDir(),
+      screenshots: paths.getScreenshotsDir(),
+      covers: paths.getCoversDir(),
+      logs: paths.getLogsDir()
     },
     display: {
       resolution: '1920x1080',
@@ -129,12 +133,15 @@ export class MockBackendService implements IEmuBoxBackend {
         snes: 'snes9x',
         ps1: 'duckstation',
         ps2: 'pcsx2',
+        ps3: 'rpcs3',
         n64: 'mupen64plus',
         genesis: 'genesis_plus_gx',
         gba: 'mgba',
         dreamcast: 'flycast',
         arcade: 'fbneo',
         gamecube: 'dolphin',
+        wii: 'dolphin',
+        wiiu: 'cemu',
         psp: 'ppsspp',
         nds: 'desmume'
       }
@@ -538,14 +545,14 @@ export class MockBackendService implements IEmuBoxBackend {
 
   public async getStorageLocations(): Promise<Record<string, StorageLocation>> {
     return {
-      roms: { id: 'roms', label: 'ROMs Directory', path: '~/.local/share/emubox/roms', totalFiles: this.games.length, totalBytes: 120000000000, accessible: true, isWritable: true },
-      saves: { id: 'saves', label: 'Saves Directory', path: '~/.local/share/emubox/saves', totalFiles: 45, totalBytes: 450000000, accessible: true, isWritable: true },
-      states: { id: 'states', label: 'States Directory', path: '~/.local/share/emubox/states', totalFiles: 20, totalBytes: 250000000, accessible: true, isWritable: true },
-      screenshots: { id: 'screenshots', label: 'Screenshots Directory', path: '~/.local/share/emubox/screenshots', totalFiles: 12, totalBytes: 15000000, accessible: true, isWritable: true },
-      covers: { id: 'covers', label: 'Covers Cache', path: '~/.local/share/emubox/covers', totalFiles: 10000, totalBytes: 500000000, accessible: true, isWritable: true },
-      bios: { id: 'bios', label: 'BIOS Directory', path: '~/.local/share/emubox/bios', totalFiles: 5, totalBytes: 35000000, accessible: true, isWritable: true },
-      logs: { id: 'logs', label: 'Logs Directory', path: '~/.local/share/emubox/logs', totalFiles: 3, totalBytes: 120000, accessible: true, isWritable: true },
-      cache: { id: 'cache', label: 'Vulkan Shaders Cache', path: '~/.cache/emubox', totalFiles: 50, totalBytes: 80000000, accessible: true, isWritable: true }
+      roms: { id: 'roms', label: 'ROMs Directory', path: paths.getRomsDir(), totalFiles: this.games.length, totalBytes: 120000000000, accessible: true, isWritable: true },
+      saves: { id: 'saves', label: 'Saves Directory', path: paths.getSavesDir(), totalFiles: 45, totalBytes: 450000000, accessible: true, isWritable: true },
+      states: { id: 'states', label: 'States Directory', path: paths.getStatesDir(), totalFiles: 20, totalBytes: 250000000, accessible: true, isWritable: true },
+      screenshots: { id: 'screenshots', label: 'Screenshots Directory', path: paths.getScreenshotsDir(), totalFiles: 12, totalBytes: 15000000, accessible: true, isWritable: true },
+      covers: { id: 'covers', label: 'Covers Cache', path: paths.getCoversDir(), totalFiles: 10000, totalBytes: 500000000, accessible: true, isWritable: true },
+      bios: { id: 'bios', label: 'BIOS Directory', path: paths.getBiosDir(), totalFiles: 5, totalBytes: 35000000, accessible: true, isWritable: true },
+      logs: { id: 'logs', label: 'Logs Directory', path: paths.getLogsDir(), totalFiles: 3, totalBytes: 120000, accessible: true, isWritable: true },
+      cache: { id: 'cache', label: 'Vulkan Shaders Cache', path: paths.getShadersDir(), totalFiles: 50, totalBytes: 80000000, accessible: true, isWritable: true }
     };
   }
 
@@ -690,7 +697,7 @@ export class MockBackendService implements IEmuBoxBackend {
       gameId: request.gameId,
       sourceId: request.source.id,
       platform: request.platform,
-      destinationPath: `/var/lib/emubox/games/${request.platform}/download.bin`,
+      destinationPath: `${paths.getRomsDir(request.platform)}/download.bin`,
       status: 'queued',
       progress: 0,
       downloadedBytes: 0,

@@ -188,6 +188,11 @@ assert(hwInfo.gpuVendor === 'amd' || hwInfo.gpuVendor === 'generic', `SystemServ
 const storageInfo = await storageService.getStorageInfo();
 assert(storageInfo.drives.length > 0, `StorageService reportó unidades montadas: ${storageInfo.drives[0].name}`);
 
+const storageLocations = await backend.getStorageLocations();
+assert(!Object.values(storageLocations).some(loc => /\.local\/share\/emubox|\.config\/emubox|\.cache\/emubox/.test(loc.path)), 'Storage locations usan rutas canónicas del appliance y no XDG legacy');
+assert(storageLocations.roms.path === '/var/lib/emubox/games', 'Storage locations apuntan a /var/lib/emubox/games');
+assert(storageLocations.cache.path === '/var/cache/emubox/shaders', 'Cache de shaders usa /var/cache/emubox/shaders');
+
 const isRunning = await processService.isGameRunning();
 assert(typeof isRunning === 'boolean', `ProcessService comprobó estado de proceso: running=${isRunning}`);
 

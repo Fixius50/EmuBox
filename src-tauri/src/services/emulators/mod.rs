@@ -54,7 +54,7 @@ pub fn registry() -> Vec<Box<dyn EmulatorProfile>> {
 }
 
 pub(crate) fn config_home() -> PathBuf {
-    PathBuf::from("/var/lib/emubox/emulators")
+    PathBuf::from(crate::services::paths::emulators_dir())
 }
 
 /// Inserta o reemplaza `key = "value"` en un archivo de configuración plano sin
