@@ -26,11 +26,13 @@ import type {
   RollbackResult,
   UpdateChannel
 } from '@contracts/backend.types';
+import type { CreateDownloadRequest, DownloadJob, DownloadSource } from '@contracts/download.types';
 
 export class MockBackendService implements IEmuBoxBackend {
   private games: Game[] = [];
   private activeRunningGame: RunningGameInfo | null = null;
   private logs: LogEntry[] = [];
+  private downloads: DownloadJob[] = [];
 
   private updateInfo: UpdateInfo = {
     currentVersion: 'v1.0.0',
@@ -676,6 +678,44 @@ export class MockBackendService implements IEmuBoxBackend {
     }
     return `[Mock Terminal] Comando simulado ejecutado: ${cmd}\nResultado: OK (Simulación en navegador)`;
   }
+
+  public async createDownloadSource(source: DownloadSource): Promise<DownloadSource> {
+    if (source.sourceType !== 'http') throw new Error('Solo HTTP está disponible en el modo local');
+    return source;
+  }
+
+  public async createDownloadJob(request: CreateDownloadRequest): Promise<DownloadJob> {
+    const job: DownloadJob = {
+      id: `download-${Date.now()}`,
+      gameId: request.gameId,
+      sourceId: request.source.id,
+      platform: request.platform,
+      destinationPath: `/var/lib/emubox/games/${request.platform}/download.bin`,
+      status: 'queued',
+      progress: 0,
+      downloadedBytes: 0,
+      totalBytes: request.source.sizeBytes,
+      speedBytesPerSecond: 0,
+    };
+    this.downloads.push(job);
+    return job;
+  }
+
+  public async getDownloadJobs(): Promise<DownloadJob[]> {
+    return this.downloads;
+  }
+
+  private updateDownload(id: string, status: DownloadJob['status']): DownloadJob {
+    const job = this.downloads.find((download) => download.id === id);
+    if (!job) throw new Error(`Descarga no encontrada: ${id}`);
+    job.status = status;
+    return job;
+  }
+
+  public async startDownload(id: string): Promise<DownloadJob> { return this.updateDownload(id, 'downloading'); }
+  public async pauseDownload(id: string): Promise<DownloadJob> { return this.updateDownload(id, 'paused'); }
+  public async resumeDownload(id: string): Promise<DownloadJob> { return this.updateDownload(id, 'downloading'); }
+  public async cancelDownload(id: string): Promise<DownloadJob> { return this.updateDownload(id, 'cancelled'); }
 }
 
 export { MockBackendService as MockBackend };

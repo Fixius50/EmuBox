@@ -26,6 +26,7 @@ import type {
   RollbackResult,
   UpdateChannel
 } from '@contracts/backend.types';
+import type { CreateDownloadRequest, DownloadJob, DownloadSource } from '@contracts/download.types';
 import { MockBackendService } from './mock-backend.service';
 
 /**
@@ -264,6 +265,34 @@ export class TauriBackendService implements IEmuBoxBackend {
     } catch {
       return this.fallback.launchGame(gameIdOrRequest, emulatorId);
     }
+  }
+
+  public async createDownloadSource(source: DownloadSource): Promise<DownloadSource> {
+    return this.invoke<DownloadSource>('create_download_source', { source });
+  }
+
+  public async createDownloadJob(request: CreateDownloadRequest): Promise<DownloadJob> {
+    return this.invoke<DownloadJob>('create_download_job', { request });
+  }
+
+  public async getDownloadJobs(): Promise<DownloadJob[]> {
+    return this.invoke<DownloadJob[]>('get_download_jobs');
+  }
+
+  public async startDownload(id: string): Promise<DownloadJob> {
+    return this.invoke<DownloadJob>('start_download', { id });
+  }
+
+  public async pauseDownload(id: string): Promise<DownloadJob> {
+    return this.invoke<DownloadJob>('pause_download', { id });
+  }
+
+  public async resumeDownload(id: string): Promise<DownloadJob> {
+    return this.invoke<DownloadJob>('resume_download', { id });
+  }
+
+  public async cancelDownload(id: string): Promise<DownloadJob> {
+    return this.invoke<DownloadJob>('cancel_download', { id });
   }
 
   public async stopGame(): Promise<void> {

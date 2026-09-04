@@ -32,6 +32,18 @@ pub const PLATFORM_SPECS: &[PlatformSpec] = &[
         extensions: &["iso", "chd", "cso", "bin", "gz"],
     },
     PlatformSpec {
+        id: "ps3",
+        name: "PlayStation 3",
+        short_name: "PS3",
+        manufacturer: "Sony",
+        generation: 7,
+        release_year: 2006,
+        color: "#2f2f2f",
+        icon: "ps3",
+        default_emulator_id: "rpcs3",
+        extensions: &["iso", "pkg", "zip", "7z"],
+    },
+    PlatformSpec {
         id: "ps1",
         name: "PlayStation",
         short_name: "PS1",
@@ -245,11 +257,12 @@ impl GameService {
         let base_dirs: Vec<PathBuf> = if let Some(dir) = custom_dir {
             vec![dir]
         } else {
-            vec![
-                Self::get_canonical_games_dir(),
-                PathBuf::from("/var/lib/emubox/roms"),
-            ]
+            vec![Self::get_canonical_games_dir()]
         };
+
+        let scanned_roots: Vec<PathBuf> = platforms_to_scan.iter()
+            .flat_map(|plat| base_dirs.iter().map(move |base_dir| base_dir.join(plat.id)))
+            .collect();
 
         for plat in platforms_to_scan {
             for base_dir in &base_dirs {
@@ -272,7 +285,9 @@ impl GameService {
 
             if let Ok(mapped) = rows {
                 for item in mapped.flatten() {
-                    if !Path::new(&item.1).exists() {
+                    let path = Path::new(&item.1);
+                    let belongs_to_scan = scanned_roots.iter().any(|root| path.starts_with(root));
+                    if belongs_to_scan && !path.exists() {
                         if let Ok(aff) = conn.execute("DELETE FROM games WHERE id = ?1;", params![item.0]) {
                             if aff > 0 {
                                 removed_count += aff;
@@ -307,6 +322,28 @@ impl GameService {
         added: &mut usize,
         updated: &mut usize,
     ) {
+        if plat.id == "ps3" && dir.join("PS3_GAME").is_dir() {
+            *scanned += 1;
+            let title = dir.file_name().and_then(|name| name.to_str()).unwrap_or("Unknown");
+            let clean_title = Self::clean_title_from_filename(title);
+            let rom_path = dir.to_string_lossy().to_string();
+            let game_id = format!("{}-{}", plat.id, title.replace(' ', "-").to_lowercase());
+            let exists_before: bool = conn.query_row(
+                "SELECT 1 FROM games WHERE rom_path = ?1 LIMIT 1;",
+                params![rom_path],
+                |_| Ok(true),
+            ).unwrap_or(false);
+            if conn.execute(
+                "INSERT INTO games (id, title, platform_id, platform_name, release_year, genre, developer, publisher, rating, rom_path, file_size_bytes, description)
+                 VALUES (?1, ?2, ?3, ?4, ?5, 'Classic', ?6, ?6, 4.5, ?7, 0, ?8)
+                 ON CONFLICT(rom_path) DO UPDATE SET title = excluded.title, platform_id = excluded.platform_id;",
+                params![game_id, clean_title, plat.id, plat.name, plat.release_year, plat.manufacturer, rom_path, format!("Juego oficial de {}", plat.name)],
+            ).is_ok() {
+                if exists_before { *updated += 1; } else { *added += 1; }
+            }
+            return;
+        }
+
         if let Ok(entries) = fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
@@ -553,6 +590,32 @@ mod tests {
 
         assert!(!games.is_empty());
         assert_eq!(games[0].title, "Test Game");
+
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_scan_ps3_installed_folder() {
+        let temp_dir = std::env::temp_dir().join(format!("emubox-ps3-test-{}", std::process::id()));
+        let game_dir = temp_dir.join("ps3").join("Gran Turismo 6 (Europe)").join("PS3_GAME");
+        fs::create_dir_all(&game_dir).unwrap();
+
+        let scan_req = ScanGamesRequest {
+            platforms: Some(vec!["ps3".to_string()]),
+            roms_directory: Some(temp_dir.to_string_lossy().to_string()),
+            deep_scan: Some(true),
+        };
+        let result = GameService::scan_games(Some(scan_req)).unwrap();
+        assert_eq!(result.scanned_count, 1);
+
+        let games = GameService::get_games(Some(GameFilter {
+            platform: Some("ps3".to_string()),
+            search: Some("Gran Turismo 6".to_string()),
+            favorite: None,
+            limit: None,
+            offset: None,
+        })).unwrap();
+        assert!(games.iter().any(|game| game.title == "Gran Turismo 6"));
 
         fs::remove_dir_all(&temp_dir).unwrap();
     }

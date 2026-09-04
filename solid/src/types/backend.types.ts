@@ -46,6 +46,7 @@ import type {
   RollbackResult,
   UpdateChannel
 } from './update.types';
+import type { CreateDownloadRequest, DownloadJob, DownloadSource } from './download.types';
 
 export * from './system.types';
 export * from './storage.types';
@@ -56,6 +57,7 @@ export * from './bios.types';
 export * from './update.types';
 export * from './events.types';
 export * from './errors.types';
+export * from './download.types';
 
 export interface LaunchGameRequest {
   gameId: string;
@@ -186,4 +188,13 @@ export interface IEmuBoxBackend {
   checkForUpdates(channel?: UpdateChannel): Promise<UpdateCheckResult>;
   applyUpdate(targetVersion?: string): Promise<UpdateProgress>;
   rollbackToVersion(version: string): Promise<RollbackResult>;
+
+  // 12. Descargas de fuentes autorizadas
+  createDownloadSource(source: DownloadSource): Promise<DownloadSource>;
+  createDownloadJob(request: CreateDownloadRequest): Promise<DownloadJob>;
+  getDownloadJobs(): Promise<DownloadJob[]>;
+  startDownload(id: string): Promise<DownloadJob>;
+  pauseDownload(id: string): Promise<DownloadJob>;
+  resumeDownload(id: string): Promise<DownloadJob>;
+  cancelDownload(id: string): Promise<DownloadJob>;
 }

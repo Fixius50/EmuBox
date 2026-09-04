@@ -7,6 +7,7 @@ pub mod input;
 pub mod diagnostics;
 pub mod bios;
 pub mod compatibility;
+pub mod downloads;
 
 pub use system::*;
 pub use games::*;
@@ -17,3 +18,4 @@ pub use input::*;
 pub use diagnostics::*;
 pub use bios::*;
 pub use compatibility::*;
+pub use downloads::*;

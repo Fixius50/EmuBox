@@ -7,6 +7,7 @@ pub mod storage;
 pub mod input;
 pub mod diagnostics;
 pub mod bios;
+pub mod download;
 
 pub use system::*;
 pub use game::*;
@@ -17,3 +18,4 @@ pub use storage::*;
 pub use input::*;
 pub use diagnostics::*;
 pub use bios::*;
+pub use download::*;

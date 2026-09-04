@@ -1,11 +1,53 @@
 use rusqlite::params;
 use crate::models::GameEmulatorAssociation;
+use crate::models::{Emulator, Game};
 use crate::errors::EmuBoxError;
 use crate::services::db_service::DatabaseService;
+use crate::services::EmulatorService;
 
 pub struct CompatibilityService;
 
 impl CompatibilityService {
+    pub fn resolve_for_game(
+        game: &Game,
+        preferred_emulator_id: Option<&str>,
+    ) -> Result<(Emulator, Vec<String>, Option<String>), EmuBoxError> {
+        let available = EmulatorService::get_emulators()?
+            .into_iter()
+            .filter(|emulator| {
+                emulator.status == "active"
+                    && emulator.supported_platforms.iter().any(|platform| platform == &game.platform)
+            })
+            .collect::<Vec<_>>();
+
+        if available.is_empty() {
+            return Err(EmuBoxError::EmulatorNotInstalled(format!(
+                "No hay un emulador activo para {}",
+                game.platform
+            )));
+        }
+
+        let associations = Self::get_game_associations(game.id.clone())?;
+        let selected = preferred_emulator_id
+            .and_then(|id| available.iter().find(|emulator| emulator.id == id))
+            .or_else(|| {
+                associations.iter()
+                    .filter(|association| association.enabled)
+                    .find_map(|association| available.iter().find(|emulator| emulator.id == association.emulator_id))
+            })
+            .or_else(|| available.iter().find(|emulator| emulator.id == "rpcs3" && game.platform == "ps3"))
+            .or_else(|| available.first())
+            .cloned()
+            .ok_or_else(|| EmuBoxError::EmulatorNotInstalled("No se pudo resolver el emulador".to_string()))?;
+
+        let association = associations.into_iter()
+            .find(|association| association.enabled && association.emulator_id == selected.id);
+        let custom_args = association.as_ref().map(|association| association.custom_arguments.clone()).unwrap_or_default();
+        let custom_config = association.and_then(|association| association.custom_config_path);
+
+        Ok((selected, custom_args, custom_config))
+    }
+
     pub fn get_game_associations(game_id: String) -> Result<Vec<GameEmulatorAssociation>, EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
         let mut stmt = conn.prepare(

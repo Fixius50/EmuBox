@@ -9,6 +9,7 @@ pub mod bios_service;
 pub mod db_service;
 pub mod compatibility_service;
 pub mod game_library_watcher;
+pub mod download_service;
 
 pub use system_service::SystemService;
 pub use game_service::GameService;
@@ -20,3 +21,4 @@ pub use bios_service::BiosService;
 pub use db_service::DatabaseService;
 pub use compatibility_service::CompatibilityService;
 pub use game_library_watcher::GameLibraryWatcher;
+pub use download_service::DownloadService;

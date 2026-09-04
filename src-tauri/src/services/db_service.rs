@@ -110,7 +110,34 @@ impl DatabaseService {
 
             CREATE INDEX IF NOT EXISTS idx_games_platform ON games(platform_id);
             CREATE INDEX IF NOT EXISTS idx_games_favorite ON games(favorite);
-            CREATE INDEX IF NOT EXISTS idx_assocs_game ON game_emulator_associations(game_id);"
+            CREATE INDEX IF NOT EXISTS idx_assocs_game ON game_emulator_associations(game_id);
+
+            CREATE TABLE IF NOT EXISTS download_sources (
+                id TEXT PRIMARY KEY,
+                game_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                uri TEXT NOT NULL,
+                size_bytes INTEGER,
+                checksum TEXT,
+                available INTEGER NOT NULL DEFAULT 1
+            );
+
+            CREATE TABLE IF NOT EXISTS download_jobs (
+                id TEXT PRIMARY KEY,
+                game_id TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                platform TEXT NOT NULL,
+                destination_path TEXT NOT NULL,
+                status TEXT NOT NULL,
+                progress REAL NOT NULL DEFAULT 0,
+                downloaded_bytes INTEGER NOT NULL DEFAULT 0,
+                total_bytes INTEGER,
+                speed_bytes_per_second INTEGER NOT NULL DEFAULT 0,
+                error TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_download_jobs_status ON download_jobs(status);"
         ).map_err(|e| EmuBoxError::StorageUnavailable(format!("Error al inicializar tablas en SQLite: {}", e)))?;
 
         Ok(())

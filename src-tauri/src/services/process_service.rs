@@ -4,8 +4,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::path::Path;
 use crate::models::{LaunchGameRequest, LaunchResult, RunningGameInfo, ProcessStatus};
 use crate::errors::EmuBoxError;
-use crate::services::emulator_service::EmulatorService;
 use crate::services::game_service::GameService;
+use crate::services::compatibility_service::CompatibilityService;
 
 static CURRENT_RUNNING_GAME: Mutex<Option<RunningGameInfo>> = Mutex::new(None);
 
@@ -40,26 +40,10 @@ impl ProcessService {
 
         // 3. Obtener metadatos del emulador solicitado (o resolver emulador por defecto de la plataforma)
         let requested_id = request.emulator_id.trim();
-        let target_emulator_id = if requested_id.is_empty() {
-            let emus = EmulatorService::get_emulators()?;
-            let matching = emus.into_iter().find(|e| {
-                e.status == "active" && e.supported_platforms.contains(&game.platform)
-            });
-            if let Some(e) = matching {
-                e.id
-            } else {
-                crate::services::game_service::PLATFORM_SPECS
-                    .iter()
-                    .find(|p| p.id == game.platform)
-                    .map(|p| p.default_emulator_id.to_string())
-                    .unwrap_or_else(|| "retroarch".to_string())
-            }
-        } else {
-            requested_id.to_string()
-        };
-
-        let emulator = EmulatorService::get_emulator_by_id(target_emulator_id.clone())?
-            .ok_or_else(|| EmuBoxError::EmulatorNotInstalled(format!("Emulador no encontrado: {}", target_emulator_id)))?;
+        let (emulator, association_args, _association_config) = CompatibilityService::resolve_for_game(
+            &game,
+            (!requested_id.is_empty()).then_some(requested_id),
+        )?;
 
         let executable_path = emulator.executable.clone();
         if executable_path.is_empty() || !Path::new(&executable_path).exists() {
@@ -80,6 +64,7 @@ impl ProcessService {
 
         // 5. Construir argumentos
         let mut final_args = emulator.arguments.clone();
+        final_args.extend(association_args);
         if let Some(custom) = request.custom_args {
             final_args.extend(custom);
         }

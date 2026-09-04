@@ -87,6 +87,15 @@ pub fn run() {
             commands::compatibility::get_game_associations,
             commands::compatibility::set_game_association,
             commands::compatibility::remove_game_association,
+
+            // Downloads (solo fuentes autorizadas proporcionadas por el usuario)
+            commands::downloads::create_download_source,
+            commands::downloads::create_download_job,
+            commands::downloads::get_download_jobs,
+            commands::downloads::start_download,
+            commands::downloads::pause_download,
+            commands::downloads::resume_download,
+            commands::downloads::cancel_download,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Resized(size) = event {
