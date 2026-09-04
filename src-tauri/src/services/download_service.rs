@@ -15,6 +15,7 @@ use crate::services::db_service::DatabaseService;
 
 const DOWNLOAD_ROOT: &str = "/var/lib/emubox/games";
 const DOWNLOAD_CACHE_ROOT: &str = "/var/cache/emubox/downloads";
+const DOWNLOAD_LINKS_FILE: &str = "/etc/emubox/download-links.txt";
 
 struct RuntimeControl {
     paused: Arc<AtomicBool>,
@@ -30,6 +31,48 @@ fn active_jobs() -> &'static Mutex<HashMap<String, RuntimeControl>> {
 pub struct DownloadService;
 
 impl DownloadService {
+    pub fn import_link_file() -> Result<Vec<DownloadJob>, EmuBoxError> {
+        let content = fs::read_to_string(DOWNLOAD_LINKS_FILE)
+            .map_err(|e| EmuBoxError::StorageUnavailable(format!("No se pudo leer {}: {}", DOWNLOAD_LINKS_FILE, e)))?;
+        let mut jobs = Vec::new();
+        for (line_number, line) in content.lines().enumerate() {
+            let link = line.split('#').next().unwrap_or("").trim();
+            if link.is_empty() { continue; }
+            let url = reqwest::Url::parse(link)
+                .map_err(|e| EmuBoxError::InvalidConfiguration(format!("Enlace inválido en línea {}: {}", line_number + 1, e)))?;
+            if !matches!(url.scheme(), "http" | "https") {
+                return Err(EmuBoxError::InvalidConfiguration(format!("Solo se aceptan enlaces HTTP/HTTPS en línea {}", line_number + 1)));
+            }
+            let platform = url.path_segments()
+                .and_then(|segments| segments.filter(|segment| !segment.is_empty()).find(|segment| Self::supported_platform(segment)))
+                .ok_or_else(|| EmuBoxError::InvalidConfiguration(format!("No se pudo inferir la plataforma en línea {}", line_number + 1)))?;
+            let filename = url.path_segments()
+                .and_then(|mut segments| segments.rfind(|segment| !segment.is_empty()))
+                .unwrap_or("download.bin");
+            if filename.eq_ignore_ascii_case("download.json") || filename.ends_with(".json") {
+                return Err(EmuBoxError::InvalidConfiguration(format!("El enlace de la línea {} parece un manifiesto JSON, no un archivo de juego", line_number + 1)));
+            }
+            let name = filename.rsplit_once('.').map(|(stem, _)| stem).unwrap_or(filename).replace(['_', '-'], " ");
+            let game_id = format!("download-{}-{}", platform, slug(&name));
+            let source = DownloadSource {
+                id: format!("source-{}-{}", platform, slug(link)),
+                game_id: game_id.clone(),
+                name: name.clone(),
+                source_type: DownloadSourceType::Http,
+                uri: link.to_string(),
+                size_bytes: None,
+                checksum: None,
+                available: true,
+            };
+            jobs.push(Self::create_job(CreateDownloadRequest { game_id, platform: platform.to_string(), source })?);
+        }
+        Ok(jobs)
+    }
+
+    fn supported_platform(value: &str) -> bool {
+        matches!(value, "ps1" | "ps2" | "ps3" | "psp" | "gamecube" | "wii" | "wiiu" | "n64" | "snes" | "gba" | "nds" | "genesis" | "dreamcast" | "arcade")
+    }
+
     pub fn create_source(source: DownloadSource) -> Result<DownloadSource, EmuBoxError> {
         if source.id.trim().is_empty() || source.game_id.trim().is_empty() || source.name.trim().is_empty() {
             return Err(EmuBoxError::InvalidConfiguration("La fuente necesita id, gameId y nombre".to_string()));
@@ -210,6 +253,10 @@ impl DownloadService {
 }
 
 fn uuid_like() -> String { format!("{}-{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default()) }
+
+fn slug(value: &str) -> String {
+    value.chars().map(|character| if character.is_ascii_alphanumeric() { character.to_ascii_lowercase() } else { '-' }).collect::<String>()
+}
 
 #[cfg(test)]
 mod tests {

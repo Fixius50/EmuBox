@@ -1,0 +1,4 @@
+# Una URL directa por línea. Se ignoran líneas vacías y comentarios tras '#'.
+# La plataforma debe aparecer como segmento de la URL: /ps3/, /gba/, /snes/, etc.
+# Solo se aceptan HTTP/HTTPS y archivos de juego directos, no manifiestos JSON.
+# https://example.org/homebrew/gba/demo.gba
