@@ -96,6 +96,7 @@ pub fn run() {
             commands::downloads::pause_download,
             commands::downloads::resume_download,
             commands::downloads::cancel_download,
+            commands::downloads::import_download_links,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Resized(size) = event {

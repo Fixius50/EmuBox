@@ -3,6 +3,11 @@ use crate::models::{CreateDownloadRequest, DownloadJob, DownloadSource};
 use crate::services::DownloadService;
 
 #[tauri::command]
+pub fn import_download_links() -> Result<Vec<DownloadJob>, EmuBoxError> {
+    DownloadService::import_link_file()
+}
+
+#[tauri::command]
 pub fn create_download_source(source: DownloadSource) -> Result<DownloadSource, EmuBoxError> {
     DownloadService::create_source(source)
 }
