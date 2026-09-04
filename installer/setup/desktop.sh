@@ -45,4 +45,6 @@ RestartSec=2s
 WantedBy=graphical-session.target
 EOF
 
+systemctl --user daemon-reload 2>/dev/null || true
+
 echo "  ✓ Acceso de escritorio y servicio de consola instalados."

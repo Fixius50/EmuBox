@@ -28,5 +28,7 @@ RestartSec=2s
 WantedBy=graphical-session.target
 EOF
 
+  systemctl --user daemon-reload 2>/dev/null || true
+
   log_ok "Servicio systemd creado en ${service_file} (desactivado por defecto para desarrollo)."
 }

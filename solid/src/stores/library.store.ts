@@ -76,6 +76,9 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
         const current = jobs.find(j => j.id === job.id);
         if (!current || current.status === 'completed' || current.status === 'failed' || current.status === 'cancelled') {
           clear();
+          if (current?.status === 'completed') {
+            await loadGames();
+          }
           return;
         }
         setTimeout(poll, 2000);
