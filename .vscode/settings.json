@@ -1,6 +1,6 @@
 {
-    "typescript.tsdk": "node_modules/typescript/lib",
-    "typescript.enablePromptUseWorkspaceTsdk": true,
+    "js/ts.tsdk.path": "node_modules/typescript/lib",
+    "js/ts.tsdk.promptToUseWorkspaceVersion": true,
     "chat.tools.terminal.autoApprove": {
         "/^python -c \"import paramiko, sys; print\\('paramiko ok'\\)\"$/": {
             "approve": true,
