@@ -9,6 +9,22 @@ const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'
 const setup = read('scripts/setup-arch.sh');
 const autostart = read('scripts/setup-autostart.sh');
 const installer = read('installer/install.sh');
+const launcher = read('scripts/run.sh');
+const cursorEnvironment = launcher.split('\n').filter(line => line.startsWith('export XCURSOR_')).join('\n');
+assert.ok(cursorEnvironment.includes('XCURSOR_THEME'));
+assert.ok(cursorEnvironment.includes('XCURSOR_SIZE'));
+for (const [theme, size, expected] of [['', '', 'Adwaita:32'], ['Custom', '48', 'Custom:48']]) {
+  const result = spawnSync('bash', ['-s'], {
+    input: `${cursorEnvironment}\nprintf '%s:%s' "$XCURSOR_THEME" "$XCURSOR_SIZE"`,
+    env: { ...process.env, XCURSOR_THEME: theme, XCURSOR_SIZE: size }, encoding: 'utf8',
+  });
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, expected);
+}
+const cursorCss = read('solid/src/styles/base.css');
+assert.ok(!/cursor:\s*(?:url\(|none)/.test(cursorCss));
+assert.match(cursorCss, /cursor:\s*default/);
+assert.match(cursorCss, /cursor:\s*pointer/);
 const heredoc = (source, marker) => {
   assert.ok(source.includes(marker), `Missing generated configuration: ${marker}`);
   return source.split(marker)[1].split('\nEOF')[0];

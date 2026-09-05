@@ -23,6 +23,8 @@ source "$ROOT_DIR/installer/lib/graphics.sh"
 # 1. Variables de entorno indispensables para WebKitGTK / Wayland
 export WEBKIT_DISABLE_DMABUF_RENDERER=1
 export GDK_BACKEND="${GDK_BACKEND:-wayland}"
+export XCURSOR_THEME="${XCURSOR_THEME:-Adwaita}"
+export XCURSOR_SIZE="${XCURSOR_SIZE:-32}"
 
 # Asegurar XDG_RUNTIME_DIR válido para compositores Wayland (Cage / Gamescope)
 if [[ -z "${XDG_RUNTIME_DIR:-}" ]]; then
