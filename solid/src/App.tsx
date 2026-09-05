@@ -30,6 +30,7 @@ import { GameLibraryView } from '@components/library/GameLibraryView';
 import { EmulatorSelectorModal } from '@components/modals/EmulatorSelectorModal';
 import { SettingsView } from '@components/settings/SettingsView';
 import { MaintenanceModal } from '@components/modals/MaintenanceModal';
+import { DownloadSourceModal } from '@components/modals/DownloadSourceModal';
 
 export const App: Component = () => {
   // 1. Singletons & Stores Initialization
@@ -54,11 +55,18 @@ export const App: Component = () => {
       modalStore.openEmulatorSelector(game);
     } else {
       soundFx.playSelect();
-      libraryStore.downloadGame(game.id);
+      void libraryStore.openSources(game);
     }
   };
 
   const [activeSettingsTab, setActiveSettingsTab] = createSignal<string>('system');
+  const confirmSource = () => {
+    const game = libraryStore.sourceGame();
+    const source = libraryStore.sourceOptions()[libraryStore.sourceIndex()];
+    if (!game || !source?.downloadable) return;
+    libraryStore.closeSources();
+    void libraryStore.downloadGame(game.id, source.id);
+  };
   const [settingsFocusArea, setSettingsFocusArea] = createSignal<'sidebar' | 'content'>('sidebar');
   const [settingsRowIndex, setSettingsRowIndex] = createSignal<number>(0);
 
@@ -149,7 +157,18 @@ export const App: Component = () => {
   });
 
   const { inputStatus } = useConsoleInput({
-    onAction: handleAction
+    onAction: action => {
+      if (libraryStore.sourceGame()) {
+        if (action === 'BUTTON_B') libraryStore.closeSources();
+        else if (action === 'BUTTON_A') confirmSource();
+        else if (action === 'NAV_DOWN' || action === 'NAV_UP') {
+          libraryStore.setSourceIndex(Math.max(0, Math.min(libraryStore.sourceOptions().length - 1,
+            libraryStore.sourceIndex() + (action === 'NAV_DOWN' ? 1 : -1))));
+        }
+        return;
+      }
+      handleAction(action);
+    }
   });
 
   // 5. Initial Dataset Bootstrap
@@ -244,7 +263,7 @@ export const App: Component = () => {
             downloadingIds={libraryStore.downloadingIds()}
             downloadError={libraryStore.downloadError()}
             onSelectGame={handleGameActivate}
-            onDownloadGame={(g) => libraryStore.downloadGame(g.id)}
+            onDownloadGame={(game) => { void libraryStore.openSources(game); }}
             onToggleFavorite={(id) => {
               soundFx.playFavorite();
               libraryStore.toggleFavorite(id);
@@ -290,6 +309,8 @@ export const App: Component = () => {
         }}
         onConfirmLaunch={launchWithEmulator}
       />
+
+      <DownloadSourceModal store={libraryStore} onConfirm={confirmSource} />
 
       <MaintenanceModal
         isOpen={modalStore.isMaintenanceOpen()}

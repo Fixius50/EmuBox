@@ -1,7 +1,7 @@
 import { createSignal, createMemo } from 'solid-js';
 import type { Game, PlatformId } from '@contracts/game.types';
 import type { IEmuBoxBackend } from '@contracts/backend.types';
-import type { DownloadJob } from '@contracts/download.types';
+import type { DownloadJob, DownloadSourceOption } from '@contracts/download.types';
 
 export function createLibraryStore(backend: IEmuBoxBackend) {
   const [games, setGames] = createSignal<Game[]>([]);
@@ -12,6 +12,33 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
   const [isLoading, setIsLoading] = createSignal<boolean>(false);
   const [downloadingIds, setDownloadingIds] = createSignal<Set<string>>(new Set());
   const [downloadError, setDownloadError] = createSignal<{ gameId: string; message: string } | null>(null);
+  const [sourceGame, setSourceGame] = createSignal<Game | null>(null);
+  const [sourceOptions, setSourceOptions] = createSignal<DownloadSourceOption[]>([]);
+  const [sourcesLoading, setSourcesLoading] = createSignal(false);
+  const [sourcesError, setSourcesError] = createSignal('');
+  const [sourceIndex, setSourceIndex] = createSignal(0);
+  let sourceRequest = 0;
+  const closeSources = () => {
+    sourceRequest++;
+    setSourceGame(null);
+    setSourcesLoading(false);
+  };
+  const openSources = async (game: Game) => {
+    const request = ++sourceRequest;
+    setSourceGame(game);
+    setSourceOptions([]);
+    setSourcesError('');
+    setSourceIndex(0);
+    setSourcesLoading(true);
+    try {
+      const sources = await backend.getDownloadSources(game.id);
+      if (request === sourceRequest) setSourceOptions(sources);
+    } catch (error) {
+      if (request === sourceRequest) setSourcesError(error instanceof Error ? error.message : 'No se pudieron consultar las fuentes');
+    } finally {
+      if (request === sourceRequest) setSourcesLoading(false);
+    }
+  };
 
   const loadGames = async (preloadedGames?: Game[]) => {
     setIsLoading(true);
@@ -61,7 +88,7 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
     );
   };
 
-  const downloadGame = async (gameId: string) => {
+  const downloadGame = async (gameId: string, sourceId?: string) => {
     if (downloadingIds().has(gameId)) return;
     setDownloadError(null);
     setDownloadingIds(prev => new Set(prev).add(gameId));
@@ -96,7 +123,7 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
       return false;
     };
     try {
-      const job = await backend.downloadGame(gameId);
+      const job = await backend.downloadGame(gameId, sourceId);
       if (await finish(job)) return;
       const poll = async () => {
         try {
@@ -113,6 +140,7 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
   };
 
   return {
+    sourceGame, sourceOptions, sourcesLoading, sourcesError, sourceIndex, setSourceIndex, openSources, closeSources,
     games,
     setGames,
     selectedPlatform,

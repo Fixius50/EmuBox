@@ -8,7 +8,7 @@ use std::thread;
 use std::time::Instant;
 use reqwest::blocking::Client;
 use sha2::{Digest, Sha256};
-use rusqlite::params;
+use rusqlite::{params, OptionalExtension};
 use crate::errors::EmuBoxError;
 use crate::models::{CreateDownloadRequest, DownloadJob, DownloadSource, DownloadSourceType, DownloadStatus};
 use crate::services::db_service::DatabaseService;
@@ -104,12 +104,23 @@ impl DownloadService {
     }
 
     pub fn import_manifest_content(manifest: &str, source_name_fallback: Option<&str>) -> Result<Vec<DownloadSource>, EmuBoxError> {
-        let parsed: serde_json::Value = serde_json::from_str(manifest)
+        let original: serde_json::Value = serde_json::from_str(manifest.trim_start_matches('\u{feff}'))
             .map_err(|e| EmuBoxError::InvalidConfiguration(format!("JSON inválido: {}", e)))?;
+        let entries = original.get("downloads").and_then(|value| value.as_array())
+            .or_else(|| original.get("games").and_then(|value| value.as_array()))
+            .or_else(|| original.as_array())
+            .ok_or_else(|| EmuBoxError::InvalidConfiguration("El manifiesto debe contener downloads[], games[] o un array".into()))?;
+        let normalized: Vec<_> = entries.iter().filter_map(super::manifest_service::normalize).collect();
+        let skipped = entries.len() - normalized.len();
+        if skipped > 0 { eprintln!("[Catalog] {skipped} entradas omitidas: titulo o URLs validas ausentes"); }
+        let parsed = serde_json::json!({"name":original.get("name"), "platform":original.get("platform"), "downloads":normalized});
 
         let mut sources = Vec::new();
         let mut connection = DatabaseService::get_connection()?;
-        let transaction = connection.transaction().map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+        let transaction = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+        transaction.execute_batch("CREATE INDEX IF NOT EXISTS idx_download_sources_game_uri ON download_sources(game_id, uri);")
+            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
 
         // 1. Detectar formato estándar Hydra / downloads[]
         let downloads_array = parsed.get("downloads").and_then(|d| d.as_array())
@@ -140,36 +151,11 @@ impl DownloadService {
                 let item_platform = item.get("platform").and_then(|p| p.as_str());
                 let platform = Self::infer_platform(item_platform, manifest_platform, title, &uris, manifest_name);
 
-                // Priorizar enlace HTTP/HTTPS para descarga inmediata, o el primero disponible
-                let primary_uri = uris.iter().find(|u| u.starts_with("http://") || u.starts_with("https://"))
-                    .cloned()
-                    .unwrap_or_else(|| uris[0].clone());
-
-                let source_type = if primary_uri.starts_with("magnet:") {
-                    DownloadSourceType::Magnet
-                } else if primary_uri.ends_with(".torrent") || primary_uri.contains("torrent") {
-                    DownloadSourceType::Torrent
-                } else {
-                    DownloadSourceType::Http
-                };
-
-                let size_bytes = item.get("fileSize").and_then(crate::models::download::parse_file_size_value);
+                let size_bytes = item.get("sizeBytes").or_else(|| item.get("fileSize")).and_then(crate::models::download::parse_file_size_value);
                 let release_year = item.get("releaseYear").and_then(|value| value.as_u64()).map(|year| year as u32);
 
                 let game_id = item.get("gameId").and_then(|v| v.as_str()).map(str::to_string)
                     .unwrap_or_else(|| format!("download-{}-{}", platform, slug(title)));
-
-                let source = DownloadSource {
-                    id: item.get("sourceId").and_then(|v| v.as_str()).map(str::to_string)
-                        .unwrap_or_else(|| format!("source-{}-{}", platform, slug(&primary_uri))),
-                    game_id: game_id.clone(),
-                    name: title.to_string(),
-                    source_type,
-                    uri: primary_uri,
-                    size_bytes,
-                    checksum: item.get("checksum").and_then(|v| v.as_str()).map(str::to_string),
-                    available: true,
-                };
 
                 GameService::upsert_catalog_entry_on(&transaction, CatalogEntry {
                     id: game_id.clone(),
@@ -185,7 +171,25 @@ impl DownloadService {
                     backdrop_image: item.get("backdropImage").and_then(|v| v.as_str()).map(str::to_string),
                     description: item.get("description").and_then(|v| v.as_str()).map(str::to_string),
                 })?;
-                sources.push(Self::create_source_on(&transaction, source)?);
+                for uri in uris {
+                    let source_type = match super::manifest_service::source_access(&uri) {
+                        Some("magnet") => DownloadSourceType::Magnet,
+                        Some("torrent") => DownloadSourceType::Torrent,
+                        _ => DownloadSourceType::Http,
+                    };
+                    let existing = transaction.query_row(
+                        "SELECT id FROM download_sources WHERE game_id = ?1 AND uri = ?2 LIMIT 1",
+                        params![game_id, uri], |row| row.get::<_, String>(0),
+                    ).optional().map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+                    let identity = serde_json::json!([game_id, uri, item.get("sourceId")]).to_string();
+                    let source = DownloadSource {
+                        id: existing.unwrap_or_else(|| format!("source-{:x}", Sha256::digest(identity.as_bytes()))),
+                        game_id: game_id.clone(), name: title.to_string(), source_type, uri, size_bytes,
+                        checksum: item.get("checksum").and_then(|value| value.as_str()).map(str::to_string),
+                        available: item.get("available").and_then(|value| value.as_bool()).unwrap_or(true),
+                    };
+                    sources.push(Self::create_source_on(&transaction, source)?);
+                }
             }
             transaction.commit().map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
             return Ok(sources);
@@ -410,6 +414,13 @@ impl DownloadService {
 
     pub fn create_job(request: CreateDownloadRequest) -> Result<DownloadJob, EmuBoxError> {
         let source = request.source;
+        let option = super::manifest_service::source_option(source.clone());
+        if !option.downloadable {
+            return Err(EmuBoxError::InvalidConfiguration(option.reason.unwrap_or_else(|| "Fuente no disponible".into())));
+        }
+        if source.game_id != request.game_id {
+            return Err(EmuBoxError::InvalidConfiguration("La fuente no pertenece al juego solicitado".into()));
+        }
         Self::create_source(source.clone())?;
         let _ = GameService::upsert_catalog_entry(CatalogEntry {
             id: request.game_id.clone(),
@@ -460,6 +471,29 @@ impl DownloadService {
     /// Descarga un juego de catálogo a partir de su `gameId`, reutilizando la fuente
     /// importada desde el manifiesto o creada manualmente para ese juego.
     pub fn download_game(game_id: String) -> Result<DownloadJob, EmuBoxError> {
+        Self::download_game_from_source(game_id, None)
+    }
+
+    pub fn list_sources(game_id: &str) -> Result<Vec<super::manifest_service::SourceOption>, EmuBoxError> {
+        let conn = DatabaseService::get_connection()?;
+        let mut statement = conn.prepare("SELECT id, game_id, name, uri, size_bytes, checksum, available FROM download_sources WHERE game_id = ?1 ORDER BY rowid")
+            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+        let rows = statement.query_map(params![game_id], |row| {
+            let uri: String = row.get(3)?;
+            let source_type = match super::manifest_service::source_access(&uri) {
+                Some("magnet") => DownloadSourceType::Magnet,
+                Some("torrent") => DownloadSourceType::Torrent,
+                _ => DownloadSourceType::Http,
+            };
+            Ok(super::manifest_service::source_option(DownloadSource {
+                id: row.get(0)?, game_id: row.get(1)?, name: row.get(2)?, uri, source_type,
+                size_bytes: row.get(4)?, checksum: row.get(5)?, available: row.get::<_, i64>(6)? != 0,
+            }))
+        }).map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))
+    }
+
+    pub fn download_game_from_source(game_id: String, source_id: Option<String>) -> Result<DownloadJob, EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
         let platform: String = conn.query_row(
             "SELECT platform_id FROM games WHERE id = ?1",
@@ -467,26 +501,20 @@ impl DownloadService {
             |row| row.get(0),
         ).map_err(|_| EmuBoxError::NotFound(format!("Juego no encontrado en el catálogo: {}", game_id)))?;
 
-        let (source_id, name, uri, size_bytes, checksum, available, source_type): (String, String, String, Option<u64>, Option<String>, i64, String) = conn.query_row(
-            "SELECT id, name, uri, size_bytes, checksum, available, source_type FROM download_sources WHERE game_id = ?1 AND available = 1 ORDER BY CASE WHEN source_type = 'http' THEN 0 ELSE 1 END, rowid DESC LIMIT 1",
-            params![game_id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?)),
-        ).map_err(|_| EmuBoxError::NotFound(format!("No hay fuente de descarga disponible para: {}", game_id)))?;
-
-        if source_type != "http" {
-            return Err(EmuBoxError::InvalidConfiguration("Este juego requiere BitTorrent (magnet/torrent), que no esta implementado en esta version.".into()));
-        }
-
-        let source = DownloadSource {
-            id: source_id,
-            game_id: game_id.clone(),
-            name,
-            source_type: DownloadSourceType::Http,
-            uri,
-            size_bytes,
-            checksum,
-            available: available != 0,
+        let sources = Self::list_sources(&game_id)?;
+        let chosen = if let Some(source_id) = source_id {
+            sources.into_iter().find(|option| option.source.id == source_id)
+                .ok_or_else(|| EmuBoxError::NotFound("La fuente no pertenece a este juego".into()))?
+        } else {
+            if sources.len() > 1 {
+                return Err(EmuBoxError::InvalidConfiguration("Selecciona una fuente; las URLs pueden ser partes o versiones distintas".into()));
+            }
+            sources.into_iter().next().ok_or_else(|| EmuBoxError::NotFound("No hay fuentes registradas para este juego".into()))?
         };
+        if !chosen.downloadable {
+            return Err(EmuBoxError::InvalidConfiguration(chosen.reason.unwrap_or_else(|| "Fuente no disponible".into())));
+        }
+        let source = chosen.source;
 
         let job = Self::create_job(CreateDownloadRequest { game_id, platform, source })?;
         Self::start(job.id)
@@ -507,6 +535,9 @@ impl DownloadService {
         }
         let (source_uri, checksum): (String, Option<String>) = DatabaseService::get_connection()?.query_row("SELECT uri, checksum FROM download_sources WHERE id = ?1", params![job.source_id], |row| Ok((row.get(0)?, row.get(1)?)))
             .map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
+        if !matches!(super::manifest_service::source_access(&source_uri), Some("http" | "unverified_http")) {
+            return Err(EmuBoxError::InvalidConfiguration("Esta fuente requiere un conector de alojamiento o BitTorrent; no es una descarga HTTP directa".into()));
+        }
         let paused = Arc::new(AtomicBool::new(false));
         let cancelled = Arc::new(AtomicBool::new(false));
         active_jobs().lock().unwrap().insert(id.clone(), RuntimeControl { paused: paused.clone(), cancelled: cancelled.clone() });
@@ -549,12 +580,13 @@ impl DownloadService {
         let partial = Path::new(&cache_root).join(format!("{}.part", partial_name));
         fs::create_dir_all(&cache_root).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
         let existing = partial.metadata().map(|m| m.len()).unwrap_or(0);
-        let client = Client::new();
+        let client = Client::builder().connect_timeout(std::time::Duration::from_secs(15))
+            .build().map_err(request_error)?;
         let mut request = client.get(&uri);
         if existing > 0 { request = request.header(reqwest::header::RANGE, format!("bytes={}-", existing)); }
-        let mut response = request.send().map_err(|e| EmuBoxError::Unknown(e.to_string()))?;
+        let mut response = request.send().map_err(request_error)?;
         let mut downloaded = if existing > 0 && response.status() == reqwest::StatusCode::PARTIAL_CONTENT { existing } else { 0 };
-        if downloaded == 0 { response = client.get(&uri).send().map_err(|e| EmuBoxError::Unknown(e.to_string()))?; }
+        if existing > 0 && downloaded == 0 { response = client.get(&uri).send().map_err(request_error)?; }
         if !response.status().is_success() { return Err(EmuBoxError::Unknown(format!("HTTP {}", response.status()))); }
         if response.headers().get(reqwest::header::CONTENT_TYPE).and_then(|value| value.to_str().ok())
             .is_some_and(|value| value.to_ascii_lowercase().contains("text/html")) {
@@ -640,6 +672,29 @@ impl DownloadService {
 
 fn uuid_like() -> String { format!("{}-{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default()) }
 
+fn request_error(error: reqwest::Error) -> EmuBoxError {
+    use std::error::Error;
+    let mut detail = String::new();
+    let mut cause: Option<&dyn Error> = Some(&error);
+    while let Some(current) = cause {
+        detail.push_str(&current.to_string().to_ascii_lowercase());
+        cause = current.source();
+    }
+    EmuBoxError::IpcError(network_message(&detail, error.is_timeout()).into())
+}
+
+fn network_message(detail: &str, timeout: bool) -> &'static str {
+    if detail.contains("certificate") || detail.contains("certificado") {
+        "No se pudo validar el certificado HTTPS de la fuente. No se ha desactivado la comprobacion de seguridad."
+    } else if timeout {
+        "La fuente no respondio a tiempo. Comprueba la conexion o selecciona otra fuente."
+    } else if detail.contains("dns") || detail.contains("name resolution") {
+        "No se pudo resolver el dominio de la fuente."
+    } else {
+        "No se pudo conectar con la fuente de descarga. Puede estar caida o requerir un conector de alojamiento."
+    }
+}
+
 fn slug(value: &str) -> String {
     value.chars().map(|character| if character.is_ascii_alphanumeric() { character.to_ascii_lowercase() } else { '-' }).collect::<String>()
 }
@@ -690,6 +745,42 @@ fn decode_magnet_dn(uri: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reports_tls_dns_and_timeout_without_exposing_urls() {
+        assert!(network_message("invalid peer certificate", false).contains("certificado HTTPS"));
+        assert!(network_message("dns error", false).contains("dominio"));
+        assert!(network_message("", true).contains("tiempo"));
+    }
+
+    #[test]
+    fn imports_aliases_all_sources_and_legacy_without_jobs() {
+        let manifest = r#"{"downloads":[{"gameId":"normalization-fixture", "title":"Fixture", "year":2024,
+            "genres":["Action","Puzzle"], "descriptionHtml":"<p>Real &amp; plain</p>", "developer":"null",
+            "sourceId":"shared", "uris":["https://megadb.net/fixture", "https://torrent.example.test/game.zip", "magnet:?xt=fixture"]}]}"#;
+        let first = DownloadService::import_from_json(manifest).unwrap();
+        let second = DownloadService::import_from_json(manifest).unwrap();
+        assert_eq!(first.len(), 3);
+        let options = DownloadService::list_sources("normalization-fixture").unwrap();
+        assert!(!options[0].downloadable);
+        assert!(options[1].downloadable);
+        assert!(!options[2].downloadable);
+        assert!(DownloadService::download_game("normalization-fixture".into()).is_err());
+        assert!(DownloadService::download_game_from_source("normalization-fixture".into(), Some(options[0].source.id.clone())).is_err());
+        assert!(DownloadService::download_game_from_source("normalization-fixture".into(), Some("another-game".into())).is_err());
+        assert_eq!(first.iter().map(|source| &source.id).collect::<Vec<_>>(), second.iter().map(|source| &source.id).collect::<Vec<_>>());
+        assert!(matches!(first[1].source_type, DownloadSourceType::Http));
+        let game = GameService::get_game_by_id("normalization-fixture".into()).unwrap().unwrap();
+        assert_eq!(game.release_year, 2024);
+        assert_eq!(game.genre, "Action, Puzzle");
+        assert_eq!(game.description, "Real & plain");
+        assert_eq!(game.developer, "");
+        assert!(!game.installed);
+        assert!(DownloadService::list_jobs().unwrap().iter().all(|job| job.game_id != game.id));
+        let legacy = DownloadService::import_from_json(r#"{"games":[{"gameId":"legacy-normalization-fixture", "name":"Legacy", "platform":"ps1", "url":"https://example.test/game.torrent?key=fixture"}]}"#).unwrap();
+        assert_eq!(legacy.len(), 1);
+        assert!(matches!(legacy[0].source_type, DownloadSourceType::Torrent));
+    }
 
     #[test]
     fn destination_is_confined_to_platform_directory() {

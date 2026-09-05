@@ -197,7 +197,8 @@ export interface IEmuBoxBackend {
   pauseDownload(id: string): Promise<DownloadJob>;
   resumeDownload(id: string): Promise<DownloadJob>;
   cancelDownload(id: string): Promise<DownloadJob>;
-  downloadGame(gameId: string): Promise<DownloadJob>;
+  downloadGame(gameId: string, sourceId?: string): Promise<DownloadJob>;
+  getDownloadSources(gameId: string): Promise<import('./download.types').DownloadSourceOption[]>;
   importDownloadLinks(): Promise<DownloadSource[]>;
   importDownloadsFromJson(jsonContent: string): Promise<DownloadSource[]>;
   importDownloadsFromUrl(url: string): Promise<DownloadSource[]>;

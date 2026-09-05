@@ -33,6 +33,12 @@ export interface DownloadJob {
   error?: string;
 }
 
+export interface DownloadSourceOption extends DownloadSource {
+  access: 'http' | 'host_page' | 'unverified_http' | 'magnet' | 'torrent' | 'unsupported';
+  downloadable: boolean;
+  reason?: string | null;
+}
+
 export interface CreateDownloadRequest {
   gameId: string;
   platform: string;

@@ -48,3 +48,31 @@ assert.equal(downloadStore.downloadError(), null);
 assert.equal(downloadStore.games().length, 2);
 assert.equal(downloadStore.games().find(entry => entry.id === game.id)?.installed, true);
 console.log('Library totals, catalog reload, duplicate clicks and download errors: OK');
+
+const sourceBackend = new MockBackendService([game]);
+await sourceBackend.createDownloadSource({ id: 'source-choice', gameId: game.id, name: 'Fixture source',
+  sourceType: 'http', uri: 'https://example.test/file.zip', available: true });
+const sourceStore = createLibraryStore(sourceBackend);
+await sourceStore.openSources(game);
+assert.equal(sourceStore.sourceOptions().length, 1);
+assert.equal(sourceStore.sourcesLoading(), false);
+assert.equal((await sourceBackend.getDownloadJobs()).length, 0);
+const chosenSource = sourceStore.sourceOptions()[0];
+sourceStore.closeSources();
+await sourceStore.downloadGame(game.id, chosenSource.id);
+assert.equal(sourceStore.downloadError(), null);
+
+let resolveSources: (sources: Awaited<ReturnType<MockBackendService['getDownloadSources']>>) => void = () => {};
+class DelayedSources extends MockBackendService {
+  override getDownloadSources() {
+    return new Promise<Awaited<ReturnType<MockBackendService['getDownloadSources']>>>(resolve => { resolveSources = resolve; });
+  }
+}
+const delayedStore = createLibraryStore(new DelayedSources());
+const opening = delayedStore.openSources(game);
+delayedStore.closeSources();
+resolveSources([chosenSource]);
+await opening;
+assert.equal(delayedStore.sourceGame(), null);
+assert.equal(delayedStore.sourceOptions().length, 0);
+console.log('Source selection: no automatic download and stale responses ignored: OK');

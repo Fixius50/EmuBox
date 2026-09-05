@@ -39,6 +39,7 @@ export class MockBackendService implements IEmuBoxBackend {
   private activeRunningGame: RunningGameInfo | null = null;
   private logs: LogEntry[] = [];
   private downloads: DownloadJob[] = [];
+  private downloadSources = new Map<string, DownloadSource>();
 
   private updateInfo: UpdateInfo = {
     currentVersion: 'v1.0.0',
@@ -726,8 +727,16 @@ export class MockBackendService implements IEmuBoxBackend {
   }
 
   public async createDownloadSource(source: DownloadSource): Promise<DownloadSource> {
-    if (source.sourceType !== 'http') throw new Error('Solo HTTP está disponible en el modo local');
+    this.downloadSources.set(source.id, source);
     return source;
+  }
+
+  public async getDownloadSources(gameId: string): Promise<import('@contracts/download.types').DownloadSourceOption[]> {
+    return [...this.downloadSources.values()].filter(source => source.gameId === gameId).map(source => ({
+      ...source, access: source.sourceType === 'http' ? 'unverified_http' : source.sourceType,
+      downloadable: source.available && source.sourceType === 'http',
+      reason: source.sourceType === 'http' ? 'Fuente simulada; sin descarga de red' : 'BitTorrent no disponible en esta version',
+    }));
   }
 
   public async createDownloadJob(request: CreateDownloadRequest): Promise<DownloadJob> {
@@ -763,7 +772,11 @@ export class MockBackendService implements IEmuBoxBackend {
   public async resumeDownload(id: string): Promise<DownloadJob> { return this.updateDownload(id, 'downloading'); }
   public async cancelDownload(id: string): Promise<DownloadJob> { return this.updateDownload(id, 'cancelled'); }
 
-  public async downloadGame(gameId: string): Promise<DownloadJob> {
+  public async downloadGame(gameId: string, sourceId?: string): Promise<DownloadJob> {
+    if (sourceId) {
+      const source = (await this.getDownloadSources(gameId)).find(source => source.id === sourceId);
+      if (!source?.downloadable) throw new Error(source?.reason || 'Fuente no disponible');
+    }
     const game = this.games.find(g => g.id === gameId);
     if (game) game.installed = true;
     const job: DownloadJob = {
@@ -832,6 +845,7 @@ export class MockBackendService implements IEmuBoxBackend {
           sizeBytes: totalBytes,
           available: true,
         };
+        await this.createDownloadSource(source);
         newSources.push(source);
       }
       return newSources;
@@ -875,6 +889,7 @@ export class MockBackendService implements IEmuBoxBackend {
         sizeBytes: entry.sizeBytes || parseMockFileSize(entry.fileSize),
         available: entry.available ?? true,
       };
+      await this.createDownloadSource(source);
       newSources.push(source);
     }
     return newSources;

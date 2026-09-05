@@ -58,6 +58,11 @@ pub fn cancel_download(id: String) -> Result<DownloadJob, EmuBoxError> {
 }
 
 #[tauri::command]
-pub fn download_game(game_id: String) -> Result<DownloadJob, EmuBoxError> {
-    DownloadService::download_game(game_id)
+pub fn get_download_sources(game_id: String) -> Result<Vec<crate::services::manifest_service::SourceOption>, EmuBoxError> {
+    DownloadService::list_sources(&game_id)
+}
+
+#[tauri::command]
+pub fn download_game(game_id: String, source_id: Option<String>) -> Result<DownloadJob, EmuBoxError> {
+    DownloadService::download_game_from_source(game_id, source_id)
 }

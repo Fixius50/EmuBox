@@ -53,6 +53,18 @@
 .game-library-heading { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: end; justify-content: space-between; padding: 1.5rem 2rem 1rem; flex-shrink: 0; }
 .game-library-heading h1 { margin-top: 0.25rem; color: #f4f0e7; font-size: 1.75rem; font-weight: 700; }
 .game-library-count { color: var(--text-secondary); font-size: 0.75rem; }
+.download-source-dialog { width: min(48rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); display: flex; flex-direction: column; gap: 0.75rem; padding: 1.25rem; background: var(--bg-deep); color: var(--text-primary); border: 1px solid var(--border-subtle); border-radius: 4px; }
+.download-source-dialog h2 { font-size: 1.25rem; }
+.download-source-dialog p { overflow-wrap: anywhere; }
+.download-source-list { min-height: 0; overflow-y: auto; }
+.download-source-option { display: grid; grid-template-columns: 1rem minmax(0, 1fr); gap: 0.75rem; padding: 0.75rem; border-bottom: 1px solid var(--border-subtle); cursor: pointer; }
+.download-source-option.selected { background: rgba(126, 212, 209, 0.12); outline: 1px solid #7ed4d1; outline-offset: -1px; }
+.download-source-option > span { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.download-source-uri { overflow-wrap: anywhere; font-size: 0.8rem; max-height: 4rem; overflow-y: auto; }
+.download-source-reason { color: #e7b85b; font-size: 0.85rem; }
+.download-source-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.download-source-actions button { white-space: normal; min-width: 0; max-width: 100%; }
+.download-source-actions button:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
 .library-download-error { margin: 0 1rem 0.5rem; padding: 0.65rem; border-left: 3px solid #e7b85b; color: var(--text-primary); background: rgba(231,184,91,0.08); overflow-wrap: anywhere; max-height: 6rem; overflow-y: auto; flex-shrink: 0; }
 .hero-game-title { overflow-wrap: anywhere; }
 

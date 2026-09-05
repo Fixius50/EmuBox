@@ -14,6 +14,7 @@ pub mod db_service;
 pub mod compatibility_service;
 pub mod game_library_watcher;
 pub mod download_service;
+pub mod manifest_service;
 
 pub use system_service::SystemService;
 pub use game_service::GameService;

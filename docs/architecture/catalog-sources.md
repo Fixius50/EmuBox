@@ -40,8 +40,19 @@ Los comandos IPC `import_download_links`, `import_downloads_from_json` y
 El nombre legado `import_and_start_downloads` se conserva por compatibilidad,
 pero ya no arranca descargas: devuelve los trabajos existentes despues de importar.
 
-`download_game` crea el trabajo cuando el usuario lo solicita y prefiere fuentes
-HTTP. Magnet/torrent se registran para catalogo pero su descarga se rechaza con
+`get_download_sources(gameId)` devuelve todas las fuentes guardadas junto a
+`access`, `downloadable` y `reason`. La UI abre un selector antes de descargar.
+`download_game(gameId, sourceId)` valida que la fuente pertenezca a ese juego;
+sin `sourceId`, rechaza juegos con multiples fuentes en lugar de elegir una.
+Las URLs pueden ser partes o versiones distintas, no se agrupan automaticamente
+como espejos ni se descargan todas juntas.
+
+Se distinguen candidatos HTTP por extension, HTTP sin verificar, paginas de
+alojamientos conocidos y BitTorrent. Esta clasificacion es heuristica, no una
+comprobacion de disponibilidad ni de seguridad. Las paginas de alojamiento conocidas
+se bloquean hasta tener un conector. Un candidato HTTP aun puede fallar, redirigir
+o devolver HTML; el descargador mantiene sus comprobaciones HTTP y TLS.
+Magnet/torrent se registran para catalogo pero su descarga se rechaza con
 un mensaje claro: el motor BitTorrent no esta implementado. Una pagina HTML no
 se considera un archivo de juego. Tampoco se resuelven automaticamente portales
 con login, captchas o pasos intermedios.
@@ -50,3 +61,27 @@ La importacion de las 71 URLs del usuario registro 167.901 juegos y 278.460
 fuentes unicas el 5 de septiembre de 2026; la cola de descargas siguio vacia.
 Son recuentos de ese momento, no constantes ni garantia de descargas funcionales.
 El informe local de esa ejecucion esta en `reports/catalog-import.log`.
+
+## Normalizacion y auditoria
+
+La auditoria de 71 fuentes pudo analizar 29 manifiestos con raiz `name`/`downloads`.
+Los otros fallaron por HTTP, DNS/TLS/conexion o limite de 32 MiB; no se desactiva
+TLS ni se aumenta indiscriminadamente ese limite.
+
+`manifest_service` normaliza tambien `games[]` y arrays: titulo/nombre,
+`genre`/`genres[]`, `releaseYear`/`year` numerico o textual y `coverImage`/`cover`.
+El texto literal `null` o `undefined` se convierte en ausencia de dato.
+`descriptionHtml` se convierte a texto mediante scraper/html5ever, sin scripts,
+estilos ni insercion HTML en la UI. No se usa uploadDate como ano del juego.
+
+Se conserva cada URI valida distinta por juego con identificador estable, sin
+perder alternativas en cada importacion. El tipo torrent se determina por el
+path `.torrent`, no por encontrar la palabra torrent en el dominio. La plataforma
+continua siendo inferida cuando el manifiesto no la declara; no se ha verificado
+manualmente la clasificacion de todos los juegos.
+
+La reimportacion normalizada mantuvo 167.901 juegos y registro 543.961 fuentes;
+elimino 6.804 descripciones con texto `null`. Durante la operacion un proceso de
+produccion antiguo creo otro intento fallido a MegaDB (0 bytes). El importador
+no crea trabajos; sus tests lo verifican en una base aislada.
+Informe de esta ejecucion: `reports/catalog-normalization.log`.
