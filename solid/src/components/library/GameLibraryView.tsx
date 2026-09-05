@@ -1,4 +1,4 @@
-import { Component, For } from 'solid-js';
+import { Component, For, Show, createMemo } from 'solid-js';
 import type { Game, Platform, Emulator } from '@contracts/game.types';
 import { gameBlockReason } from '@services/compatibility/launch-capability';
 import { HeroSection } from './HeroSection';
@@ -11,6 +11,7 @@ interface GameLibraryViewProps {
   selectedPlatform: string;
   focusedIndex: number;
   downloadingIds: Set<string>;
+  downloadError?: { gameId: string; message: string } | null;
   onSelectPlatform: (platformId: string) => void;
   onFocusIndex: (index: number) => void;
   onSelectGame: (game: Game) => void;
@@ -19,12 +20,27 @@ interface GameLibraryViewProps {
 }
 
 export const GameLibraryView: Component<GameLibraryViewProps> = (props) => {
+  const counts = createMemo(() => {
+    const result = new Map<string, number>();
+    for (const game of props.games) result.set(game.platform, (result.get(game.platform) ?? 0) + 1);
+    return result;
+  });
+  const availablePlatforms = createMemo(() => {
+    const result = new Map(props.platforms.filter(platform => platform.id !== 'all')
+      .map(platform => [platform.id, { id: platform.id, name: platform.name, shortName: platform.shortName }]));
+    for (const game of props.games) {
+      if (!result.has(game.platform)) result.set(game.platform, {
+        id: game.platform, name: game.platformName || game.platform, shortName: game.platform.toUpperCase(),
+      });
+    }
+    return [...result.values()];
+  });
   const visibleGames = () => props.selectedPlatform === 'all'
     ? props.games
     : props.games.filter((game) => game.platform === props.selectedPlatform);
   const selectedName = () => props.selectedPlatform === 'all'
     ? 'Todos los juegos'
-    : props.platforms.find((platform) => platform.id === props.selectedPlatform)?.name || 'Juegos';
+    : availablePlatforms().find((platform) => platform.id === props.selectedPlatform)?.name || 'Juegos';
   const focusedGame = () => visibleGames()[props.focusedIndex] || visibleGames()[0] || null;
 
   return (
@@ -39,9 +55,9 @@ export const GameLibraryView: Component<GameLibraryViewProps> = (props) => {
           <span>{props.games.length}</span>
         </button>
         <div class="library-sidebar-divider" />
-        <For each={props.platforms}>
+        <For each={availablePlatforms()}>
           {(platform) => {
-            const count = () => props.games.filter((game) => game.platform === platform.id).length;
+            const count = () => counts().get(platform.id) ?? 0;
             return (
               <button
                 class={`library-filter-item ${props.selectedPlatform === platform.id ? 'active' : ''}`}
@@ -61,8 +77,17 @@ export const GameLibraryView: Component<GameLibraryViewProps> = (props) => {
             <span class="game-library-kicker">JUEGOS</span>
             <h1>{selectedName()}</h1>
           </div>
-          <span class="game-library-count">{visibleGames().length} títulos</span>
+          <span class="game-library-count">
+            {visibleGames().length} títulos · {visibleGames().filter(game => game.installed).length} instalados
+          </span>
         </div>
+        <Show when={props.downloadError}>
+          {(error) => (
+            <p role="alert" class="library-download-error">
+              {props.games.find(game => game.id === error().gameId)?.title || 'Descarga'}: {error().message}
+            </p>
+          )}
+        </Show>
         <HeroSection
           focusedGame={focusedGame()}
           playBlockReason={focusedGame() ? gameBlockReason(focusedGame()!, props.emulators) : null}

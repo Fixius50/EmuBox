@@ -4,6 +4,31 @@ Este documento registra la cronología de diagnósticos, pruebas de compilación
 
 ## Estado consolidado actual
 
+### Appliance y reinicio de la VM, 5 de septiembre de 2026
+
+Las pruebas de appliance cubren paquetes base sin emuladores, configuracion
+systemd/TTY1/tmpfiles/audio/udev y bootstrap de ajustes/catalogo con cero motores
+instalados. Ver [aceptacion funcional](architecture/appliance-validation.md).
+Son pruebas aisladas, no un arranque fisico de ARM ni una imagen de distribucion.
+
+La inspeccion tras reiniciar sigue detectando autologin root, lanzador antiguo,
+datos no escribibles por `emubox` y regla tmpfiles ausente. Los scripts del
+repositorio no se han aplicado al sistema durante esta tarea. Reiniciar no los
+instala: hace falta ejecutar el setup de sesion con privilegios antes de validar
+la nueva appliance.
+
+El arranque observado tardo 4 min 34.547 s: kernel 14.880 s, initrd 3 min 17.370 s,
+userspace 1 min 2.296 s. El journal muestra recuperacion ext4 en `/dev/sda2` entre
+los segundos 20.423 y 200.152, seguida de estado `clean`. La demora principal es
+anterior al runtime EmuBox, no una espera del frontend ni de los emuladores.
+
+Tambien aparece `FAT-fs (sda1): Volume was not properly unmounted`; esa particion
+esta montada en `/boot`. Es evidencia compatible con un cierre no limpio, no
+prueba por si sola de averia fisica. No se ejecuto fsck sobre particiones montadas
+ni se deshabilitaron las comprobaciones. Apagar/reiniciar desde el invitado, no
+mediante reset/corte de corriente virtual. Si persiste el aviso, revisar el disco
+desde un entorno de rescate, con las particiones desmontadas y respaldo previo.
+
 ### Integración nativa del 5 de septiembre de 2026
 
 CPU admitidas: x86_64 y aarch64, no ARM32. Instalador: `arch/x86_64` y
@@ -19,7 +44,8 @@ selección gráfica, mocks y recuperación del ejecutable ante fallos de actuali
 Los diagnósticos consultan CPU, núcleos, RAM, GPU/renderer, Vulkan, DRM,
 Gamescope y modelo del equipo. No deben mostrar x86_64/RADV como valores fijos.
 En ARM, conservar ese informe junto al resultado de `file bin/emubox`, logs de
-sesión y prueba de lanzamiento de un emulador/core nativo. Falta validar Gamescope
+sesión y pruebas de UI/IPC, persistencia, input y audio sin emuladores. Los motores
+se validan aparte, no son criterio de soporte de la appliance. Falta validar Gamescope
 en ARM real; Cage sin Vulkan no demuestra renderizado exclusivamente por CPU.
 
 Los reportes numerados siguientes son históricos y no certifican soporte ARM64.

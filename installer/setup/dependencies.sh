@@ -19,23 +19,11 @@ CORE_PKGS=(
   "pipewire-alsa"
   "wireplumber"
   "vulkan-icd-loader"
-  "libretro-core-info"
-  "retroarch"
   "xdg-user-dirs"
   "libevdev"
-)
-
-# Optional Native Standalone Emulators (if available in official repos / AUR)
-EMU_PKGS=(
-  "duckstation-qt"
-  "mgba-qt"
-  "flycast"
 )
 
 echo "  -> Comprobando gestor de paquetes de Arch Linux (pacman)..."
 
 install_packages_if_missing "${CORE_PKGS[@]}"
-install_optional_packages gamescope vulkan-tools mesa-utils "${EMU_PKGS[@]}"
-if [[ "$(get_emubox_architecture)" == x86_64 ]]; then
-  install_optional_packages pcsx2
-fi
+install_optional_packages gamescope vulkan-tools mesa-utils

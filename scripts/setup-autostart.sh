@@ -31,6 +31,20 @@ if ! id "$EMUBOX_USER" >/dev/null 2>&1; then
   exit 1
 fi
 
+AUDIO_UNIT_DIR="/usr/lib/systemd/user"
+AUDIO_UNITS=(pipewire.socket pipewire-pulse.socket wireplumber.service)
+MISSING_AUDIO_UNITS=()
+for unit in "${AUDIO_UNITS[@]}"; do
+  [[ -f "$AUDIO_UNIT_DIR/$unit" ]] || MISSING_AUDIO_UNITS+=("$unit")
+done
+if [[ ${#MISSING_AUDIO_UNITS[@]} -gt 0 ]]; then
+  printf '[ERROR] Faltan unidades de audio de usuario: %s\n' "${MISSING_AUDIO_UNITS[*]}" >&2
+  echo 'Instala las dependencias de audio y vuelve a ejecutar este setup:' >&2
+  echo '  sudo pacman -Syu --needed pipewire pipewire-audio pipewire-pulse wireplumber' >&2
+  echo 'No se han modificado permisos, autologin ni servicios.' >&2
+  exit 1
+fi
+
 EMUBOX_UID="$(id -u "$EMUBOX_USER")"
 EMUBOX_HOME="$(getent passwd "$EMUBOX_USER" | cut -d: -f6)"
 
@@ -49,7 +63,8 @@ echo "[1/5] Preparando directorios del sistema, permisos y grupos de entrada..."
 mkdir -p /etc/emubox
 mkdir -p /var/lib/emubox/{emulators,games,saves,states,bios,screenshots}
 if [[ -d /var/lib/emubox/roms && ! -L /var/lib/emubox/roms ]]; then
-  rm -rf /var/lib/emubox/roms
+  echo "[ERROR] Migra /var/lib/emubox/roms a games antes de configurar el enlace. No se han borrado datos." >&2
+  exit 1
 fi
 ln -sfn /var/lib/emubox/games /var/lib/emubox/roms
 mkdir -p /var/log/emubox
@@ -57,8 +72,26 @@ mkdir -p /var/cache/emubox/{shaders,metadata,covers,downloads} /run/emubox
 
 chown -R "$EMUBOX_USER:$EMUBOX_USER" /var/lib/emubox
 chown -R "$EMUBOX_USER:$EMUBOX_USER" /var/cache/emubox /run/emubox
+chown -R "$EMUBOX_USER:$EMUBOX_USER" /etc/emubox
 chown -R "$EMUBOX_USER:$EMUBOX_USER" /var/log/emubox
 chmod -R 755 /var/log/emubox
+
+mkdir -p /etc/tmpfiles.d
+cat > /etc/tmpfiles.d/emubox.conf <<EOF
+d /run/emubox 0755 $EMUBOX_USER $EMUBOX_USER -
+EOF
+systemd-tmpfiles --create /etc/tmpfiles.d/emubox.conf
+
+systemctl --global enable pipewire.socket pipewire-pulse.socket wireplumber.service
+
+if [[ -S "/run/user/$EMUBOX_UID/bus" ]]; then
+  USER_SYSTEMCTL=(runuser -u "$EMUBOX_USER" -- env
+    "XDG_RUNTIME_DIR=/run/user/$EMUBOX_UID"
+    "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$EMUBOX_UID/bus"
+    systemctl --user)
+  "${USER_SYSTEMCTL[@]}" daemon-reload
+  "${USER_SYSTEMCTL[@]}" start pipewire.socket pipewire-pulse.socket wireplumber.service
+fi
 
 # Asegurar membresía en grupos para Gamepad (Punto 9) y Video/DRM
 for grp in video render input uinput seat; do
@@ -66,6 +99,10 @@ for grp in video render input uinput seat; do
     usermod -aG "$grp" "$EMUBOX_USER" 2>/dev/null || true
   fi
 done
+
+source "$SCRIPT_DIR/../installer/lib/logging.sh"
+source "$SCRIPT_DIR/../installer/lib/permissions.sh"
+setup_udev_rules
 
 # ------------------------------------------------------------
 # 2. Instalar el Lanzador de Sesión Adaptativo (/usr/local/bin/emubox-session)
@@ -206,7 +243,7 @@ echo "======================================================================"
 echo -e "\033[1;32m[ÉXITO] Configuración de Consola Appliance Completada\033[0m"
 echo "======================================================================"
 echo "1. Autologin TTY1:        ACTIVO ($EMUBOX_USER)"
-echo "2. Detección Adaptativa:  Vulkan HW -> Gamescope / VM -> Cage"
+echo "2. Detección Adaptativa:  Vulkan HW + DRM + Gamescope disponible / resto -> Cage"
 echo "3. Resolución Dinámica:   Sondeo DRM automático (Fallback 1080p)"
 echo "4. Permisos de Mando:     video, input, uinput, seat asignados"
 echo "5. Aislamiento SSH:       Las conexiones SSH (pts/*) NO interfieren"

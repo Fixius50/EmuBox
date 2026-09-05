@@ -19,8 +19,6 @@ REQUIRED_PACKAGES=(
   "pipewire-pulse"
   "wireplumber"
   "vulkan-icd-loader"
-  "libretro-core-info"
-  "retroarch"
   "xdg-user-dirs"
   "libevdev"
 )

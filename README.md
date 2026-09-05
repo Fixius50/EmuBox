@@ -4,6 +4,37 @@ EmuBox es una interfaz de usuario cinematográfica de 10 pies (10-Foot UI) para 
 
 ## Estado actual
 
+### Validacion de archivos abiertos y cerrados
+
+`npm run verify` comprueba dependencias, TypeScript/TSX, cobertura, lint,
+formato, arquitectura, texto y tests sobre los archivos guardados del proyecto.
+No depende de las pestanas abiertas en VS Code. Los informes se guardan en
+`reports/verify/` y el proceso termina con error si falla cualquier comprobacion.
+
+Desde **Terminal > Ejecutar tarea**, seleccionar **EmuBox: validar proyecto completo**
+para publicar diagnosticos TypeScript y ESLint en el panel **Problemas**.
+La tarea **EmuBox: comprobar todos los TypeScript y JSX** ejecuta solo el compilador.
+
+Si el editor indica que falta `solid-js/jsx-runtime`, pero Dependencias y TypeScript
+pasan, ejecutar **TypeScript: Restart TS Server** desde la paleta de comandos.
+El compilador comprueba disco; no reproduce errores de cache del editor ni cambios
+sin guardar. Las especificaciones de inclusion/exclusion siguen en `tsconfig.json`.
+
+### Runtime, appliance y distribucion
+
+El objetivo actual es ejecutar el mismo runtime y la misma appliance EmuBox en
+x86_64 y aarch64. La distribucion reproducible EmuBox OS es una fase posterior;
+compilar el binario no demuestra que la appliance completa arranque.
+
+La instalacion manual configura usuario `emubox`, filesystem, servicios, Wayland,
+input y audio sin instalar emuladores obligatorios. Los motores se solicitan
+aparte con `sudo bash installer/setup/emulator-packages.sh`.
+
+`npm run test:appliance` ejecuta pruebas aisladas; `npm run check:appliance`
+inspecciona el equipo sin modificarlo. El segundo devuelve requisitos fallidos
+o aceptacion funcional pendiente, nunca certifica soporte ARM por si solo.
+Ver [guia de aceptacion de la appliance](docs/architecture/appliance-validation.md).
+
 ### Arquitecturas nativas
 
 El instalador admite Arch Linux (`ID=arch`) en **x86_64** y Arch Linux ARM
@@ -15,7 +46,7 @@ Configura un sistema ya instalado: no particiona discos ni genera imágenes ISO.
 `bin/emubox-linux-aarch64`. Valida el ELF antes de instalar `bin/emubox`.
 No usa FEX, Box64, QEMU-user ni un frontend distinto para ARM.
 
-**Validación:** build nativo x86_64 comprobado. El workflow Native Linux incluye
+**Validación:** build nativo x86_64 comprobado. El workflow Runtime Linux (native) incluye
 runners nativos x86_64 y ARM64; su ejecución remota y el arranque gráfico sobre
 ARM real están pendientes. Soportar el runtime ARM64 no garantiza disponibilidad
 de todos los emuladores, drivers ni rendimiento suficiente para PS3.

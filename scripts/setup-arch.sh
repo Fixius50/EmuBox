@@ -129,6 +129,9 @@ log_info "[1/15] Comprobando sistema..."
 if [[ "${EUID}" -ne 0 ]]; then
     die "Este script debe ejecutarse como root."
 fi
+if [[ "$EMUBOX_USER" != emubox || "$EMUBOX_GROUP" != emubox ]]; then
+    die "La appliance utiliza el usuario y grupo emubox."
+fi
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/installer/lib/detection.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/installer/lib/packages.sh"
@@ -348,6 +351,7 @@ TAURI_PACKAGES=(
 
 install_packages_if_missing "${TAURI_PACKAGES[@]}"
 install_optional_packages gamescope vulkan-tools mesa-utils
+bash "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/installer/setup/dependencies.sh"
 
 log_ok "Dependencias graficas, GStreamer y Cage instalados."
 
@@ -437,7 +441,7 @@ mkdir -p /etc/emubox /var/cache/emubox/{shaders,metadata,covers,downloads} /var/
 
 # Enlace simbólico de compatibilidad: roms -> games
 if [[ -d /var/lib/emubox/roms && ! -L /var/lib/emubox/roms ]]; then
-    rm -rf /var/lib/emubox/roms
+    die "Existe /var/lib/emubox/roms como directorio. Migra sus datos a games antes de configurar el enlace."
 fi
 ln -sfn /var/lib/emubox/games /var/lib/emubox/roms
 
@@ -460,17 +464,7 @@ log_info "[12/15] Registrando comando global emubox..."
 cat > /usr/local/bin/emubox-launcher <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-
-export WEBKIT_DISABLE_DMABUF_RENDERER=1
-export GDK_BACKEND="${GDK_BACKEND:-wayland,x11}"
-
-EMUBOX_BIN="/opt/emubox/bin/emubox"
-if [[ ! -x "${EMUBOX_BIN}" ]]; then
-    echo "[ERROR] No existe el binario de EmuBox: ${EMUBOX_BIN}" >&2
-    exit 1
-fi
-
-exec "${EMUBOX_BIN}" "$@"
+exec bash /opt/emubox/scripts/run.sh "$@"
 EOF
 
 chmod 0755 /usr/local/bin/emubox-launcher
@@ -478,70 +472,8 @@ ln -sf /usr/local/bin/emubox-launcher /usr/bin/emubox-launcher
 
 cat > /usr/local/bin/emubox <<'EOF'
 #!/usr/bin/env bash
-
 set -euo pipefail
-
-export WEBKIT_DISABLE_DMABUF_RENDERER=1
-export GDK_BACKEND="${GDK_BACKEND:-wayland,x11}"
-
-# Asegurar XDG_RUNTIME_DIR para compositores Wayland (Cage / Gamescope)
-if [[ -z "${XDG_RUNTIME_DIR:-}" ]]; then
-    CURRENT_UID="$(id -u)"
-    if [[ -d "/run/user/${CURRENT_UID}" ]]; then
-        export XDG_RUNTIME_DIR="/run/user/${CURRENT_UID}"
-    else
-        export XDG_RUNTIME_DIR="/tmp/run-user-${CURRENT_UID}"
-        mkdir -p -m 0700 "${XDG_RUNTIME_DIR}" 2>/dev/null || true
-    fi
-fi
-export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
-
-if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" && -S "${XDG_RUNTIME_DIR}/bus" ]]; then
-    export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
-fi
-
-EMUBOX_BIN="/opt/emubox/bin/emubox"
-
-if [[ ! -x "${EMUBOX_BIN}" ]]; then
-    echo "[ERROR] No existe el binario de EmuBox: ${EMUBOX_BIN}" >&2
-    exit 1
-fi
-
-# Si ya existe un servidor gráfico activo (Wayland o X11), ejecutar directamente
-if [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
-    exec "${EMUBOX_BIN}" "$@"
-fi
-
-# Si se ejecuta desde una consola TTY sin servidor gráfico, iniciar sesión con Cage, Gamescope o X11
-DBUS_RUN=""
-if command -v dbus-run-session >/dev/null 2>&1 && [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
-    DBUS_RUN="dbus-run-session"
-fi
-
-if command -v cage >/dev/null 2>&1; then
-    echo "[EmuBox] Iniciando sesión gráfica de consola con Cage (Wayland)..."
-    if [[ -n "${DBUS_RUN}" ]]; then
-        exec dbus-run-session cage -- "${EMUBOX_BIN}" "$@"
-    else
-        exec cage -- "${EMUBOX_BIN}" "$@"
-    fi
-elif command -v gamescope >/dev/null 2>&1; then
-    echo "[EmuBox] Iniciando interfaz de consola con Gamescope..."
-    if [[ -n "${DBUS_RUN}" ]]; then
-        exec dbus-run-session gamescope -f -W 1920 -H 1080 -- "${EMUBOX_BIN}" "$@"
-    else
-        exec gamescope -f -W 1920 -H 1080 -- "${EMUBOX_BIN}" "$@"
-    fi
-elif command -v xinit >/dev/null 2>&1; then
-    echo "[EmuBox] Iniciando sesión gráfica con X11..."
-    exec xinit "${EMUBOX_BIN}" "$@" -- :0
-else
-    echo "[ERROR] No se detectó ninguna sesión gráfica activa (\$WAYLAND_DISPLAY / \$DISPLAY)." >&2
-    echo "Para ejecutar EmuBox desde la consola TTY, instala cage o gamescope:" >&2
-    echo "  sudo pacman -S --needed cage gamescope" >&2
-    echo "O inicia EmuBox dentro de tu entorno de escritorio habitual." >&2
-    exit 1
-fi
+exec bash /opt/emubox/scripts/run.sh "$@"
 EOF
 
 chmod 0755 /usr/local/bin/emubox
@@ -567,42 +499,9 @@ log_ok "emubox-update instalado."
 
 log_info "[14/15] Configurando servicio EmuBox..."
 
-cat > /etc/systemd/system/emubox.service <<EOF
-[Unit]
-Description=EmuBox Console Interface
-After=graphical.target
-Wants=graphical.target
+bash "${EMUBOX_DIR}/scripts/setup-autostart.sh"
 
-[Service]
-Type=simple
-
-User=${EMUBOX_USER}
-Group=${EMUBOX_GROUP}
-
-WorkingDirectory=${EMUBOX_DIR}
-
-ExecStart=/usr/bin/emubox
-
-Restart=on-failure
-RestartSec=3
-
-Environment=HOME=${USER_HOME}
-Environment=EMUBOX_HOME=/var/lib/emubox
-Environment=NODE_ENV=production
-Environment=WEBKIT_DISABLE_DMABUF_RENDERER=1
-Environment=GDK_BACKEND=wayland,x11
-
-StandardOutput=append:/var/log/emubox/emubox.log
-StandardError=append:/var/log/emubox/emubox-error.log
-
-[Install]
-WantedBy=graphical.target
-EOF
-
-systemctl daemon-reload
-systemctl enable emubox.service || true
-
-log_ok "Servicio emubox.service configurado."
+log_ok "Autologin emubox en TTY1 configurado; servicio auxiliar deshabilitado."
 
 # ------------------------------------------------------------------------------
 # 15. VERIFICACION FINAL
@@ -627,7 +526,7 @@ echo "Cache:                /var/cache/emubox"
 echo "Logs:                 /var/log/emubox"
 echo "Runtime:              /run/emubox"
 echo "Logs:                 ${LOG_DIR}"
-echo "Servicio:             emubox.service"
+echo "Sesion:               getty@tty1 -> emubox-session"
 echo ""
 echo "Node:                 $(node --version)"
 echo "npm:                  $(npm --version)"

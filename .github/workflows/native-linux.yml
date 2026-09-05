@@ -1,4 +1,4 @@
-name: Native Linux
+name: Runtime Linux (native)
 on:
   push:
     branches: [main]
@@ -46,6 +46,7 @@ jobs:
           npm run typecheck
           npm test
           npm run test:architecture
+          npm run test:appliance
           npm run arch:check
           npm run mojibake:check
       - name: Native build

@@ -30,9 +30,6 @@ import { EmulatorSelectorModal } from '@components/modals/EmulatorSelectorModal'
 import { SettingsView } from '@components/settings/SettingsView';
 import { MaintenanceModal } from '@components/modals/MaintenanceModal';
 
-// Initial Mock Dataset
-import gamesDataset from '@data/games-10000.json';
-
 export const App: Component = () => {
   // 1. Singletons & Stores Initialization
   const viewport = ViewportService.getInstance();
@@ -198,28 +195,10 @@ export const App: Component = () => {
       if (backend.isTauriEnvironment) {
         // Escanear y cargar juegos reales del sistema Linux (/var/lib/emubox/games)
         await backend.scanGames();
-        const installedGames = await backend.getGames();
-        if (installedGames.length > 0) {
-          await libraryStore.loadGames(installedGames);
-        } else {
-          // El JSON es el catalogo visible; las fuentes autorizadas se importan aparte.
-          const catalogGames = (gamesDataset as unknown as Game[]).map((game) => ({
-            ...game,
-            installed: false
-          }));
-          mockBackend.setGames(catalogGames);
-          await libraryStore.loadGames(catalogGames);
-        }
+        await libraryStore.loadGames();
       } else {
         // Entorno de desarrollo en navegador web sin runtime Tauri
-        const realGames = await backend.getGames();
-        if (realGames && realGames.length > 0) {
-          await libraryStore.loadGames(realGames);
-        } else {
-          const allGames = gamesDataset as unknown as Game[];
-          mockBackend.setGames(allGames);
-          await libraryStore.loadGames(allGames);
-        }
+        await libraryStore.loadGames();
       }
     } catch {
       await libraryStore.loadGames();
@@ -262,6 +241,7 @@ export const App: Component = () => {
             }}
             onFocusIndex={(idx) => navigationStore.setFocusedGameIndex(idx)}
             downloadingIds={libraryStore.downloadingIds()}
+            downloadError={libraryStore.downloadError()}
             onSelectGame={handleGameActivate}
             onDownloadGame={(g) => libraryStore.downloadGame(g.id)}
             onToggleFavorite={(id) => {

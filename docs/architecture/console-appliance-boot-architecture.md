@@ -2,6 +2,11 @@
 
 ## Alcance y estado
 
+La prioridad actual es Runtime + Appliance en ambas CPU. La distribucion/imagen
+EmuBox OS es posterior y no bloquea esta validacion. El instalador es la ruta
+manual/de desarrollo, no el producto de distribucion final.
+Ver [criterios de aceptacion](appliance-validation.md).
+
 El instalador configura un sistema existente: Arch Linux en x86_64 o Arch Linux
 ARM en aarch64. No instala ARM32, particiona discos ni crea una ISO. La CPU no
 determina el compositor ni garantiza compatibilidad con todos los emuladores.
@@ -57,6 +62,9 @@ Código, Git y compilación pertenecen a `emubox:emubox`; solo la configuración
 del sistema requiere root. No cambiar recursivamente los permisos de `/`.
 
 Los instaladores recargan systemd tras generar unidades del sistema o de usuario.
+La regla tmpfiles recrea `/run/emubox` como `emubox:emubox` en cada arranque.
+La base habilita PipeWire/WirePlumber de usuario y no requiere emuladores;
+los motores se instalan aparte mediante `installer/setup/emulator-packages.sh`.
 El log de sesión se conserva en `/var/log/emubox/session.log`.
 `emubox-drm-sync` escucha eventos DRM para ajustar salidas compatibles; su
 funcionamiento requiere comprobación en cada compositor y pantalla.
@@ -98,8 +106,9 @@ Verificar en cada CPU admitida:
 3. Diagnóstico real de CPU, RAM, GPU, Vulkan, DRM, Gamescope y modelo del equipo.
 4. Gamescope con Vulkan hardware y Cage cuando falta Vulkan.
 5. UI visible y manejable con mando, sin dependencia de SSH.
-6. Lanzamiento de emulador y core nativos; rechazo de un binario de otra CPU.
+6. UI, IPC, persistencia SQLite, mando y audio sin emuladores instalados.
 7. Arranque en frío y reconexión de pantalla cuando sea compatible.
 
 Las pruebas shell y mocks no sustituyen estas comprobaciones físicas. La CI sobre
 Ubuntu ARM valida compilación nativa, no instalación de paquetes en Arch Linux ARM.
+El lanzamiento de motores/cores nativos es una fase posterior independiente.

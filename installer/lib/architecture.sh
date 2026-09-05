@@ -43,3 +43,15 @@ validate_emubox_binary() {
     return 1
   fi
 }
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  case "${1:---host}" in
+    --host) get_emubox_architecture ;;
+    --binary) validate_emubox_binary "${2:?Missing binary path}" ;;
+    --distribution)
+      source /etc/os-release
+      is_supported_emubox_distribution "${ID:-unknown}" "$(uname -m)"
+      ;;
+    *) printf '%s\n' 'Usage: architecture.sh [--host|--binary PATH|--distribution]' >&2; exit 2 ;;
+  esac
+fi

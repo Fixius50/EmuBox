@@ -22,6 +22,14 @@
       "@data/*": ["./data/*"]
     }
   },
-  "include": ["tests/**/*", "data/**/*", "benchmarks/**/*", "solid/src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "*.ts",
+    "*.mts",
+    "*.cts",
+    "tests/**/*",
+    "data/**/*",
+    "benchmarks/**/*",
+    "solid/**/*"
+  ],
+  "exclude": ["**/node_modules/**", "**/dist/**", "src-tauri/target/**"]
 }

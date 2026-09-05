@@ -1,7 +1,22 @@
 # Estado actual de EmuBox
 
 **Fecha de referencia:** 5 de septiembre de 2026  
-**Estado:** integración nativa x86_64/aarch64 implementada; validación ARM real pendiente.
+**Estado:** runtime nativo y configuracion de appliance x86_64/aarch64 implementados;
+aceptacion funcional ARM real pendiente. Distribucion reproducible: fase posterior.
+
+## Tres capas y prioridad
+
+Runtime (Tauri/Rust/SolidJS/IPC/SQLite), appliance (systemd/usuario/filesystem/
+Wayland/input/audio) y distribucion (base/kernel/boot/imagen) tienen criterios
+distintos. La prioridad actual es Runtime + Appliance, no construir una ISO.
+La ruta manual convierte Arch existente en appliance; no genera la distribucion.
+
+La base ya no instala motores: RetroArch y otros emuladores son opcionales mediante
+`installer/setup/emulator-packages.sh`. La configuracion converge en un lanzador,
+autologin `emubox`, audio de usuario y tmpfiles para `/run/emubox`.
+`npm run test:appliance` verifica paquetes, configuracion y bootstrap sin motores;
+`npm run check:appliance` inspecciona sin modificar y no certifica aceptacion fisica.
+Ver [criterios de validacion](appliance-validation.md).
 
 ## Alcance nativo y aceptación
 
@@ -17,14 +32,15 @@
         no se presentan como instaladas. La disponibilidad concreta ARM debe verificarse allí.
 - `data/emulator-capabilities.json` comparte la matriz conservadora entre Rust y mocks.
 - La UI consume capacidades del backend; no detecta la CPU desde el navegador.
-- El workflow Native Linux usa `ubuntu-24.04` y `ubuntu-24.04-arm`, no emulación.
+- El workflow Runtime Linux (native) usa `ubuntu-24.04` y `ubuntu-24.04-arm`, no emulación.
         Son entornos de compilación, no prueba de instalación en Arch Linux ARM.
 - Se comprobó el build release x86_64. No se ha ejecutado el workflow remoto ni
         un build/arranque en ARM real: no se declara completada la aceptación ARM64.
 
-Pendiente en ARM: instalar dependencias, compilar y verificar ELF AArch64,
-arrancar como `emubox` en TTY1, verificar Gamescope con Vulkan y Cage sin Vulkan,
-y probar un emulador y core nativos disponibles en ese dispositivo.
+Pendiente en ARM: dependencias nativas, ELF AArch64 y arranque como `emubox` en
+TTY1, UI/IPC/SQLite/filesystem, input/audio y graficos reales. Validar Gamescope
+donde haya capacidades y Cage como alternativa. Los emuladores/cores se prueban
+despues y no condicionan la aceptacion de la appliance.
 
 ## Arquitectura vigente
 

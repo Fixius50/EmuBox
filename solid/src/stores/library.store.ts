@@ -1,25 +1,24 @@
 import { createSignal, createMemo } from 'solid-js';
 import type { Game, PlatformId } from '@contracts/game.types';
 import type { IEmuBoxBackend } from '@contracts/backend.types';
+import type { DownloadJob } from '@contracts/download.types';
 
 export function createLibraryStore(backend: IEmuBoxBackend) {
   const [games, setGames] = createSignal<Game[]>([]);
   const [selectedPlatform, setSelectedPlatform] = createSignal<PlatformId>('all');
   const [searchQuery, setSearchQuery] = createSignal<string>('');
   const [favoritesOnly, setFavoritesOnly] = createSignal<boolean>(false);
-  const [datasetLimit, setDatasetLimit] = createSignal<number>(10000);
+  const [datasetLimit, setDatasetLimit] = createSignal<number>(0);
   const [isLoading, setIsLoading] = createSignal<boolean>(false);
   const [downloadingIds, setDownloadingIds] = createSignal<Set<string>>(new Set());
+  const [downloadError, setDownloadError] = createSignal<{ gameId: string; message: string } | null>(null);
 
   const loadGames = async (preloadedGames?: Game[]) => {
     setIsLoading(true);
     try {
-      if (preloadedGames && preloadedGames.length > 0) {
-        setGames(preloadedGames);
-      } else {
-        const fetched = await backend.getGames();
-        setGames(fetched);
-      }
+      const fetched = preloadedGames ?? await backend.getGames();
+      const merged = new Map(fetched.map(game => [game.id, game]));
+      setGames([...merged.values()]);
     } finally {
       setIsLoading(false);
     }
@@ -63,29 +62,53 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
   };
 
   const downloadGame = async (gameId: string) => {
+    if (downloadingIds().has(gameId)) return;
+    setDownloadError(null);
     setDownloadingIds(prev => new Set(prev).add(gameId));
     const clear = () => setDownloadingIds(prev => {
       const next = new Set(prev);
       next.delete(gameId);
       return next;
     });
+    const fail = (error: unknown) => {
+      const message = typeof error === 'string' ? error
+        : error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+          ? error.message
+          : error && typeof error === 'object' && 'details' in error && typeof error.details === 'string'
+            ? error.details : 'No se pudo descargar el juego. Comprueba la fuente y la conexion.';
+      setDownloadError({ gameId, message });
+      clear();
+    };
+    const finish = async (job?: DownloadJob) => {
+      if (!job) {
+        fail('La descarga ya no aparece en el servidor. Vuelve a intentarlo.');
+        return true;
+      }
+      if (job.status === 'failed' || job.status === 'cancelled') {
+        fail(job.error || (job.status === 'failed' ? 'La descarga ha fallado.' : 'Descarga cancelada.'));
+        return true;
+      }
+      if (job.status === 'completed') {
+        await loadGames();
+        clear();
+        return true;
+      }
+      return false;
+    };
     try {
       const job = await backend.downloadGame(gameId);
+      if (await finish(job)) return;
       const poll = async () => {
-        const jobs = await backend.getDownloadJobs();
-        const current = jobs.find(j => j.id === job.id);
-        if (!current || current.status === 'completed' || current.status === 'failed' || current.status === 'cancelled') {
-          clear();
-          if (current?.status === 'completed') {
-            await loadGames();
-          }
-          return;
+        try {
+          const jobs = await backend.getDownloadJobs();
+          if (!await finish(jobs.find(current => current.id === job.id))) setTimeout(poll, 2000);
+        } catch (error) {
+          fail(error);
         }
-        setTimeout(poll, 2000);
       };
       setTimeout(poll, 2000);
-    } catch {
-      clear();
+    } catch (error) {
+      fail(error);
     }
   };
 
@@ -105,6 +128,7 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
     filteredGames,
     toggleFavorite,
     downloadingIds,
+    downloadError,
     downloadGame
   };
 }

@@ -110,9 +110,10 @@ function checkImplicitTypeLibraries() {
 }
 
 const checks = [
+  ["TypeScript", ["run", "typecheck"]],
+  ["Cobertura TypeScript", ["run", "test:validator"]],
   ["ESLint", ["run", "lint"]],
   ["Prettier", ["run", "format:check"]],
-  ["TypeScript", ["run", "typecheck"]],
   ["Arquitectura", ["run", "arch:check"]],
   ["Texto", ["run", "quality:text"]],
   ["Tests", ["test"]],
@@ -121,6 +122,9 @@ const checks = [
 const failedChecks = [];
 mkdirSync(reportsDirectory, { recursive: true });
 
+console.log(
+  "[verify] Se comprueban archivos guardados del proyecto, abiertos o cerrados en VS Code.",
+);
 console.log("\n[verify] Dependencias");
 const missingDependencies = [
   ...checkDependencies(),

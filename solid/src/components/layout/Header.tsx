@@ -62,6 +62,9 @@ export const Header: Component<HeaderProps> = (props) => {
 
       {/* 3. Right: Device Controller Status & Real-time Clock */}
       <div class="console-telemetry-cluster">
+        <div class="telemetry-chip" aria-label="Total de juegos del catalogo">
+          <span class="chip-label">{props.totalGamesCount.toLocaleString('es-ES')} juegos</span>
+        </div>
         <div class="telemetry-chip input-status-chip">
           <span class="status-indicator-dot online"></span>
           <span class="chip-label">{props.inputStatus.deviceName}</span>
