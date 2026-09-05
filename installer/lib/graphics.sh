@@ -33,6 +33,9 @@ configure_emubox_cursor() {
   if [[ "$1" == vmwgfx && ! -v WLR_NO_HARDWARE_CURSORS ]]; then
     export WLR_NO_HARDWARE_CURSORS=1
   fi
+  if [[ "$1" == vmwgfx && ! -v WLR_DRM_NO_ATOMIC ]]; then
+    export WLR_DRM_NO_ATOMIC=1
+  fi
 }
 
 emubox_software_renderer() {

@@ -32,3 +32,7 @@ echo 'OpenGL accelerated and software renderer matrix: OK'
 ( unset WLR_NO_HARDWARE_CURSORS; configure_emubox_cursor amdgpu; [[ ! -v WLR_NO_HARDWARE_CURSORS ]] )
 ( export WLR_NO_HARDWARE_CURSORS=0; configure_emubox_cursor vmwgfx; [[ "$WLR_NO_HARDWARE_CURSORS" == 0 ]] )
 echo 'vmwgfx cursor fallback and explicit preferences: OK'
+( unset WLR_DRM_NO_ATOMIC; configure_emubox_cursor vmwgfx; [[ "$WLR_DRM_NO_ATOMIC" == 1 ]] )
+( unset WLR_DRM_NO_ATOMIC; configure_emubox_cursor amdgpu; [[ ! -v WLR_DRM_NO_ATOMIC ]] )
+( export WLR_DRM_NO_ATOMIC=0; configure_emubox_cursor vmwgfx; [[ "$WLR_DRM_NO_ATOMIC" == 0 ]] )
+echo 'vmwgfx legacy DRM and explicit preferences: OK'

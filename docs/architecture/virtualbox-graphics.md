@@ -58,6 +58,14 @@ desactiva la aceleracion 3D de OpenGL. Es necesario reiniciar TTY1 para aplicarl
 La visibilidad debe confirmarse en la pantalla de la VM; las pruebas automaticas
 solo verifican la seleccion del ajuste y el respeto a preferencias explicitas.
 
+Si la imagen se corrompe y Cage registra `Atomic commit failed: Device or resource
+busy`, el lanzador configura tambien `WLR_DRM_NO_ATOMIC=1` para `vmwgfx`.
+wlroots usa entonces la interfaz DRM legacy, manteniendo el renderizado OpenGL.
+No se cambia este ajuste en otras GPU ni se sobrescribe una variable ya definida.
+Tras reiniciar TTY1, el log debe mostrar `forcing legacy DRM interface`.
+Esto evita la ruta que estaba fallando, pero no certifica que todos los fallos
+visuales de VirtualBox hayan desaparecido: comprobar la imagen al interactuar.
+
 El proveedor de mando combina D-pad y stick en una sola direccion por lectura,
 con repeticion tras 350 ms y cada 120 ms al mantenerla. El scroll de la biblioteca
 no selecciona la tarjeta bajo un raton inmovil; se exige movimiento real del raton.

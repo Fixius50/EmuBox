@@ -90,7 +90,7 @@ if [[ "$EMUBOX_COMPOSITOR" == gamescope ]]; then
 # 2. PIPELINE DE EMERGENCIA: CPU Software (llvmpipe / VM sin aceleración) -> Cage Kiosk
 elif command -v cage >/dev/null 2>&1; then
   configure_emubox_cursor "$GPU_DRIVER"
-  echo "[EmuBox] WLR_NO_HARDWARE_CURSORS=${WLR_NO_HARDWARE_CURSORS:-0} driver=$GPU_DRIVER"
+  echo "[EmuBox] WLR_NO_HARDWARE_CURSORS=${WLR_NO_HARDWARE_CURSORS:-0} WLR_DRM_NO_ATOMIC=${WLR_DRM_NO_ATOMIC:-0} driver=$GPU_DRIVER"
   echo "[EmuBox] Iniciando con Cage (sin Gamescope/Vulkan disponible)..."
   if [[ -n "${DBUS_RUN}" ]]; then
     exec dbus-run-session cage -- "${EMUBOX_BIN}" "$@"
