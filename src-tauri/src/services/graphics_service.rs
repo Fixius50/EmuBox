@@ -6,6 +6,8 @@ pub struct GraphicsCapabilities {
     pub renderer: String,
     pub driver_version: Option<String>,
     pub vulkan: bool,
+    pub opengl: bool,
+    pub opengl_renderer: Option<String>,
     pub drm: bool,
     pub gamescope: bool,
     pub device: String,
@@ -54,6 +56,26 @@ pub fn select_compositor(vulkan: bool, drm: bool, gamescope: bool) -> &'static s
     if vulkan && drm && gamescope { "gamescope" } else { "cage" }
 }
 
+pub fn is_software_renderer(renderer: &str) -> bool {
+    let lower = renderer.to_lowercase();
+    ["llvmpipe", "softpipe", "swrast", "software rasterizer", "swiftshader"]
+        .iter().any(|software| lower.contains(software))
+}
+
+pub fn opengl_renderer(summary: &str) -> Option<String> {
+    let renderers: Vec<_> = summary.lines().filter_map(|line| {
+        let (key, value) = line.trim().split_once(':')?;
+        if matches!(key, "OpenGL core profile renderer" | "OpenGL compatibility profile renderer"
+            | "OpenGL ES profile renderer" | "OpenGL renderer string") && !value.trim().is_empty() {
+            Some(value.trim().to_string())
+        } else {
+            None
+        }
+    }).collect();
+    renderers.iter().find(|renderer| !is_software_renderer(renderer))
+        .or_else(|| renderers.first()).cloned()
+}
+
 pub fn detect() -> GraphicsCapabilities {
     let mut result = GraphicsCapabilities {
         vendor: "unknown".into(), renderer: "Unknown GPU".into(),
@@ -90,12 +112,21 @@ pub fn detect() -> GraphicsCapabilities {
             }
         }
     }
+    if let Ok(output) = Command::new("timeout").args(["10s", "eglinfo", "-B"]).env("LC_ALL", "C").output() {
+        if let Some(renderer) = opengl_renderer(&String::from_utf8_lossy(&output.stdout)) {
+            result.opengl = true;
+            result.opengl_renderer = Some(renderer.clone());
+            if !result.vulkan {
+                result.renderer = renderer;
+            }
+        }
+    }
     if result.vendor == "unknown" {
         if let Ok(output) = Command::new("lspci").arg("-mm").output() {
             for line in String::from_utf8_lossy(&output.stdout).lines() {
                 if ["VGA compatible controller", "3D controller", "Display controller"].iter().any(|class| line.contains(class)) {
                     result.vendor = vendor_from_text(line).into();
-                    if !result.vulkan { result.renderer = line.to_string(); }
+                    if !result.vulkan && !result.opengl { result.renderer = line.to_string(); }
                     break;
                 }
             }
@@ -121,5 +152,18 @@ mod tests {
         for vulkan in [false, true] { for drm in [false, true] { for gamescope in [false, true] {
             assert_eq!(select_compositor(vulkan, drm, gamescope), if vulkan && drm && gamescope { "gamescope" } else { "cage" });
         } } }
+    }
+
+    #[test]
+    fn opengl_virtual_acceleration_is_not_software() {
+        let svga = "SVGA3D; build: RELEASE; LLVM;";
+        let mixed = format!("OpenGL core profile renderer: llvmpipe (LLVM 22)\nOpenGL ES profile renderer: {svga}\n");
+        assert_eq!(opengl_renderer(&mixed).as_deref(), Some(svga));
+        assert!(!is_software_renderer(svga));
+        assert!(is_software_renderer("llvmpipe (LLVM 22)"));
+        assert!(is_software_renderer("softpipe"));
+        assert!(opengl_renderer("eglinfo: eglInitialize failed").is_none());
+        assert_eq!(opengl_renderer("OpenGL renderer string: Mali-G610").as_deref(), Some("Mali-G610"));
+        assert_eq!(select_compositor(false, true, true), "cage");
     }
 }

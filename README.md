@@ -4,11 +4,28 @@ EmuBox es una interfaz de usuario cinematográfica de 10 pies (10-Foot UI) para 
 
 ## Estado actual
 
+### Arquitecturas nativas
+
+El instalador admite Arch Linux (`ID=arch`) en **x86_64** y Arch Linux ARM
+(`ID=archarm`) en **aarch64**. ARM32/armv7 y otros derivados no están admitidos.
+Configura un sistema ya instalado: no particiona discos ni genera imágenes ISO.
+
+`bash scripts/build.sh` compila como usuario sin privilegios, selecciona
+`BUILD_ARCH` y `TARGET` nativos y genera `bin/emubox-linux-x86_64` o
+`bin/emubox-linux-aarch64`. Valida el ELF antes de instalar `bin/emubox`.
+No usa FEX, Box64, QEMU-user ni un frontend distinto para ARM.
+
+**Validación:** build nativo x86_64 comprobado. El workflow Native Linux incluye
+runners nativos x86_64 y ARM64; su ejecución remota y el arranque gráfico sobre
+ARM real están pendientes. Soportar el runtime ARM64 no garantiza disponibilidad
+de todos los emuladores, drivers ni rendimiento suficiente para PS3.
+
 La fase de catálogo e integración de juegos está completada. El catálogo JSON de
 10.000 títulos se muestra aunque SQLite todavía no contenga ROMs instaladas, y
 las tarjetas exponen plataforma, año, valoración, género y desarrollador. El
 flujo distingue `DESCARGAR` de `JUGAR`; al terminar una descarga autorizada y
-detectar la ROM, la biblioteca se actualiza y habilita el lanzamiento.
+detectar la ROM, la biblioteca se actualiza. El lanzamiento requiere además un
+emulador compatible con la CPU, su binario nativo y sus requisitos de hardware.
 
 El JSON contiene metadatos, no enlaces de ROM. Las descargas requieren fuentes
 autorizadas importadas mediante manifiestos en `/etc/emubox/download-links.txt`
@@ -81,8 +98,8 @@ EmuBox implementa una arquitectura gráfica desacoplada y adaptativa:
                                      │
                      ┌───────────────┴───────────────┐
                      ▼                               ▼
-             GPU ACELERADA                      SOLO CPU
-            (AMD/Intel/NVIDIA)           (llvmpipe / Software / VM)
+               VULKAN + DRM + GAMESCOPE          SIN ESTAS CAPACIDADES
+                  (independiente de CPU)          (no implica solo CPU)
                      │                               │
                      ▼                               ▼
                  GAMESCOPE                          CAGE
@@ -93,8 +110,8 @@ EmuBox implementa una arquitectura gráfica desacoplada y adaptativa:
                      (Tauri v2 + WebKitGTK + SolidJS)
 ```
 
-* **GPU Acelerada (Nativa)**: `Gamescope -> EmuBox` en hardware con drivers AMD (`amdgpu`/RADV), Intel (`i915`/`xe`) o NVIDIA.
-* **Fallback CPU (Emergencia)**: `Cage -> EmuBox` cuando el renderer es software (`llvmpipe`, `softpipe`) o máquinas virtuales sin aceleración funcional.
+* **Gamescope**: `Gamescope -> EmuBox` con Vulkan hardware, DRM y Gamescope instalado, tanto en x86_64 como en aarch64.
+* **Cage**: `Cage -> EmuBox` cuando falta alguna de esas capacidades. Puede usar aceleración OpenGL aunque no haya Vulkan.
 * **Sincronización Event-Driven (`emubox-drm-sync`)**: Escucha eventos nativos del kernel Linux (`SUBSYSTEM=drm`, `HOTPLUG=1`) mediante `udevadm` (0% CPU, sin polling). Al redimensionar la ventana o cambiar de monitor, adapta la superficie Wayland y la UI SolidJS en caliente sin resoluciones fijas ni reinicios.
 
 ## Documentación y Guías de Arquitectura

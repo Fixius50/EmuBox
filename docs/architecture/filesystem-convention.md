@@ -18,7 +18,8 @@ EmuBox is an Arch Linux appliance and uses a canonical system-wide layout under 
 /var/lib/emubox/
 ├── emubox.db
 ├── games/<platform>/
-├── emulators/<id>/{bin,config,logs}/
+├── emulators/<id>/bin/<architecture>/
+├── emulators/<id>/{config,logs}/
 ├── bios/<platform>/
 ├── saves/<platform>/
 ├── states/<platform>/
@@ -43,6 +44,16 @@ EmuBox is an Arch Linux appliance and uses a canonical system-wide layout under 
 
 ## 2. Canonical rules
 
+- The only supported native architectures are `x86_64` and `aarch64` (not ARM32).
+- Build outputs are `/opt/emubox/bin/emubox-linux-x86_64` and
+	`/opt/emubox/bin/emubox-linux-aarch64`; `/opt/emubox/bin/emubox` is the validated
+	native deployment path. It is not a universal ELF.
+- Managed emulator binaries use the architecture subdirectory above. System
+	packages still resolve through PATH or absolute paths under `/usr/bin`; native
+	libretro `.so` files must match the runtime architecture too.
+- Game IDs, manifests, ROMs, BIOS and saves are not partitioned by CPU architecture.
+- Build and Git run as `emubox`, not root; only system setup uses elevated privileges.
+- Build/update logs use a temporary directory if system logs are not writable.
 - ROMs and game files live in `/var/lib/emubox/games/<platform>/`.
 - The optional compatibility symlink `/var/lib/emubox/roms` may exist only as a pointer to `/var/lib/emubox/games` and must not be treated as the canonical source of truth.
 - Saves live in `/var/lib/emubox/saves`, states in `/var/lib/emubox/states`, screenshots in `/var/lib/emubox/screenshots`, and BIOS in `/var/lib/emubox/bios`.

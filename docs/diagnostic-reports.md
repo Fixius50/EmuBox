@@ -4,6 +4,26 @@ Este documento registra la cronología de diagnósticos, pruebas de compilación
 
 ## Estado consolidado actual
 
+### Integración nativa del 5 de septiembre de 2026
+
+CPU admitidas: x86_64 y aarch64, no ARM32. Instalador: `arch/x86_64` y
+`archarm/aarch64`. El build nativo x86_64 se completó y su ELF fue validado.
+El workflow con runners nativos de ambas CPU está añadido, pero no se ha
+ejecutado desde esta sesión: build y arranque ARM real siguen pendientes.
+
+Pruebas reproducibles: `npm run test:architecture`, `npm test`,
+`npm run typecheck`, `cargo test --manifest-path src-tauri/Cargo.toml`.
+La suite de arquitectura cubre CPU/distribución, binarios, paquetes opcionales,
+selección gráfica, mocks y recuperación del ejecutable ante fallos de actualización.
+
+Los diagnósticos consultan CPU, núcleos, RAM, GPU/renderer, Vulkan, DRM,
+Gamescope y modelo del equipo. No deben mostrar x86_64/RADV como valores fijos.
+En ARM, conservar ese informe junto al resultado de `file bin/emubox`, logs de
+sesión y prueba de lanzamiento de un emulador/core nativo. Falta validar Gamescope
+en ARM real; Cage sin Vulkan no demuestra renderizado exclusivamente por CPU.
+
+Los reportes numerados siguientes son históricos y no certifican soporte ARM64.
+
 La fase de catálogo e integración de juegos está completada. La UI muestra el
 dataset JSON de 10.000 títulos cuando SQLite está vacío, expone sus metadatos en
 hero y tarjetas, y mantiene el flujo `DESCARGAR` -> escaneo de ROM -> `JUGAR`.
@@ -13,7 +33,7 @@ el JSON de catálogo no contiene enlaces de distribución.
 La arquitectura vigente combina SolidJS/Kobalte, Tauri/Rust por IPC, SQLite y
 filesystem como persistencia, `GameLibraryWatcher` para cambios locales,
 `DownloadService` para trabajos autorizados y arranque `systemd/getty@tty1` con
-Gamescope en GPU real o Cage en fallback de VM/software. El resumen canónico está
+Gamescope con Vulkan hardware/DRM disponible o Cage en otro caso. El resumen canónico está
 en [current-state.md](architecture/current-state.md).
 
 Validación registrada: typecheck y build correctos, 68 pruebas pasadas, chequeos

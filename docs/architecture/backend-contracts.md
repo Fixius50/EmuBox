@@ -84,13 +84,18 @@ export interface IEmuBoxBackend {
 Telemetry representing hardware capabilities, display composition, and Linux kernel environment:
 * `osName`: Operating system distribution and kernel string.
 * `kernelVersion`: Active Linux kernel release.
-* `architecture`: System architecture (`x86_64`).
-* `gpuRenderer`: WebGL/RADV/NVIDIA graphics driver string.
-* `cpuModel`: Processor identification string.
-* `cpuCores`: Number of logical cores.
-* `totalMemoryMb` / `usedMemoryMb`: RAM allocation.
-* `gamescopeAvailable`: Boolean indicating whether Gamescope compositor is active.
-* `activeCompositor`: Compositor identifier (`gamescope-wayland`, `wayland`, `x11`).
+* `architecture`: Runtime architecture: `x86_64`, `aarch64`, or `unsupported`.
+* `kernelArchitecture`: Kernel-reported `uname -m`, separate from runtime architecture.
+* `hardware`: `cpuArchitecture`, `cpuModel`, `cpuCores`, `totalMemoryMb`, `freeMemoryMb`,
+  `gpuVendor`, `gpuRenderer`, `vulkanDriverVersion`, `vulkanSupported`, `drmAvailable`,
+  `gamescopeAvailable`, `recommendedCompositor`, `deviceModel`.
+* `gamescopeAvailable` describes executable availability, not an active session.
+* `display.activeCompositor` and `display.gamescopeActive` describe display state.
+
+Installer support is limited to Arch Linux x86_64 and Arch Linux ARM aarch64.
+ARM32 is unsupported. CPU support does not imply GPU or emulator availability.
+Mocks accept an architecture constructor option or `EMUBOX_MOCK_ARCH` in Node;
+browser code never infers host architecture from `navigator`.
 
 ### `EmuBoxConfig`
 Single, central, versioned JSON configuration model:
@@ -112,3 +117,16 @@ Abstracted execution profile for engines:
 * `status`: Dynamic availability `'active' | 'inactive' | 'missing_bios'`.
 * `executable`: Executable binary name in system `$PATH` (e.g. `retroarch`, `duckstation-qt`).
 * `arguments`: Command-line flag array (e.g. `['-L', 'snes9x_libretro.so']`).
+* `architectures`: Native CPU allowlist from `data/emulator-capabilities.json`.
+* `requirements`: `minCpuCores`, `minMemoryMb`, `vulkan`.
+* `compatibility`: `status`, `reason`, `hostArchitecture`, `binaryArchitecture`.
+
+Statuses: `supported`, `unsupported_architecture`, `not_installed`,
+`invalid_binary`, `requirements_not_met`. Script wrappers validate their native
+interpreter; their internal command chains cannot be proven by inspecting a shebang.
+
+Compatibility is recomputed by Rust, including executable resolution and native
+libretro core checks. The UI uses this result to disable launch with a reason;
+catalog IDs, platforms, downloads and game storage remain architecture-independent.
+RPCS3 remains visible even when unavailable. Matrix support is not evidence that
+a compatible binary is installed or that a particular game will perform well.

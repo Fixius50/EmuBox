@@ -2,7 +2,23 @@
 
 ## 1. Overview
 
-This document specifies the exact IPC commands and signatures that the upcoming **Rust / Tauri 2.0** core must implement to fulfill `IEmuBoxBackend`.
+This document describes the **Rust / Tauri 2.0** IPC boundary implementing `IEmuBoxBackend`.
+
+## Native architecture contract
+
+Supported runtime CPUs are x86_64 and aarch64, not ARM32. `get_system_info`
+returns `architecture` (`x86_64`, `aarch64`, `unsupported`) and separate
+`kernelArchitecture`. Nested `hardware` reports CPU, RAM, GPU vendor/renderer,
+Vulkan, DRM, Gamescope availability, recommended compositor and device model.
+
+`get_emulators` returns `architectures`, `requirements` and `compatibility`
+alongside the existing profile. Compatibility includes `status`, `reason`,
+`hostArchitecture` and optional `binaryArchitecture`. Launch revalidates these
+capabilities and the executable/core before spawning; frontend checks alone are
+not authoritative. No architecture is added to Game IDs, ROM paths or manifests.
+
+The native ARM CI runner is configured, but ARM build and graphical runtime
+results remain pending. An ARM64 runtime does not guarantee RPCS3 availability.
 
 ---
 
