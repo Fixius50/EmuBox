@@ -3,6 +3,9 @@ export interface HardwareInfo {
   gpuRenderer: string;
   vulkanDriverVersion?: string;
   vulkanSupported?: boolean;
+  openglSupported?: boolean;
+  openglRenderer?: string | null;
+  openglAccelerated?: boolean;
   drmAvailable?: boolean;
   gamescopeAvailable?: boolean;
   recommendedCompositor?: 'gamescope' | 'cage';

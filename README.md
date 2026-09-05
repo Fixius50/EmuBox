@@ -116,6 +116,8 @@ EmuBox implementa una arquitectura gráfica desacoplada y adaptativa:
 
 ## Documentación y Guías de Arquitectura
 
+- [Requisitos](docs/specification/requirements.md), [diseño](docs/specification/design.md) y [matriz de primitivas](docs/specification/headless_primitives_matrix.md).
+- [Aceleración 3D en VirtualBox](docs/architecture/virtualbox-graphics.md).
 - [Arquitectura de Arranque Autónomo y Sesión Wayland](docs/architecture/console-appliance-boot-architecture.md)
 - [Guía de Arquitectura, Refactorización y Estilo de Código](docs/architecture/refactoring-and-architecture-guidelines.md)
 - [Contratos de Backend y Servicios de Dominio](docs/architecture/backend-contracts.md)

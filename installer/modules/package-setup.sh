@@ -19,7 +19,6 @@ REQUIRED_PACKAGES=(
   "pipewire-pulse"
   "wireplumber"
   "vulkan-icd-loader"
-  "vulkan-tools"
   "libretro-core-info"
   "retroarch"
   "xdg-user-dirs"
@@ -28,4 +27,4 @@ REQUIRED_PACKAGES=(
 
 log_step "Comprobando e instalando paquetes necesarios..."
 install_packages_if_missing "${REQUIRED_PACKAGES[@]}"
-install_optional_packages gamescope vulkan-tools
+install_optional_packages gamescope vulkan-tools mesa-utils

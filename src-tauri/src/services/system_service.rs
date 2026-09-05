@@ -36,6 +36,10 @@ impl SystemService {
             gpu_renderer: graphics.renderer,
             vulkan_driver_version: graphics.driver_version,
             vulkan_supported: graphics.vulkan,
+            opengl_supported: graphics.opengl,
+            opengl_accelerated: graphics.opengl_renderer.as_deref()
+                .is_some_and(|renderer| !super::graphics_service::is_software_renderer(renderer)),
+            opengl_renderer: graphics.opengl_renderer,
             drm_available: graphics.drm,
             gamescope_available: graphics.gamescope,
             recommended_compositor: super::graphics_service::select_compositor(graphics.vulkan, graphics.drm, graphics.gamescope).into(),

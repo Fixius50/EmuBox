@@ -89,12 +89,15 @@ Telemetry representing hardware capabilities, display composition, and Linux ker
 * `hardware`: `cpuArchitecture`, `cpuModel`, `cpuCores`, `totalMemoryMb`, `freeMemoryMb`,
   `gpuVendor`, `gpuRenderer`, `vulkanDriverVersion`, `vulkanSupported`, `drmAvailable`,
   `gamescopeAvailable`, `recommendedCompositor`, `deviceModel`.
+* `hardware.openglSupported`, `hardware.openglRenderer`, `hardware.openglAccelerated`
+     report EGL/OpenGL capabilities separately from Vulkan. These describe detected
+     availability, not a guarantee that every application uses that renderer.
 * `gamescopeAvailable` describes executable availability, not an active session.
 * `display.activeCompositor` and `display.gamescopeActive` describe display state.
 
 Installer support is limited to Arch Linux x86_64 and Arch Linux ARM aarch64.
 ARM32 is unsupported. CPU support does not imply GPU or emulator availability.
-Mocks accept an architecture constructor option or `EMUBOX_MOCK_ARCH` in Node;
+Mocks accept an architecture constructor option;
 browser code never infers host architecture from `navigator`.
 
 ### `EmuBoxConfig`

@@ -61,7 +61,7 @@ if [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
 fi
 
 detect_emubox_graphics
-echo "[EmuBox] architecture=$(get_emubox_architecture) gpu=$GPU_VENDOR renderer=$RENDERER_DESC drm=$HAS_DRM vulkan=$HAS_HW_VULKAN gamescope=$HAS_GAMESCOPE compositor=$EMUBOX_COMPOSITOR device=$DEVICE_MODEL"
+echo "[EmuBox] architecture=$(get_emubox_architecture) gpu=$GPU_VENDOR renderer=$RENDERER_DESC drm=$HAS_DRM vulkan=$HAS_HW_VULKAN opengl=$HAS_OPENGL openglAccelerated=$HAS_HW_OPENGL gamescope=$HAS_GAMESCOPE compositor=$EMUBOX_COMPOSITOR device=$DEVICE_MODEL"
 
 # Iniciar sincronizador reactivo de resolución DRM en segundo plano si existe cage
 SYNC_PID=""

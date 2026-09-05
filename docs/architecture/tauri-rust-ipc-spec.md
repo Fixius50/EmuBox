@@ -10,6 +10,8 @@ Supported runtime CPUs are x86_64 and aarch64, not ARM32. `get_system_info`
 returns `architecture` (`x86_64`, `aarch64`, `unsupported`) and separate
 `kernelArchitecture`. Nested `hardware` reports CPU, RAM, GPU vendor/renderer,
 Vulkan, DRM, Gamescope availability, recommended compositor and device model.
+`hardware.openglSupported`, `openglRenderer` and `openglAccelerated` also report
+EGL/OpenGL availability, including accelerated virtual GPUs without Vulkan.
 
 `get_emulators` returns `architectures`, `requirements` and `compatibility`
 alongside the existing profile. Compatibility includes `status`, `reason`,

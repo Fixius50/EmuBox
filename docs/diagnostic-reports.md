@@ -24,6 +24,15 @@ en ARM real; Cage sin Vulkan no demuestra renderizado exclusivamente por CPU.
 
 Los reportes numerados siguientes son históricos y no certifican soporte ARM64.
 
+### Sondeo gráfico de la VM, 5 de septiembre de 2026
+
+`systemd-detect-virt`: `oracle`. CPU expuesta: AMD Ryzen 5 5600G, cuatro vCPU.
+PCI: VMware SVGA II `15ad:0405`, driver `vmwgfx`. `eglinfo -B`: SVGA3D,
+OpenGL 4.1 y OpenGL ES 3.0; `vulkaninfo --summary`: sin dispositivos válidos.
+El detector actualizado devuelve OpenGL disponible/acelerado, Vulkan ausente,
+DRM presente y compositor Cage. No se han cambiado ajustes del anfitrión ni
+instalado drivers de la GPU física. Ver [guía de VM](architecture/virtualbox-graphics.md).
+
 La fase de catálogo e integración de juegos está completada. La UI muestra el
 dataset JSON de 10.000 títulos cuando SQLite está vacío, expone sus metadatos en
 hero y tarjetas, y mantiene el flujo `DESCARGAR` -> escaneo de ROM -> `JUGAR`.

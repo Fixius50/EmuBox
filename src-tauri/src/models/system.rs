@@ -7,6 +7,12 @@ pub struct HardwareInfo {
     pub gpu_renderer: String,
     pub vulkan_driver_version: Option<String>,
     pub vulkan_supported: bool,
+    #[serde(default)]
+    pub opengl_supported: bool,
+    #[serde(default)]
+    pub opengl_renderer: Option<String>,
+    #[serde(default)]
+    pub opengl_accelerated: bool,
     pub drm_available: bool,
     pub gamescope_available: bool,
     pub recommended_compositor: String,

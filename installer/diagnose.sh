@@ -34,6 +34,7 @@ log_step "Generando informe de diagnóstico en ${OUTPUT_REPORT}..."
   grep MemTotal /proc/meminfo || true
   echo "GPU: $GPU_VENDOR; renderer: $RENDERER_DESC; driver: $GPU_DRIVER"
   echo "DRM: $HAS_DRM; Vulkan: $HAS_HW_VULKAN; Gamescope: $HAS_GAMESCOPE"
+  echo "OpenGL: $HAS_OPENGL; accelerated: $HAS_HW_OPENGL; renderer: $OPENGL_RENDERER"
   echo "Compositor: $EMUBOX_COMPOSITOR; device: $DEVICE_MODEL"
   echo ""
   echo "--- Appliance Filesystem Status ---"

@@ -29,12 +29,34 @@ select_emubox_compositor() {
   if [[ "$1" == 1 && "$2" == 1 && "$3" == 1 ]]; then echo gamescope; else echo cage; fi
 }
 
+emubox_software_renderer() {
+  case "${1,,}" in
+    *llvmpipe*|*softpipe*|*swrast*|*'software rasterizer'*|*swiftshader*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+emubox_opengl_renderer() {
+  awk '
+    /OpenGL (core profile renderer|compatibility profile renderer|ES profile renderer|renderer string):/ {
+      sub(/^[^:]*:[[:space:]]*/, "")
+      if ($0 == "") next
+      if (first == "") first=$0
+      if (tolower($0) !~ /llvmpipe|softpipe|swrast|software rasterizer|swiftshader/) { print; found=1; exit }
+    }
+    END { if (!found && first != "") print first }
+  '
+}
+
 detect_emubox_graphics() {
   GPU_VENDOR=unknown
   GPU_DRIVER=unknown
   GPU_DEVICE=unknown
   RENDERER_DESC=unknown
   HAS_HW_VULKAN=0
+  HAS_OPENGL=0
+  HAS_HW_OPENGL=0
+  OPENGL_RENDERER=unknown
   HAS_DRM=0
   HAS_GAMESCOPE=0
   local card driver info renderer
@@ -61,6 +83,16 @@ detect_emubox_graphics() {
       [[ "$vendor" == unknown ]] || GPU_VENDOR="$vendor"
     fi
   fi
+  if command -v eglinfo >/dev/null 2>&1; then
+    info=$(LC_ALL=C timeout 10s eglinfo -B 2>/dev/null || true)
+    renderer=$(printf '%s\n' "$info" | emubox_opengl_renderer)
+    if [[ -n "$renderer" ]]; then
+      HAS_OPENGL=1
+      OPENGL_RENDERER="$renderer"
+      emubox_software_renderer "$renderer" || HAS_HW_OPENGL=1
+      [[ "$HAS_HW_VULKAN" == 1 ]] || RENDERER_DESC="$renderer"
+    fi
+  fi
   if [[ "$GPU_VENDOR" == unknown ]] && command -v lspci >/dev/null 2>&1; then
     info=$(lspci -mm 2>/dev/null | grep -Ei 'VGA compatible controller|3D controller|Display controller' || true)
     GPU_VENDOR=$(emubox_gpu_vendor "$info")
@@ -68,5 +100,5 @@ detect_emubox_graphics() {
   fi
   command -v gamescope >/dev/null 2>&1 && HAS_GAMESCOPE=1
   EMUBOX_COMPOSITOR=$(select_emubox_compositor "$HAS_HW_VULKAN" "$HAS_DRM" "$HAS_GAMESCOPE")
-  DEVICE_MODEL=$(tr -d '\000\n' < /sys/firmware/devicetree/base/model 2>/dev/null || cat /sys/class/dmi/id/product_name 2>/dev/null || echo unknown)
+  DEVICE_MODEL=$(tr -d '\000\n' 2>/dev/null < /sys/firmware/devicetree/base/model || cat /sys/class/dmi/id/product_name 2>/dev/null || echo unknown)
 }

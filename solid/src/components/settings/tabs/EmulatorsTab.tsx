@@ -46,7 +46,7 @@ export const EmulatorsTab: Component<EmulatorsTabProps> = (props) => {
                     <div class="blade-engine-name">
                       <span>{emu.name}</span>
                       <span class={`blade-type-chip ${emu.coreType === 'standalone' ? 'standalone' : ''}`}>
-                        {emu.coreType === 'libretro' ? 'Libretro Core' : 'Standalone Vulkan'}
+                        {emu.coreType === 'libretro' ? 'Libretro Core' : 'Standalone'}
                       </span>
                       <Badge variant="default" style={{ "font-size": "0.625rem", padding: "0.125rem 0.5rem" }}>
                         v{emu.version}

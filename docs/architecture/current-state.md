@@ -103,6 +103,12 @@ drivers virtuales y desconocidos sin inferir GPU desde la CPU. Gamescope requier
 Vulkan hardware, DRM y ejecutable disponible; en otro caso se selecciona Cage.
 No tener Vulkan no equivale a renderizar por CPU. No se exporta RADV_PERFTEST global.
 
+El sondeo EGL/OpenGL identifica `SVGA3D` acelerado en la VM actual, sin confundir
+su texto `LLVM` con `llvmpipe`. Vulkan no está disponible allí y se elige Cage.
+CPU expuesta: Ryzen 5 5600G, cuatro vCPU; GPU expuesta: VMware SVGA II con vmwgfx.
+La Radeon integrada mencionada en el nombre de la CPU no es la GPU PCI del invitado.
+Ver [aceleración en VirtualBox](virtualbox-graphics.md).
+
 ## Menú operativo
 
 `script.sh` mantiene solo las tareas de appliance:

@@ -22,3 +22,9 @@ software=$'GPU0:\n deviceType = PHYSICAL_DEVICE_TYPE_CPU\n deviceName = llvmpipe
 [[ -z "$(printf '%s\n' "$software" | emubox_vulkan_renderer)" ]]
 [[ "$(printf '%s\n' "$software" $'GPU1:\n deviceType = PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU\n deviceName = Mali' | emubox_vulkan_renderer)" == Mali ]]
 echo 'Graphics and compositor matrix: OK'
+svga='SVGA3D; build: RELEASE; LLVM;'
+[[ "$(printf '%s\n' 'OpenGL core profile renderer: llvmpipe (LLVM 22)' "OpenGL ES profile renderer: $svga" | emubox_opengl_renderer)" == "$svga" ]]
+! emubox_software_renderer "$svga"
+emubox_software_renderer 'llvmpipe (LLVM 22)'
+[[ -z "$(printf '%s\n' 'eglinfo: eglInitialize failed' | emubox_opengl_renderer)" ]]
+echo 'OpenGL accelerated and software renderer matrix: OK'

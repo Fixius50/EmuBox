@@ -18,9 +18,10 @@ impl DiagnosticsService {
         let emulators = super::EmulatorService::get_emulators()?;
         let installed = emulators.iter().filter(|emulator| emulator.compatibility.status == "supported").count();
         let hardware = &system.hardware;
-        let summary = format!("architecture={} kernelArchitecture={} cpu={} cores={} memoryMiB={} gpuVendor={} renderer={} vulkan={} drm={} gamescope={} compositor={} device={}",
+        let summary = format!("architecture={} kernelArchitecture={} cpu={} cores={} memoryMiB={} gpuVendor={} renderer={} vulkan={} opengl={} openglAccelerated={} openglRenderer={} drm={} gamescope={} compositor={} device={}",
             system.architecture, system.kernel_architecture, hardware.cpu_model, hardware.cpu_cores,
             hardware.total_memory_mb, hardware.gpu_vendor, hardware.gpu_renderer, hardware.vulkan_supported,
+            hardware.opengl_supported, hardware.opengl_accelerated, hardware.opengl_renderer.as_deref().unwrap_or("unknown"),
             hardware.drm_available, hardware.gamescope_available, hardware.recommended_compositor, hardware.device_model);
         Ok(DiagnosticReport {
             generated_at: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
