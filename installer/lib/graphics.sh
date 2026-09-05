@@ -38,6 +38,18 @@ configure_emubox_cursor() {
   fi
 }
 
+configure_emubox_render_mode() {
+  case "$1" in
+    auto) ;;
+    software)
+      export LIBGL_ALWAYS_SOFTWARE=1
+      export WLR_RENDERER=pixman
+      export WEBKIT_DISABLE_COMPOSITING_MODE=1
+      ;;
+    *) printf '[ERROR] Modo grafico no valido: usa auto o software\n' >&2; return 1 ;;
+  esac
+}
+
 emubox_software_renderer() {
   case "${1,,}" in
     *llvmpipe*|*softpipe*|*swrast*|*'software rasterizer'*|*swiftshader*) return 0 ;;

@@ -70,6 +70,25 @@ El proveedor de mando combina D-pad y stick en una sola direccion por lectura,
 con repeticion tras 350 ms y cada 120 ms al mantenerla. El scroll de la biblioteca
 no selecciona la tarjeta bajo un raton inmovil; se exige movimiento real del raton.
 
+### Prueba reversible si la corrupcion persiste
+
+DRM legacy y cursor software no garantizan estabilidad de SVGA3D. En la VM se
+observo recurrencia junto a errores de kernel `vmwgfx: Failed to open channel`.
+Para discriminar la ruta 3D, el lanzador admite `/etc/emubox/graphics-mode` con
+un unico valor: `auto` (por defecto) o `software`. La variable de entorno
+`EMUBOX_RENDER_MODE` tiene prioridad sobre ese archivo.
+
+`software` selecciona Cage/Pixman, `LIBGL_ALWAYS_SOFTWARE=1` y
+`WEBKIT_DISABLE_COMPOSITING_MODE=1`. Es una prueba temporal con posible coste de
+rendimiento, no una mejora de aceleracion ni una solucion confirmada del driver.
+El cambio no requiere build, pero si reiniciar TTY1. El log debe mostrar
+`renderMode=software` y `Creating pixman renderer`.
+
+Para volver a la deteccion automatica, cambiar el contenido del archivo a `auto`
+y reiniciar TTY1. No se aplica este modo por defecto en otras maquinas. Si la
+imagen se estabiliza solo en software, revisar la version de VirtualBox y el
+driver del anfitrion antes de volver a activar la ruta 3D.
+
 ```bash
 systemd-detect-virt
 lspci -nnk

@@ -36,3 +36,7 @@ echo 'vmwgfx cursor fallback and explicit preferences: OK'
 ( unset WLR_DRM_NO_ATOMIC; configure_emubox_cursor amdgpu; [[ ! -v WLR_DRM_NO_ATOMIC ]] )
 ( export WLR_DRM_NO_ATOMIC=0; configure_emubox_cursor vmwgfx; [[ "$WLR_DRM_NO_ATOMIC" == 0 ]] )
 echo 'vmwgfx legacy DRM and explicit preferences: OK'
+( unset LIBGL_ALWAYS_SOFTWARE WLR_RENDERER WEBKIT_DISABLE_COMPOSITING_MODE; configure_emubox_render_mode auto; [[ ! -v LIBGL_ALWAYS_SOFTWARE && ! -v WLR_RENDERER && ! -v WEBKIT_DISABLE_COMPOSITING_MODE ]] )
+( configure_emubox_render_mode software; [[ "$LIBGL_ALWAYS_SOFTWARE" == 1 && "$WLR_RENDERER" == pixman && "$WEBKIT_DISABLE_COMPOSITING_MODE" == 1 ]] )
+( ! configure_emubox_render_mode invalid )
+echo 'Explicit software diagnostic mode and unchanged automatic mode: OK'

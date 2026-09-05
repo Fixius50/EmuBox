@@ -58,11 +58,21 @@ fi
 
 # 3. Si ya existe un servidor gráfico activo (Wayland o X11), ejecutar directamente
 validate_emubox_binary "$EMUBOX_BIN"
+RENDER_MODE="${EMUBOX_RENDER_MODE:-}"
+if [[ -z "$RENDER_MODE" && -f /etc/emubox/graphics-mode ]]; then
+  RENDER_MODE=$(< /etc/emubox/graphics-mode)
+fi
+RENDER_MODE="${RENDER_MODE:-auto}"
+configure_emubox_render_mode "$RENDER_MODE"
 if [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
   exec "${EMUBOX_BIN}" "$@"
 fi
 
 detect_emubox_graphics
+if [[ "$RENDER_MODE" == software ]]; then
+  EMUBOX_COMPOSITOR=cage
+fi
+echo "[EmuBox] renderMode=$RENDER_MODE WLR_RENDERER=${WLR_RENDERER:-auto} LIBGL_ALWAYS_SOFTWARE=${LIBGL_ALWAYS_SOFTWARE:-0}"
 echo "[EmuBox] architecture=$(get_emubox_architecture) gpu=$GPU_VENDOR renderer=$RENDERER_DESC drm=$HAS_DRM vulkan=$HAS_HW_VULKAN opengl=$HAS_OPENGL openglAccelerated=$HAS_HW_OPENGL gamescope=$HAS_GAMESCOPE compositor=$EMUBOX_COMPOSITOR device=$DEVICE_MODEL"
 
 # Iniciar sincronizador reactivo de resolución DRM en segundo plano si existe cage
