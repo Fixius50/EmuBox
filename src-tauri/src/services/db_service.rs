@@ -36,13 +36,14 @@ impl DatabaseService {
         let db_path = Self::get_db_path();
         let conn = Connection::open(db_path)
             .map_err(|e| EmuBoxError::StorageUnavailable(format!("Error al abrir base de datos SQLite: {}", e)))?;
+        conn.busy_timeout(std::time::Duration::from_secs(5))
+            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
         
         // Configuración de alto rendimiento para consola dedicada
         conn.execute_batch(
             "PRAGMA journal_mode = WAL;
              PRAGMA synchronous = NORMAL;
-             PRAGMA foreign_keys = ON;
-             PRAGMA busy_timeout = 5000;"
+             PRAGMA foreign_keys = ON;"
         ).map_err(|e| EmuBoxError::StorageUnavailable(format!("Error al configurar pragmas de SQLite: {}", e)))?;
 
         Self::init_schema(&conn)?;
