@@ -431,11 +431,11 @@ impl GameService {
             let title: String = row.get(1)?;
             let platform: String = row.get(2)?;
             let platform_name: String = row.get(3)?;
-            let release_year: u32 = row.get(4).unwrap_or(2000);
-            let genre: String = row.get(5).unwrap_or_else(|_| "Classic".to_string());
+            let release_year: u32 = row.get(4).unwrap_or_default();
+            let genre: String = row.get(5).unwrap_or_default();
             let developer: String = row.get(6).unwrap_or_default();
             let publisher: String = row.get(7).unwrap_or_default();
-            let rating: f32 = row.get(8).unwrap_or(4.0);
+            let rating: f32 = row.get(8).unwrap_or_default();
             let play_time_minutes: u32 = row.get(9).unwrap_or(0);
             let favorite_int: i32 = row.get(10).unwrap_or(0);
             let cover_image: String = row.get(11).unwrap_or_default();
@@ -486,11 +486,11 @@ impl GameService {
             let title: String = row.get(1)?;
             let platform: String = row.get(2)?;
             let platform_name: String = row.get(3)?;
-            let release_year: u32 = row.get(4).unwrap_or(2000);
-            let genre: String = row.get(5).unwrap_or_else(|_| "Classic".to_string());
+            let release_year: u32 = row.get(4).unwrap_or_default();
+            let genre: String = row.get(5).unwrap_or_default();
             let developer: String = row.get(6).unwrap_or_default();
             let publisher: String = row.get(7).unwrap_or_default();
-            let rating: f32 = row.get(8).unwrap_or(4.0);
+            let rating: f32 = row.get(8).unwrap_or_default();
             let play_time_minutes: u32 = row.get(9).unwrap_or(0);
             let favorite_int: i32 = row.get(10).unwrap_or(0);
             let cover_image: String = row.get(11).unwrap_or_default();
@@ -552,6 +552,15 @@ impl GameService {
     /// biblioteca y no pierda su estado de instalado en re-importaciones del manifest.
     pub fn upsert_catalog_entry(entry: CatalogEntry) -> Result<(), EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
+        Self::upsert_catalog_entry_on(&conn, entry)
+    }
+
+    pub(crate) fn upsert_catalog_entry_on(conn: &rusqlite::Connection, entry: CatalogEntry) -> Result<(), EmuBoxError> {
+        conn.execute(
+            "INSERT OR IGNORE INTO systems (id, name, short_name, manufacturer, generation, release_year, color, icon, default_emulator_id, extensions_json)
+             VALUES (?1, ?2, ?3, '', 0, 0, '', ?1, '', '[]');",
+            params![entry.platform_id, entry.platform_name, entry.platform_id.to_uppercase()],
+        ).map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
         conn.execute(
             "INSERT INTO games (id, title, platform_id, platform_name, release_year, genre, developer, publisher, rating, cover_image, backdrop_image, description)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
@@ -559,14 +568,14 @@ impl GameService {
                title = excluded.title,
                platform_id = excluded.platform_id,
                platform_name = excluded.platform_name,
-               release_year = excluded.release_year,
-               genre = excluded.genre,
-               developer = excluded.developer,
-               publisher = excluded.publisher,
-               rating = excluded.rating,
-               cover_image = excluded.cover_image,
-               backdrop_image = excluded.backdrop_image,
-               description = excluded.description;",
+               release_year = COALESCE(excluded.release_year, games.release_year),
+               genre = COALESCE(excluded.genre, games.genre),
+               developer = COALESCE(excluded.developer, games.developer),
+               publisher = COALESCE(excluded.publisher, games.publisher),
+               rating = COALESCE(excluded.rating, games.rating),
+               cover_image = COALESCE(excluded.cover_image, games.cover_image),
+               backdrop_image = COALESCE(excluded.backdrop_image, games.backdrop_image),
+               description = COALESCE(excluded.description, games.description);",
             params![
                 entry.id, entry.title, entry.platform_id, entry.platform_name, entry.release_year,
                 entry.genre, entry.developer, entry.publisher, entry.rating,

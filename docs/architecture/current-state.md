@@ -67,22 +67,24 @@ getty@tty1 -> autologin de appliance -> emubox-session
 - SolidJS gestiona señales, stores y navegación espacial.
 - Kobalte aporta diálogos, focus traps y primitivas accesibles.
 - CSS propio define la interfaz 10-Foot UI.
-- TanStack Virtual permite navegar el catálogo de 10.000 entradas.
+- TanStack Virtual permite navegar el catalogo importado sin renderizar todas sus tarjetas.
 - Tauri conecta la UI con servicios Rust mediante IPC.
 - SQLite y `/var/lib/emubox/games` son la fuente de verdad de juegos instalados.
 - `GameLibraryWatcher` actualiza la biblioteca cuando aparece una ROM.
 - `CompatibilityService` resuelve el emulador antes del lanzamiento.
 
-## Fase de juegos: completada
+## Catalogo conectado
 
 La biblioteca ya está lista para operar:
 
-- `data/games-10000.json` proporciona el catálogo visible cuando SQLite está vacío.
+- La UI muestra SQLite; `data/games-10000.json` queda solo para pruebas, sin fallback en la appliance.
 - Las tarjetas muestran portada, título, plataforma, año, valoración, género y desarrollador.
 - `DESCARGAR` se muestra para juegos no instalados.
 - `JUGAR` requiere una ROM instalada y un emulador compatible; el bloqueo muestra su motivo.
 - El store recarga la biblioteca al terminar una descarga.
-- Las fuentes se importan desde manifiestos autorizados en `/etc/emubox/download-links.txt` o mediante IPC.
+- Las fuentes se importan desde `/etc/emubox/download-links.txt` si tiene URLs; si no, desde `data/download-links.txt`.
+- Importar crea metadatos y fuentes, no trabajos de descarga. Se actualiza al arrancar y cada seis horas.
+- El evento oficial Tauri `library-updated` recarga la biblioteca despues de importar cada manifiesto.
 - `DownloadService` guarda trabajos en SQLite y descargas HTTP en `/var/lib/emubox/games/<platform>`.
 - El watcher y el escaneo convierten una descarga completada en una entrada instalada.
 - PS3/RPCS3, asociaciones de compatibilidad y lanzamiento forman parte del flujo de backend.
@@ -94,6 +96,12 @@ para cada plataforma.
 
 El JSON de catálogo contiene metadatos, no enlaces de ROM. Una descarga concreta
 solo se inicia si existe una fuente autorizada registrada para su `gameId`.
+
+La importacion real del 5 de septiembre registro 167.901 juegos y 278.460 fuentes
+unicas, con cero trabajos de descarga. Varias URLs devolvieron 403/404 o fallaron
+por conectividad; no se presentan como importadas. El backend descarga archivos
+HTTP directos y rechaza magnet/torrent con un mensaje explicito hasta incorporar
+un motor BitTorrent. Ver [detalle y limites](catalog-sources.md).
 
 ## Appliance y sistema
 

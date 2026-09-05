@@ -13,6 +13,8 @@ export type PlatformId =
   | 'wiiu'
   | 'psp'
   | 'nds'
+  | 'pc'
+  | 'linux'
   | 'all';
 
 export interface Platform {

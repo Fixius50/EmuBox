@@ -133,6 +133,8 @@ export class MockBackendService implements IEmuBoxBackend {
     emulators: {
       defaultMapping: {
         all: '',
+        pc: '',
+        linux: '',
         snes: 'snes9x',
         ps1: 'duckstation',
         ps2: 'pcsx2',
@@ -780,9 +782,9 @@ export class MockBackendService implements IEmuBoxBackend {
     return job;
   }
 
-  public async importDownloadsFromJson(jsonContent: string): Promise<DownloadJob[]> {
+  public async importDownloadsFromJson(jsonContent: string): Promise<DownloadSource[]> {
     const parsed = typeof jsonContent === 'string' ? JSON.parse(jsonContent) : jsonContent;
-    const newJobs: DownloadJob[] = [];
+    const newSources: DownloadSource[] = [];
 
     const downloads = parsed.downloads || (Array.isArray(parsed) && parsed[0]?.uris ? parsed : undefined);
     if (downloads && Array.isArray(downloads)) {
@@ -806,11 +808,11 @@ export class MockBackendService implements IEmuBoxBackend {
             title,
             platform: (platform as any),
             platformName: platform.toUpperCase(),
-            releaseYear: item.uploadDate ? parseInt(item.uploadDate.slice(0, 4), 10) || 2020 : 2020,
+            releaseYear: item.releaseYear || 0,
             genre: item.genre || 'Desconocido',
             developer: item.developer || 'Desconocido',
             publisher: item.publisher || 'Desconocido',
-            rating: item.rating || 4.5,
+            rating: item.rating || 0,
             playTimeMinutes: 0,
             favorite: false,
             coverImage: item.coverImage || '',
@@ -821,22 +823,18 @@ export class MockBackendService implements IEmuBoxBackend {
           this.games.push(game);
         }
 
-        const job: DownloadJob = {
-          id: `download-${Date.now()}-${newJobs.length}`,
+        const source: DownloadSource = {
+          id: sourceId,
           gameId,
-          sourceId,
-          platform,
-          destinationPath: `${paths.getRomsDir(platform)}/${title.replace(/[\/\\]/g, '_')}.bin`,
-          status: 'queued',
-          progress: 0,
-          downloadedBytes: 0,
-          totalBytes,
-          speedBytesPerSecond: 0,
+          name: title,
+          sourceType: primaryUri.startsWith('magnet:') ? 'magnet' : primaryUri.endsWith('.torrent') ? 'torrent' : 'http',
+          uri: primaryUri,
+          sizeBytes: totalBytes,
+          available: true,
         };
-        this.downloads.push(job);
-        newJobs.push(job);
+        newSources.push(source);
       }
-      return newJobs;
+      return newSources;
     }
 
     const games = parsed.games || (Array.isArray(parsed) ? parsed : []);
@@ -854,11 +852,11 @@ export class MockBackendService implements IEmuBoxBackend {
           title: name,
           platform: (platform as any),
           platformName: platform.toUpperCase(),
-          releaseYear: entry.releaseYear || 2020,
+          releaseYear: entry.releaseYear || 0,
           genre: entry.genre || 'Desconocido',
           developer: entry.developer || 'Desconocido',
           publisher: entry.publisher || 'Desconocido',
-          rating: entry.rating || 4.5,
+          rating: entry.rating || 0,
           playTimeMinutes: 0,
           favorite: false,
           coverImage: entry.coverImage || '',
@@ -868,32 +866,28 @@ export class MockBackendService implements IEmuBoxBackend {
         this.games.push(game);
       }
 
-      const job: DownloadJob = {
-        id: `download-${Date.now()}-${newJobs.length}`,
+      const source: DownloadSource = {
+        id: entry.sourceId || `source-${gameId}`,
         gameId,
-        sourceId: entry.sourceId || `source-${gameId}`,
-        platform,
-        destinationPath: `${paths.getRomsDir(platform)}/${name}.bin`,
-        status: 'queued',
-        progress: 0,
-        downloadedBytes: 0,
-        totalBytes: entry.sizeBytes || parseMockFileSize(entry.fileSize),
-        speedBytesPerSecond: 0,
+        name,
+        uri,
+        sourceType: 'http',
+        sizeBytes: entry.sizeBytes || parseMockFileSize(entry.fileSize),
+        available: entry.available ?? true,
       };
-      this.downloads.push(job);
-      newJobs.push(job);
+      newSources.push(source);
     }
-    return newJobs;
+    return newSources;
   }
 
-  public async importDownloadsFromUrl(url: string): Promise<DownloadJob[]> {
+  public async importDownloadsFromUrl(url: string): Promise<DownloadSource[]> {
     const res = await fetch(url);
     const json = await res.json();
     return this.importDownloadsFromJson(JSON.stringify(json));
   }
 
-  public async importDownloadLinks(): Promise<DownloadJob[]> {
-    return this.downloads;
+  public async importDownloadLinks(): Promise<DownloadSource[]> {
+    return [];
   }
 }
 

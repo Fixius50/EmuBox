@@ -8,7 +8,7 @@ use tauri::Emitter;
 use state::AppState;
 
 /// Intervalo entre comprobaciones periódicas de los manifiestos de descarga.
-const MANIFEST_POLL_INTERVAL_SECS: u64 = 120;
+const MANIFEST_POLL_INTERVAL_SECS: u64 = 6 * 60 * 60;
 
 pub fn run() {
     tauri::Builder::default()
@@ -23,7 +23,11 @@ pub fn run() {
                     let _ = services::EmulatorService::apply_hardware_profile(&hardware);
                 }
                 let _ = services::GameService::scan_games(None);
-                let _ = services::DownloadService::import_and_start();
+                if let Err(error) = services::DownloadService::import_link_file_with_progress(|| {
+                    let _ = app_handle.emit("library-updated", serde_json::json!({ "reason": "manifest-import" }));
+                }) {
+                    eprintln!("[Catalog] {error}");
+                }
                 let _ = app_handle.emit("library-updated", serde_json::json!({ "reason": "initial-scan" }));
             });
 
@@ -35,10 +39,12 @@ pub fn run() {
             let poll_handle = app.handle().clone();
             std::thread::spawn(move || loop {
                 std::thread::sleep(std::time::Duration::from_secs(MANIFEST_POLL_INTERVAL_SECS));
-                if let Ok(jobs) = services::DownloadService::import_and_start() {
+                if let Ok(sources) = services::DownloadService::import_link_file_with_progress(|| {
+                    let _ = poll_handle.emit("library-updated", serde_json::json!({ "reason": "manifest-import" }));
+                }) {
                     let _ = poll_handle.emit("library-updated", serde_json::json!({
                         "reason": "periodic-manifest-check",
-                        "jobCount": jobs.len()
+                        "sourceCount": sources.len()
                     }));
                 }
             });

@@ -51,7 +51,38 @@ pub fn downloads_cache_dir() -> String {
 }
 
 pub fn download_links_file() -> String {
-    format!("{CONFIG_DIR}/download-links.txt")
+    let configured = format!("{CONFIG_DIR}/download-links.txt");
+    let repository = "/opt/emubox/data/download-links.txt";
+    select_download_links_file(&configured, repository)
+}
+
+fn select_download_links_file(configured: &str, repository: &str) -> String {
+    let has_links = std::fs::read_to_string(configured).ok().is_some_and(|content| {
+        content.lines().any(|line| {
+            let link = line.split('#').next().unwrap_or("").trim();
+            link.starts_with("https://") || link.starts_with("http://")
+        })
+    });
+    if has_links || !std::path::Path::new(repository).is_file() { configured.into() } else { repository.into() }
+}
+
+#[cfg(test)]
+mod download_link_tests {
+    use super::*;
+
+    #[test]
+    fn repository_links_replace_only_empty_configuration() {
+        let directory = std::env::temp_dir().join(format!("emubox-links-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let configured = directory.join("configured.txt");
+        let repository = directory.join("repository.txt");
+        std::fs::write(&configured, "# placeholder\n").unwrap();
+        std::fs::write(&repository, "https://example.test/catalog.json\n").unwrap();
+        assert_eq!(select_download_links_file(configured.to_str().unwrap(), repository.to_str().unwrap()), repository.to_string_lossy());
+        std::fs::write(&configured, "https://example.test/custom.json\n").unwrap();
+        assert_eq!(select_download_links_file(configured.to_str().unwrap(), repository.to_str().unwrap()), configured.to_string_lossy());
+        std::fs::remove_dir_all(directory).unwrap();
+    }
 }
 
 pub fn config_file() -> String {

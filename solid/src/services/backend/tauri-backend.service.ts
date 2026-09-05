@@ -211,15 +211,15 @@ export class TauriBackendService implements IEmuBoxBackend {
     return this.resolve('download_game', { gameId }, () => this.fallback.downloadGame(gameId));
   }
 
-  public async importDownloadLinks(): Promise<DownloadJob[]> {
+  public async importDownloadLinks(): Promise<DownloadSource[]> {
     return this.resolve('import_download_links', undefined, () => this.fallback.importDownloadLinks());
   }
 
-  public async importDownloadsFromJson(jsonContent: string): Promise<DownloadJob[]> {
+  public async importDownloadsFromJson(jsonContent: string): Promise<DownloadSource[]> {
     return this.resolve('import_downloads_from_json', { jsonContent }, () => this.fallback.importDownloadsFromJson(jsonContent));
   }
 
-  public async importDownloadsFromUrl(url: string): Promise<DownloadJob[]> {
+  public async importDownloadsFromUrl(url: string): Promise<DownloadSource[]> {
     return this.resolve('import_downloads_from_url', { url }, () => this.fallback.importDownloadsFromUrl(url));
   }
 

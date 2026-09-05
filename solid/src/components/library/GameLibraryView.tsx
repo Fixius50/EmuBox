@@ -2,6 +2,7 @@ import { Component, For, Show, createMemo } from 'solid-js';
 import type { Game, Platform, Emulator } from '@contracts/game.types';
 import { gameBlockReason } from '@services/compatibility/launch-capability';
 import { HeroSection } from './HeroSection';
+import { ConsoleHardwareVisual } from '@components/common/ConsoleHardwareVisual';
 import { ConsoleShelfGrid } from './ConsoleShelfGrid';
 
 interface GameLibraryViewProps {
@@ -63,7 +64,10 @@ export const GameLibraryView: Component<GameLibraryViewProps> = (props) => {
                 class={`library-filter-item ${props.selectedPlatform === platform.id ? 'active' : ''}`}
                 onClick={() => props.onSelectPlatform(platform.id)}
               >
-                <span>{platform.shortName}</span>
+                <span class="library-filter-platform">
+                  <span aria-hidden="true"><ConsoleHardwareVisual platformId={platform.id} size="sm" /></span>
+                  <span>{platform.shortName}</span>
+                </span>
                 <span>{count()}</span>
               </button>
             );

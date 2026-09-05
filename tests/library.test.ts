@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import { MockBackendService } from '../solid/src/services/backend/mock-backend.service';
 import { createLibraryStore } from '../solid/src/stores/library.store';
 import type { Game } from '../solid/src/types/game.types';
+import { shelfColumns } from '../solid/src/services/library/grid-layout';
+
+assert.equal(shelfColumns(390), 1);
+assert.equal(shelfColumns(900), 3);
+assert.equal(shelfColumns(1920), 5);
 
 const game: Game = {
   id: 'catalog-one', title: 'Catalog one', platform: 'ps2', platformName: 'PS2',

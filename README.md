@@ -51,16 +51,21 @@ runners nativos x86_64 y ARM64; su ejecución remota y el arranque gráfico sobr
 ARM real están pendientes. Soportar el runtime ARM64 no garantiza disponibilidad
 de todos los emuladores, drivers ni rendimiento suficiente para PS3.
 
-La fase de catálogo e integración de juegos está completada. El catálogo JSON de
-10.000 títulos se muestra aunque SQLite todavía no contenga ROMs instaladas, y
-las tarjetas exponen plataforma, año, valoración, género y desarrollador. El
+La biblioteca muestra juegos reales registrados en SQLite desde el escaneo o
+desde los manifiestos configurados; no incorpora el dataset de demostracion.
+Las tarjetas muestran los metadatos disponibles y SVG de su categoria. El
 flujo distingue `DESCARGAR` de `JUGAR`; al terminar una descarga autorizada y
 detectar la ROM, la biblioteca se actualiza. El lanzamiento requiere además un
 emulador compatible con la CPU, su binario nativo y sus requisitos de hardware.
 
-El JSON contiene metadatos, no enlaces de ROM. Las descargas requieren fuentes
-autorizadas importadas mediante manifiestos en `/etc/emubox/download-links.txt`
-o mediante IPC. La arquitectura vigente está en
+Los manifiestos se leen desde `/etc/emubox/download-links.txt` si contiene enlaces
+activos; en caso contrario, desde `data/download-links.txt`. Se importan solo
+metadatos y fuentes, nunca juegos automaticamente. `bin/emubox --import-catalog`
+permite sincronizar sin abrir la UI. La descarga empieza al pulsar una tarjeta.
+Actualmente se admiten archivos HTTP directos; magnet/torrent necesitan un motor
+BitTorrent aun no implementado. Una fuente publicada no garantiza su seguridad
+ni disponibilidad. Ver [conexion del catalogo](docs/architecture/catalog-sources.md).
+La arquitectura vigente está en
 [Estado actual de EmuBox](docs/architecture/current-state.md).
 
 ---

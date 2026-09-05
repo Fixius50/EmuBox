@@ -34,7 +34,7 @@ export function useGameLauncher(options: UseGameLauncherOptions) {
     soundFx.playSelect();
     try {
       const availableEmulators = systemStore.emulators();
-      let targetEmulator = availableEmulators.find(
+      const targetEmulator = availableEmulators.find(
         (e) => !emulatorBlockReason(e) && e.supportedPlatforms.includes(game.platform)
       );
       if (!targetEmulator) {

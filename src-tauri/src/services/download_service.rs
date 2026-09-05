@@ -21,6 +21,7 @@ struct RuntimeControl {
 }
 
 static ACTIVE_JOBS: OnceLock<Mutex<HashMap<String, RuntimeControl>>> = OnceLock::new();
+static CATALOG_IMPORT: Mutex<()> = Mutex::new(());
 
 fn active_jobs() -> &'static Mutex<HashMap<String, RuntimeControl>> {
     ACTIVE_JOBS.get_or_init(|| Mutex::new(HashMap::new()))
@@ -29,59 +30,86 @@ fn active_jobs() -> &'static Mutex<HashMap<String, RuntimeControl>> {
 pub struct DownloadService;
 
 impl DownloadService {
-    pub fn import_from_json(json_content: &str) -> Result<Vec<DownloadJob>, EmuBoxError> {
+    pub fn import_from_json(json_content: &str) -> Result<Vec<DownloadSource>, EmuBoxError> {
         Self::import_manifest_content(json_content, None)
     }
 
-    pub fn import_from_url(url_str: &str) -> Result<Vec<DownloadJob>, EmuBoxError> {
+    pub fn import_from_url(url_str: &str) -> Result<Vec<DownloadSource>, EmuBoxError> {
+        let (manifest, filename) = Self::fetch_manifest(url_str)?;
+        Self::import_manifest_content(&manifest, filename.as_deref())
+    }
+
+    fn fetch_manifest(url_str: &str) -> Result<(String, Option<String>), EmuBoxError> {
         let url = reqwest::Url::parse(url_str)
             .map_err(|e| EmuBoxError::InvalidConfiguration(format!("URL inválida: {}", e)))?;
         if !matches!(url.scheme(), "http" | "https") {
             return Err(EmuBoxError::InvalidConfiguration("Solo se aceptan URLs HTTP/HTTPS".to_string()));
         }
-        let manifest_text = Client::new().get(url_str).send()
-            .map_err(|e| EmuBoxError::Unknown(format!("No se pudo descargar el manifiesto: {}", e)))?
-            .text()
-            .map_err(|e| EmuBoxError::Unknown(format!("No se pudo leer el manifiesto: {}", e)))?;
-        let filename_hint = url.path_segments().and_then(|mut s| s.rfind(|seg| !seg.is_empty()));
-        Self::import_manifest_content(&manifest_text, filename_hint)
+        let client = Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .timeout(std::time::Duration::from_secs(25))
+            .build().map_err(|error| EmuBoxError::Unknown(error.to_string()))?;
+        let response = client.get(url_str).send()
+            .and_then(|response| response.error_for_status())
+            .map_err(|e| EmuBoxError::Unknown(format!("No se pudo descargar el manifiesto: {}", e)))?;
+        let mut manifest_text = String::new();
+        response.take(32 * 1024 * 1024 + 1).read_to_string(&mut manifest_text)
+            .map_err(|error| EmuBoxError::Unknown(format!("No se pudo leer el manifiesto: {error}")))?;
+        if manifest_text.len() > 32 * 1024 * 1024 {
+            return Err(EmuBoxError::InvalidConfiguration("El manifiesto supera 32 MiB".into()));
+        }
+        let filename_hint = url.path_segments().and_then(|mut segments| segments.rfind(|segment| !segment.is_empty())).map(str::to_owned);
+        Ok((manifest_text, filename_hint))
     }
 
-    pub fn import_link_file() -> Result<Vec<DownloadJob>, EmuBoxError> {
-        let content = fs::read_to_string(paths::download_links_file())
-            .map_err(|e| EmuBoxError::StorageUnavailable(format!("No se pudo leer {}: {}", paths::download_links_file(), e)))?;
-        let mut all_jobs = Vec::new();
-        for (line_number, line) in content.lines().enumerate() {
+    pub fn import_link_file() -> Result<Vec<DownloadSource>, EmuBoxError> {
+        Self::import_link_file_with_progress(|| {})
+    }
+
+    pub fn import_link_file_with_progress(mut updated: impl FnMut()) -> Result<Vec<DownloadSource>, EmuBoxError> {
+        let Ok(_import_guard) = CATALOG_IMPORT.try_lock() else { return Ok(Vec::new()); };
+        let file = paths::download_links_file();
+        let content = fs::read_to_string(&file)
+            .map_err(|error| EmuBoxError::StorageUnavailable(format!("No se pudo leer {file}: {error}")))?;
+        let links: Vec<_> = content.lines().enumerate().filter_map(|(index, line)| {
             let link = line.split('#').next().unwrap_or("").trim();
-            if link.is_empty() { continue; }
-            let url = match reqwest::Url::parse(link) {
-                Ok(u) => u,
-                Err(e) => {
-                    log::warn!("Enlace inválido en línea {}: {}", line_number + 1, e);
-                    continue;
-                }
-            };
-            if !matches!(url.scheme(), "http" | "https") {
-                log::warn!("Solo se aceptan enlaces HTTP/HTTPS en línea {}", line_number + 1);
-                continue;
-            }
-            if let Ok(response) = Client::new().get(link).send() {
-                if let Ok(manifest_text) = response.text() {
-                    let filename_hint = url.path_segments().and_then(|mut s| s.rfind(|seg| !seg.is_empty()));
-                    if let Ok(mut jobs) = Self::import_manifest_content(&manifest_text, filename_hint) {
-                        all_jobs.append(&mut jobs);
+            (!link.is_empty()).then_some((index + 1, link))
+        }).collect();
+        eprintln!("[Catalog] {} manifiestos desde {file}; solo metadatos", links.len());
+        let mut sources = Vec::new();
+        for chunk in links.chunks(4) {
+            std::thread::scope(|scope| {
+                let handles: Vec<_> = chunk.iter().map(|(line, link)| {
+                    (*line, scope.spawn(move || Self::fetch_manifest(link)))
+                }).collect();
+                for (line, handle) in handles {
+                    match handle.join() {
+                        Ok(Ok((manifest, filename))) => {
+                            match Self::import_manifest_content(&manifest, filename.as_deref()) {
+                                Ok(mut imported) => {
+                                    eprintln!("[Catalog] linea {line}: {} fuentes registradas", imported.len());
+                                    sources.append(&mut imported);
+                                    updated();
+                                }
+                                Err(error) => eprintln!("[Catalog] linea {line}: {error}"),
+                            }
+                        }
+                        Ok(Err(error)) => eprintln!("[Catalog] linea {line}: {error}"),
+                        Err(_) => eprintln!("[Catalog] linea {line}: importador interrumpido"),
                     }
                 }
-            }
+            });
         }
-        Ok(all_jobs)
+        Ok(sources)
     }
 
-    pub fn import_manifest_content(manifest: &str, source_name_fallback: Option<&str>) -> Result<Vec<DownloadJob>, EmuBoxError> {
+    pub fn import_manifest_content(manifest: &str, source_name_fallback: Option<&str>) -> Result<Vec<DownloadSource>, EmuBoxError> {
         let parsed: serde_json::Value = serde_json::from_str(manifest)
             .map_err(|e| EmuBoxError::InvalidConfiguration(format!("JSON inválido: {}", e)))?;
 
-        let mut jobs = Vec::new();
+        let mut sources = Vec::new();
+        let mut connection = DatabaseService::get_connection()?;
+        let transaction = connection.transaction().map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
 
         // 1. Detectar formato estándar Hydra / downloads[]
         let downloads_array = parsed.get("downloads").and_then(|d| d.as_array())
@@ -126,8 +154,7 @@ impl DownloadService {
                 };
 
                 let size_bytes = item.get("fileSize").and_then(crate::models::download::parse_file_size_value);
-                let upload_date = item.get("uploadDate").and_then(|d| d.as_str());
-                let release_year = upload_date.and_then(|d| d.chars().take(4).collect::<String>().parse::<u32>().ok());
+                let release_year = item.get("releaseYear").and_then(|value| value.as_u64()).map(|year| year as u32);
 
                 let game_id = item.get("gameId").and_then(|v| v.as_str()).map(str::to_string)
                     .unwrap_or_else(|| format!("download-{}-{}", platform, slug(title)));
@@ -144,7 +171,7 @@ impl DownloadService {
                     available: true,
                 };
 
-                let _ = GameService::upsert_catalog_entry(CatalogEntry {
+                GameService::upsert_catalog_entry_on(&transaction, CatalogEntry {
                     id: game_id.clone(),
                     title: title.to_string(),
                     platform_id: platform.clone(),
@@ -157,13 +184,11 @@ impl DownloadService {
                     cover_image: item.get("coverImage").or_else(|| item.get("cover")).and_then(|v| v.as_str()).map(str::to_string),
                     backdrop_image: item.get("backdropImage").and_then(|v| v.as_str()).map(str::to_string),
                     description: item.get("description").and_then(|v| v.as_str()).map(str::to_string),
-                });
-
-                if let Ok(job) = Self::create_job(CreateDownloadRequest { game_id, platform, source }) {
-                    jobs.push(job);
-                }
+                })?;
+                sources.push(Self::create_source_on(&transaction, source)?);
             }
-            return Ok(jobs);
+            transaction.commit().map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+            return Ok(sources);
         }
 
         // 2. Formato legado (games[] o array plano de { platform, url, name })
@@ -196,7 +221,7 @@ impl DownloadService {
                 available: entry.get("available").and_then(|v| v.as_bool()).unwrap_or(true),
             };
 
-            let _ = GameService::upsert_catalog_entry(CatalogEntry {
+            GameService::upsert_catalog_entry_on(&transaction, CatalogEntry {
                 id: game_id.clone(),
                 title: name,
                 platform_id: platform.to_string(),
@@ -209,14 +234,12 @@ impl DownloadService {
                 cover_image: entry.get("coverImage").and_then(|v| v.as_str()).map(str::to_string),
                 backdrop_image: entry.get("backdropImage").and_then(|v| v.as_str()).map(str::to_string),
                 description: entry.get("description").and_then(|v| v.as_str()).map(str::to_string),
-            });
-
-            if let Ok(job) = Self::create_job(CreateDownloadRequest { game_id, platform: platform.to_string(), source }) {
-                jobs.push(job);
-            }
+            })?;
+            sources.push(Self::create_source_on(&transaction, source)?);
         }
 
-        Ok(jobs)
+        transaction.commit().map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+        Ok(sources)
     }
 
     pub fn infer_platform(
@@ -363,6 +386,11 @@ impl DownloadService {
     }
 
     pub fn create_source(source: DownloadSource) -> Result<DownloadSource, EmuBoxError> {
+        let connection = DatabaseService::get_connection()?;
+        Self::create_source_on(&connection, source)
+    }
+
+    fn create_source_on(conn: &rusqlite::Connection, source: DownloadSource) -> Result<DownloadSource, EmuBoxError> {
         if source.id.trim().is_empty() || source.game_id.trim().is_empty() || source.name.trim().is_empty() {
             return Err(EmuBoxError::InvalidConfiguration("La fuente necesita id, gameId y nombre".to_string()));
         }
@@ -371,11 +399,10 @@ impl DownloadService {
             DownloadSourceType::Torrent => "torrent",
             DownloadSourceType::Magnet => "magnet",
         };
-        let conn = DatabaseService::get_connection()?;
         conn.execute(
             "INSERT INTO download_sources (id, game_id, name, source_type, uri, size_bytes, checksum, available)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
-             ON CONFLICT(id) DO UPDATE SET name = excluded.name, uri = excluded.uri, size_bytes = excluded.size_bytes, checksum = excluded.checksum, available = excluded.available;",
+             ON CONFLICT(id) DO UPDATE SET game_id = excluded.game_id, name = excluded.name, source_type = excluded.source_type, uri = excluded.uri, size_bytes = excluded.size_bytes, checksum = excluded.checksum, available = excluded.available;",
             params![source.id, source.game_id, source.name, source_type_str, source.uri, source.size_bytes, source.checksum, if source.available { 1 } else { 0 }],
         ).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
         Ok(source)
@@ -426,12 +453,7 @@ impl DownloadService {
     }
 
     pub fn import_and_start() -> Result<Vec<DownloadJob>, EmuBoxError> {
-        let jobs = Self::import_link_file()?;
-        for job in &jobs {
-            if matches!(job.status, DownloadStatus::Queued | DownloadStatus::Paused) {
-                let _ = Self::start(job.id.clone());
-            }
-        }
+        Self::import_link_file()?;
         Self::list_jobs()
     }
 
@@ -445,11 +467,15 @@ impl DownloadService {
             |row| row.get(0),
         ).map_err(|_| EmuBoxError::NotFound(format!("Juego no encontrado en el catálogo: {}", game_id)))?;
 
-        let (source_id, name, uri, size_bytes, checksum, available): (String, String, String, Option<u64>, Option<String>, i64) = conn.query_row(
-            "SELECT id, name, uri, size_bytes, checksum, available FROM download_sources WHERE game_id = ?1 AND available = 1 ORDER BY rowid DESC LIMIT 1",
+        let (source_id, name, uri, size_bytes, checksum, available, source_type): (String, String, String, Option<u64>, Option<String>, i64, String) = conn.query_row(
+            "SELECT id, name, uri, size_bytes, checksum, available, source_type FROM download_sources WHERE game_id = ?1 AND available = 1 ORDER BY CASE WHEN source_type = 'http' THEN 0 ELSE 1 END, rowid DESC LIMIT 1",
             params![game_id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?)),
         ).map_err(|_| EmuBoxError::NotFound(format!("No hay fuente de descarga disponible para: {}", game_id)))?;
+
+        if source_type != "http" {
+            return Err(EmuBoxError::InvalidConfiguration("Este juego requiere BitTorrent (magnet/torrent), que no esta implementado en esta version.".into()));
+        }
 
         let source = DownloadSource {
             id: source_id,
@@ -530,6 +556,10 @@ impl DownloadService {
         let mut downloaded = if existing > 0 && response.status() == reqwest::StatusCode::PARTIAL_CONTENT { existing } else { 0 };
         if downloaded == 0 { response = client.get(&uri).send().map_err(|e| EmuBoxError::Unknown(e.to_string()))?; }
         if !response.status().is_success() { return Err(EmuBoxError::Unknown(format!("HTTP {}", response.status()))); }
+        if response.headers().get(reqwest::header::CONTENT_TYPE).and_then(|value| value.to_str().ok())
+            .is_some_and(|value| value.to_ascii_lowercase().contains("text/html")) {
+            return Err(EmuBoxError::InvalidConfiguration("La fuente devuelve una pagina web, no un archivo descargable directo.".into()));
+        }
         let total = response.content_length().map(|size| size + downloaded);
         let mut file = if downloaded > 0 { OpenOptions::new().append(true).open(&partial) } else { File::create(&partial) }
             .map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
@@ -693,10 +723,16 @@ mod tests {
                 }
             ]
         }"#;
-        let jobs = DownloadService::import_from_json(json).unwrap();
-        assert_eq!(jobs.len(), 2);
-        assert_eq!(jobs[0].platform, "ps1");
-        assert_eq!(jobs[1].platform, "pc");
-        assert_eq!(jobs[0].total_bytes, Some(450 * 1024 * 1024));
+        let sources = DownloadService::import_from_json(json).unwrap();
+        assert_eq!(sources.len(), 2);
+        let first = GameService::get_game_by_id(sources[0].game_id.clone()).unwrap().unwrap();
+        assert_eq!(first.platform, "ps1");
+        assert!(!first.installed);
+        assert_ne!(first.release_year, 2023);
+        assert_eq!(sources[0].size_bytes, Some(450 * 1024 * 1024));
+        assert!(DownloadService::list_jobs().unwrap().iter().all(|job| !sources.iter().any(|source| source.game_id == job.game_id)));
+        assert_eq!(DownloadService::import_from_json(json).unwrap().len(), 2);
+        assert!(matches!(DownloadService::download_game(sources[1].game_id.clone()), Err(EmuBoxError::InvalidConfiguration(_))));
+        assert!(DownloadService::list_jobs().unwrap().iter().all(|job| !sources.iter().any(|source| source.game_id == job.game_id)));
     }
-}
+}

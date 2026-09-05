@@ -4,6 +4,7 @@ import type { Game } from '@contracts/game.types';
 import { ViewportService } from '@services/system/viewport.service';
 import { ConsoleHardwareVisual } from '@components/common/ConsoleHardwareVisual';
 import { animateStaggerShelf } from '@animations/shelf-animations';
+import { shelfColumns } from '@services/library/grid-layout';
 
 interface ConsoleShelfGridProps {
   games: Game[];
@@ -15,16 +16,17 @@ interface ConsoleShelfGridProps {
   onToggleFavorite: (id: string) => void;
 }
 
-export const ITEMS_PER_ROW = 5;
+export { DEFAULT_SHELF_COLUMNS as ITEMS_PER_ROW } from '@services/library/grid-layout';
 export const ROW_HEIGHT = 300;
 
 export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
   let scrollContainerRef!: HTMLDivElement;
   const viewport = ViewportService.getInstance();
+  const itemsPerRow = () => shelfColumns(viewport.width());
 
   const virtualizer = createVirtualizer({
     get count() {
-      return Math.ceil((props.games?.length || 0) / ITEMS_PER_ROW);
+      return Math.ceil((props.games?.length || 0) / itemsPerRow());
     },
     getScrollElement: () => scrollContainerRef,
     estimateSize: () => ROW_HEIGHT,
@@ -48,7 +50,7 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
   createEffect(() => {
     const idx = props.focusedIndex;
     if (idx >= 0 && props.games && props.games.length > 0) {
-      const rowIndex = Math.floor(idx / ITEMS_PER_ROW);
+      const rowIndex = Math.floor(idx / itemsPerRow());
       virtualizer.scrollToIndex(rowIndex, { align: 'auto' });
 
       setTimeout(() => {
@@ -71,8 +73,8 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
       >
         <For each={virtualizer.getVirtualItems()}>
           {(virtualRow) => {
-            const startIndex = virtualRow.index * ITEMS_PER_ROW;
-            const rowGames = () => props.games.slice(startIndex, startIndex + ITEMS_PER_ROW);
+            const startIndex = () => virtualRow.index * itemsPerRow();
+            const rowGames = () => props.games.slice(startIndex(), startIndex() + itemsPerRow());
 
             return (
               <div
@@ -85,13 +87,13 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
                   height: `${virtualRow.size}px`,
                   transform: `translateY(${virtualRow.start}px)`,
                   display: 'grid',
-                  "grid-template-columns": `repeat(${ITEMS_PER_ROW}, 1fr)`,
+                  "grid-template-columns": `repeat(${itemsPerRow()}, minmax(0, 1fr))`,
                   gap: '0.875rem'
                 }}
               >
                 <For each={rowGames()}>
                   {(game, colIdx) => {
-                    const globalIdx = () => startIndex + colIdx();
+                    const globalIdx = () => startIndex() + colIdx();
                     const isCardFocused = () => props.focusedIndex === globalIdx();
                     const [hasImageError, setHasImageError] = createSignal(false);
 
@@ -118,7 +120,10 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
                         }}
                         onMouseEnter={() => props.onFocusIndex(globalIdx())}
                       >
-                        <div class="case-spine-mark">{game.platform}</div>
+                        <div class="case-spine-mark" title={game.platformName}>
+                          <span aria-hidden="true"><ConsoleHardwareVisual platformId={game.platform} size="sm" /></span>
+                          <span>{game.platform}</span>
+                        </div>
                         <div class="card-cover-media">
                           <Show
                             when={hasValidCover()}
@@ -163,11 +168,11 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
                             {game.title}
                           </div>
                           <div class="card-subline">
-                            <span>{game.releaseYear}</span>
-                            <span class="card-rating">★ {game.rating.toFixed(1)}</span>
+                            <Show when={game.releaseYear > 0}><span>{game.releaseYear}</span></Show>
+                            <Show when={game.rating > 0}><span class="card-rating">★ {game.rating.toFixed(1)}</span></Show>
                           </div>
                           <div class="card-detail-line" title={`${game.genre} · ${game.developer} · ${game.publisher}`}>
-                            {game.genre} · {game.developer}
+                            {[game.genre, game.developer].filter(Boolean).join(' · ')}
                           </div>
                         </div>
                       </div>

@@ -7,7 +7,8 @@ import type { ModalStore } from '@stores/modal.store';
 import type { SoundFxService } from '@services/audio/sound-fx.service';
 import { SETTINGS_TABS } from '@contracts/settings.types';
 
-const ITEMS_PER_ROW = 6;
+import { shelfColumns } from '@services/library/grid-layout';
+import { ViewportService } from '@services/system/viewport.service';
 
 interface UseConsoleNavigationOptions {
   navigationStore: NavigationStore;
@@ -31,6 +32,8 @@ interface UseConsoleNavigationOptions {
 }
 
 export function useConsoleNavigation(options: UseConsoleNavigationOptions) {
+  const viewport = ViewportService.getInstance();
+  const itemsPerRow = () => shelfColumns(viewport.width());
   const {
     navigationStore,
     libraryStore,
@@ -312,8 +315,8 @@ export function useConsoleNavigation(options: UseConsoleNavigationOptions) {
                 }
                 break;
               case 'NAV_DOWN':
-                if (currentIndex + ITEMS_PER_ROW < totalGames) {
-                  navigationStore.setFocusedGameIndex(currentIndex + ITEMS_PER_ROW);
+                if (currentIndex + itemsPerRow() < totalGames) {
+                  navigationStore.setFocusedGameIndex(currentIndex + itemsPerRow());
                   soundFx.playMove();
                 } else if (currentIndex < totalGames - 1) {
                   navigationStore.setFocusedGameIndex(totalGames - 1);
@@ -321,8 +324,8 @@ export function useConsoleNavigation(options: UseConsoleNavigationOptions) {
                 }
                 break;
               case 'NAV_UP':
-                if (currentIndex - ITEMS_PER_ROW >= 0) {
-                  navigationStore.setFocusedGameIndex(currentIndex - ITEMS_PER_ROW);
+                if (currentIndex - itemsPerRow() >= 0) {
+                  navigationStore.setFocusedGameIndex(currentIndex - itemsPerRow());
                   soundFx.playMove();
                 } else if (currentIndex > 0) {
                   navigationStore.setFocusedGameIndex(0);

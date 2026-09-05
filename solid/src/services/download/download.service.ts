@@ -36,16 +36,16 @@ export class DownloadService {
     return this.backend.downloadGame(gameId);
   }
 
-  public importFromJson(jsonContent: string | object): Promise<DownloadJob[]> {
+  public importFromJson(jsonContent: string | object): Promise<DownloadSource[]> {
     const content = typeof jsonContent === 'string' ? jsonContent : JSON.stringify(jsonContent);
     return this.backend.importDownloadsFromJson(content);
   }
 
-  public importFromUrl(url: string): Promise<DownloadJob[]> {
+  public importFromUrl(url: string): Promise<DownloadSource[]> {
     return this.backend.importDownloadsFromUrl(url);
   }
 
-  public importDownloadLinks(): Promise<DownloadJob[]> {
+  public importDownloadLinks(): Promise<DownloadSource[]> {
     return this.backend.importDownloadLinks();
   }
 }

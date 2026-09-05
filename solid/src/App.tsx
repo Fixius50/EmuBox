@@ -1,4 +1,5 @@
 import { Component, createMemo, onMount, onCleanup, createSignal, Show } from 'solid-js';
+import { listen } from '@tauri-apps/api/event';
 
 // Types
 import type { Game } from '@contracts/game.types';
@@ -152,6 +153,12 @@ export const App: Component = () => {
   });
 
   // 5. Initial Dataset Bootstrap
+  let unlistenLibraryUpdated: (() => void) | undefined;
+  let disposed = false;
+  onCleanup(() => {
+    disposed = true;
+    unlistenLibraryUpdated?.();
+  });
   onMount(async () => {
     // Sonda de diagnóstico: confirma si el puente IPC de Tauri existe en este webview.
     try {
@@ -172,25 +179,19 @@ export const App: Component = () => {
       console.error('[EmuBox] Sonda de diagnóstico falló:', probeError);
     }
 
-    let unlistenLibraryUpdated: (() => void) | undefined;
-
-    if (typeof window !== 'undefined') {
-      const tauri = (window as any).__TAURI__;
-      const eventApi = tauri?.event;
-      if (eventApi?.listen) {
-        unlistenLibraryUpdated = await eventApi.listen('library-updated', async () => {
-          await libraryStore.loadGames();
+    if (backend.isTauriEnvironment) {
+      try {
+        const unlisten = await listen('library-updated', () => {
+          void libraryStore.loadGames().catch(error => console.error('[Library]', error));
         });
+        if (disposed) unlisten();
+        else unlistenLibraryUpdated = unlisten;
+      } catch (error) {
+        console.error('[Library] No se pudo suscribir a cambios', error);
       }
     }
 
-    onCleanup(() => {
-      if (unlistenLibraryUpdated) {
-        unlistenLibraryUpdated();
-      }
-    });
-
-    await systemStore.loadSystemData();
+    await systemStore.loadSystemData().catch(error => console.error('[System]', error));
     try {
       if (backend.isTauriEnvironment) {
         // Escanear y cargar juegos reales del sistema Linux (/var/lib/emubox/games)

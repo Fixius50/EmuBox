@@ -432,16 +432,16 @@ const hydraSample = {
 
 const importedJobs = await downloadService.importFromJson(hydraSample);
 
-assert(importedJobs.length === 2, `Manifiesto con downloads[] procesado: ${importedJobs.length} trabajos creados`);
-assert(importedJobs[0].platform === 'ps1', `Plataforma inferida para Crash Bandicoot [PS1]: ${importedJobs[0].platform}`);
-assert(importedJobs[1].platform === 'pc', `Plataforma por defecto inferida para Dead Rising 3: ${importedJobs[1].platform}`);
+assert(importedJobs.length === 2, `Manifiesto procesado: ${importedJobs.length} fuentes registradas`);
+assert((await backend.getGameById(importedJobs[0].gameId))?.platform === 'ps1', 'Plataforma PS1 inferida y persistida');
+assert((await backend.getGameById(importedJobs[1].gameId))?.platform === 'pc', 'Plataforma PC inferida y persistida');
 
 // Verificación de parseo de tamaño de archivo a bytes
 const expectedCrashBytes = 450 * 1024 * 1024;
-assert(importedJobs[0].totalBytes === expectedCrashBytes, `Tamaño 450 MB convertido a bytes: ${importedJobs[0].totalBytes} == ${expectedCrashBytes}`);
+assert(importedJobs[0].sizeBytes === expectedCrashBytes, `Tamaño 450 MB convertido a bytes: ${importedJobs[0].sizeBytes} == ${expectedCrashBytes}`);
 
 const expectedDeadRisingBytes = Math.round(13.58 * 1024 * 1024 * 1024);
-assert(importedJobs[1].totalBytes === expectedDeadRisingBytes, `Tamaño 13.58 GB convertido a bytes: ${importedJobs[1].totalBytes} == ${expectedDeadRisingBytes}`);
+assert(importedJobs[1].sizeBytes === expectedDeadRisingBytes, `Tamaño 13.58 GB convertido a bytes: ${importedJobs[1].sizeBytes} == ${expectedDeadRisingBytes}`);
 
 // Verificación de juego agregado al catálogo de la biblioteca
 const crashGame = await backend.getGame(importedJobs[0].gameId);

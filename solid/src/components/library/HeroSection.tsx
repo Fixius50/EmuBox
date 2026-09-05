@@ -1,5 +1,6 @@
 import { Component, Show } from 'solid-js';
 import type { Game } from '@contracts/game.types';
+import { ConsoleHardwareVisual } from '@components/common/ConsoleHardwareVisual';
 
 interface HeroSectionProps {
   focusedGame: Game | null;
@@ -19,7 +20,7 @@ export const HeroSection: Component<HeroSectionProps> = (props) => {
         fallback={
           <div class="hero-empty-state">
             <div class="hero-title-placeholder">BIBLIOTECA EMUBOX</div>
-            <div class="hero-subtitle-placeholder">Explora tus títulos con el D-pad o stick analógico</div>
+            <div class="hero-subtitle-placeholder">Sin juegos registrados</div>
           </div>
         }
       >
@@ -28,8 +29,8 @@ export const HeroSection: Component<HeroSectionProps> = (props) => {
             <div class="hero-metadata-column">
               <div class="hero-tags-row">
                 <span class="hero-platform-badge">{game().platformName.toUpperCase()}</span>
-                <span class="hero-genre-pill">{game().genre}</span>
-                <span class="hero-year-pill">{game().releaseYear}</span>
+                <Show when={game().genre}><span class="hero-genre-pill">{game().genre}</span></Show>
+                <Show when={game().releaseYear > 0}><span class="hero-year-pill">{game().releaseYear}</span></Show>
                 {game().favorite && (
                   <span class="hero-favorite-badge">★ FAVORITO</span>
                 )}
@@ -44,11 +45,11 @@ export const HeroSection: Component<HeroSectionProps> = (props) => {
               <div class="hero-stats-row">
                 <div class="hero-stat-item">
                   <span class="stat-label">Desarrollador</span>
-                  <span class="stat-val">{game().developer}</span>
+                  <span class="stat-val">{game().developer || 'No disponible'}</span>
                 </div>
                 <div class="hero-stat-item">
                   <span class="stat-label">Valoración</span>
-                  <span class="stat-val rating-accent">★ {game().rating.toFixed(1)} / 5.0</span>
+                  <span class="stat-val rating-accent">{game().rating > 0 ? `★ ${game().rating.toFixed(1)} / 5.0` : 'No disponible'}</span>
                 </div>
                 <div class="hero-stat-item">
                   <span class="stat-label">Tiempo de Juego</span>
@@ -105,7 +106,9 @@ export const HeroSection: Component<HeroSectionProps> = (props) => {
 
             <div class="hero-art-showcase">
               <div class="hero-art-frame">
-                <img src={game().coverImage} alt={game().title} class="hero-poster-img" />
+                <Show when={game().coverImage} fallback={<ConsoleHardwareVisual platformId={game().platform} size="lg" />}>
+                  <img src={game().coverImage} alt={game().title} class="hero-poster-img" />
+                </Show>
                 <div class="hero-art-sheen"></div>
               </div>
             </div>

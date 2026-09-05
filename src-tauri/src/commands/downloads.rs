@@ -3,17 +3,17 @@ use crate::models::{CreateDownloadRequest, DownloadJob, DownloadSource};
 use crate::services::DownloadService;
 
 #[tauri::command]
-pub fn import_download_links() -> Result<Vec<DownloadJob>, EmuBoxError> {
+pub fn import_download_links() -> Result<Vec<DownloadSource>, EmuBoxError> {
     DownloadService::import_link_file()
 }
 
 #[tauri::command]
-pub fn import_downloads_from_json(json_content: String) -> Result<Vec<DownloadJob>, EmuBoxError> {
+pub fn import_downloads_from_json(json_content: String) -> Result<Vec<DownloadSource>, EmuBoxError> {
     DownloadService::import_from_json(&json_content)
 }
 
 #[tauri::command]
-pub fn import_downloads_from_url(url: String) -> Result<Vec<DownloadJob>, EmuBoxError> {
+pub fn import_downloads_from_url(url: String) -> Result<Vec<DownloadSource>, EmuBoxError> {
     DownloadService::import_from_url(&url)
 }
 

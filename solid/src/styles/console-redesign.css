@@ -85,6 +85,8 @@ html, body { background: #080b0f; }
   .console-telemetry-cluster { display: none; }
   .game-library-layout { grid-template-columns: 8rem minmax(0, 1fr); }
   .game-library-heading, .console-hero-banner, .console-shelf-viewport { padding-left: 1rem; padding-right: 1rem; }
-  .console-hero-banner { min-height: 12rem; max-height: 12rem; }
+  .console-hero-banner { min-height: 0; max-height: none; flex-shrink: 0; }
+  .hero-actions-row { flex-wrap: wrap; }
+  .hero-cta-btn { min-width: 0; }
   .hero-art-showcase { display: none; }
 }
