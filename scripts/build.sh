@@ -7,6 +7,24 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EMUBOX_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+source "${EMUBOX_DIR}/installer/lib/architecture.sh"
+
+if [[ "$EUID" -eq 0 ]]; then
+  BUILD_USER="${SUDO_USER:-emubox}"
+  [[ "$BUILD_USER" != root ]] || { echo 'Build must run as a non-root user.' >&2; exit 1; }
+  exec runuser -u "$BUILD_USER" -- bash "$0" "$@"
+fi
+
+BUILD_ARCH="${BUILD_ARCH:-$(get_emubox_architecture)}"
+[[ "$BUILD_ARCH" == "$(get_emubox_architecture)" && "$BUILD_ARCH" != unsupported ]] || {
+  echo 'Native builds only: BUILD_ARCH must match this machine.' >&2
+  exit 1
+}
+TARGET="${TARGET:-$(get_emubox_target "$BUILD_ARCH")}"
+[[ "$TARGET" == "$(get_emubox_target "$BUILD_ARCH")" ]] || {
+  echo 'TARGET must be the native Linux GNU target.' >&2
+  exit 1
+}
 
 log_info() { echo ""; echo "[EmuBox Build] $1"; }
 log_step() { echo "  -> $1"; }
@@ -16,19 +34,21 @@ log_error() { echo "[ERROR] $1" >&2; }
 
 # Directorio de logs resiliente (permite ejecutar como usuario no-root)
 LOG_DIR="${EMUBOX_LOG_DIR:-/var/log/emubox}"
-if [[ ! -d "${LOG_DIR}" ]] || [[ ! -w "${LOG_DIR}" ]]; then
-  mkdir -p "${LOG_DIR}" 2>/dev/null || LOG_DIR="/tmp/emubox-build-logs"
-  mkdir -p "${LOG_DIR}" 2>/dev/null || true
+if ! mkdir -p "${LOG_DIR}" 2>/dev/null || [[ ! -w "${LOG_DIR}" ]]; then
+  LOG_DIR=$(mktemp -d "${TMPDIR:-/tmp}/emubox-build-XXXXXXXX")
 fi
+for LOG_NAME in npm-install.log npm-esbuild.log npm-build.log cargo-build.log; do
+  if [[ -e "$LOG_DIR/$LOG_NAME" && ! -w "$LOG_DIR/$LOG_NAME" ]]; then
+    LOG_DIR=$(mktemp -d "${TMPDIR:-/tmp}/emubox-build-XXXXXXXX")
+    break
+  fi
+done
+log_step "Logs: $LOG_DIR"
 
 cd "${EMUBOX_DIR}"
 
-# Asegurar permisos de usuario sobre el árbol de trabajo (evita colisiones si un build previo se corrió como root)
-if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-  sudo chown -R "$(id -u):$(id -g)" "${EMUBOX_DIR}" 2>/dev/null || true
-fi
-
 log_info "Iniciando proceso de compilacion de EmuBox..."
+log_step "BUILD_ARCH=${BUILD_ARCH} TARGET=${TARGET}"
 
 # ------------------------------------------------------------------------------
 # 1. Diagnostico del entorno Node.js
@@ -153,7 +173,8 @@ if [[ ! -f "${EMUBOX_DIR}/solid/dist/index.html" ]]; then
 fi
 
 mkdir -p "${EMUBOX_DIR}/bin"
-TAURI_BINARY="${EMUBOX_DIR}/src-tauri/target/release/emubox"
+TARGET_DIR=$(cargo metadata --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" --no-deps --format-version 1 | node -e 'let data="";process.stdin.on("data",chunk=>data+=chunk);process.stdin.on("end",()=>console.log(JSON.parse(data).target_directory))')
+TAURI_BINARY="${TARGET_DIR}/${TARGET}/release/emubox"
 CARGO_LOG="${LOG_DIR}/cargo-build.log"
 : > "${CARGO_LOG}"
 
@@ -162,9 +183,9 @@ log_step "Compilando EmuBox Tauri en modo produccion con frontend embebido..."
 # Limpiar cache del crate emubox para forzar re-empaquetado limpio de ../solid/dist
 cargo clean --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" -p emubox >/dev/null 2>&1 || true
 
-if npx tauri build --no-bundle >"${CARGO_LOG}" 2>&1; then
+if npx tauri build --no-bundle --target "$TARGET" >"${CARGO_LOG}" 2>&1; then
   log_ok "Binario nativo Tauri compilado exitosamente con frontend embebido (tauri build)."
-elif cargo build --release --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" >"${CARGO_LOG}" 2>&1; then
+elif cargo build --release --target "$TARGET" --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" >>"${CARGO_LOG}" 2>&1; then
   log_ok "Binario nativo Tauri compilado exitosamente mediante Cargo release."
 else
   CARGO_STATUS=$?
@@ -177,6 +198,8 @@ else
 fi
 
 # Copiar binario a ubicacion estable
-cp -f "${TAURI_BINARY}" "${EMUBOX_DIR}/bin/emubox"
-chmod +x "${EMUBOX_DIR}/bin/emubox"
+validate_emubox_binary "$TAURI_BINARY" "$BUILD_ARCH"
+install -m 0755 "$TAURI_BINARY" "${EMUBOX_DIR}/bin/emubox-linux-${BUILD_ARCH}"
+install -m 0755 "$TAURI_BINARY" "${EMUBOX_DIR}/bin/emubox.next"
+mv -f "${EMUBOX_DIR}/bin/emubox.next" "${EMUBOX_DIR}/bin/emubox"
 log_ok "Binario instalado en ${EMUBOX_DIR}/bin/emubox."

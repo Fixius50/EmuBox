@@ -12,7 +12,7 @@ pub struct EmulatorService;
 impl EmulatorService {
     fn provision_dedicated_environment(profile: &dyn EmulatorProfile, source_binary: &Path) -> PathBuf {
         let emu_dir = PathBuf::from(paths::emulator_dir(profile.id()));
-        let bin_dir = emu_dir.join("bin");
+        let bin_dir = emu_dir.join("bin").join(crate::models::Architecture::current().as_str());
         let config_dir = emu_dir.join("config");
         let logs_dir = emu_dir.join("logs");
 
@@ -48,6 +48,11 @@ impl EmulatorService {
     fn find_binary_path(profile: &dyn EmulatorProfile) -> Option<PathBuf> {
         let emu_dir = PathBuf::from(paths::emulators_dir());
         for candidate in profile.binary_candidates() {
+            let native = emu_dir.join(profile.id()).join("bin")
+                .join(crate::models::Architecture::current().as_str()).join(candidate);
+            if native.is_file() {
+                return Some(native);
+            }
             let nested_bin = emu_dir.join(profile.id()).join("bin").join(candidate);
             if nested_bin.is_file() {
                 return Some(nested_bin);
@@ -110,11 +115,19 @@ impl EmulatorService {
     pub fn scan_emulators() -> Result<Vec<Emulator>, EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
         let mut list = Vec::new();
+        let host = crate::models::Architecture::current();
+        let hardware = super::SystemService::get_hardware_info()?;
 
         for profile in emulators::registry() {
-            let (status, executable, version) = if let Some(binary_path) = Self::find_binary_path(profile.as_ref()) {
+            let (status, executable, version) = if !super::emulator_capabilities::supports(profile.id(), host) {
+                ("inactive".to_string(), "".to_string(), "Arquitectura no compatible".to_string())
+            } else if let Some(binary_path) = Self::find_binary_path(profile.as_ref()) {
+                if super::binary_service::validate_binary(&binary_path, host, true).is_ok() {
                 let raw_version = Self::probe_official_version(&binary_path, profile.version_flag());
                 ("active".to_string(), binary_path.to_string_lossy().to_string(), raw_version)
+                } else {
+                    ("inactive".to_string(), binary_path.to_string_lossy().to_string(), "Binario incompatible".to_string())
+                }
             } else {
                 ("inactive".to_string(), "".to_string(), "No instalado".to_string())
             };
@@ -146,7 +159,7 @@ impl EmulatorService {
                 params![profile.id(), config_dir, bios_dir, saves_dir, states_dir]
             ).map_err(|e| EmuBoxError::StorageUnavailable(format!("Error guardando metadata de emulador: {}", e)))?;
 
-            list.push(Emulator {
+            let mut emulator = Emulator {
                 id: profile.id().to_string(),
                 name: profile.official_name().to_string(),
                 version,
@@ -155,7 +168,12 @@ impl EmulatorService {
                 status,
                 executable,
                 arguments: profile.default_arguments().iter().map(|s| s.to_string()).collect(),
-            });
+                architectures: Vec::new(),
+                requirements: Default::default(),
+                compatibility: Default::default(),
+            };
+            super::emulator_capabilities::refresh(&mut emulator, host, &hardware);
+            list.push(emulator);
         }
 
         Ok(list)
@@ -168,9 +186,12 @@ impl EmulatorService {
     /// (hotplug de GPU/monitor).
     pub fn apply_hardware_profile(hardware: &crate::models::HardwareInfo) -> Result<(), EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
-        let vulkan_ok = hardware.vulkan_driver_version.is_some() && hardware.gpu_vendor != "generic";
+        let vulkan_ok = hardware.vulkan_supported;
 
         for profile in emulators::registry() {
+            if !super::emulator_capabilities::supports(profile.id(), crate::models::Architecture::current()) {
+                continue;
+            }
             let renderer = match profile.core_type() {
                 "libretro" => if vulkan_ok { "vulkan" } else { "gl" },
                 _ => if vulkan_ok { "vulkan" } else { "opengl" },
@@ -215,11 +236,16 @@ impl EmulatorService {
                 status,
                 executable,
                 arguments,
+                architectures: Vec::new(),
+                requirements: Default::default(),
+                compatibility: Default::default(),
             })
         }).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
 
         let mut list = Vec::new();
-        for emulator in rows.flatten() {
+        let hardware = super::SystemService::get_hardware_info()?;
+        for mut emulator in rows.flatten() {
+            super::emulator_capabilities::refresh(&mut emulator, crate::models::Architecture::current(), &hardware);
             list.push(emulator);
         }
 
@@ -302,9 +328,11 @@ mod tests {
         let profile = MockTestProfile;
         let provisioned = EmulatorService::provision_dedicated_environment(&profile, &temp_bin);
 
-        assert!(provisioned.to_string_lossy().contains("/var/lib/emubox/emulators/test_emu/bin/"));
+        assert!(provisioned.starts_with(PathBuf::from(paths::emulator_dir("test_emu")).join("bin")
+            .join(crate::models::Architecture::current().as_str())));
         assert!(provisioned.is_file());
 
         let _ = std::fs::remove_file(&temp_bin);
+        let _ = std::fs::remove_dir_all(paths::emulator_dir("test_emu"));
     }
 }

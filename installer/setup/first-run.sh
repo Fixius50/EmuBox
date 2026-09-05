@@ -13,17 +13,8 @@ CONFIG_JSON="${EMUBOX_CONFIG_DIR}/config.json"
 echo "  -> Ejecutando detección de primer arranque (First Run)..."
 
 # 1. Detect GPU Vendor
-GPU_VENDOR="generic"
-GPU_INFO="$(lspci -nnk 2>/dev/null | grep -A3 -Ei 'VGA compatible controller|3D controller|Display controller' || true)"
-if echo "${GPU_INFO}" | grep -Eiq 'VMware|vmwgfx|VirtualBox|vboxvideo|virtio|qxl'; then
-  GPU_VENDOR="generic"
-elif echo "${GPU_INFO}" | grep -Eiq 'NVIDIA|nvidia|nouveau'; then
-  GPU_VENDOR="nvidia"
-elif echo "${GPU_INFO}" | grep -Eiq 'Intel|i915|xe'; then
-  GPU_VENDOR="intel"
-elif echo "${GPU_INFO}" | grep -Eiq 'AMD|ATI|Radeon|amdgpu'; then
-  GPU_VENDOR="amd"
-fi
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib/graphics.sh"
+detect_emubox_graphics
 echo "  ✓ GPU detectada: ${GPU_VENDOR}"
 
 # 2. Generate Master config.json if not already present

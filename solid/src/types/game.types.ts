@@ -55,6 +55,14 @@ export interface Emulator {
   status: 'active' | 'inactive' | 'missing_bios';
   executable: string;
   arguments: string[];
+  architectures?: import('./architecture.types').Architecture[];
+  requirements?: { minCpuCores?: number; minMemoryMb?: number; vulkan?: boolean };
+  compatibility?: {
+    status: 'supported' | 'unsupported_architecture' | 'not_installed' | 'invalid_binary' | 'requirements_not_met';
+    reason: string;
+    hostArchitecture: import('./architecture.types').Architecture;
+    binaryArchitecture?: string | null;
+  };
 }
 
 export interface SystemDefinition extends Platform {

@@ -3,6 +3,7 @@ import type { IEmuBoxBackend } from '@contracts/backend.types';
 import type { ModalStore } from '@stores/modal.store';
 import type { SystemStore } from '@stores/system.store';
 import type { SoundFxService } from '@services/audio/sound-fx.service';
+import { emulatorBlockReason } from '@services/compatibility/launch-capability';
 
 interface UseGameLauncherOptions {
   backend: IEmuBoxBackend;
@@ -15,6 +16,7 @@ export function useGameLauncher(options: UseGameLauncherOptions) {
   const { backend, systemStore, modalStore, soundFx } = options;
 
   const launchWithEmulator = async (game: Game, emulator: Emulator) => {
+    if (emulatorBlockReason(emulator)) return;
     soundFx.playSelect();
     try {
       const result = await backend.launchGame(game.id, emulator.id);
@@ -33,11 +35,10 @@ export function useGameLauncher(options: UseGameLauncherOptions) {
     try {
       const availableEmulators = systemStore.emulators();
       let targetEmulator = availableEmulators.find(
-        (e) => e.status === 'active' && e.supportedPlatforms.includes(game.platform)
+        (e) => !emulatorBlockReason(e) && e.supportedPlatforms.includes(game.platform)
       );
       if (!targetEmulator) {
-        targetEmulator = availableEmulators.find((e) => e.supportedPlatforms.includes(game.platform))
-          || availableEmulators[0];
+        return;
       }
 
       const emulatorId = targetEmulator ? targetEmulator.id : '';

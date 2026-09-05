@@ -14,7 +14,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EMUBOX_USER="root"
+EMUBOX_USER="emubox"
 EMUBOX_APP_DIR="/opt/emubox"
 SERVICE_NAME="emubox.service"
 
@@ -61,7 +61,7 @@ chown -R "$EMUBOX_USER:$EMUBOX_USER" /var/log/emubox
 chmod -R 755 /var/log/emubox
 
 # Asegurar membresía en grupos para Gamepad (Punto 9) y Video/DRM
-for grp in video input uinput seat; do
+for grp in video render input uinput seat; do
   if getent group "$grp" >/dev/null 2>&1; then
     usermod -aG "$grp" "$EMUBOX_USER" 2>/dev/null || true
   fi
@@ -91,135 +91,8 @@ echo "======================================================================"
 echo "[EmuBox Session] Iniciando gestor de sesión: $(date '+%Y-%m-%d %H:%M:%S')"
 echo "======================================================================"
 
-export WEBKIT_DISABLE_DMABUF_RENDERER=1
-export GDK_BACKEND=wayland
-export XDG_SESSION_TYPE=wayland
 export EMUBOX_HOME="${EMUBOX_HOME:-/var/lib/emubox}"
-
-EMUBOX_BIN="/opt/emubox/bin/emubox"
-if [[ ! -x "${EMUBOX_BIN}" ]]; then
-  echo "[ERROR] No existe el binario ejecutable en: ${EMUBOX_BIN}" >&2
-  exit 1
-fi
-
-# 1. Detección de Virtualización
-if command -v systemd-detect-virt >/dev/null 2>&1 && systemd-detect-virt --quiet; then
-  EMUBOX_VIRT="$(systemd-detect-virt)"
-else
-  EMUBOX_VIRT="none"
-fi
-
-# 2. Detección de GPU, Driver y Vendor mediante PCI/DRM
-GPU_INFO="$(lspci -nnk 2>/dev/null | grep -A3 -Ei 'VGA compatible controller|3D controller|Display controller' | head -n 4 || true)"
-GPU_DEVICE="$(echo "$GPU_INFO" | grep -Ei 'VGA|3D|Display' | sed -E 's/^[^:]+: //; s/ \(rev .*\)//' | head -n 1)"
-[[ -z "$GPU_DEVICE" ]] && GPU_DEVICE="Dispositivo Gráfico Genérico / Desconocido"
-
-GPU_DRIVER="$(echo "$GPU_INFO" | grep -Ei 'Kernel driver in use:' | awk '{print $NF}' | head -n 1)"
-[[ -z "$GPU_DRIVER" ]] && GPU_DRIVER="desconocido"
-
-GPU_VENDOR="Desconocido"
-if echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'VMware|vmwgfx|VirtualBox|vboxvideo|virtio|qxl'; then
-  GPU_VENDOR="Virtual / Emulada"
-elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'NVIDIA|nvidia|nouveau'; then
-  GPU_VENDOR="NVIDIA"
-elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'Intel|i915|xe'; then
-  GPU_VENDOR="Intel"
-elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'AMD|ATI|Radeon|amdgpu'; then
-  GPU_VENDOR="AMD"
-fi
-
-# 3. Detección de Renderer y Aceleración Real por Hardware (Descartando llvmpipe/software)
-RENDERER_DESC="Software / Genérico"
-HAS_GPU_ACCEL=0
-HAS_HW_VULKAN=0
-
-# Comprobar Vulkan y detectar si es driver físico o software rasterizer (llvmpipe)
-if command -v vulkaninfo >/dev/null 2>&1; then
-  VK_SUMMARY="$(vulkaninfo --summary 2>&1 || true)"
-  VK_DEVICE="$(echo "$VK_SUMMARY" | grep -Ei 'deviceName' | head -n 1 | sed -E 's/.*= //; s/^[ \t]*//' || true)"
-  
-  if [[ -n "$VK_DEVICE" ]]; then
-    if echo "$VK_DEVICE" | grep -Eiq 'llvmpipe|softpipe|swrast|Software'; then
-      RENDERER_DESC="llvmpipe (CPU Software Rasterizer)"
-      HAS_GPU_ACCEL=0
-      HAS_HW_VULKAN=0
-    else
-      RENDERER_DESC="$VK_DEVICE"
-      HAS_GPU_ACCEL=1
-      HAS_HW_VULKAN=1
-    fi
-  fi
-fi
-
-# Si Vulkan no dio respuesta positiva, verificar aceleración por OpenGL (Mesa)
-if [[ $HAS_GPU_ACCEL -eq 0 ]] && command -v glxinfo >/dev/null 2>&1; then
-  GL_RENDERER="$(glxinfo -B 2>/dev/null | grep -Ei 'OpenGL renderer string:' | sed -E 's/.*: //; s/^[ \t]*//' || true)"
-  if [[ -n "$GL_RENDERER" ]]; then
-    if echo "$GL_RENDERER" | grep -Eiq 'llvmpipe|softpipe|swrast'; then
-      RENDERER_DESC="llvmpipe (CPU Software Rasterizer)"
-      HAS_GPU_ACCEL=0
-    elif [[ "$GPU_VENDOR" =~ ^(AMD|Intel|NVIDIA)$ ]]; then
-      RENDERER_DESC="$GL_RENDERER"
-      HAS_GPU_ACCEL=1
-    fi
-  fi
-fi
-
-# Determinar Pipeline Definitivo
-PIPELINE="Cage -> EmuBox (Fallback CPU / Software Rendering)"
-if [[ $HAS_GPU_ACCEL -eq 1 ]] && command -v gamescope >/dev/null 2>&1; then
-  PIPELINE="Gamescope -> EmuBox (GPU Acelerada por Hardware)"
-fi
-
-echo "======================================================================"
-echo "[EmuBox Graphics Hardware Detection]:"
-echo "  - Entorno Virtualizado: ${EMUBOX_VIRT}"
-echo "  - GPU Vendor:           ${GPU_VENDOR}"
-echo "  - GPU Device:           ${GPU_DEVICE}"
-echo "  - Kernel Driver:        ${GPU_DRIVER}"
-echo "  - Renderer:             ${RENDERER_DESC}"
-echo "  - Aceleración GPU:      $([[ ${HAS_GPU_ACCEL} -eq 1 ]] && echo 'SÍ (NATIVA)' || echo 'NO (CPU SOFTWARE)')"
-echo "  - Vulkan Hardware:      $([[ ${HAS_HW_VULKAN} -eq 1 ]] && echo 'SÍ' || echo 'NO / SOFTWARE')"
-echo "  - Pipeline:             ${PIPELINE}"
-echo "======================================================================"
-
-# Orquestación D-Bus
-DBUS_RUN=""
-if command -v dbus-run-session >/dev/null 2>&1 && [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
-  DBUS_RUN="dbus-run-session"
-fi
-
-# Iniciar sincronizador de eventos DRM en segundo plano (0% CPU, reactivo)
-SYNC_PID=""
-if [[ -x /usr/local/bin/emubox-drm-sync ]]; then
-  /usr/local/bin/emubox-drm-sync >/dev/null 2>&1 &
-  SYNC_PID=$!
-  trap '[[ -n "${SYNC_PID:-}" ]] && kill -TERM "$SYNC_PID" 2>/dev/null || true' EXIT INT TERM
-fi
-
-# 1. PIPELINE PRINCIPAL (GPU Acelerada): Gamescope directo
-if [[ $HAS_GPU_ACCEL -eq 1 ]] && command -v gamescope >/dev/null 2>&1; then
-  echo "[EmuBox] Ejecutando Pipeline Acelerado: Gamescope -> EmuBox"
-  if [[ -n "${DBUS_RUN}" ]]; then
-    exec dbus-run-session gamescope -f -- "${EMUBOX_BIN}" "$@"
-  else
-    exec gamescope -f -- "${EMUBOX_BIN}" "$@"
-  fi
-
-# 2. PIPELINE DE EMERGENCIA / SOFTWARE (CPU / llvmpipe / VM sin aceleración): Cage Kiosk
-elif command -v cage >/dev/null 2>&1; then
-  echo "[EmuBox] Ejecutando Pipeline de Emergencia (CPU Software): Cage -> EmuBox"
-  if [[ -n "${DBUS_RUN}" ]]; then
-    exec dbus-run-session cage -- "${EMUBOX_BIN}" "$@"
-  else
-    exec cage -- "${EMUBOX_BIN}" "$@"
-  fi
-
-# 3. MODO FALLBACK DIRECTO
-else
-  echo "[EmuBox] Ejecutando en Modo Directo -> EmuBox"
-  exec "${EMUBOX_BIN}" "$@"
-fi
+exec bash /opt/emubox/scripts/run.sh "$@"
 EOF
 
 chmod 0755 /usr/local/bin/emubox-session

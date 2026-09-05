@@ -12,6 +12,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${SCRIPT_DIR}/lib/paths.sh"
 # shellcheck source=lib/detection.sh
 . "${SCRIPT_DIR}/lib/detection.sh"
+source "${SCRIPT_DIR}/lib/graphics.sh"
+detect_emubox_graphics
 
 OUTPUT_REPORT="emubox-diagnostics.txt"
 
@@ -25,8 +27,14 @@ log_step "Generando informe de diagnóstico en ${OUTPUT_REPORT}..."
   echo "Fecha de generación: $(date)"
   echo "Usuario:             $(whoami)"
   echo "Kernel:              $(uname -r)"
-  echo "Arquitectura:        $(uname -m)"
-  echo "GPU Detectada:       $(detect_gpu)"
+  echo "Arquitectura:        $(get_emubox_architecture)"
+  echo "Kernel architecture: $(uname -m)"
+  echo "CPU cores:           $(getconf _NPROCESSORS_ONLN)"
+  grep -E 'model name|Hardware|Model' /proc/cpuinfo | head -n 1 || true
+  grep MemTotal /proc/meminfo || true
+  echo "GPU: $GPU_VENDOR; renderer: $RENDERER_DESC; driver: $GPU_DRIVER"
+  echo "DRM: $HAS_DRM; Vulkan: $HAS_HW_VULKAN; Gamescope: $HAS_GAMESCOPE"
+  echo "Compositor: $EMUBOX_COMPOSITOR; device: $DEVICE_MODEL"
   echo ""
   echo "--- Appliance Filesystem Status ---"
   echo "Config Dir:  ${EMUBOX_CONFIG_DIR} (Existe: $([ -d "${EMUBOX_CONFIG_DIR}" ] && echo "SÍ" || echo "NO"))"

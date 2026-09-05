@@ -93,7 +93,7 @@ export interface ScanGamesResult {
 }
 
 export interface FirstRunDetectionResult {
-  gpuVendor: 'amd' | 'nvidia' | 'intel' | 'generic';
+  gpuVendor: HardwareInfo['gpuVendor'];
   gpuRenderer: string;
   vulkanSupported: boolean;
   gamepadsDetected: string[];

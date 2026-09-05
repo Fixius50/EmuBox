@@ -13,23 +13,33 @@ is_pkg_installed() {
 }
 
 install_packages_if_missing() {
-  local pkgs=("$@")
+  local package
   local missing=()
+  for package in "$@"; do
+    is_pkg_installed "$package" && continue
+    if ! pacman -Si "$package" >/dev/null 2>&1; then
+      log_error "Required package unavailable on $(uname -m): $package"
+      return 1
+    fi
+    missing+=("$package")
+  done
+  [[ ${#missing[@]} -gt 0 ]] || return 0
+  if [[ "$EUID" -eq 0 ]]; then
+    pacman -S --needed --noconfirm "${missing[@]}"
+  else
+    sudo pacman -S --needed --noconfirm "${missing[@]}"
+  fi
+}
 
-  for p in "${pkgs[@]}"; do
-    if ! is_pkg_installed "${p}"; then
-      missing+=("${p}")
+install_optional_packages() {
+  local package
+  for package in "$@"; do
+    if is_pkg_installed "$package"; then
+      continue
+    elif pacman -Si "$package" >/dev/null 2>&1; then
+      install_packages_if_missing "$package" || log_warn "Optional package failed: $package"
+    else
+      log_warn "Optional package unavailable on $(uname -m): $package"
     fi
   done
-
-  if [[ ${#missing[@]} -gt 0 ]]; then
-    log_step "Instalando paquetes de Arch Linux: ${missing[*]}"
-    if command -v sudo >/dev/null 2>&1; then
-      sudo pacman -S --needed --noconfirm "${missing[@]}" || log_warn "Algunos paquetes no se pudieron instalar automáticamente."
-    else
-      log_warn "sudo no disponible para pacman."
-    fi
-  else
-    log_ok "Todos los paquetes ya están instalados."
-  fi
 }

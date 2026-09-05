@@ -1,4 +1,5 @@
 pub mod system;
+pub mod architecture;
 pub mod game;
 pub mod emulator;
 pub mod config;
@@ -10,6 +11,7 @@ pub mod bios;
 pub mod download;
 
 pub use system::*;
+pub use architecture::*;
 pub use game::*;
 pub use emulator::*;
 pub use config::*;

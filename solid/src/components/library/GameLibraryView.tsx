@@ -1,11 +1,13 @@
 import { Component, For } from 'solid-js';
-import type { Game, Platform } from '@contracts/game.types';
+import type { Game, Platform, Emulator } from '@contracts/game.types';
+import { gameBlockReason } from '@services/compatibility/launch-capability';
 import { HeroSection } from './HeroSection';
 import { ConsoleShelfGrid } from './ConsoleShelfGrid';
 
 interface GameLibraryViewProps {
   games: Game[];
   platforms: Platform[];
+  emulators: Emulator[];
   selectedPlatform: string;
   focusedIndex: number;
   downloadingIds: Set<string>;
@@ -63,6 +65,7 @@ export const GameLibraryView: Component<GameLibraryViewProps> = (props) => {
         </div>
         <HeroSection
           focusedGame={focusedGame()}
+          playBlockReason={focusedGame() ? gameBlockReason(focusedGame()!, props.emulators) : null}
           downloadingIds={props.downloadingIds}
           onPlayGame={props.onSelectGame}
           onDownloadGame={props.onDownloadGame}

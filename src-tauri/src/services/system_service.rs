@@ -15,7 +15,8 @@ impl SystemService {
         Ok(SystemInfo {
             os_name: Self::detect_os_name(),
             kernel_version: Self::run_trim("uname", &["-r"]).unwrap_or_else(|| "unknown".to_string()),
-            architecture: Self::run_trim("uname", &["-m"]).unwrap_or_else(|| std::env::consts::ARCH.to_string()),
+            architecture: crate::models::Architecture::current().as_str().to_string(),
+            kernel_architecture: Self::run_trim("uname", &["-m"]).unwrap_or_else(|| "unknown".into()),
             hostname: Self::detect_hostname(),
             uptime_seconds: Self::detect_uptime_seconds(),
             hardware: Self::get_hardware_info()?,
@@ -27,16 +28,21 @@ impl SystemService {
     }
 
     pub fn get_hardware_info() -> Result<HardwareInfo, EmuBoxError> {
-        let (gpu_vendor, gpu_renderer, vulkan_driver_version) = Self::detect_gpu();
+        let graphics = super::graphics_service::detect();
         let (mem_total_mb, mem_free_mb) = Self::detect_memory_mb();
 
         Ok(HardwareInfo {
-            gpu_vendor,
-            gpu_renderer,
-            vulkan_driver_version,
+            gpu_vendor: graphics.vendor,
+            gpu_renderer: graphics.renderer,
+            vulkan_driver_version: graphics.driver_version,
+            vulkan_supported: graphics.vulkan,
+            drm_available: graphics.drm,
+            gamescope_available: graphics.gamescope,
+            recommended_compositor: super::graphics_service::select_compositor(graphics.vulkan, graphics.drm, graphics.gamescope).into(),
+            device_model: graphics.device,
             cpu_model: Self::detect_cpu_model(),
             cpu_cores: Self::detect_cpu_cores(),
-            cpu_architecture: Self::run_trim("uname", &["-m"]).unwrap_or_else(|| std::env::consts::ARCH.to_string()),
+            cpu_architecture: crate::models::Architecture::current().as_str().to_string(),
             total_memory_mb: mem_total_mb,
             free_memory_mb: mem_free_mb,
         })
@@ -82,7 +88,7 @@ impl SystemService {
 
     pub fn first_run_detection() -> Result<FirstRunDetectionResult, EmuBoxError> {
         let hardware = Self::get_hardware_info()?;
-        let vulkan_supported = hardware.vulkan_driver_version.is_some();
+        let vulkan_supported = hardware.vulkan_supported;
 
         // Reutiliza el escaneo oficial de emuladores (rutas reales + versión probada) en vez
         // de una detección propia duplicada, y aplica el renderer óptimo según el hardware real.
@@ -119,14 +125,6 @@ impl SystemService {
         }
         let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
         if text.is_empty() { None } else { Some(text) }
-    }
-
-    fn run_full(bin: &str, args: &[&str]) -> Option<String> {
-        let output = Command::new(bin).args(args).output().ok()?;
-        if !output.status.success() {
-            return None;
-        }
-        Some(String::from_utf8_lossy(&output.stdout).to_string())
     }
 
     fn process_running(name: &str) -> bool {
@@ -183,7 +181,7 @@ impl SystemService {
         if let Ok(content) = fs::read_to_string("/proc/cpuinfo") {
             for line in content.lines() {
                 if let Some((key, value)) = line.split_once(':') {
-                    if key.trim() == "model name" {
+                    if matches!(key.trim(), "model name" | "Hardware" | "Model") {
                         return value.trim().to_string();
                     }
                 }
@@ -221,80 +219,8 @@ impl SystemService {
         value.trim().trim_end_matches("kB").trim().parse::<u64>().unwrap_or(0)
     }
 
-    /// Detecta vendor/renderer/versión de driver Vulkan real vía `vulkaninfo`,
-    /// con fallback a `lspci` cuando Vulkan no está disponible (p. ej. VM sin passthrough de GPU).
-    fn detect_gpu() -> (String, String, Option<String>) {
-        if let Some(summary) = Self::run_full("vulkaninfo", &["--summary"]) {
-            let mut vendor_id: Option<String> = None;
-            let mut device_name: Option<String> = None;
-            let mut driver_info: Option<String> = None;
-
-            for line in summary.lines() {
-                let line = line.trim();
-                if let Some(value) = line.strip_prefix("vendorID") {
-                    vendor_id = value.trim_start_matches(['=', ' ']).split_whitespace().next().map(str::to_string);
-                } else if let Some(value) = line.strip_prefix("deviceName") {
-                    device_name = Some(value.trim_start_matches(['=', ' ']).trim().to_string());
-                } else if let Some(value) = line.strip_prefix("driverInfo") {
-                    driver_info = Some(value.trim_start_matches(['=', ' ']).trim().to_string());
-                }
-                if device_name.is_some() && driver_info.is_some() {
-                    break;
-                }
-            }
-
-            if let Some(renderer) = device_name {
-                let vendor = Self::vendor_from_pci_id(vendor_id.as_deref());
-                return (vendor, renderer, driver_info);
-            }
-        }
-
-        Self::detect_gpu_via_lspci()
-    }
-
-    fn vendor_from_pci_id(vendor_id: Option<&str>) -> String {
-        match vendor_id {
-            Some(id) if id.eq_ignore_ascii_case("0x1002") => "amd".to_string(),
-            Some(id) if id.eq_ignore_ascii_case("0x10de") => "nvidia".to_string(),
-            Some(id) if id.eq_ignore_ascii_case("0x8086") => "intel".to_string(),
-            _ => "generic".to_string(),
-        }
-    }
-
-    fn detect_gpu_via_lspci() -> (String, String, Option<String>) {
-        if let Some(output) = Self::run_full("lspci", &["-mm"]) {
-            for line in output.lines() {
-                if line.contains("VGA compatible controller") || line.contains("3D controller") {
-                    let lower = line.to_lowercase();
-                    let vendor = if lower.contains("vmware") || lower.contains("virtualbox") || lower.contains("virtio") || lower.contains("qxl") {
-                        "generic"
-                    } else if lower.contains("nvidia") {
-                        "nvidia"
-                    } else if lower.contains("intel") {
-                        "intel"
-                    } else if lower.contains("amd") || lower.contains("ati") || lower.contains("radeon") {
-                        "amd"
-                    } else {
-                        "generic"
-                    };
-                    return (vendor.to_string(), line.trim().to_string(), None);
-                }
-            }
-        }
-
-        let is_vm = Self::run_trim("systemd-detect-virt", &[])
-            .map(|v| v != "none")
-            .unwrap_or(false);
-        let renderer = if is_vm {
-            "Software Renderer (llvmpipe/VM sin passthrough GPU)".to_string()
-        } else {
-            "Unknown GPU".to_string()
-        };
-        ("generic".to_string(), renderer, None)
-    }
-
     /// Lista gamepads reales conectados vía `/proc/bus/input/devices` (entradas con handler `js*`).
-    fn detect_gamepads() -> Vec<String> {
+    pub(crate) fn detect_gamepads() -> Vec<String> {
         let Ok(content) = fs::read_to_string("/proc/bus/input/devices") else {
             return vec![];
         };

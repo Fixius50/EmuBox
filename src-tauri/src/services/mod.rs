@@ -1,4 +1,7 @@
 pub mod paths;
+pub mod binary_service;
+pub mod emulator_capabilities;
+pub mod graphics_service;
 pub mod system_service;
 pub mod game_service;
 pub mod emulator_service;

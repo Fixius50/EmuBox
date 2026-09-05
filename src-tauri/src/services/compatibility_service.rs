@@ -15,8 +15,7 @@ impl CompatibilityService {
         let available = EmulatorService::get_emulators()?
             .into_iter()
             .filter(|emulator| {
-                emulator.status == "active"
-                    && emulator.supported_platforms.iter().any(|platform| platform == &game.platform)
+                emulator.supported_platforms.iter().any(|platform| platform == &game.platform)
             })
             .collect::<Vec<_>>();
 
@@ -28,6 +27,11 @@ impl CompatibilityService {
         }
 
         let associations = Self::get_game_associations(game.id.clone())?;
+        if let Some(id) = preferred_emulator_id {
+            if !available.iter().any(|emulator| emulator.id == id) {
+                return Err(EmuBoxError::EmulatorNotInstalled(format!("Emulador no disponible para {}: {id}", game.platform)));
+            }
+        }
         let selected = preferred_emulator_id
             .and_then(|id| available.iter().find(|emulator| emulator.id == id))
             .or_else(|| {
@@ -35,11 +39,14 @@ impl CompatibilityService {
                     .filter(|association| association.enabled)
                     .find_map(|association| available.iter().find(|emulator| emulator.id == association.emulator_id))
             })
-            .or_else(|| available.iter().find(|emulator| emulator.id == "rpcs3" && game.platform == "ps3"))
+            .or_else(|| available.iter().find(|emulator| emulator.compatibility.status == "supported"))
             .or_else(|| available.first())
             .cloned()
             .ok_or_else(|| EmuBoxError::EmulatorNotInstalled("No se pudo resolver el emulador".to_string()))?;
 
+        if selected.compatibility.status != "supported" {
+            return Err(EmuBoxError::GameLaunchFailed(selected.compatibility.reason.clone()));
+        }
         let association = associations.into_iter()
             .find(|association| association.enabled && association.emulator_id == selected.id);
         let custom_args = association.as_ref().map(|association| association.custom_arguments.clone()).unwrap_or_default();

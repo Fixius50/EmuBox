@@ -18,12 +18,25 @@
 
 set -euo pipefail
 
-EMUBOX_DIR="/opt/emubox"
-LOG_FILE="/var/log/emubox/update.log"
+EMUBOX_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LOG_FILE="${EMUBOX_LOG_DIR:-/var/log/emubox}/update.log"
 BRANCH="main"
+if [[ "$EUID" -eq 0 ]]; then
+  BUILD_USER="${SUDO_USER:-emubox}"
+  [[ "$BUILD_USER" != root ]] || { echo 'Update must run as a non-root user.' >&2; exit 1; }
+  exec runuser -u "$BUILD_USER" -- bash "$0" "$@"
+fi
+source "$EMUBOX_DIR/installer/lib/architecture.sh"
+BUILD_ARCH=$(get_emubox_architecture)
+[[ "$BUILD_ARCH" != unsupported ]] || { echo 'Unsupported architecture' >&2; exit 1; }
+export BUILD_ARCH
+export TARGET="$(get_emubox_target "$BUILD_ARCH")"
 
 # Asegurar directorio de logs
 mkdir -p "$(dirname "${LOG_FILE}")" 2>/dev/null || true
+if [[ ! -w "$(dirname "$LOG_FILE")" || ( -e "$LOG_FILE" && ! -w "$LOG_FILE" ) ]]; then
+  LOG_FILE="$(mktemp -d "${TMPDIR:-/tmp}/emubox-update-XXXXXXXX")/update.log"
+fi
 
 # Redirigir stdout y stderr a terminal y archivo de log
 exec > >(tee -a "${LOG_FILE}" 2>/dev/null || cat)
@@ -44,8 +57,8 @@ cd "${EMUBOX_DIR}"
 echo "[1/5] Verificando estado del árbol de trabajo local..."
 if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
   echo "[AVISO] Existen modificaciones locales no confirmadas en ${EMUBOX_DIR}."
-  echo "[AVISO] Guardando cambios temporales con 'git stash'..."
-  git stash save "Auto-stash antes de update $(date '+%Y-%m-%d %H:%M:%S')" || true
+  echo "[ERROR] Guarda o confirma tus cambios antes de actualizar." >&2
+  exit 1
 fi
 
 # 2. Consultar repositorio remoto
@@ -67,39 +80,51 @@ if [[ "${LOCAL_COMMIT}" == "${REMOTE_COMMIT}" ]]; then
 fi
 
 echo "[3/5] Nuevos cambios detectados: ${LOCAL_COMMIT:0:7} -> ${REMOTE_COMMIT:0:7}"
+BACKUP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/emubox-update-binary-XXXXXXXX")
+RESTORE_BINARY=true
+restore_binary() {
+  if [[ -f "$BACKUP_DIR/emubox" ]]; then
+    install -m 0755 "$BACKUP_DIR/emubox" "$EMUBOX_DIR/bin/emubox.next" &&
+      mv -f "$EMUBOX_DIR/bin/emubox.next" "$EMUBOX_DIR/bin/emubox"
+  else
+    rm -f "$EMUBOX_DIR/bin/emubox"
+  fi
+}
+cleanup_update() {
+  if [[ "$RESTORE_BINARY" == true ]]; then
+    restore_binary || { echo "Binary recovery failed: $BACKUP_DIR" >&2; return 1; }
+  fi
+  rm -rf "$BACKUP_DIR"
+}
+if [[ -f "$EMUBOX_DIR/bin/emubox" ]]; then
+  validate_emubox_binary "$EMUBOX_DIR/bin/emubox" "$BUILD_ARCH"
+  cp -p "$EMUBOX_DIR/bin/emubox" "$BACKUP_DIR/emubox"
+fi
+trap cleanup_update EXIT
 if ! git pull --ff-only origin "${BRANCH}"; then
   echo "----------------------------------------------------------------------" >&2
   echo "[ERROR CRÍTICO] 'git pull --ff-only' no pudo aplicarse limpiamente." >&2
   echo "[SEGURIDAD] La versión actual en ejecución NO ha sido alterada." >&2
   echo "----------------------------------------------------------------------" >&2
-# Guardar copia de seguridad del commit y binario actuales antes de compilar
-PREV_COMMIT="${LOCAL_COMMIT}"
-if [[ -f "${EMUBOX_DIR}/bin/emubox" ]]; then
-  cp -f "${EMUBOX_DIR}/bin/emubox" "${EMUBOX_DIR}/bin/emubox.backup" 2>/dev/null || true
+  exit 1
 fi
+restore_binary
 
 # 3. Delegar compilación al script maestro build.sh
 echo "[4/5] Compilando nueva versión mediante scripts/build.sh..."
-if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-  sudo chown -R "$(id -u):$(id -g)" "${EMUBOX_DIR}" 2>/dev/null || true
-fi
 chmod +x "${EMUBOX_DIR}/scripts/build.sh"
 
 if ! bash "${EMUBOX_DIR}/scripts/build.sh"; then
   echo "======================================================================" >&2
   echo "[ERROR CRÍTICO] La compilación falló durante 'scripts/build.sh'." >&2
-  echo "[ROLLBACK INTELIGENTE] Revirtiendo código al commit previo funcional (${PREV_COMMIT:0:7})..." >&2
-  git reset --hard "${PREV_COMMIT}" || true
-  if [[ -f "${EMUBOX_DIR}/bin/emubox.backup" ]]; then
-    cp -f "${EMUBOX_DIR}/bin/emubox.backup" "${EMUBOX_DIR}/bin/emubox" 2>/dev/null || true
-    chmod +x "${EMUBOX_DIR}/bin/emubox" 2>/dev/null || true
-    echo "[ROLLBACK INTELIGENTE] Binario anterior restaurado con éxito." >&2
-  fi
+  echo "El build conserva el binario anterior hasta validar el nuevo ELF." >&2
   echo "[SEGURIDAD] La sesión activa continuará ejecutando la versión estable previa." >&2
   echo "[LOGS] Revisa los detalles del fallo en: ${LOG_FILE}" >&2
   echo "======================================================================" >&2
   exit 1
 fi
+validate_emubox_binary "$EMUBOX_DIR/bin/emubox" "$BUILD_ARCH"
+RESTORE_BINARY=false
 
 # 4. Sincronizar scripts de arranque y sesión
 echo "[5/5] Sincronizando lanzadores de consola y entorno..."

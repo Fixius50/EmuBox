@@ -130,9 +130,10 @@ if [[ "${EUID}" -ne 0 ]]; then
     die "Este script debe ejecutarse como root."
 fi
 
-if [[ ! -f /etc/arch-release ]]; then
-    die "Este script solo funciona en Arch Linux."
-fi
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/installer/lib/detection.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/installer/lib/packages.sh"
+detect_architecture
+detect_distribution
 
 log_ok "Sistema Arch Linux detectado."
 
@@ -336,7 +337,6 @@ TAURI_PACKAGES=(
     xdotool
     cage
     foot
-    gamescope
     mesa
     vulkan-icd-loader
     xorg-server
@@ -346,7 +346,8 @@ TAURI_PACKAGES=(
     gst-plugins-good
 )
 
-pacman -S --needed --noconfirm "${TAURI_PACKAGES[@]}" || true
+install_packages_if_missing "${TAURI_PACKAGES[@]}"
+install_optional_packages gamescope vulkan-tools mesa-utils
 
 log_ok "Dependencias graficas, GStreamer y Cage instalados."
 

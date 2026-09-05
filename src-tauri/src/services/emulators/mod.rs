@@ -130,7 +130,7 @@ pub(crate) fn upsert_ini_key(path: &Path, section: &str, key: &str, value: &str)
 /// `true` si hay un driver Vulkan real detectado sobre un vendor de GPU conocido
 /// (no una VM sin passthrough ni un renderer software).
 pub(crate) fn vulkan_ok(hardware: &HardwareInfo) -> bool {
-    hardware.vulkan_driver_version.is_some() && hardware.gpu_vendor != "generic"
+    hardware.vulkan_supported
 }
 
 #[cfg(test)]

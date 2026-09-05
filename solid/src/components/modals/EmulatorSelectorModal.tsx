@@ -2,6 +2,7 @@ import { Component, For, Show, createSignal, createEffect } from 'solid-js';
 import { Dialog } from '@kobalte/core/dialog';
 import { animateModalOpen } from '@animations/modal-animations';
 import type { EmulatorSelectorModalProps } from '@contracts/modal.types';
+import { emulatorBlockReason } from '@services/compatibility/launch-capability';
 
 export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (props) => {
   const [selectedEmulatorId, setSelectedEmulatorId] = createSignal<string>('');
@@ -10,7 +11,6 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (pro
   const compatibleEmulators = () => {
     if (!props.game) return [];
     const list = props.emulators.filter(e => e.supportedPlatforms.includes(props.game!.platform));
-    if (list.length === 0) return props.emulators.slice(0, 2);
     return list;
   };
 
@@ -21,7 +21,7 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (pro
       const found = list.find(e => e.id === id);
       if (found) return found;
     }
-    return list[0] || null;
+    return list.find(emulator => !emulatorBlockReason(emulator)) || list[0] || null;
   };
 
   createEffect(() => {
@@ -65,6 +65,9 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (pro
                     </div>
 
                     <div class="cores-list-scroll">
+                      <Show when={compatibleEmulators().length === 0}>
+                        <p>No hay emuladores para esta plataforma.</p>
+                      </Show>
                       <For each={compatibleEmulators()}>
                         {(emu) => {
                           const isSelected = () => (selectedEmulator()?.id === emu.id);
@@ -89,8 +92,8 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (pro
                                 </div>
                               </div>
 
-                              <div class="core-status-pill ready">
-                                LISTO
+                              <div class="core-status-pill" title={emulatorBlockReason(emu) ?? 'Listo'}>
+                                {emulatorBlockReason(emu) ?? 'LISTO'}
                               </div>
                             </div>
                           );
@@ -103,9 +106,10 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (pro
                       <button
                         class="console-btn primary-glow-btn"
                         id="btn-launch-with-core"
+                        disabled={Boolean(emulatorBlockReason(selectedEmulator()))}
                         onClick={() => {
                           const emu = selectedEmulator();
-                          if (emu) {
+                          if (emu && !emulatorBlockReason(emu)) {
                             props.onConfirmLaunch(g(), emu);
                           }
                         }}

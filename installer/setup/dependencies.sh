@@ -4,10 +4,16 @@
 # ==============================================================================
 
 set -euo pipefail
+INSTALLER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$INSTALLER_DIR/lib/logging.sh"
+source "$INSTALLER_DIR/lib/detection.sh"
+source "$INSTALLER_DIR/lib/packages.sh"
+detect_architecture
+detect_distribution
 
 # Core System & Compositor Dependencies
 CORE_PKGS=(
-  "gamescope"
+  "cage"
   "pipewire"
   "pipewire-pulse"
   "pipewire-alsa"
@@ -22,7 +28,6 @@ CORE_PKGS=(
 
 # Optional Native Standalone Emulators (if available in official repos / AUR)
 EMU_PKGS=(
-  "pcsx2"
   "duckstation-qt"
   "mgba-qt"
   "flycast"
@@ -30,22 +35,8 @@ EMU_PKGS=(
 
 echo "  -> Comprobando gestor de paquetes de Arch Linux (pacman)..."
 
-if command -v pacman >/dev/null 2>&1; then
-  MISSING_CORE=()
-  for pkg in "${CORE_PKGS[@]}"; do
-    if ! pacman -Qi "$pkg" >/dev/null 2>&1; then
-      MISSING_CORE+=("$pkg")
-    fi
-  done
-
-  if [[ ${#MISSING_CORE[@]} -gt 0 ]]; then
-    echo "  -> Instalando paquetes de sistema necesarios: ${MISSING_CORE[*]}"
-    sudo pacman -S --needed --noconfirm "${MISSING_CORE[@]}" || {
-      echo "  [ADVERTENCIA] Algunos paquetes no pudieron instalarse vía pacman estándar."
-    }
-  else
-    echo "  ✓ Todos los paquetes de sistema esenciales ya están instalados."
-  fi
-else
-  echo "  [AVISO] pacman no disponible. Saltando comprobación automática de paquetes."
+install_packages_if_missing "${CORE_PKGS[@]}"
+install_optional_packages gamescope "${EMU_PKGS[@]}"
+if [[ "$(get_emubox_architecture)" == x86_64 ]]; then
+  install_optional_packages pcsx2
 fi

@@ -28,10 +28,13 @@ import type {
 } from '@contracts/backend.types';
 import type { CreateDownloadRequest, DownloadJob, DownloadSource } from '@contracts/download.types';
 import { PathService } from '@services/system/path.service';
+import { normalizeArchitecture, type Architecture } from '@contracts/architecture.types';
+import capabilityDefinitions from '@data/emulator-capabilities.json';
 
 const paths = new PathService();
 
 export class MockBackendService implements IEmuBoxBackend {
+  private architecture: Architecture;
   private games: Game[] = [];
   private activeRunningGame: RunningGameInfo | null = null;
   private logs: LogEntry[] = [];
@@ -196,7 +199,8 @@ export class MockBackendService implements IEmuBoxBackend {
     }
   };
 
-  constructor(initialGames?: Game[]) {
+  constructor(initialGames?: Game[], architecture: string = 'x86_64') {
+    this.architecture = normalizeArchitecture(architecture);
     if (initialGames) {
       this.games = initialGames.map(game => ({ ...game, installed: game.installed ?? false }));
     }
@@ -209,9 +213,10 @@ export class MockBackendService implements IEmuBoxBackend {
   // 1. Sistema & Hardware Telemetry
   public async getSystemInfo(): Promise<SystemInfo> {
     return {
-      osName: 'EmuBox OS (Arch Linux Custom Kernel 6.8.9-zen)',
+      osName: this.architecture === 'aarch64' ? 'Arch Linux ARM (mock)' : 'Arch Linux (mock)',
       kernelVersion: '6.8.9-zen1-1-zen',
-      architecture: 'x86_64',
+      architecture: this.architecture,
+      kernelArchitecture: this.architecture,
       hostname: 'emubox-console',
       uptimeSeconds: 7200,
       hardware: await this.getHardwareInfo(),
@@ -223,12 +228,17 @@ export class MockBackendService implements IEmuBoxBackend {
 
   public async getHardwareInfo(): Promise<HardwareInfo> {
     return {
-      gpuVendor: 'amd',
-      gpuRenderer: 'AMD Radeon RX 7800 XT (RADV Vulkan 1.3.275)',
-      vulkanDriverVersion: '24.0.4',
-      cpuModel: 'AMD Ryzen 7 7800X3D 8-Core Processor',
+      gpuVendor: this.architecture === 'aarch64' ? 'arm' : 'generic',
+      gpuRenderer: `Mock GPU (${this.architecture})`,
+      vulkanDriverVersion: 'mock',
+      vulkanSupported: this.architecture !== 'unsupported',
+      drmAvailable: true,
+      gamescopeAvailable: true,
+      recommendedCompositor: this.architecture === 'unsupported' ? 'cage' : 'gamescope',
+      deviceModel: 'Mock device',
+      cpuModel: `Mock CPU (${this.architecture})`,
       cpuCores: 16,
-      cpuArchitecture: 'x86_64',
+      cpuArchitecture: this.architecture,
       totalMemoryMb: 32150,
       freeMemoryMb: 28030
     };
@@ -262,12 +272,13 @@ export class MockBackendService implements IEmuBoxBackend {
   }
 
   public async runFirstRunDetection(): Promise<FirstRunDetectionResult> {
+    const hardware = await this.getHardwareInfo();
     return {
-      gpuVendor: 'amd',
-      gpuRenderer: 'AMD Radeon Graphics (Vulkan 1.3)',
-      vulkanSupported: true,
+      gpuVendor: hardware.gpuVendor,
+      gpuRenderer: hardware.gpuRenderer,
+      vulkanSupported: hardware.vulkanSupported ?? false,
       gamepadsDetected: ['Xbox Wireless Controller (USB)'],
-      installedEmulators: ['retroarch', 'duckstation-qt', 'pcsx2-qt'],
+      installedEmulators: (await this.getEmulators()).filter(emulator => emulator.compatibility?.status === 'supported').map(emulator => emulator.id),
       romsDirectoryFound: true,
       configGenerated: true
     };
@@ -349,15 +360,30 @@ export class MockBackendService implements IEmuBoxBackend {
 
   // 4. Emuladores (CRUD)
   public async getEmulators(): Promise<Emulator[]> {
-    return this.emulators;
+    const definitions = capabilityDefinitions as Record<string, { architectures: Architecture[]; requirements?: Emulator['requirements'] }>;
+    return this.emulators.map(emulator => {
+      const definition = definitions[emulator.id.replaceAll('_', '-')];
+      const architectures = emulator.architectures ?? definition?.architectures ?? [];
+      const compatible = architectures.includes(this.architecture);
+      const installed = emulator.status === 'active' && Boolean(emulator.executable);
+      return {
+        ...emulator, architectures, requirements: emulator.requirements ?? definition?.requirements ?? {},
+        compatibility: {
+          status: !compatible ? 'unsupported_architecture' : installed ? 'supported' : 'not_installed',
+          reason: !compatible ? `${emulator.name} no admite ${this.architecture}` : installed ? '' : `${emulator.name} no esta instalado`,
+          hostArchitecture: this.architecture,
+          binaryArchitecture: installed && compatible ? this.architecture : null
+        }
+      };
+    });
   }
 
   public async getEmulator(id: string): Promise<Emulator | null> {
-    return this.emulators.find(e => e.id === id) || null;
+    return (await this.getEmulators()).find(e => e.id === id) || null;
   }
 
   public async scanEmulators(): Promise<Emulator[]> {
-    return this.emulators;
+    return this.getEmulators();
   }
 
   public async getEmulatorStatus(id: string): Promise<'active' | 'inactive' | 'missing_bios'> {
@@ -410,10 +436,15 @@ export class MockBackendService implements IEmuBoxBackend {
     const targetEmuId = typeof gameIdOrRequest === 'string' ? emulatorId : (gameIdOrRequest.emulatorId || emulatorId);
 
     const game = await this.getGame(gameId);
-    const emu = this.emulators.find(e => e.id === targetEmuId) || this.emulators[0];
+    const emulators = await this.getEmulators();
+    const emu = targetEmuId ? emulators.find(emulator => emulator.id === targetEmuId)
+      : emulators.find(emulator => emulator.supportedPlatforms.includes(game?.platform ?? 'all') && emulator.compatibility?.status === 'supported');
 
     if (!game || !emu) {
       return { success: false, message: 'Juego o emulador no encontrado' };
+    }
+    if (emu.compatibility?.status !== 'supported') {
+      return { success: false, message: emu.compatibility?.reason ?? 'Emulador no disponible' };
     }
 
     const simPid = Math.floor(Math.random() * 60000) + 10000;
@@ -566,21 +597,24 @@ export class MockBackendService implements IEmuBoxBackend {
   }
 
   public async getDiagnostics(): Promise<DiagnosticReport> {
+    const hardware = await this.getHardwareInfo();
+    const emulators = await this.getEmulators();
+    const installed = emulators.filter(emulator => emulator.compatibility?.status === 'supported').length;
     return {
       generatedAt: Date.now(),
       osInfo: 'EmuBox OS 1.0 (Arch Linux)',
       kernelVersion: '6.8.9-zen1-1-zen',
-      architecture: 'x86_64',
-      gpuAdapter: 'AMD Radeon RX 7800 XT (RADV Vulkan 1.3)',
-      vulkanReady: true,
-      gamescopeReady: true,
+      architecture: this.architecture,
+      gpuAdapter: hardware.gpuRenderer,
+      vulkanReady: hardware.vulkanSupported ?? false,
+      gamescopeReady: hardware.recommendedCompositor === 'gamescope',
       pipewireReady: true,
       storageMounted: true,
-      emulatorsInstalledCount: this.emulators.length,
-      emulatorsMissingCount: 0,
+      emulatorsInstalledCount: installed,
+      emulatorsMissingCount: emulators.length - installed,
       connectedGamepadsCount: 1,
       recentErrors: this.logs.filter(l => l.level === 'error'),
-      rawSummaryText: 'EmuBox OS Diagnostics: All systems active and compliant.'
+      rawSummaryText: `Mock diagnostics: architecture=${this.architecture}, renderer=${hardware.gpuRenderer}`
     };
   }
 

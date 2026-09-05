@@ -1,7 +1,12 @@
 export interface HardwareInfo {
-  gpuVendor: 'amd' | 'nvidia' | 'intel' | 'generic';
+  gpuVendor: 'amd' | 'nvidia' | 'intel' | 'generic' | 'unknown' | 'virtual' | 'arm' | 'broadcom' | 'qualcomm' | 'apple';
   gpuRenderer: string;
   vulkanDriverVersion?: string;
+  vulkanSupported?: boolean;
+  drmAvailable?: boolean;
+  gamescopeAvailable?: boolean;
+  recommendedCompositor?: 'gamescope' | 'cage';
+  deviceModel?: string;
   cpuModel: string;
   cpuCores: number;
   cpuArchitecture: string;
@@ -41,6 +46,7 @@ export interface SystemInfo {
   osName: string;
   kernelVersion: string;
   architecture: string;
+  kernelArchitecture?: string;
   hostname: string;
   uptimeSeconds: number;
   hardware: HardwareInfo;

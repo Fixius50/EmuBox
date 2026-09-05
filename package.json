@@ -11,6 +11,7 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "test": "npx tsx tests/vertical-slice.test.ts",
+    "test:architecture": "bash tests/architecture.test.sh && bash tests/graphics.test.sh && bash tests/packages.test.sh && tsx tests/capabilities.test.ts",
     "start": "node start.js",
     "lint": "eslint .",
     "format:check": "prettier --check eslint.config.mjs scripts/verify.mjs package.json tsconfig.json",

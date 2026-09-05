@@ -3,6 +3,7 @@ import type { Game } from '@contracts/game.types';
 
 interface HeroSectionProps {
   focusedGame: Game | null;
+  playBlockReason?: string | null;
   downloadingIds: Set<string>;
   onPlayGame: (game: Game) => void;
   onDownloadGame: (game: Game) => void;
@@ -72,6 +73,8 @@ export const HeroSection: Component<HeroSectionProps> = (props) => {
                   <button
                     class="hero-cta-btn primary-play-btn"
                     id="btn-hero-play"
+                    disabled={Boolean(props.playBlockReason)}
+                    title={props.playBlockReason ?? undefined}
                     onClick={() => props.onPlayGame(game())}
                   >
                     <span>JUGAR</span>
@@ -95,6 +98,9 @@ export const HeroSection: Component<HeroSectionProps> = (props) => {
                   <span>{game().favorite ? '★ EN FAVORITOS' : '☆ AÑADIR A FAVORITOS'}</span>
                 </button>
               </div>
+              <Show when={game().installed && props.playBlockReason}>
+                <p role="status">{props.playBlockReason}</p>
+              </Show>
             </div>
 
             <div class="hero-art-showcase">

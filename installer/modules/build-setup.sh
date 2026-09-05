@@ -25,10 +25,12 @@ bash "${ROOT_DIR}/scripts/build.sh"
 
 OPT_BIN_DIR="/opt/emubox/bin"
 mkdir -p "${OPT_BIN_DIR}"
-TAURI_BINARY="${ROOT_DIR}/src-tauri/target/release/emubox"
+TAURI_BINARY="${ROOT_DIR}/bin/emubox"
 OPT_BIN="${OPT_BIN_DIR}/emubox"
+source "$ROOT_DIR/installer/lib/architecture.sh"
+validate_emubox_binary "$TAURI_BINARY"
 
-if [[ -f "${TAURI_BINARY}" ]]; then
+if [[ "${TAURI_BINARY}" != "${OPT_BIN}" ]]; then
   cp -f "${TAURI_BINARY}" "${OPT_BIN}"
   chmod +x "${OPT_BIN}"
 fi
@@ -38,16 +40,7 @@ cat << 'EOF' > /usr/local/bin/emubox-launcher
 #!/usr/bin/env bash
 set -euo pipefail
 
-export WEBKIT_DISABLE_DMABUF_RENDERER=1
-export GDK_BACKEND="${GDK_BACKEND:-wayland,x11}"
-
-EMUBOX_BIN="/opt/emubox/bin/emubox"
-if [[ ! -x "${EMUBOX_BIN}" ]]; then
-  echo "[ERROR] No existe el binario de EmuBox: ${EMUBOX_BIN}" >&2
-  exit 1
-fi
-
-exec "${EMUBOX_BIN}" "$@"
+exec bash /opt/emubox/scripts/run.sh "$@"
 EOF
 chmod 0755 /usr/local/bin/emubox-launcher
 ln -sf /usr/local/bin/emubox-launcher /usr/bin/emubox-launcher
@@ -57,77 +50,13 @@ cat << 'EOF' > /usr/local/bin/emubox
 #!/usr/bin/env bash
 set -euo pipefail
 
-export WEBKIT_DISABLE_DMABUF_RENDERER=1
-export GDK_BACKEND="${GDK_BACKEND:-wayland,x11}"
-
-# Asegurar XDG_RUNTIME_DIR para compositores Wayland (Cage / Gamescope)
-if [[ -z "${XDG_RUNTIME_DIR:-}" ]]; then
-  CURRENT_UID="$(id -u)"
-  if [[ -d "/run/user/${CURRENT_UID}" ]]; then
-    export XDG_RUNTIME_DIR="/run/user/${CURRENT_UID}"
-  else
-    export XDG_RUNTIME_DIR="/tmp/run-user-${CURRENT_UID}"
-    mkdir -p -m 0700 "${XDG_RUNTIME_DIR}" 2>/dev/null || true
-  fi
-fi
-export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
-
-if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" && -S "${XDG_RUNTIME_DIR}/bus" ]]; then
-  export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
-fi
-
-EMUBOX_APP_DIR="/opt/emubox"
-EMUBOX_BIN="${EMUBOX_APP_DIR}/bin/emubox"
-
-if [[ ! -x "${EMUBOX_BIN}" ]]; then
-  echo "[ERROR] El binario de EmuBox no esta instalado." >&2
-  echo "[ERROR] Ejecuta nuevamente el setup de EmuBox (sudo ./scripts/setup-arch.sh)." >&2
-  exit 1
-fi
-
-# Si ya existe un servidor gráfico activo (Wayland o X11), ejecutar directamente
-if [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
-  exec "${EMUBOX_BIN}" "$@"
-fi
-
-# Si se ejecuta desde una consola TTY sin servidor gráfico, iniciar sesión con Cage, Gamescope o X11
-DBUS_RUN=""
-if command -v dbus-run-session >/dev/null 2>&1 && [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
-  DBUS_RUN="dbus-run-session"
-fi
-
-if command -v cage >/dev/null 2>&1 && command -v gamescope >/dev/null 2>&1; then
-  echo "[EmuBox] Iniciando sesión gráfica de consola con Cage + Gamescope (Wayland)..."
-  if [[ -n "${DBUS_RUN}" ]]; then
-    exec dbus-run-session cage -- gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
-  else
-    exec cage -- gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
-  fi
-elif command -v cage >/dev/null 2>&1; then
-  echo "[EmuBox] Iniciando sesión gráfica de consola con Cage (Wayland)..."
-  if [[ -n "${DBUS_RUN}" ]]; then
-    exec dbus-run-session cage -- "${EMUBOX_BIN}" "$@"
-  else
-    exec cage -- "${EMUBOX_BIN}" "$@"
-  fi
-elif command -v gamescope >/dev/null 2>&1; then
-  echo "[EmuBox] Iniciando sesión gráfica de consola con Gamescope (Wayland Direct DRM)..."
-  if [[ -n "${DBUS_RUN}" ]]; then
-    exec dbus-run-session gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
-  else
-    exec gamescope -f -W 1920 -H 1080 -r 60 -- "${EMUBOX_BIN}" "$@"
-  fi
-else
-  echo "[ERROR] No se detectó ninguna sesión gráfica activa (\$WAYLAND_DISPLAY / \$DISPLAY)." >&2
-  echo "Para ejecutar EmuBox en consola dedicada, instala cage y gamescope:" >&2
-  echo "  sudo pacman -S --needed cage gamescope" >&2
-  exit 1
-fi
+exec bash /opt/emubox/scripts/run.sh "$@"
 EOF
 chmod +x /usr/local/bin/emubox
 ln -sf /usr/local/bin/emubox /usr/bin/emubox
 
 # 7. Instalar comando de actualización global /usr/local/bin/emubox-update
+EMUBOX_APP_DIR="/opt/emubox"
 chmod +x "${EMUBOX_APP_DIR}/scripts/update-emubox.sh"
 ln -sf "${EMUBOX_APP_DIR}/scripts/update-emubox.sh" /usr/local/bin/emubox-update
 ln -sf /usr/local/bin/emubox-update /usr/bin/emubox-update

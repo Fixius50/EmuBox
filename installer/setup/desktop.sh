@@ -37,7 +37,7 @@ PartOf=graphical-session.target
 [Service]
 Type=simple
 Environment=GAMESCOPE_DEFAULT_ARGS=-W 1920 -H 1080 -f -r 60 --prefer-vk-device
-ExecStart=/usr/bin/gamescope -W 1920 -H 1080 -f -- /usr/local/bin/emubox
+ExecStart=/usr/bin/bash /opt/emubox/scripts/run.sh
 Restart=on-failure
 RestartSec=2s
 

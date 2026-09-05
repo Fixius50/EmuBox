@@ -1,0 +1,17 @@
+{
+  "pcsx2": { "architectures": ["x86_64"], "requirements": { "minCpuCores": 2, "minMemoryMb": 4096 } },
+  "duckstation": { "architectures": ["x86_64", "aarch64"] },
+  "dolphin": { "architectures": ["x86_64", "aarch64"] },
+  "retroarch": { "architectures": ["x86_64", "aarch64"] },
+  "ppsspp": { "architectures": ["x86_64", "aarch64"] },
+  "mgba": { "architectures": ["x86_64", "aarch64"] },
+  "melonds": { "architectures": ["x86_64", "aarch64"] },
+  "flycast": { "architectures": ["x86_64", "aarch64"] },
+  "rpcs3": { "architectures": ["x86_64", "aarch64"], "requirements": { "minCpuCores": 4, "minMemoryMb": 4096, "vulkan": true } },
+  "cemu": { "architectures": ["x86_64"] },
+  "ryujinx": { "architectures": ["x86_64"] },
+  "snes9x": { "architectures": ["x86_64", "aarch64"] },
+  "mupen64plus": { "architectures": ["x86_64", "aarch64"] },
+  "genesis-plus-gx": { "architectures": ["x86_64", "aarch64"] },
+  "fbneo": { "architectures": ["x86_64", "aarch64"] }
+}

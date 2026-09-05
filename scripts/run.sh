@@ -17,6 +17,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+source "$ROOT_DIR/installer/lib/architecture.sh"
+source "$ROOT_DIR/installer/lib/graphics.sh"
 
 # 1. Variables de entorno indispensables para WebKitGTK / Wayland
 export WEBKIT_DISABLE_DMABUF_RENDERER=1
@@ -39,7 +41,7 @@ if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" && -S "${XDG_RUNTIME_DIR}/bus" ]]; then
 fi
 
 # 2. Localizar binario ejecutable
-EMUBOX_BIN="/opt/emubox/bin/emubox"
+EMUBOX_BIN="$ROOT_DIR/bin/emubox"
 if [[ ! -x "${EMUBOX_BIN}" ]]; then
   if [[ -x "${ROOT_DIR}/src-tauri/target/release/emubox" ]]; then
     EMUBOX_BIN="${ROOT_DIR}/src-tauri/target/release/emubox"
@@ -53,63 +55,13 @@ if [[ ! -x "${EMUBOX_BIN}" ]]; then
 fi
 
 # 3. Si ya existe un servidor gráfico activo (Wayland o X11), ejecutar directamente
+validate_emubox_binary "$EMUBOX_BIN"
 if [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
   exec "${EMUBOX_BIN}" "$@"
 fi
 
-# 4. Detección de GPU, Driver y Vendor mediante PCI/DRM
-GPU_INFO="$(lspci -nnk 2>/dev/null | grep -A3 -Ei 'VGA compatible controller|3D controller|Display controller' | head -n 4 || true)"
-GPU_DEVICE="$(echo "$GPU_INFO" | grep -Ei 'VGA|3D|Display' | sed -E 's/^[^:]+: //; s/ \(rev .*\)//' | head -n 1)"
-[[ -z "$GPU_DEVICE" ]] && GPU_DEVICE="Dispositivo Gráfico Genérico / Desconocido"
-
-GPU_DRIVER="$(echo "$GPU_INFO" | grep -Ei 'Kernel driver in use:' | awk '{print $NF}' | head -n 1)"
-[[ -z "$GPU_DRIVER" ]] && GPU_DRIVER="desconocido"
-
-GPU_VENDOR="Desconocido"
-if echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'VMware|vmwgfx|VirtualBox|vboxvideo|virtio|qxl'; then
-  GPU_VENDOR="Virtual / Emulada"
-elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'NVIDIA|nvidia|nouveau'; then
-  GPU_VENDOR="NVIDIA"
-elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'Intel|i915|xe'; then
-  GPU_VENDOR="Intel"
-elif echo "$GPU_DEVICE $GPU_DRIVER" | grep -Eiq 'AMD|ATI|Radeon|amdgpu'; then
-  GPU_VENDOR="AMD"
-fi
-
-# 5. Detección de Renderer y Aceleración Real por Hardware (Descartando llvmpipe/software)
-RENDERER_DESC="Software / Genérico"
-HAS_GPU_ACCEL=0
-HAS_HW_VULKAN=0
-
-if command -v vulkaninfo >/dev/null 2>&1; then
-  VK_SUMMARY="$(vulkaninfo --summary 2>&1 || true)"
-  VK_DEVICE="$(echo "$VK_SUMMARY" | grep -Ei 'deviceName' | head -n 1 | sed -E 's/.*= //; s/^[ \t]*//' || true)"
-  
-  if [[ -n "$VK_DEVICE" ]]; then
-    if echo "$VK_DEVICE" | grep -Eiq 'llvmpipe|softpipe|swrast|Software'; then
-      RENDERER_DESC="llvmpipe (CPU Software Rasterizer)"
-      HAS_GPU_ACCEL=0
-      HAS_HW_VULKAN=0
-    else
-      RENDERER_DESC="$VK_DEVICE"
-      HAS_GPU_ACCEL=1
-      HAS_HW_VULKAN=1
-    fi
-  fi
-fi
-
-if [[ $HAS_GPU_ACCEL -eq 0 ]] && command -v glxinfo >/dev/null 2>&1; then
-  GL_RENDERER="$(glxinfo -B 2>/dev/null | grep -Ei 'OpenGL renderer string:' | sed -E 's/.*: //; s/^[ \t]*//' || true)"
-  if [[ -n "$GL_RENDERER" ]]; then
-    if echo "$GL_RENDERER" | grep -Eiq 'llvmpipe|softpipe|swrast'; then
-      RENDERER_DESC="llvmpipe (CPU Software Rasterizer)"
-      HAS_GPU_ACCEL=0
-    elif [[ "$GPU_VENDOR" =~ ^(AMD|Intel|NVIDIA)$ ]]; then
-      RENDERER_DESC="$GL_RENDERER"
-      HAS_GPU_ACCEL=1
-    fi
-  fi
-fi
+detect_emubox_graphics
+echo "[EmuBox] architecture=$(get_emubox_architecture) gpu=$GPU_VENDOR renderer=$RENDERER_DESC drm=$HAS_DRM vulkan=$HAS_HW_VULKAN gamescope=$HAS_GAMESCOPE compositor=$EMUBOX_COMPOSITOR device=$DEVICE_MODEL"
 
 # Iniciar sincronizador reactivo de resolución DRM en segundo plano si existe cage
 SYNC_PID=""
@@ -125,7 +77,7 @@ if command -v dbus-run-session >/dev/null 2>&1 && [[ -z "${DBUS_SESSION_BUS_ADDR
 fi
 
 # 1. PIPELINE PRINCIPAL: GPU Acelerada -> Gamescope directo
-if [[ $HAS_GPU_ACCEL -eq 1 ]] && command -v gamescope >/dev/null 2>&1; then
+if [[ "$EMUBOX_COMPOSITOR" == gamescope ]]; then
   echo "[EmuBox] Iniciando en Modo ACELERADO (Gamescope -> EmuBox)..."
   if [[ -n "${DBUS_RUN}" ]]; then
     exec dbus-run-session gamescope -f -- "${EMUBOX_BIN}" "$@"
@@ -135,7 +87,7 @@ if [[ $HAS_GPU_ACCEL -eq 1 ]] && command -v gamescope >/dev/null 2>&1; then
 
 # 2. PIPELINE DE EMERGENCIA: CPU Software (llvmpipe / VM sin aceleración) -> Cage Kiosk
 elif command -v cage >/dev/null 2>&1; then
-  echo "[EmuBox] Iniciando en Modo EMERGENCIA CPU/SOFTWARE (Cage Kiosk -> EmuBox)..."
+  echo "[EmuBox] Iniciando con Cage (sin Gamescope/Vulkan disponible)..."
   if [[ -n "${DBUS_RUN}" ]]; then
     exec dbus-run-session cage -- "${EMUBOX_BIN}" "$@"
   else

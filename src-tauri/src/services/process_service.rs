@@ -75,7 +75,7 @@ impl ProcessService {
             (!requested_id.is_empty()).then_some(requested_id),
         )?;
 
-        let executable_path = Self::resolve_executable_path(&emulator.executable)
+        let executable_path = super::binary_service::resolve_executable(&emulator.executable)
             .map(|path| path.to_string_lossy().to_string())
             .unwrap_or_else(|| emulator.executable.clone());
 
@@ -85,6 +85,8 @@ impl ProcessService {
                 emulator.name
             )));
         }
+        super::binary_service::validate_binary(Path::new(&executable_path), crate::models::Architecture::current(), true)
+            .map_err(EmuBoxError::GameLaunchFailed)?;
 
         // 4. Resolver ruta del archivo ROM
         let rom_path = request.rom_path
@@ -101,11 +103,23 @@ impl ProcessService {
         if let Some(custom) = request.custom_args {
             final_args.extend(custom);
         }
+        for index in 0..final_args.len() {
+            if final_args[index] == "-L" || final_args[index] == "--libretro" {
+                let core_argument = final_args.get(index + 1)
+                    .ok_or_else(|| EmuBoxError::GameLaunchFailed("Falta la ruta del core libretro".into()))?;
+                let core = super::binary_service::resolve_core(core_argument)
+                    .ok_or_else(|| EmuBoxError::EmulatorNotInstalled(format!("Core no instalado: {core_argument}")))?;
+                super::binary_service::validate_binary(&core, crate::models::Architecture::current(), false)
+                    .map_err(EmuBoxError::GameLaunchFailed)?;
+                final_args[index + 1] = core.to_string_lossy().to_string();
+            }
+        }
         final_args.push(rom_path);
 
         // 6. Determinar si usar Gamescope para composición nativa
         let use_gamescope = request.use_gamescope.unwrap_or(true);
-        let has_gamescope = Command::new("which").arg("gamescope").output().map(|o| o.status.success()).unwrap_or(false);
+        let graphics = super::graphics_service::detect();
+        let has_gamescope = graphics.gamescope && graphics.vulkan;
 
         let child = if use_gamescope && has_gamescope {
             let mut cmd = Command::new("gamescope");

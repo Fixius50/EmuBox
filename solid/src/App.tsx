@@ -252,6 +252,7 @@ export const App: Component = () => {
         <GameLibraryView
             games={libraryStore.games()}
             platforms={systemStore.platforms()}
+            emulators={systemStore.emulators()}
             selectedPlatform={selectedPlatform()}
             focusedIndex={navigationStore.focusedGameIndex()}
             onSelectPlatform={(platform) => {

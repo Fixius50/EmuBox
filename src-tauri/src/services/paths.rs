@@ -12,6 +12,9 @@ pub fn games_dir() -> String {
 }
 
 pub fn emulators_dir() -> String {
+    #[cfg(test)]
+    return std::env::temp_dir().join(format!("emubox-emulators-test-{}", std::process::id())).to_string_lossy().to_string();
+    #[cfg(not(test))]
     format!("{DATA_DIR}/emulators")
 }
 
