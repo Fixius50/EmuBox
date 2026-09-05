@@ -48,6 +48,20 @@ para reconocer su aceleración OpenGL. Las opciones del anfitrión no se han toc
 
 ## Verificación en el invitado
 
+### Cursor invisible en Cage
+
+Si el tema nativo existe pero el puntero sigue invisible, el plano de cursor DRM
+de la GPU virtual puede ser el causante. El lanzador usa
+`WLR_NO_HARDWARE_CURSORS=1` solo con Cage y el driver `vmwgfx`, salvo que la
+variable ya este definida. Esto compone el cursor dentro de la imagen y no
+desactiva la aceleracion 3D de OpenGL. Es necesario reiniciar TTY1 para aplicarlo.
+La visibilidad debe confirmarse en la pantalla de la VM; las pruebas automaticas
+solo verifican la seleccion del ajuste y el respeto a preferencias explicitas.
+
+El proveedor de mando combina D-pad y stick en una sola direccion por lectura,
+con repeticion tras 350 ms y cada 120 ms al mantenerla. El scroll de la biblioteca
+no selecciona la tarjeta bajo un raton inmovil; se exige movimiento real del raton.
+
 ```bash
 systemd-detect-virt
 lspci -nnk

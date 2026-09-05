@@ -29,6 +29,12 @@ select_emubox_compositor() {
   if [[ "$1" == 1 && "$2" == 1 && "$3" == 1 ]]; then echo gamescope; else echo cage; fi
 }
 
+configure_emubox_cursor() {
+  if [[ "$1" == vmwgfx && ! -v WLR_NO_HARDWARE_CURSORS ]]; then
+    export WLR_NO_HARDWARE_CURSORS=1
+  fi
+}
+
 emubox_software_renderer() {
   case "${1,,}" in
     *llvmpipe*|*softpipe*|*swrast*|*'software rasterizer'*|*swiftshader*) return 0 ;;

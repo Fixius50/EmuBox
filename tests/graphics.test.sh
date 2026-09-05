@@ -28,3 +28,7 @@ svga='SVGA3D; build: RELEASE; LLVM;'
 emubox_software_renderer 'llvmpipe (LLVM 22)'
 [[ -z "$(printf '%s\n' 'eglinfo: eglInitialize failed' | emubox_opengl_renderer)" ]]
 echo 'OpenGL accelerated and software renderer matrix: OK'
+( unset WLR_NO_HARDWARE_CURSORS; configure_emubox_cursor vmwgfx; [[ "$WLR_NO_HARDWARE_CURSORS" == 1 ]] )
+( unset WLR_NO_HARDWARE_CURSORS; configure_emubox_cursor amdgpu; [[ ! -v WLR_NO_HARDWARE_CURSORS ]] )
+( export WLR_NO_HARDWARE_CURSORS=0; configure_emubox_cursor vmwgfx; [[ "$WLR_NO_HARDWARE_CURSORS" == 0 ]] )
+echo 'vmwgfx cursor fallback and explicit preferences: OK'

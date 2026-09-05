@@ -118,7 +118,9 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
                             props.onDownloadGame(game);
                           }
                         }}
-                        onMouseEnter={() => props.onFocusIndex(globalIdx())}
+                        onMouseMove={(event) => {
+                          if (event.movementX !== 0 || event.movementY !== 0) props.onFocusIndex(globalIdx());
+                        }}
                       >
                         <div class="case-spine-mark" title={game.platformName}>
                           <span aria-hidden="true"><ConsoleHardwareVisual platformId={game.platform} size="sm" /></span>

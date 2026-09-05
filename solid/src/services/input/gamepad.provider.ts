@@ -18,7 +18,7 @@ export class GamepadProvider implements IInputProvider {
 
   private deadzone: number = 0.35;
   private buttonStates: boolean[] = [];
-  private axisStates: { x: number; y: number } = { x: 0, y: 0 };
+  private navigationAction: InputAction | null = null;
   private repeatTimer: number = 0;
   private connectedGamepadIndex: number | null = null;
   private connectedGamepadName: string = 'Mando Desconectado';
@@ -76,6 +76,7 @@ export class GamepadProvider implements IInputProvider {
   }
 
   private handleGamepadConnected(e: GamepadEvent): void {
+    this.resetInputState();
     this.connectedGamepadIndex = e.gamepad.index;
     this.connectedGamepadName = e.gamepad.id || 'Mando Estándar Conectado';
     this.broadcastStatus();
@@ -83,6 +84,7 @@ export class GamepadProvider implements IInputProvider {
 
   private handleGamepadDisconnected(e: GamepadEvent): void {
     if (this.connectedGamepadIndex === e.gamepad.index) {
+      this.resetInputState();
       this.connectedGamepadIndex = null;
       this.connectedGamepadName = 'Mando Desconectado';
       this.broadcastStatus();
@@ -94,6 +96,13 @@ export class GamepadProvider implements IInputProvider {
     for (const listener of this.statusListeners) {
       listener(status);
     }
+  }
+
+  private resetInputState(): void {
+    this.buttonStates = [];
+    this.navigationAction = null;
+    this.repeatTimer = 0;
+    this.maintenanceComboTriggered = false;
   }
 
   private emitAction(action: InputAction): void {
@@ -127,6 +136,8 @@ export class GamepadProvider implements IInputProvider {
 
       if (activePad) {
         this.processGamepadInput(activePad);
+      } else {
+        this.resetInputState();
       }
     }
 
@@ -166,10 +177,6 @@ export class GamepadProvider implements IInputProvider {
     checkButton(7, 'BUTTON_RT');
     checkButton(8, 'BUTTON_SELECT');
     checkButton(9, 'BUTTON_START');
-    checkButton(12, 'NAV_UP');
-    checkButton(13, 'NAV_DOWN');
-    checkButton(14, 'NAV_LEFT');
-    checkButton(15, 'NAV_RIGHT');
     checkButton(16, 'HOME');
 
     const rawX = pad.axes[0] || 0;
@@ -180,23 +187,27 @@ export class GamepadProvider implements IInputProvider {
 
     const now = performance.now();
 
-    if (normX !== 0 || normY !== 0) {
-      if (this.axisStates.x === 0 && this.axisStates.y === 0) {
-        if (normX > 0.5) this.emitAction('NAV_RIGHT');
-        else if (normX < -0.5) this.emitAction('NAV_LEFT');
-        else if (normY > 0.5) this.emitAction('NAV_DOWN');
-        else if (normY < -0.5) this.emitAction('NAV_UP');
-        this.repeatTimer = now + 350;
-      } else if (now > this.repeatTimer) {
-        if (normX > 0.5) this.emitAction('NAV_RIGHT');
-        else if (normX < -0.5) this.emitAction('NAV_LEFT');
-        else if (normY > 0.5) this.emitAction('NAV_DOWN');
-        else if (normY < -0.5) this.emitAction('NAV_UP');
-        this.repeatTimer = now + 120;
-      }
+    const pressed = (index: number) => Boolean(pad.buttons[index]?.pressed) || (pad.buttons[index]?.value ?? 0) > 0.5;
+    const horizontal = Number(pressed(15)) - Number(pressed(14));
+    const vertical = Number(pressed(13)) - Number(pressed(12));
+    const hasDpad = [12, 13, 14, 15].some(pressed);
+    let direction: InputAction | null = null;
+    if (hasDpad) {
+      if (horizontal !== 0) direction = horizontal > 0 ? 'NAV_RIGHT' : 'NAV_LEFT';
+      else if (vertical !== 0) direction = vertical > 0 ? 'NAV_DOWN' : 'NAV_UP';
+    } else if (Math.max(Math.abs(normX), Math.abs(normY)) > 0.5) {
+      direction = Math.abs(normX) >= Math.abs(normY)
+        ? (normX > 0 ? 'NAV_RIGHT' : 'NAV_LEFT')
+        : (normY > 0 ? 'NAV_DOWN' : 'NAV_UP');
     }
-
-    this.axisStates = { x: normX, y: normY };
+    if (direction !== this.navigationAction) {
+      this.navigationAction = direction;
+      this.repeatTimer = now + 350;
+      if (direction) this.emitAction(direction);
+    } else if (direction && now >= this.repeatTimer) {
+      this.repeatTimer = now + 120;
+      this.emitAction(direction);
+    }
   }
 }
 

@@ -1,0 +1,70 @@
+import assert from 'node:assert/strict';
+import { mock } from 'node:test';
+import { readFileSync } from 'node:fs';
+import { GamepadProvider } from '../solid/src/services/input/gamepad.provider';
+import type { InputAction } from '../solid/src/types/input.types';
+
+const keys = ['window', 'navigator', 'requestAnimationFrame', 'cancelAnimationFrame'] as const;
+const descriptors = new Map(keys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+let now = 0;
+let frame: FrameRequestCallback;
+const buttons = Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 }));
+const axes = [0, 0];
+const pad = { index: 0, id: 'Fixture', buttons, axes } as unknown as Gamepad;
+const actions: InputAction[] = [];
+const clock = mock.method(performance, 'now', () => now);
+const provider = new GamepadProvider();
+const shelf = readFileSync(new URL('../solid/src/components/library/ConsoleShelfGrid.tsx', import.meta.url), 'utf8');
+assert.ok(!shelf.includes('onMouseEnter='));
+assert.ok(shelf.includes('event.movementX !== 0 || event.movementY !== 0'));
+try {
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: new EventTarget() });
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { getGamepads: () => [pad] } });
+  Object.defineProperty(globalThis, 'requestAnimationFrame', { configurable: true, value: (callback: FrameRequestCallback) => { frame = callback; return 1; } });
+  Object.defineProperty(globalThis, 'cancelAnimationFrame', { configurable: true, value: () => {} });
+  provider.onAction(action => actions.push(action));
+  provider.init();
+  const tick = (time: number) => { now = time; frame(time); };
+  buttons[13].pressed = true;
+  axes[1] = 1;
+  tick(1);
+  assert.deepEqual(actions, ['NAV_DOWN']);
+  tick(100);
+  tick(350);
+  assert.equal(actions.length, 1);
+  tick(351);
+  assert.deepEqual(actions, ['NAV_DOWN', 'NAV_DOWN']);
+  tick(470);
+  assert.equal(actions.length, 2);
+  tick(471);
+  assert.equal(actions.length, 3);
+  buttons[13].pressed = false;
+  axes[1] = 0;
+  tick(480);
+  buttons[13].pressed = true;
+  tick(481);
+  assert.equal(actions.length, 4);
+  buttons[13].pressed = false;
+  buttons[12].pressed = true;
+  tick(482);
+  assert.equal(actions.at(-1), 'NAV_UP');
+  assert.equal(actions.length, 5);
+  buttons[12].pressed = false;
+  tick(483);
+  axes[0] = -1;
+  tick(484);
+  assert.equal(actions.at(-1), 'NAV_LEFT');
+  axes[0] = 1;
+  tick(485);
+  assert.equal(actions.at(-1), 'NAV_RIGHT');
+  assert.equal(actions.length, 7);
+  console.log('D-pad/stick: one action per direction, controlled hold repeat and release: OK');
+} finally {
+  provider.destroy();
+  clock.mock.restore();
+  for (const key of keys) {
+    const descriptor = descriptors.get(key);
+    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+    else Reflect.deleteProperty(globalThis, key);
+  }
+}
