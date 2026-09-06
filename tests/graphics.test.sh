@@ -40,3 +40,9 @@ echo 'vmwgfx legacy DRM and explicit preferences: OK'
 ( configure_emubox_render_mode software; [[ "$LIBGL_ALWAYS_SOFTWARE" == 1 && "$WLR_RENDERER" == pixman && "$WEBKIT_DISABLE_COMPOSITING_MODE" == 1 ]] )
 ( ! configure_emubox_render_mode invalid )
 echo 'Explicit software diagnostic mode and unchanged automatic mode: OK'
+[[ "$(select_emubox_render_mode auto 1 0)" == auto ]]
+[[ "$(select_emubox_render_mode auto 0 1)" == auto ]]
+[[ "$(select_emubox_render_mode auto 0 0)" == software ]]
+[[ "$(select_emubox_render_mode software 1 1)" == software ]]
+! select_emubox_render_mode invalid 1 1
+echo 'GPU Vulkan/OpenGL (including VM 3D) first, CPU only without acceleration: OK'

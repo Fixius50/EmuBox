@@ -4,6 +4,7 @@ import { ConsoleHardwareVisual } from '@components/common/ConsoleHardwareVisual'
 
 interface HeroSectionProps {
   focusedGame: Game | null;
+  variantCount?: number;
   playBlockReason?: string | null;
   downloadingIds: Set<string>;
   onPlayGame: (game: Game) => void;
@@ -29,6 +30,7 @@ export const HeroSection: Component<HeroSectionProps> = (props) => {
             <div class="hero-metadata-column">
               <div class="hero-tags-row">
                 <span class="hero-platform-badge">{game().platformName.toUpperCase()}</span>
+                <Show when={(props.variantCount ?? 1) > 1}><span class="hero-genre-pill">{props.variantCount} paquetes</span></Show>
                 <Show when={game().genre}><span class="hero-genre-pill">{game().genre}</span></Show>
                 <Show when={game().releaseYear > 0}><span class="hero-year-pill">{game().releaseYear}</span></Show>
                 {game().favorite && (
@@ -87,7 +89,7 @@ export const HeroSection: Component<HeroSectionProps> = (props) => {
                   id="btn-hero-details"
                   onClick={() => props.onOpenDetails(game())}
                 >
-                  <span>DETALLES</span>
+                  <span>FUENTES Y PAQUETES</span>
                 </button>
 
                 <button

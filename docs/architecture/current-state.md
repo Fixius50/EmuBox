@@ -121,6 +121,11 @@ un motor BitTorrent. Ver [detalle y limites](catalog-sources.md).
 
 ## Gráficos
 
+La seleccion automatica prioriza GPU real o 3D virtual. Sin Vulkan hardware ni
+OpenGL acelerado detectados, usa CPU como alternativa. Cage no implica CPU:
+puede componer con OpenGL acelerado. El override local de diagnostico `software`
+se ha devuelto a `auto`; esto no certifica la estabilidad de SVGA3D.
+
 La detección consulta DRM/sysfs, dispositivos DRI y Vulkan; PCI es un apoyo,
 no un requisito. Reconoce AMD, Intel, NVIDIA, Broadcom, Mali, Adreno, Apple,
 drivers virtuales y desconocidos sin inferir GPU desde la CPU. Gamescope requiere

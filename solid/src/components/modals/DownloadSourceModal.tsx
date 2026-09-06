@@ -41,6 +41,7 @@ export function DownloadSourceModal(props: { store: LibraryStore; onConfirm: () 
                   <input type="radio" name="download-source" checked={props.store.sourceIndex() === index()}
                     onChange={() => props.store.setSourceIndex(index())} />
                   <span>
+                    <strong>{source.name}</strong>
                     <strong>{labels[source.access]}</strong>
                     <span class="download-source-uri">{source.uri}</span>
                     <Show when={source.sizeBytes}><span>{((source.sizeBytes ?? 0) / 1024 / 1024).toFixed(1)} MiB</span></Show>

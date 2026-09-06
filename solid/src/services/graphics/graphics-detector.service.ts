@@ -1,12 +1,11 @@
 import type { GraphicsCapabilities, GraphicsDetectorOptions, RenderPipelineMode } from '@contracts/graphics.types';
+import type { HardwareInfo } from '@contracts/system.types';
 
 const SOFTWARE_RENDERER_PATTERNS = [
   'llvmpipe',
   'softpipe',
   'swrast',
   'software',
-  'vmware',
-  'virtualbox',
   'microsoft basic render',
   'gdi generic',
   'mesa software'
@@ -14,6 +13,21 @@ const SOFTWARE_RENDERER_PATTERNS = [
 
 export class GraphicsDetectorService {
   private capabilities: GraphicsCapabilities | null = null;
+
+  public detectFromHardware(hardware: HardwareInfo, customDocument?: Document): GraphicsCapabilities {
+    const accelerated = hardware.vulkanSupported === true || hardware.openglAccelerated === true;
+    this.capabilities = {
+      pipeline: accelerated ? 'accelerated' : 'cpu-compatible',
+      isGpuAccelerated: accelerated,
+      renderer: hardware.gpuRenderer,
+      vendor: hardware.gpuVendor,
+      isVirtualMachine: hardware.gpuVendor === 'virtual',
+      recommendedBlur: accelerated,
+      probeTimeMs: 0,
+    };
+    this.applyToDocument(customDocument);
+    return this.capabilities;
+  }
 
   public detect(options?: GraphicsDetectorOptions): GraphicsCapabilities {
     const startTime = performance.now();
@@ -62,11 +76,11 @@ export class GraphicsDetectorService {
     }
 
     const rendererLower = renderer.toLowerCase();
+    isVm = /vmware|virtualbox|svga3d|virgl/.test(`${rendererLower} ${vendor.toLowerCase()}`);
     const isKnownSoftware = SOFTWARE_RENDERER_PATTERNS.some((pattern) => rendererLower.includes(pattern));
 
     if (isKnownSoftware) {
       isAccelerated = false;
-      isVm = rendererLower.includes('vmware') || rendererLower.includes('virtualbox');
     }
 
     const pipeline: RenderPipelineMode = isAccelerated ? 'accelerated' : 'cpu-compatible';

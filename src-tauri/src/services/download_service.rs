@@ -35,31 +35,26 @@ impl DownloadService {
     }
 
     pub fn import_from_url(url_str: &str) -> Result<Vec<DownloadSource>, EmuBoxError> {
-        let (manifest, filename) = Self::fetch_manifest(url_str)?;
-        Self::import_manifest_content(&manifest, filename.as_deref())
+        Self::import_fetched(Self::fetch_manifest(url_str)?)
     }
 
-    fn fetch_manifest(url_str: &str) -> Result<(String, Option<String>), EmuBoxError> {
-        let url = reqwest::Url::parse(url_str)
-            .map_err(|e| EmuBoxError::InvalidConfiguration(format!("URL inválida: {}", e)))?;
-        if !matches!(url.scheme(), "http" | "https") {
-            return Err(EmuBoxError::InvalidConfiguration("Solo se aceptan URLs HTTP/HTTPS".to_string()));
+    fn fetch_manifest(url_str: &str) -> Result<super::manifest_cache::FetchResult, EmuBoxError> {
+        let connection = DatabaseService::get_connection()?;
+        super::manifest_cache::fetch(&connection, url_str, chrono::Utc::now().timestamp().max(0) as u64)
+    }
+
+    fn import_fetched(fetched: super::manifest_cache::FetchResult) -> Result<Vec<DownloadSource>, EmuBoxError> {
+        use super::manifest_cache::{self, FetchResult};
+        match fetched {
+            FetchResult::Fresh => Ok(Vec::new()),
+            FetchResult::Unchanged(cache) => {
+                manifest_cache::remember(&DatabaseService::get_connection()?, &cache)?;
+                Ok(Vec::new())
+            }
+            FetchResult::Changed { content, filename, cache } => {
+                Self::import_manifest_cached(&content, filename.as_deref(), Some(&cache))
+            }
         }
-        let client = Client::builder()
-            .connect_timeout(std::time::Duration::from_secs(5))
-            .timeout(std::time::Duration::from_secs(25))
-            .build().map_err(|error| EmuBoxError::Unknown(error.to_string()))?;
-        let response = client.get(url_str).send()
-            .and_then(|response| response.error_for_status())
-            .map_err(|e| EmuBoxError::Unknown(format!("No se pudo descargar el manifiesto: {}", e)))?;
-        let mut manifest_text = String::new();
-        response.take(32 * 1024 * 1024 + 1).read_to_string(&mut manifest_text)
-            .map_err(|error| EmuBoxError::Unknown(format!("No se pudo leer el manifiesto: {error}")))?;
-        if manifest_text.len() > 32 * 1024 * 1024 {
-            return Err(EmuBoxError::InvalidConfiguration("El manifiesto supera 32 MiB".into()));
-        }
-        let filename_hint = url.path_segments().and_then(|mut segments| segments.rfind(|segment| !segment.is_empty())).map(str::to_owned);
-        Ok((manifest_text, filename_hint))
     }
 
     pub fn import_link_file() -> Result<Vec<DownloadSource>, EmuBoxError> {
@@ -84,12 +79,12 @@ impl DownloadService {
                 }).collect();
                 for (line, handle) in handles {
                     match handle.join() {
-                        Ok(Ok((manifest, filename))) => {
-                            match Self::import_manifest_content(&manifest, filename.as_deref()) {
+                        Ok(Ok(fetched)) => {
+                            match Self::import_fetched(fetched) {
                                 Ok(mut imported) => {
-                                    eprintln!("[Catalog] linea {line}: {} fuentes registradas", imported.len());
+                                    eprintln!("[Catalog] linea {line}: {} fuentes modificadas (cache incremental)", imported.len());
+                                    if !imported.is_empty() { updated(); }
                                     sources.append(&mut imported);
-                                    updated();
                                 }
                                 Err(error) => eprintln!("[Catalog] linea {line}: {error}"),
                             }
@@ -104,6 +99,10 @@ impl DownloadService {
     }
 
     pub fn import_manifest_content(manifest: &str, source_name_fallback: Option<&str>) -> Result<Vec<DownloadSource>, EmuBoxError> {
+        Self::import_manifest_cached(manifest, source_name_fallback, None)
+    }
+
+    fn import_manifest_cached(manifest: &str, source_name_fallback: Option<&str>, cache: Option<&super::manifest_cache::CacheRecord>) -> Result<Vec<DownloadSource>, EmuBoxError> {
         let original: serde_json::Value = serde_json::from_str(manifest.trim_start_matches('\u{feff}'))
             .map_err(|e| EmuBoxError::InvalidConfiguration(format!("JSON inválido: {}", e)))?;
         let entries = original.get("downloads").and_then(|value| value.as_array())
@@ -119,8 +118,22 @@ impl DownloadService {
         let mut connection = DatabaseService::get_connection()?;
         let transaction = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
-        transaction.execute_batch("CREATE INDEX IF NOT EXISTS idx_download_sources_game_uri ON download_sources(game_id, uri);")
+        transaction.execute_batch("CREATE INDEX IF NOT EXISTS idx_download_sources_game_uri ON download_sources(game_id, uri);
+            CREATE TABLE IF NOT EXISTS manifest_entry_cache (manifest_url TEXT NOT NULL, game_id TEXT NOT NULL,
+                digest TEXT NOT NULL, PRIMARY KEY(manifest_url, game_id));
+            CREATE TABLE IF NOT EXISTS manifest_sources (manifest_url TEXT NOT NULL, game_id TEXT NOT NULL,
+                source_id TEXT NOT NULL, PRIMARY KEY(manifest_url, game_id, source_id));
+            CREATE INDEX IF NOT EXISTS idx_manifest_sources_source ON manifest_sources(source_id);")
             .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+        let mut previous = HashMap::<String, String>::new();
+        let mut retired = Vec::<String>::new();
+        if let Some(cache) = cache {
+            let mut statement = transaction.prepare("SELECT game_id, digest FROM manifest_entry_cache WHERE manifest_url=?1")
+                .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+            let rows = statement.query_map(params![cache.url], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+                .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+            for row in rows { let (game, digest) = row.map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?; previous.insert(game, digest); }
+        }
 
         // 1. Detectar formato estándar Hydra / downloads[]
         let downloads_array = parsed.get("downloads").and_then(|d| d.as_array())
@@ -157,6 +170,17 @@ impl DownloadService {
                 let game_id = item.get("gameId").and_then(|v| v.as_str()).map(str::to_string)
                     .unwrap_or_else(|| format!("download-{}-{}", platform, slug(title)));
 
+                let entry_digest = format!("{:x}", Sha256::digest(serde_json::json!([item, platform]).to_string().as_bytes()));
+                if let Some(cache) = cache {
+                    if previous.remove(&game_id).as_deref() == Some(&entry_digest) { continue; }
+                    let mut statement = transaction.prepare("SELECT source_id FROM manifest_sources WHERE manifest_url=?1 AND game_id=?2")
+                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+                    let rows = statement.query_map(params![cache.url, game_id], |row| row.get::<_, String>(0))
+                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+                    for row in rows { retired.push(row.map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?); }
+                    transaction.execute("DELETE FROM manifest_sources WHERE manifest_url=?1 AND game_id=?2", params![cache.url, game_id])
+                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+                }
                 GameService::upsert_catalog_entry_on(&transaction, CatalogEntry {
                     id: game_id.clone(),
                     title: title.to_string(),
@@ -188,8 +212,37 @@ impl DownloadService {
                         checksum: item.get("checksum").and_then(|value| value.as_str()).map(str::to_string),
                         available: item.get("available").and_then(|value| value.as_bool()).unwrap_or(true),
                     };
+                    if let Some(cache) = cache {
+                        transaction.execute("INSERT OR IGNORE INTO manifest_sources VALUES (?1, ?2, ?3)", params![cache.url, game_id, source.id])
+                            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+                    }
                     sources.push(Self::create_source_on(&transaction, source)?);
                 }
+                if let Some(cache) = cache {
+                    transaction.execute("INSERT INTO manifest_entry_cache VALUES (?1, ?2, ?3)
+                        ON CONFLICT(manifest_url, game_id) DO UPDATE SET digest=excluded.digest", params![cache.url, game_id, entry_digest])
+                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+                }
+            }
+            if let Some(cache) = cache {
+                for game_id in previous.keys() {
+                    let mut statement = transaction.prepare("SELECT source_id FROM manifest_sources WHERE manifest_url=?1 AND game_id=?2")
+                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+                    for row in statement.query_map(params![cache.url, game_id], |row| row.get::<_, String>(0))
+                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))? {
+                        retired.push(row.map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?);
+                    }
+                    transaction.execute("DELETE FROM manifest_sources WHERE manifest_url=?1 AND game_id=?2", params![cache.url, game_id])
+                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+                    transaction.execute("DELETE FROM manifest_entry_cache WHERE manifest_url=?1 AND game_id=?2", params![cache.url, game_id])
+                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+                }
+                for source in retired {
+                    transaction.execute("UPDATE download_sources SET available=0 WHERE id=?1
+                        AND NOT EXISTS (SELECT 1 FROM manifest_sources WHERE source_id=?1)", params![source])
+                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+                }
+                super::manifest_cache::remember(&transaction, cache)?;
             }
             transaction.commit().map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
             return Ok(sources);
@@ -745,6 +798,46 @@ fn decode_magnet_dn(uri: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn manifest_cache_updates_only_changed_entries_and_keeps_user_state() {
+        use super::super::manifest_cache::CacheRecord;
+        let url = "https://cache-fixture.test/main.json";
+        let mirror = "https://cache-fixture.test/mirror.json";
+        let manifest = serde_json::json!({"platform":"ps1", "downloads":[
+            {"gameId":"cache-fixture-one", "title":"Cache one", "uris":["https://cache-fixture.test/one.chd"]},
+            {"gameId":"cache-fixture-two", "title":"Cache two", "uris":["https://cache-fixture.test/two.chd"]}
+        ]}).to_string();
+        let record = CacheRecord::fixture(url, &manifest, 100);
+        let imported = DownloadService::import_manifest_cached(&manifest, None, Some(&record)).unwrap();
+        assert_eq!(imported.len(), 2);
+        assert!(DownloadService::import_manifest_cached(&manifest, None, Some(&record)).unwrap().is_empty());
+        let connection = DatabaseService::get_connection().unwrap();
+        connection.execute("UPDATE games SET favorite=1, rom_path='/fixture/one.chd' WHERE id='cache-fixture-one'", []).unwrap();
+        let mirrored = serde_json::json!({"platform":"ps1", "downloads":[
+            {"gameId":"cache-fixture-two", "title":"Cache two", "uris":["https://cache-fixture.test/two.chd"]}
+        ]}).to_string();
+        DownloadService::import_manifest_cached(&mirrored, None, Some(&CacheRecord::fixture(mirror, &mirrored, 100))).unwrap();
+        let changed = serde_json::json!({"platform":"ps1", "downloads":[
+            {"gameId":"cache-fixture-one", "title":"Cache one", "year":2001,
+                "uris":["https://cache-fixture.test/new.chd"]}
+        ]}).to_string();
+        assert_eq!(DownloadService::import_manifest_cached(&changed, None, Some(&CacheRecord::fixture(url, &changed, 200))).unwrap().len(), 1);
+        let old_available: i64 = connection.query_row("SELECT available FROM download_sources WHERE id=?1", params![imported[0].id], |row| row.get(0)).unwrap();
+        let shared_available: i64 = connection.query_row("SELECT available FROM download_sources WHERE id=?1", params![imported[1].id], |row| row.get(0)).unwrap();
+        assert_eq!(old_available, 0);
+        assert_eq!(shared_available, 1);
+        let game = GameService::get_game_by_id("cache-fixture-one".into()).unwrap().unwrap();
+        assert!(game.favorite && game.installed);
+        assert_eq!(game.release_year, 2001);
+        assert!(DownloadService::import_manifest_cached("invalid", None, Some(&CacheRecord::fixture(url, "invalid", 300))).is_err());
+        drop(connection);
+        let reopened = DatabaseService::get_connection().unwrap();
+        let checked: u64 = reopened.query_row("SELECT checked FROM manifest_http_cache WHERE url=?1", params![url], |row| row.get(0)).unwrap();
+        assert_eq!(checked, 200);
+        assert!(matches!(super::super::manifest_cache::fetch(&reopened, url, 201).unwrap(), super::super::manifest_cache::FetchResult::Fresh));
+        assert!(DownloadService::list_jobs().unwrap().iter().all(|job| !job.game_id.starts_with("cache-fixture")));
+    }
 
     #[test]
     fn reports_tls_dns_and_timeout_without_exposing_urls() {

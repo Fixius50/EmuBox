@@ -7,7 +7,7 @@ import { animateStaggerShelf } from '@animations/shelf-animations';
 import { shelfColumns } from '@services/library/grid-layout';
 
 interface ConsoleShelfGridProps {
-  games: Game[];
+  games: (Game & { variants?: Game[] })[];
   focusedIndex: number;
   downloadingIds: Set<string>;
   onSelectGame: (game: Game) => void;
@@ -170,6 +170,7 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
                             {game.title}
                           </div>
                           <div class="card-subline">
+                            <Show when={(game.variants?.length ?? 1) > 1}><span>{game.variants?.length} paquetes</span></Show>
                             <Show when={game.releaseYear > 0}><span>{game.releaseYear}</span></Show>
                             <Show when={game.rating > 0}><span class="card-rating">★ {game.rating.toFixed(1)}</span></Show>
                           </div>

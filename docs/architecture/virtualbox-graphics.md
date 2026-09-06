@@ -2,6 +2,25 @@
 
 ## Resultado observado
 
+## Politica de seleccion
+
+EmuBox detecta CPU y GPU por separado. La prioridad automatica es usar la GPU
+disponible, incluida aceleracion 3D virtual como SVGA3D/virgl; no se considera
+software simplemente por ejecutarse en una VM. Si detecta Vulkan hardware,
+DRM y Gamescope disponible, usa Gamescope. Si detecta OpenGL acelerado, Cage
+puede usar esa GPU aunque no haya Vulkan. Si no se detecta aceleracion Vulkan
+ni OpenGL, el lanzador recurre a CPU con Cage/Pixman y Mesa/WebKit software.
+
+El nombre de la CPU y sus nucleos se registran independientemente. Vulkan y
+OpenGL son APIs, no modelos de GPU. Si faltan herramientas/drivers de sondeo,
+no se puede certificar aceleracion y puede seleccionarse el fallback conservador.
+El modo `software` sigue disponible solo como override explicito de diagnostico.
+La UI nativa recibe las capacidades Rust; la deteccion WebGL se usa en navegador.
+
+La VM vuelve a modo `auto` el 6 de septiembre de 2026 por peticion del usuario.
+Esto restablece la prioridad GPU, no demuestra que el fallo grafico previo del
+driver virtual este resuelto. El cambio local necesita reiniciar TTY1.
+
 El 5 de septiembre de 2026, la VM de desarrollo expone:
 
 - CPU: AMD Ryzen 5 5600G, x86_64, cuatro vCPU.

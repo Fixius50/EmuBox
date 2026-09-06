@@ -54,7 +54,11 @@ de todos los emuladores, drivers ni rendimiento suficiente para PS3.
 La biblioteca muestra juegos reales registrados en SQLite desde el escaneo o
 desde los manifiestos configurados; no incorpora el dataset de demostracion.
 Las tarjetas muestran los metadatos disponibles y SVG de su categoria. El
-flujo distingue `DESCARGAR` de `JUGAR`; al terminar una descarga autorizada y
+catalogo persistido carga desde SQLite: cache de seis horas, peticiones HTTP
+condicionales y actualizacion de entradas cambiadas. Los paquetes reconocidos
+de un mismo titulo/plataforma se reunen en una tarjeta; sus fuentes y nombres
+originales permanecen disponibles en el selector. Las consolas distintas no se mezclan.
+El flujo distingue `DESCARGAR` de `JUGAR`; al terminar una descarga autorizada y
 detectar la ROM, la biblioteca se actualiza. El lanzamiento requiere además un
 emulador compatible con la CPU, su binario nativo y sus requisitos de hardware.
 

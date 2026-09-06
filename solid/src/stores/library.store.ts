@@ -2,6 +2,7 @@ import { createSignal, createMemo } from 'solid-js';
 import type { Game, PlatformId } from '@contracts/game.types';
 import type { IEmuBoxBackend } from '@contracts/backend.types';
 import type { DownloadJob, DownloadSourceOption } from '@contracts/download.types';
+import { groupCatalog } from '@services/library/catalog-groups';
 
 export function createLibraryStore(backend: IEmuBoxBackend) {
   const [games, setGames] = createSignal<Game[]>([]);
@@ -17,6 +18,9 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
   const [sourcesLoading, setSourcesLoading] = createSignal(false);
   const [sourcesError, setSourcesError] = createSignal('');
   const [sourceIndex, setSourceIndex] = createSignal(0);
+  const catalogGames = createMemo(() => groupCatalog(games()));
+  const groupByVariant = createMemo(() => new Map(catalogGames().flatMap(group => group.variants.map(variant => [variant.id, group] as const))));
+  const catalogDownloadingIds = createMemo(() => new Set([...downloadingIds()].map(id => groupByVariant().get(id)?.id || id)));
   let sourceRequest = 0;
   const closeSources = () => {
     sourceRequest++;
@@ -31,7 +35,13 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
     setSourceIndex(0);
     setSourcesLoading(true);
     try {
-      const sources = await backend.getDownloadSources(game.id);
+      const variants = groupByVariant().get(game.id)?.variants || [game];
+      const sources: DownloadSourceOption[] = [];
+      for (let offset = 0; offset < variants.length && request === sourceRequest; offset += 4) {
+        const batch = await Promise.all(variants.slice(offset, offset + 4).map(async variant =>
+          (await backend.getDownloadSources(variant.id)).map(source => ({ ...source, name: variant.title }))));
+        sources.push(...batch.flat());
+      }
       if (request === sourceRequest) setSourceOptions(sources);
     } catch (error) {
       if (request === sourceRequest) setSourcesError(error instanceof Error ? error.message : 'No se pudieron consultar las fuentes');
@@ -82,6 +92,14 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
   });
 
   const toggleFavorite = async (gameId: string) => {
+    const group = groupByVariant().get(gameId);
+    if (group?.favorite) {
+      for (const variant of group.variants.filter(entry => entry.favorite)) {
+        const favorite = await backend.toggleFavorite(variant.id);
+        setGames(previous => previous.map(game => game.id === variant.id ? { ...game, favorite } : game));
+      }
+      return;
+    }
     const newStatus = await backend.toggleFavorite(gameId);
     setGames(prev =>
       prev.map(g => (g.id === gameId ? { ...g, favorite: newStatus } : g))
@@ -140,6 +158,13 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
   };
 
   return {
+    catalogGames, catalogDownloadingIds,
+    confirmSource: async () => {
+      const source = sourceOptions()[sourceIndex()];
+      if (!sourceGame() || sourcesLoading() || !source?.downloadable) return;
+      closeSources();
+      await downloadGame(source.gameId, source.id);
+    },
     sourceGame, sourceOptions, sourcesLoading, sourcesError, sourceIndex, setSourceIndex, openSources, closeSources,
     games,
     setGames,

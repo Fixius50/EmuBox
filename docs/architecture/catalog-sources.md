@@ -21,6 +21,45 @@ La sincronizacion ocurre al arrancar y cada seis horas. Cada manifiesto guardado
 emite `library-updated`; la UI escucha mediante `@tauri-apps/api/event`, sin exigir
 la variable global `window.__TAURI__`.
 
+## Cache persistente e importacion incremental
+
+SQLite conserva los metadatos entre sesiones. La UI carga esa copia local sin
+esperar a la red. `manifest_http_cache` guarda URL, ETag, Last-Modified, huella
+SHA-256 y fecha de la ultima comprobacion correcta, en la misma base que el catalogo.
+Durante seis horas no se vuelve a consultar una fuente importada. Despues se
+envian If-None-Match/If-Modified-Since: un HTTP 304 evita descargar el cuerpo JSON.
+Si el servidor devuelve 200, se compara la huella antes de normalizar o importar.
+
+Los servidores sin validadores requieren descargar su manifiesto cuando vence
+la cache: no existe un protocolo universal de deltas que permita pedir solo filas.
+La escritura en SQLite si es incremental: `manifest_entry_cache` compara entradas
+normalizadas y solo actualiza las modificadas/nuevas. `manifest_sources` conserva
+la pertenencia de cada URL a sus manifiestos. Las URLs retiradas se desactivan
+solo si ningun otro manifiesto las mantiene. No se borran juegos, favoritos,
+instalaciones ni historial de descargas.
+
+La huella HTTP se guarda en la misma transaccion que las entradas, solo tras una
+importacion correcta. Un error de red/JSON no destruye el catalogo anterior.
+Los fallos HTTP/conexion tienen una espera de 15 minutos entre reintentos.
+La primera sincronizacion con esta version necesita llenar las tablas de cache;
+las siguientes reutilizan los datos. El comando `--import-catalog` respeta esos
+plazos y devuelve solo fuentes modificadas, no el tamano total de la biblioteca.
+
+## Titulos y paquetes
+
+Una tarjeta puede reunir distintas distribuciones o versiones de paquete del
+mismo titulo y plataforma. La agrupacion visual elimina marcas reconocibles
+como Repack/Scene, Build y Free Download. Mantiene distintas plataformas, anos
+conocidos, secuelas, regiones y ediciones/subtitulos no inequívocos por separado.
+La identidad se infiere de titulos, no de un identificador universal: algunas
+variantes seguiran separadas para evitar mezclar juegos por parecido.
+
+SQLite conserva cada registro y fuente original. La UI muestra titulos agrupados,
+paquetes e instalados por separado. `Fuentes y paquetes` permite consultar las
+alternativas incluso cuando una variante ya esta instalada. El selector conserva
+los titulos originales y confirma con `gameId` y `sourceId` de la variante elegida,
+no con el ID de la tarjeta representativa. No descarga todos los paquetes juntos.
+
 Sin abrir la interfaz ni descargar juegos:
 
 ```bash

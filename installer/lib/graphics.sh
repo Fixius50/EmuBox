@@ -50,6 +50,16 @@ configure_emubox_render_mode() {
   esac
 }
 
+select_emubox_render_mode() {
+  case "$1" in
+    software) printf '%s\n' software ;;
+    auto)
+      if [[ "$2" == 1 || "$3" == 1 ]]; then printf '%s\n' auto; else printf '%s\n' software; fi
+      ;;
+    *) printf '[ERROR] Modo grafico no valido: usa auto o software\n' >&2; return 1 ;;
+  esac
+}
+
 emubox_software_renderer() {
   case "${1,,}" in
     *llvmpipe*|*softpipe*|*swrast*|*'software rasterizer'*|*swiftshader*) return 0 ;;

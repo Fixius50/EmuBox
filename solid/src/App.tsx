@@ -38,10 +38,10 @@ export const App: Component = () => {
   onCleanup(() => viewport.destroy());
 
   const graphicsDetector = new GraphicsDetectorService();
-  graphicsDetector.detect();
 
   const mockBackend = new MockBackendService();
   const backend = new TauriBackendService(mockBackend);
+  if (!backend.isTauriEnvironment) graphicsDetector.detect();
   const soundFx = new SoundFxService();
 
   const libraryStore = createLibraryStore(backend);
@@ -61,11 +61,7 @@ export const App: Component = () => {
 
   const [activeSettingsTab, setActiveSettingsTab] = createSignal<string>('system');
   const confirmSource = () => {
-    const game = libraryStore.sourceGame();
-    const source = libraryStore.sourceOptions()[libraryStore.sourceIndex()];
-    if (!game || !source?.downloadable) return;
-    libraryStore.closeSources();
-    void libraryStore.downloadGame(game.id, source.id);
+    void libraryStore.confirmSource();
   };
   const [settingsFocusArea, setSettingsFocusArea] = createSignal<'sidebar' | 'content'>('sidebar');
   const [settingsRowIndex, setSettingsRowIndex] = createSignal<number>(0);
@@ -108,7 +104,7 @@ export const App: Component = () => {
 
   // 3. Computed View Memos
   const platformGames = createMemo(() => {
-    const all = libraryStore.games();
+    const all = libraryStore.catalogGames();
     const platform = selectedPlatform();
     return platform === 'all' ? all : all.filter((game) => game.platform === platform);
   });
@@ -210,6 +206,10 @@ export const App: Component = () => {
       }
     }
 
+    if (backend.isTauriEnvironment) {
+      await backend.getHardwareInfo().then(hardware => graphicsDetector.detectFromHardware(hardware))
+        .catch(error => console.error('[Graphics] No se pudo consultar el hardware', error));
+    }
     await systemStore.loadSystemData().catch(error => console.error('[System]', error));
     try {
       if (backend.isTauriEnvironment) {
@@ -239,7 +239,7 @@ export const App: Component = () => {
     <Shell ambientBackdropUrl={ambientBackdrop()} crtShaderEnabled={false}>
       <Header
         inputStatus={inputStatus()}
-        totalGamesCount={libraryStore.games().length}
+        totalGamesCount={libraryStore.catalogGames().length}
         currentSection={navigationStore.currentSection() === 'settings' ? 'settings' : 'library'}
         onNavigate={(section) => {
           navigationStore.setCurrentSection(section);
@@ -249,7 +249,7 @@ export const App: Component = () => {
 
       <Show when={navigationStore.currentSection() === 'library'}>
         <GameLibraryView
-            games={libraryStore.games()}
+            games={libraryStore.catalogGames()}
             platforms={systemStore.platforms()}
             emulators={systemStore.emulators()}
             selectedPlatform={selectedPlatform()}
@@ -260,7 +260,7 @@ export const App: Component = () => {
               navigationStore.setFocusedGameIndex(0);
             }}
             onFocusIndex={(idx) => navigationStore.setFocusedGameIndex(idx)}
-            downloadingIds={libraryStore.downloadingIds()}
+            downloadingIds={libraryStore.catalogDownloadingIds()}
             downloadError={libraryStore.downloadError()}
             onSelectGame={handleGameActivate}
             onDownloadGame={(game) => { void libraryStore.openSources(game); }}

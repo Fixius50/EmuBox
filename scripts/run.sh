@@ -63,16 +63,21 @@ if [[ -z "$RENDER_MODE" && -f /etc/emubox/graphics-mode ]]; then
   RENDER_MODE=$(< /etc/emubox/graphics-mode)
 fi
 RENDER_MODE="${RENDER_MODE:-auto}"
-configure_emubox_render_mode "$RENDER_MODE"
 if [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
+  configure_emubox_render_mode "$RENDER_MODE"
   exec "${EMUBOX_BIN}" "$@"
 fi
 
 detect_emubox_graphics
+REQUESTED_RENDER_MODE="$RENDER_MODE"
+RENDER_MODE=$(select_emubox_render_mode "$RENDER_MODE" "$HAS_HW_VULKAN" "$HAS_HW_OPENGL")
+configure_emubox_render_mode "$RENDER_MODE"
 if [[ "$RENDER_MODE" == software ]]; then
   EMUBOX_COMPOSITOR=cage
 fi
-echo "[EmuBox] renderMode=$RENDER_MODE WLR_RENDERER=${WLR_RENDERER:-auto} LIBGL_ALWAYS_SOFTWARE=${LIBGL_ALWAYS_SOFTWARE:-0}"
+CPU_MODEL=$(awk -F ': ' '/model name|Hardware|Model/ {print $2; exit}' /proc/cpuinfo)
+echo "[EmuBox] cpu=${CPU_MODEL:-$(uname -m)} cores=$(getconf _NPROCESSORS_ONLN)"
+echo "[EmuBox] requestedRenderMode=$REQUESTED_RENDER_MODE renderMode=$RENDER_MODE WLR_RENDERER=${WLR_RENDERER:-auto} LIBGL_ALWAYS_SOFTWARE=${LIBGL_ALWAYS_SOFTWARE:-0}"
 echo "[EmuBox] architecture=$(get_emubox_architecture) gpu=$GPU_VENDOR renderer=$RENDERER_DESC drm=$HAS_DRM vulkan=$HAS_HW_VULKAN opengl=$HAS_OPENGL openglAccelerated=$HAS_HW_OPENGL gamescope=$HAS_GAMESCOPE compositor=$EMUBOX_COMPOSITOR device=$DEVICE_MODEL"
 
 # Iniciar sincronizador reactivo de resolución DRM en segundo plano si existe cage
@@ -97,7 +102,7 @@ if [[ "$EMUBOX_COMPOSITOR" == gamescope ]]; then
     exec gamescope -f -- "${EMUBOX_BIN}" "$@"
   fi
 
-# 2. PIPELINE DE EMERGENCIA: CPU Software (llvmpipe / VM sin aceleración) -> Cage Kiosk
+# 2. Cage: OpenGL acelerado disponible o CPU cuando no se detecta aceleracion
 elif command -v cage >/dev/null 2>&1; then
   configure_emubox_cursor "$GPU_DRIVER"
   echo "[EmuBox] WLR_NO_HARDWARE_CURSORS=${WLR_NO_HARDWARE_CURSORS:-0} WLR_DRM_NO_ATOMIC=${WLR_DRM_NO_ATOMIC:-0} driver=$GPU_DRIVER"

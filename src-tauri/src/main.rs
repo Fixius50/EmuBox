@@ -4,7 +4,7 @@
 fn main() {
     if std::env::args().nth(1).as_deref() == Some("--import-catalog") {
         match emubox_lib::services::DownloadService::import_link_file() {
-            Ok(sources) => println!("Catalogo actualizado: {} fuentes; sin iniciar descargas", sources.len()),
+            Ok(sources) => println!("Catalogo sincronizado: {} fuentes modificadas; cache conservada, sin iniciar descargas", sources.len()),
             Err(error) => {
                 eprintln!("{error}");
                 std::process::exit(1);

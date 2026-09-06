@@ -1,12 +1,13 @@
 import { Component, For, Show, createMemo } from 'solid-js';
 import type { Game, Platform, Emulator } from '@contracts/game.types';
+import type { CatalogGroup } from '@services/library/catalog-groups';
 import { gameBlockReason } from '@services/compatibility/launch-capability';
 import { HeroSection } from './HeroSection';
 import { ConsoleHardwareVisual } from '@components/common/ConsoleHardwareVisual';
 import { ConsoleShelfGrid } from './ConsoleShelfGrid';
 
 interface GameLibraryViewProps {
-  games: Game[];
+  games: CatalogGroup[];
   platforms: Platform[];
   emulators: Emulator[];
   selectedPlatform: string;
@@ -36,9 +37,9 @@ export const GameLibraryView: Component<GameLibraryViewProps> = (props) => {
     }
     return [...result.values()];
   });
-  const visibleGames = () => props.selectedPlatform === 'all'
+  const visibleGames = createMemo(() => props.selectedPlatform === 'all'
     ? props.games
-    : props.games.filter((game) => game.platform === props.selectedPlatform);
+    : props.games.filter((game) => game.platform === props.selectedPlatform));
   const selectedName = () => props.selectedPlatform === 'all'
     ? 'Todos los juegos'
     : availablePlatforms().find((platform) => platform.id === props.selectedPlatform)?.name || 'Juegos';
@@ -82,7 +83,7 @@ export const GameLibraryView: Component<GameLibraryViewProps> = (props) => {
             <h1>{selectedName()}</h1>
           </div>
           <span class="game-library-count">
-            {visibleGames().length} títulos · {visibleGames().filter(game => game.installed).length} instalados
+            {visibleGames().length} títulos · {visibleGames().reduce((total, game) => total + game.variants.length, 0)} paquetes · {visibleGames().filter(game => game.installed).length} instalados
           </span>
         </div>
         <Show when={props.downloadError}>
@@ -94,11 +95,12 @@ export const GameLibraryView: Component<GameLibraryViewProps> = (props) => {
         </Show>
         <HeroSection
           focusedGame={focusedGame()}
+          variantCount={focusedGame()?.variants.length}
           playBlockReason={focusedGame() ? gameBlockReason(focusedGame()!, props.emulators) : null}
           downloadingIds={props.downloadingIds}
           onPlayGame={props.onSelectGame}
           onDownloadGame={props.onDownloadGame}
-          onOpenDetails={props.onSelectGame}
+          onOpenDetails={props.onDownloadGame}
           onToggleFavorite={props.onToggleFavorite}
         />
         <ConsoleShelfGrid
