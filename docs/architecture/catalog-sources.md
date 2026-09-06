@@ -49,10 +49,23 @@ plazos y devuelve solo fuentes modificadas, no el tamano total de la biblioteca.
 
 Una tarjeta puede reunir distintas distribuciones o versiones de paquete del
 mismo titulo y plataforma. La agrupacion visual elimina marcas reconocibles
-como Repack/Scene, Build y Free Download. Mantiene distintas plataformas, anos
-conocidos, secuelas, regiones y ediciones/subtitulos no inequívocos por separado.
+como Repack/Scene/License, su distribuidor, Build, Free Download, tiendas
+(`GOG`, `Steam`, `Epic`) y etiquetas de idioma como `Ru/Multi`. Un sufijo explicito
+de paquete `+ DLC` o `- Build <numero> + <nombre> DLC` se conserva en el nombre
+original de la variante, pero no genera otra tarjeta del juego base.
+
+Un año desconocido se agrupa con el unico año conocido del mismo titulo y
+plataforma, en vez de crear un duplicado. Si existen varios anos conocidos
+distintos, permanecen separados y las variantes sin año no se asignan a ninguno
+arbitrariamente. Se conservan secuelas, regiones, ediciones y expansiones con
+subtitulo propio; nunca se mezclan plataformas.
 La identidad se infiere de titulos, no de un identificador universal: algunas
 variantes seguiran separadas para evitar mezclar juegos por parecido.
+
+Regresion comprobada con los titulos de la captura del 6 de septiembre de 2026:
+las ocho variantes `#DRIVE Rally` y las ocho variantes `#BLUD` forman una tarjeta
+por titulo/plataforma, con todos sus paquetes y fuentes accesibles. No se eliminan
+filas de SQLite ni se vuelven a descargar manifiestos para aplicar esta correccion.
 
 SQLite conserva cada registro y fuente original. La UI muestra titulos agrupados,
 paquetes e instalados por separado. `Fuentes y paquetes` permite consultar las
