@@ -96,6 +96,11 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
                     const globalIdx = () => startIndex() + colIdx();
                     const isCardFocused = () => props.focusedIndex === globalIdx();
                     const [hasImageError, setHasImageError] = createSignal(false);
+                    const activate = () => {
+                      props.onFocusIndex(globalIdx());
+                      if (game.installed) props.onSelectGame(game);
+                      else props.onDownloadGame(game);
+                    };
 
                     const hasValidCover = () => {
                       return Boolean(
@@ -110,12 +115,19 @@ export const ConsoleShelfGrid: Component<ConsoleShelfGridProps> = (props) => {
                       <div
                         class={`console-shelf-card ${isCardFocused() ? 'focused spatial-focus' : ''}`}
                         id={`shelf-card-${game.id}`}
-                        onClick={() => {
-                          props.onFocusIndex(globalIdx());
-                          if (game.installed) {
-                            props.onSelectGame(game);
-                          } else {
-                            props.onDownloadGame(game);
+                        role="button"
+                        aria-label={`Abrir ${game.title}`}
+                        tabIndex={isCardFocused() ? 0 : -1}
+                        onFocus={() => props.onFocusIndex(globalIdx())}
+                        onClick={event => {
+                          event.currentTarget.focus({ preventScroll: true });
+                          activate();
+                        }}
+                        onKeyDown={event => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            if (!event.repeat) activate();
                           }
                         }}
                         onMouseMove={(event) => {

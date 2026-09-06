@@ -3,6 +3,8 @@ import { listen } from '@tauri-apps/api/event';
 
 // Types
 import type { Game } from '@contracts/game.types';
+import type { InputAction } from '@contracts/input.types';
+import { gameBlockReason } from '@services/compatibility/launch-capability';
 
 // Services
 import { MockBackendService } from '@services/backend/mock-backend.service';
@@ -50,14 +52,10 @@ export const App: Component = () => {
   const modalStore = createModalStore();
 
   const handleGameActivate = (game: Game) => {
-    if (game.installed) {
-      soundFx.playSelect();
-      modalStore.openEmulatorSelector(game);
-    } else {
-      soundFx.playSelect();
-      void libraryStore.openSources(game);
-    }
+    soundFx.playSelect();
+    void libraryStore.openSources(game);
   };
+  let sourceController: ((action: InputAction) => void) | null = null;
 
   const [activeSettingsTab, setActiveSettingsTab] = createSignal<string>('system');
   const confirmSource = () => {
@@ -155,12 +153,7 @@ export const App: Component = () => {
   const { inputStatus } = useConsoleInput({
     onAction: action => {
       if (libraryStore.sourceGame()) {
-        if (action === 'BUTTON_B') libraryStore.closeSources();
-        else if (action === 'BUTTON_A') confirmSource();
-        else if (action === 'NAV_DOWN' || action === 'NAV_UP') {
-          libraryStore.setSourceIndex(Math.max(0, Math.min(libraryStore.sourceOptions().length - 1,
-            libraryStore.sourceIndex() + (action === 'NAV_DOWN' ? 1 : -1))));
-        }
+        sourceController?.(action);
         return;
       }
       handleAction(action);
@@ -263,7 +256,7 @@ export const App: Component = () => {
             downloadingIds={libraryStore.catalogDownloadingIds()}
             downloadError={libraryStore.downloadError()}
             onSelectGame={handleGameActivate}
-            onDownloadGame={(game) => { void libraryStore.openSources(game); }}
+            onDownloadGame={handleGameActivate}
             onToggleFavorite={(id) => {
               soundFx.playFavorite();
               libraryStore.toggleFavorite(id);
@@ -310,7 +303,10 @@ export const App: Component = () => {
         onConfirmLaunch={launchWithEmulator}
       />
 
-      <DownloadSourceModal store={libraryStore} onConfirm={confirmSource} />
+      <DownloadSourceModal store={libraryStore} onConfirm={confirmSource}
+        onControllerReady={handler => { sourceController = handler; }}
+        playBlockReason={libraryStore.sourceGame() ? gameBlockReason(libraryStore.sourceGame()!, systemStore.emulators()) : null}
+        onPlay={game => { libraryStore.closeSources(); modalStore.openEmulatorSelector(game); }} />
 
       <MaintenanceModal
         isOpen={modalStore.isMaintenanceOpen()}

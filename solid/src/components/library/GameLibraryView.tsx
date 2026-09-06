@@ -1,8 +1,6 @@
 import { Component, For, Show, createMemo } from 'solid-js';
 import type { Game, Platform, Emulator } from '@contracts/game.types';
 import type { CatalogGroup } from '@services/library/catalog-groups';
-import { gameBlockReason } from '@services/compatibility/launch-capability';
-import { HeroSection } from './HeroSection';
 import { ConsoleHardwareVisual } from '@components/common/ConsoleHardwareVisual';
 import { ConsoleShelfGrid } from './ConsoleShelfGrid';
 
@@ -43,7 +41,6 @@ export const GameLibraryView: Component<GameLibraryViewProps> = (props) => {
   const selectedName = () => props.selectedPlatform === 'all'
     ? 'Todos los juegos'
     : availablePlatforms().find((platform) => platform.id === props.selectedPlatform)?.name || 'Juegos';
-  const focusedGame = () => visibleGames()[props.focusedIndex] || visibleGames()[0] || null;
 
   return (
     <main class="game-library-layout">
@@ -76,16 +73,7 @@ export const GameLibraryView: Component<GameLibraryViewProps> = (props) => {
         </For>
       </aside>
 
-      <section class="game-library-content">
-        <div class="game-library-heading">
-          <div>
-            <span class="game-library-kicker">JUEGOS</span>
-            <h1>{selectedName()}</h1>
-          </div>
-          <span class="game-library-count">
-            {visibleGames().length} títulos · {visibleGames().reduce((total, game) => total + game.variants.length, 0)} paquetes · {visibleGames().filter(game => game.installed).length} instalados
-          </span>
-        </div>
+      <section class="game-library-content" aria-label={selectedName()}>
         <Show when={props.downloadError}>
           {(error) => (
             <p role="alert" class="library-download-error">
@@ -93,16 +81,9 @@ export const GameLibraryView: Component<GameLibraryViewProps> = (props) => {
             </p>
           )}
         </Show>
-        <HeroSection
-          focusedGame={focusedGame()}
-          variantCount={focusedGame()?.variants.length}
-          playBlockReason={focusedGame() ? gameBlockReason(focusedGame()!, props.emulators) : null}
-          downloadingIds={props.downloadingIds}
-          onPlayGame={props.onSelectGame}
-          onDownloadGame={props.onDownloadGame}
-          onOpenDetails={props.onDownloadGame}
-          onToggleFavorite={props.onToggleFavorite}
-        />
+        <Show when={visibleGames().length === 0}>
+          <p class="library-empty-state" role="status">No hay juegos en esta biblioteca.</p>
+        </Show>
         <ConsoleShelfGrid
           games={visibleGames()}
           focusedIndex={props.focusedIndex}
