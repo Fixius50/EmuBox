@@ -30,6 +30,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
   const favorite = () => props.store.catalogGames().find(entry => entry.variants.some(item => item.id === game()?.id))?.favorite ?? game()?.favorite;
   let list: HTMLDivElement | undefined;
   let details: HTMLDivElement | undefined;
+  let returnGameId: string | undefined;
   const busy = () => Boolean(game() && props.store.catalogDownloadingIds().has(game()!.id));
   const toggleFavorite = async () => {
     const current = game();
@@ -43,6 +44,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
     catch { return 'Fuente sin identificar'; }
   };
   createEffect(on(() => game()?.id, () => {
+    if (game()) returnGameId = game()!.id;
     setPanel('sources');
     setFavoriteError('');
     setCoverFailed(false);
@@ -81,7 +83,13 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
       <Dialog.Portal>
         <Dialog.Overlay class="console-modal-backdrop game-case-overlay" />
         <div class="console-modal-center-container">
-          <Dialog.Content class="download-source-dialog game-case" onKeyDown={event => {
+          <Dialog.Content class="download-source-dialog game-case" onCloseAutoFocus={event => {
+            event.preventDefault();
+            const id = returnGameId;
+            requestAnimationFrame(() => {
+              if (id && !document.querySelector('[role="dialog"]')) document.getElementById(`shelf-card-${id}`)?.focus({ preventScroll: true });
+            });
+          }} onKeyDown={event => {
             event.stopPropagation();
             if (event.key === 'Escape') { event.preventDefault(); props.store.closeSources(); }
             else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
