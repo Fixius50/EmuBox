@@ -10,7 +10,7 @@ assert.equal(detector.getCapabilities().isVirtualMachine, true);
 assert.equal(detector.detectFromHardware({ ...hardware, gpuVendor: 'amd', vulkanSupported: true }).pipeline, 'accelerated');
 assert.equal(detector.detectFromHardware({ ...hardware, gpuVendor: 'mali', cpuArchitecture: 'aarch64', openglAccelerated: true }).pipeline, 'accelerated');
 assert.equal(detector.getCapabilities().selectedBackend, 'opengl');
-assert.equal(detector.detectFromHardware({ ...hardware, graphicsAccelerated: false, vulkanSupported: true }).pipeline, 'cpu-compatible');
+assert.equal(detector.detectFromHardware({ ...hardware, graphicsAccelerated: false, vulkanSupported: true }).pipeline, 'indeterminate');
 for (const gpuRenderer of ['llvmpipe', 'softpipe', 'swrast', 'SwiftShader', 'lavapipe']) {
   assert.equal(detector.detectFromHardware({ ...hardware, gpuRenderer, vulkanSupported: true }).isGpuAccelerated, false);
 }
@@ -21,7 +21,17 @@ for (const cpuArchitecture of ['x86_64', 'aarch64']) {
     assert.equal(capabilities.gpuKind, 'virtual');
   }
 }
-assert.equal(detector.detectFromHardware({ ...hardware, vulkanSupported: false, openglAccelerated: false }).pipeline, 'cpu-compatible');
+assert.equal(detector.detectFromHardware({ ...hardware, vulkanSupported: false, openglAccelerated: false }).pipeline, 'indeterminate');
 
-assert.equal(detector.detect().isGpuAccelerated, false);
+const evidence = { detectionState: 'indeterminate' as const, inventoryComplete: false, inventoryReason: 'inventory_unavailable', devices: [], probes: [],
+  selectedDeviceId: null, activeDeviceId: null, backend: 'auto' as const, operationalBackend: 'software' as const, fallbackReason: 'explicit_software_fallback' };
+const inconclusive = detector.detectFromHardware({ ...hardware, graphics: evidence });
+assert.equal(inconclusive.isGpuAccelerated, null);
+assert.equal(inconclusive.pipeline, 'indeterminate');
+assert.equal(inconclusive.selectedBackend, 'auto');
+assert.equal(inconclusive.operationalBackend, 'software');
+assert.equal(inconclusive.evidence?.activeDeviceId, null);
+assert.equal(detector.detectFromHardware({ ...hardware, graphics: { ...evidence, detectionState: 'software', backend: 'software' } }).pipeline, 'cpu-compatible');
+
+assert.equal(detector.detect().isGpuAccelerated, null);
 console.log('Graphics policy: native GPU and accelerated VM preferred, CPU fallback independent of architecture');

@@ -116,11 +116,70 @@ pub fn opengl_renderer(summary: &str) -> Option<String> {
         .cloned()
 }
 
-pub fn select_backend(vulkan: bool, opengl_accelerated: bool) -> &'static str {
-    match (opengl_accelerated, vulkan) {
-        (true, _) => "opengl",
-        (false, true) => "vulkan",
-        (false, false) => "software",
+pub fn detection_state(
+    opengl: crate::models::graphics::DetectionState,
+    vulkan: crate::models::graphics::DetectionState,
+) -> crate::models::graphics::DetectionState {
+    use crate::models::graphics::DetectionState;
+    match (opengl, vulkan) {
+        (DetectionState::Accelerated, _) | (_, DetectionState::Accelerated) => {
+            DetectionState::Accelerated
+        }
+        (DetectionState::Software, DetectionState::Software) => DetectionState::Software,
+        _ => DetectionState::Indeterminate,
+    }
+}
+
+pub fn operational_backend(
+    opengl: crate::models::graphics::DetectionState,
+    vulkan: crate::models::graphics::DetectionState,
+) -> &'static str {
+    use crate::models::graphics::DetectionState;
+    match (opengl, vulkan) {
+        (DetectionState::Accelerated, _) => "opengl",
+        (_, DetectionState::Accelerated) => "vulkan",
+        (DetectionState::Software, DetectionState::Software) => "software",
+        _ => "auto",
+    }
+}
+
+#[cfg(test)]
+mod detection_tests {
+    use super::*;
+    use crate::models::graphics::DetectionState::{Accelerated, Indeterminate, Software};
+
+    #[test]
+    fn probe_failure_is_not_software() {
+        assert_eq!(detection_state(Accelerated, Indeterminate), Accelerated);
+        assert_eq!(operational_backend(Accelerated, Indeterminate), "opengl");
+        assert_eq!(detection_state(Indeterminate, Indeterminate), Indeterminate);
+        assert_eq!(operational_backend(Indeterminate, Indeterminate), "auto");
+        assert_eq!(detection_state(Software, Indeterminate), Indeterminate);
+        assert_eq!(operational_backend(Software, Software), "software");
+        assert_eq!(operational_backend(Software, Accelerated), "vulkan");
+        assert_eq!(operational_backend(Accelerated, Accelerated), "opengl");
+        assert_eq!(effective_backend("auto", Indeterminate, "auto"), "auto");
+        assert_eq!(
+            effective_backend("auto", Indeterminate, "software"),
+            "software"
+        );
+        assert_eq!(
+            effective_backend("opengl", Accelerated, "software"),
+            "opengl"
+        );
+        assert_eq!(select_session("auto", "auto", true, true, false), "cage");
+    }
+}
+
+pub fn effective_backend(
+    detected: &str,
+    state: crate::models::graphics::DetectionState,
+    request: &str,
+) -> String {
+    if request == "software" && state != crate::models::graphics::DetectionState::Accelerated {
+        "software".into()
+    } else {
+        detected.into()
     }
 }
 
@@ -138,7 +197,7 @@ pub fn select_session(
     match (drm, preference, backend, cage, gamescope_ready) {
         (false, _, _, _, _) => "unavailable",
         (true, "gamescope", backend, _, true) if backend != "software" => "gamescope",
-        (true, _, "opengl" | "software", true, _) => "cage",
+        (true, _, "opengl" | "software" | "auto", true, _) => "cage",
         (true, _, backend, _, true) if backend != "software" => "gamescope",
         _ => "unavailable",
     }

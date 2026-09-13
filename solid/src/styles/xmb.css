@@ -703,6 +703,7 @@
     scroll-behavior: auto !important;
   }
 }
-html[data-render-pipeline="cpu-compatible"] .xmb-wave {
+html[data-render-pipeline="cpu-compatible"] .xmb-wave,
+html[data-render-pipeline="indeterminate"] .xmb-wave {
   animation: none;
 }

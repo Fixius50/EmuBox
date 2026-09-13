@@ -1,15 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/installer/lib/graphics.sh"
-[[ "$(emubox_gpu_vendor 'VGA compatible controller')" == unknown ]]
-[[ "$(emubox_gpu_vendor 'AMD Radeon')" == amd ]]
-[[ "$(emubox_gpu_vendor 'Intel i915')" == intel ]]
-[[ "$(emubox_gpu_vendor NVIDIA)" == nvidia ]]
-[[ "$(emubox_gpu_vendor 'Mali panfrost')" == mali ]]
-[[ "$(emubox_gpu_vendor 'ARM aarch64 CPU')" == unknown ]]
-[[ "$(emubox_gpu_vendor v3d)" == broadcom ]]
-[[ "$(emubox_gpu_vendor Adreno)" == qualcomm ]]
-[[ "$(emubox_gpu_vendor 'Apple AGX')" == apple ]]
 for backend in opengl vulkan software; do
   for drm in 0 1; do
     for gamescope in 0 1; do
@@ -22,23 +13,13 @@ for backend in opengl vulkan software; do
     done
   done
 done
-[[ "$(select_emubox_backend 0 1)" == opengl ]]
-[[ "$(select_emubox_backend 1 1)" == opengl ]]
-[[ "$(select_emubox_backend 1 0)" == vulkan ]]
-[[ "$(select_emubox_backend 0 0)" == software ]]
 [[ "$(select_emubox_compositor gamescope opengl 1 1 0)" == cage ]]
 [[ "$(select_emubox_compositor gamescope opengl 1 1 1)" == gamescope ]]
 [[ "$(select_emubox_compositor auto software 1 0 1)" == unavailable ]]
-[[ -z "$(printf '%s\n' $'GPU0:\n deviceType = PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU\n deviceName = SwiftShader' | emubox_vulkan_renderer)" ]]
-software=$'GPU0:\n deviceType = PHYSICAL_DEVICE_TYPE_CPU\n deviceName = llvmpipe'
-[[ -z "$(printf '%s\n' "$software" | emubox_vulkan_renderer)" ]]
-[[ "$(printf '%s\n' "$software" $'GPU1:\n deviceType = PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU\n deviceName = Mali' | emubox_vulkan_renderer)" == Mali ]]
 echo 'Graphics and compositor matrix: OK'
 svga='SVGA3D; build: RELEASE; LLVM;'
-[[ "$(printf '%s\n' 'OpenGL core profile renderer: llvmpipe (LLVM 22)' "OpenGL ES profile renderer: $svga" | emubox_opengl_renderer)" == "$svga" ]]
 ! emubox_software_renderer "$svga"
 emubox_software_renderer 'llvmpipe (LLVM 22)'
-[[ -z "$(printf '%s\n' 'eglinfo: eglInitialize failed' | emubox_opengl_renderer)" ]]
 echo 'OpenGL accelerated and software renderer matrix: OK'
 ( unset WLR_NO_HARDWARE_CURSORS; configure_emubox_cursor vmwgfx; [[ "$WLR_NO_HARDWARE_CURSORS" == 1 ]] )
 ( unset WLR_NO_HARDWARE_CURSORS; configure_emubox_cursor amdgpu; [[ ! -v WLR_NO_HARDWARE_CURSORS ]] )
@@ -54,10 +35,17 @@ echo 'vmwgfx legacy DRM and explicit preferences: OK'
 echo 'Explicit software diagnostic mode and unchanged automatic mode: OK'
 [[ "$(select_emubox_render_mode auto 1 0)" == auto ]]
 [[ "$(select_emubox_render_mode auto 0 1)" == auto ]]
-[[ "$(select_emubox_render_mode auto 0 0)" == software ]]
+[[ "$(select_emubox_render_mode auto 0 0)" == auto ]]
+[[ "$(select_emubox_render_mode auto 0 0 software)" == software ]]
+[[ "$(select_emubox_render_mode software 0 0 indeterminate)" == software ]]
+[[ "$(select_emubox_compositor auto auto 1 1 0)" == cage ]]
 [[ "$(select_emubox_render_mode software 1 1)" == auto ]]
 ( configure_emubox_render_mode software; configure_emubox_render_mode auto; [[ ! -v LIBGL_ALWAYS_SOFTWARE && ! -v WLR_RENDERER && ! -v WEBKIT_DISABLE_COMPOSITING_MODE ]] )
 ( export GALLIUM_DRIVER=llvmpipe MESA_LOADER_DRIVER_OVERRIDE=swrast; configure_emubox_render_mode auto; [[ ! -v GALLIUM_DRIVER && ! -v MESA_LOADER_DRIVER_OVERRIDE ]] )
 ( export GALLIUM_DRIVER=zink MESA_LOADER_DRIVER_OVERRIDE=iris; configure_emubox_render_mode auto; [[ "$GALLIUM_DRIVER" == zink && "$MESA_LOADER_DRIVER_OVERRIDE" == iris ]] )
 ! select_emubox_render_mode invalid 1 1
 echo 'GPU Vulkan/OpenGL (including VM 3D) first, CPU only without acceleration: OK'
+( export EMUBOX_BIN=/nonexistent/emubox EMUBOX_RENDER_MODE=auto; detect_emubox_graphics;
+  [[ "$GRAPHICS_DETECTION_STATE" == indeterminate && "$GRAPHICS_OPERATIONAL_BACKEND" == auto && "$GPU_ACTIVE_DEVICE" == unknown ]] )
+( export EMUBOX_BIN=/nonexistent/emubox EMUBOX_RENDER_MODE=software; detect_emubox_graphics;
+  [[ "$GRAPHICS_DETECTION_STATE" == indeterminate && "$GRAPHICS_OPERATIONAL_BACKEND" == software && "$GRAPHICS_FALLBACK_REASON" == explicit_software_fallback ]] )

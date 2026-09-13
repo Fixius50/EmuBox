@@ -9,6 +9,7 @@ pub mod binary_service;
 pub mod emulator_capabilities;
 pub mod graphics_service;
 pub mod graphics_policy;
+pub mod graphics_probe;
 pub mod system_service;
 pub mod config_service;
 pub mod game_service;

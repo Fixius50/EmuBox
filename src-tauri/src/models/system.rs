@@ -10,6 +10,8 @@ pub enum PowerAction {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HardwareInfo {
+    #[serde(default)]
+    pub graphics: crate::models::graphics::GraphicsCapabilities,
     pub gpu_vendor: String,
     pub gpu_renderer: String,
     pub vulkan_driver_version: Option<String>,

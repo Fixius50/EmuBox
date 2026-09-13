@@ -46,19 +46,25 @@ evitar un segundo arranque junto a getty. TTY2/TTY3 permiten recuperación local
 
 `installer/lib/architecture.sh` normaliza CPU y valida ELF. El runtime Rust usa
 `std::env::consts::ARCH` y comunica `uname -m` por separado como `kernelArchitecture`.
-`installer/lib/graphics.sh` sondea DRM/sysfs, dispositivos DRI, EGL/OpenGL y Vulkan, con PCI
-como apoyo opcional. Incluye drivers virtuales, AMD, Intel, NVIDIA, Broadcom,
+`installer/lib/graphics.sh` consume `bin/emubox --graphics-session`: el mismo
+servicio Rust que alimenta IPC sondea DRM/sysfs, EGL/OpenGL y Vulkan. Incluye drivers virtuales, AMD, Intel, NVIDIA, Broadcom,
 Mali, Adreno y Apple; los dispositivos desconocidos no se clasifican por CPU.
 
 OpenGL acelerado tiene preferencia para Cage/WebKitGTK; sin OpenGL acelerado se
-considera Vulkan acelerado y solo sin ambos se elige software. Cage es automatico
-con OpenGL/DRM o Pixman sin aceleracion. Gamescope exige Vulkan acelerado, DRM y
+considera Vulkan acelerado. Solo evidencia software suficiente permite diagnosticar
+software; fallos y cobertura incompleta conservan indeterminado. Cage es automatico
+con OpenGL/DRM o como intento sin renderer forzado ante incertidumbre. Un fallback
+software explicito queda registrado sin cambiar ese diagnostico. Gamescope exige Vulkan acelerado, DRM y
 ejecutable: se usa por preferencia compatible (`EMUBOX_COMPOSITOR_PREFERENCE=gamescope`)
 o como alternativa si Cage no soporta el backend disponible. Vulkan por si solo
 no fuerza Gamescope. Esto es una recomendación por capacidades, no una prueba de que una sesión KMS
 pueda iniciarse: permisos, drivers y pantalla deben verificarse en el equipo.
 Si falta Cage en la ruta alternativa, el lanzador falla con un mensaje explícito.
 No se exportan optimizaciones RADV globales.
+
+El inventario y las observaciones no se mezclan entre GPU. Correlacion no resuelta
+no bloquea OpenGL observado; el dispositivo utilizado no se afirma sin evidencia
+del proceso. `bin/emubox --graphics-info` muestra el contrato completo en JSON.
 
 La sesión utiliza el usuario `emubox`, su runtime XDG y D-Bus. Los permisos DRM,
 video/input/seat y los datos de la appliance se preparan durante la instalación.

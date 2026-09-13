@@ -121,8 +121,9 @@ un motor BitTorrent. Ver [detalle y limites](catalog-sources.md).
 
 ## Gráficos
 
-La seleccion automatica prioriza GPU real o 3D virtual. Sin Vulkan hardware ni
-OpenGL acelerado detectados, usa CPU como alternativa. Cage no implica CPU:
+La seleccion automatica prioriza GPU real o 3D virtual. Dos sondeos concluidos
+con renderers software permiten CPU; un sondeo fallido conserva `indeterminate`
+y se intenta inicializacion automatica, con fallback software solo explicito. Cage no implica CPU:
 puede componer con OpenGL acelerado. Un valor legado `software` en la configuracion
 no prevalece sobre aceleracion detectada; esto no certifica la estabilidad de SVGA3D.
 
@@ -140,6 +141,13 @@ su texto `LLVM` con `llvmpipe`. Vulkan no está disponible allí y se elige Cage
 CPU expuesta: Ryzen 5 5600G, cuatro vCPU; GPU expuesta: VMware SVGA II con vmwgfx.
 La Radeon integrada mencionada en el nombre de la CPU no es la GPU PCI del invitado.
 Ver [aceleración en VirtualBox](virtualbox-graphics.md).
+
+DRM y las evidencias EGL/Vulkan se correlacionan por identificadores, nunca por
+nombre. MultiGPU sin identidad verificable conserva observaciones sin asociar;
+monoGPU puede usar inferencia declarada. El dispositivo usado por el proceso no
+se afirma sin evidencia. Rust proporciona tanto IPC como el sondeo del lanzador.
+La especificacion de producto esta en [emubox-os-specification.md](emubox-os-specification.md),
+todavia pendiente de decisiones de hardware/instalacion/actualizacion.
 
 ## Menú operativo
 

@@ -10,7 +10,7 @@
 #      - Sondea aceleracion Vulkan y OpenGL, independiente de CPU y virtualizacion.
 #      - Detecta resolución nativa DRM de los conectores (/sys/class/drm/*/modes).
 #      - Selecciona backend acelerado y luego un compositor compatible.
-#      - Solo sin aceleracion utiliza software.
+#      - Sondeo inconcluso conserva auto; software confirmado o fallback explicito.
 # ==============================================================================
 
 set -euo pipefail
@@ -62,15 +62,18 @@ if [[ -z "$RENDER_MODE" && -f /etc/emubox/graphics-mode ]]; then
   RENDER_MODE=$(< /etc/emubox/graphics-mode)
 fi
 RENDER_MODE="${RENDER_MODE:-auto}"
+export EMUBOX_RENDER_MODE="$RENDER_MODE"
 configure_emubox_render_mode auto
 detect_emubox_graphics
 if [[ "$GPU_DRIVER" == vmwgfx ]]; then
   export WEBKIT_DISABLE_DMABUF_RENDERER="${WEBKIT_DISABLE_DMABUF_RENDERER:-1}"
 fi
 REQUESTED_RENDER_MODE="$RENDER_MODE"
-RENDER_MODE=$(select_emubox_render_mode "$RENDER_MODE" "$HAS_HW_VULKAN" "$HAS_HW_OPENGL")
+RENDER_MODE=$(select_emubox_render_mode "$RENDER_MODE" "$HAS_HW_VULKAN" "$HAS_HW_OPENGL" "$GRAPHICS_DETECTION_STATE")
 configure_emubox_render_mode "$RENDER_MODE"
 export EMUBOX_GRAPHICS_BACKEND="$GRAPHICS_BACKEND"
+export EMUBOX_OPERATIONAL_BACKEND="$GRAPHICS_OPERATIONAL_BACKEND"
+echo "[EmuBox] detection=$GRAPHICS_DETECTION_STATE probes=$GRAPHICS_PROBE_REASONS selectedDevice=$GPU_DEVICE activeDevice=$GPU_ACTIVE_DEVICE operationalBackend=$GRAPHICS_OPERATIONAL_BACKEND fallback=$GRAPHICS_FALLBACK_REASON"
 CPU_MODEL=$(awk -F ': ' '/model name|Hardware|Model/ {print $2; exit}' /proc/cpuinfo)
 echo "[EmuBox] cpu=${CPU_MODEL:-$(uname -m)} cores=$(getconf _NPROCESSORS_ONLN)"
 echo "[EmuBox] requestedRenderMode=$REQUESTED_RENDER_MODE renderMode=$RENDER_MODE WLR_RENDERER=${WLR_RENDERER:-auto} LIBGL_ALWAYS_SOFTWARE=${LIBGL_ALWAYS_SOFTWARE:-0}"
@@ -103,7 +106,7 @@ if [[ "$EMUBOX_COMPOSITOR" == gamescope ]]; then
 
 # 2. Cage: OpenGL acelerado disponible o CPU cuando no se detecta aceleracion
 elif [[ "$EMUBOX_COMPOSITOR" == cage ]]; then
-  if [[ "$GRAPHICS_BACKEND" == opengl ]]; then export WLR_RENDERER=gles2; fi
+  if [[ "$GRAPHICS_OPERATIONAL_BACKEND" == opengl ]]; then export WLR_RENDERER=gles2; fi
   configure_emubox_cursor "$GPU_DRIVER"
   echo "[EmuBox] WLR_NO_HARDWARE_CURSORS=${WLR_NO_HARDWARE_CURSORS:-0} WLR_DRM_NO_ATOMIC=${WLR_DRM_NO_ATOMIC:-0} driver=$GPU_DRIVER"
   echo "[EmuBox] Iniciando con Cage (backend=$GRAPHICS_BACKEND)..."

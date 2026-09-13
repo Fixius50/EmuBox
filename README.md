@@ -138,28 +138,31 @@ El CSS se organiza por componente, con medidas relativas, propiedades lógicas y
 EmuBox implementa una arquitectura gráfica desacoplada y adaptativa:
 
 ```text
-                   GPU fisica o virtual: sondeo de aceleracion, independiente de CPU
-                               |
-                         +-----------+-----------+
-                         |                       |
-                      Aceleracion                Sin aceleracion
-                      OpenGL / Vulkan            Software / CPU
-                         |                       |
-                      Compositor compatible     Cage / Pixman
-                         +-----------+-----------+
-                               |
-                         Tauri + WebKitGTK + SolidJS
+                   Sondeos GPU y evidencias por dispositivo
+                             |
+                  +-------------------+-------------------+
+                  |                   |                   |
+                Acelerado           Software           Indeterminado
+                OpenGL/Vulkan       confirmado         Auto, sin forzar CPU
+                  |                   |                   |
+                Compositor          Cage/Pixman        Cage automatico
+                compatible                            o fallback explicito
+                  +-------------------+-------------------+
+                             |
+                      Tauri + WebKitGTK + SolidJS
 ```
 
-* **Backend**: OpenGL acelerado tiene preferencia para la sesión Cage/WebKitGTK; Vulkan acelerado es otra ruta disponible. Solo si ninguna está detectada se utiliza software. La presencia de una biblioteca o ejecutable Vulkan no demuestra aceleración.
-* **Cage**: opción automática si están disponibles DRM, Cage y OpenGL acelerado; Pixman únicamente sin aceleración.
+* **Backend**: OpenGL acelerado tiene preferencia para la sesión Cage/WebKitGTK; Vulkan acelerado es otra ruta disponible. Errores de sondeo no equivalen a ausencia de GPU: mantienen `indeterminate` y backend `auto`. Software requiere evidencia suficiente o fallback explícito ante incertidumbre.
+* **Cage**: opción automática con DRM y OpenGL, o intento automático ante detección inconclusa; Pixman solo por software confirmado o fallback explícito.
 * **Gamescope**: sus requisitos propios incluyen Vulkan acelerado, ejecutable y salida compatible. Se elige mediante `EMUBOX_COMPOSITOR_PREFERENCE=gamescope` si es compatible, o como alternativa cuando Cage no soporta el backend disponible. Detectar Vulkan no fuerza Gamescope. Sin compositor compatible se informa del error, no se oculta pasando a CPU.
 * **GPU virtual**: SVGA3D/virgl con OpenGL y sin Vulkan permanece acelerada. CPU `aarch64` y GPU Mali/AMD/Intel/NVIDIA son datos independientes.
+* **MultiGPU**: inventario y observaciones se correlacionan por identidad DRM. Sin correspondencia se informa `unknown`; monoGPU permite inferencia declarada. `selectedDeviceId` no es evidencia de `activeDeviceId`.
 * **Sincronización Event-Driven (`emubox-drm-sync`)**: Escucha eventos nativos del kernel Linux (`SUBSYSTEM=drm`, `HOTPLUG=1`) mediante `udevadm` (0% CPU, sin polling). Al redimensionar la ventana o cambiar de monitor, adapta la superficie Wayland y la UI SolidJS en caliente sin resoluciones fijas ni reinicios.
 
 ## Documentación y Guías de Arquitectura
 
 - [Informe técnico extenso para el equipo de IA: arquitectura, operación y límites](docs/architecture/ai-team-brief.md).
+- [Propuesta de especificación de EmuBox OS y niveles de soporte](docs/architecture/emubox-os-specification.md).
 
 - [Requisitos](docs/specification/requirements.md), [diseño](docs/specification/design.md) y [matriz de primitivas](docs/specification/headless_primitives_matrix.md).
 - [Aceleración 3D en VirtualBox](docs/architecture/virtualbox-graphics.md).

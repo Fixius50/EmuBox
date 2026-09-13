@@ -1,135 +1,247 @@
 pub use super::graphics_policy::{
-    gamescope_supported, hardware_vulkan, is_software_renderer, opengl_renderer, select_backend,
-    select_session, vendor_from_text,
+    gamescope_supported, hardware_vulkan, is_software_renderer, opengl_renderer, select_session,
+    vendor_from_text,
 };
-use crate::models::graphics::GraphicsCapabilities;
+use crate::models::graphics::{
+    DetectionState, GraphicsCapabilities, GraphicsDevice, GraphicsProbe,
+};
 use std::{fs, path::Path, process::Command};
 
 pub fn detect() -> GraphicsCapabilities {
-    let mut result = GraphicsCapabilities {
-        vendor: "unknown".into(),
-        renderer: "Unknown GPU".into(),
-        device: fs::read_to_string("/sys/firmware/devicetree/base/model")
-            .or_else(|_| fs::read_to_string("/sys/class/dmi/id/product_name"))
-            .unwrap_or_else(|_| "unknown".into())
-            .trim_matches(['\0', '\n'])
-            .to_string(),
-        gamescope: super::binary_service::resolve_executable("gamescope").is_some(),
-        cage: super::binary_service::resolve_executable("cage").is_some(),
-        ..Default::default()
-    };
-    if let Ok(entries) = fs::read_dir("/sys/class/drm") {
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if !name.starts_with("card") || name.contains('-') {
-                continue;
-            }
-            result.drm |= Path::new("/dev/dri").join(&name).exists();
-            let device = entry.path().join("device");
-            let driver = fs::read_link(device.join("driver"))
-                .ok()
-                .and_then(|path| {
-                    path.file_name()
-                        .map(|name| name.to_string_lossy().to_string())
-                })
-                .unwrap_or_default();
-            let uevent = fs::read_to_string(device.join("uevent")).unwrap_or_default();
-            let vendor = vendor_from_text(&format!("{driver} {uevent}"));
-            if result.vendor == "unknown" {
-                result.vendor = vendor.into();
-                result.renderer = if driver.is_empty() {
-                    "Unknown DRM renderer".into()
-                } else {
-                    driver
-                };
-            }
-        }
-    }
-    if let Ok(output) = Command::new("timeout")
-        .args(["10s", "vulkaninfo", "--summary"])
-        .env("LC_ALL", "C")
-        .output()
-    {
-        if output.status.success() {
-            if let Some((renderer, version)) =
-                hardware_vulkan(&String::from_utf8_lossy(&output.stdout))
-            {
-                let vendor = vendor_from_text(&renderer);
-                if vendor != "unknown" {
-                    result.vendor = vendor.into();
-                }
-                result.renderer = renderer;
-                result.driver_version = version;
-                result.vulkan = true;
-            }
-        }
-    }
-    if let Ok(output) = Command::new("timeout")
-        .args(["10s", "eglinfo", "-B"])
-        .env("LC_ALL", "C")
-        .output()
-    {
-        if let Some(renderer) = opengl_renderer(&String::from_utf8_lossy(&output.stdout)) {
-            result.opengl = true;
-            result.opengl_renderer = Some(renderer.clone());
-            if !is_software_renderer(&renderer) || !result.vulkan {
-                result.renderer = renderer;
-            }
-        }
-    }
-    if result.vendor == "unknown" {
-        if let Ok(output) = Command::new("lspci").arg("-mm").output() {
-            for line in String::from_utf8_lossy(&output.stdout).lines() {
-                if [
-                    "VGA compatible controller",
-                    "3D controller",
-                    "Display controller",
-                ]
+    let inventory = super::graphics_probe::inventory();
+    let inventory_complete = inventory.is_ok();
+    let inventory_reason = inventory.as_ref().err().map(|error| match error.kind() {
+        std::io::ErrorKind::PermissionDenied => "permission_denied".into(),
+        _ => "inventory_unavailable".into(),
+    });
+    let mut result = summarize(
+        inventory.unwrap_or_default(),
+        inventory_complete,
+        super::graphics_probe::run("opengl", "eglinfo", &["-B"]),
+        super::graphics_probe::run("vulkan", "vulkaninfo", &[]),
+    );
+    result.inventory_reason = inventory_reason;
+    result.device = fs::read_to_string("/sys/firmware/devicetree/base/model")
+        .or_else(|_| fs::read_to_string("/sys/class/dmi/id/product_name"))
+        .unwrap_or_else(|_| "unknown".into())
+        .trim_matches(['\0', '\n'])
+        .into();
+    result.gamescope = super::binary_service::resolve_executable("gamescope").is_some();
+    result.cage = super::binary_service::resolve_executable("cage").is_some();
+    result.drm = result
+        .devices
+        .iter()
+        .filter(|device| {
+            result
+                .selected_device_id
+                .as_ref()
+                .is_none_or(|id| &device.id == id)
+        })
+        .any(|device| {
+            device
+                .card_nodes
                 .iter()
-                .any(|class| line.contains(class))
-                {
-                    result.vendor = vendor_from_text(line).into();
-                    if !result.vulkan && !result.opengl {
-                        result.renderer = line.to_string();
-                    }
-                    break;
-                }
-            }
-        }
-    }
-    let opengl_accelerated = result
-        .opengl_renderer
-        .as_deref()
-        .is_some_and(|renderer| !is_software_renderer(renderer));
-    result.backend = select_backend(result.vulkan, opengl_accelerated).into();
-    result.accelerated = result.backend != "software";
-    let renderer_vendor = vendor_from_text(&result.renderer);
-    if renderer_vendor != "unknown" {
-        result.vendor = renderer_vendor.into();
-    }
-    result.gpu_kind = if !result.accelerated {
-        "software"
-    } else if renderer_vendor == "virtual" || result.vendor == "virtual" {
-        "virtual"
-    } else {
-        "physical"
-    }
-    .into();
+                .any(|node| Path::new(node).exists())
+        });
     result.virtual_machine = Command::new("systemd-detect-virt")
         .args(["--vm", "--quiet"])
         .status()
         .map(|status| status.success())
         .unwrap_or(false);
-    result.gamescope_ready = gamescope_supported(result.vulkan, result.gamescope, result.drm);
+    result.gamescope_ready = gamescope_for_selection(&result, result.drm);
+    result.operational_backend = super::graphics_policy::effective_backend(
+        &result.backend,
+        result.detection_state,
+        &std::env::var("EMUBOX_RENDER_MODE").unwrap_or_default(),
+    );
+    if result.operational_backend == "software"
+        && result.detection_state == DetectionState::Indeterminate
+    {
+        result.fallback_reason = Some("explicit_software_fallback".into());
+    }
     result.compositor = select_session(
         &std::env::var("EMUBOX_COMPOSITOR_PREFERENCE").unwrap_or_else(|_| "auto".into()),
-        &result.backend,
+        &result.operational_backend,
         result.drm,
         result.cage,
         result.gamescope_ready,
     )
     .into();
     result
+}
+
+pub fn gamescope_for_selection(graphics: &GraphicsCapabilities, display_available: bool) -> bool {
+    let selected_vulkan = graphics
+        .probes
+        .iter()
+        .find(|probe| probe.api == "vulkan")
+        .is_some_and(|probe| {
+            probe.observations.iter().any(|observation| {
+                observation.state == DetectionState::Accelerated
+                    && observation.device_id.is_some()
+                    && observation.device_id == graphics.selected_device_id
+            })
+        });
+    gamescope_supported(selected_vulkan, graphics.gamescope, display_available)
+}
+
+pub fn summarize(
+    devices: Vec<GraphicsDevice>,
+    inventory_complete: bool,
+    mut opengl: GraphicsProbe,
+    mut vulkan: GraphicsProbe,
+) -> GraphicsCapabilities {
+    super::graphics_probe::correlate(&mut opengl.observations, &devices, inventory_complete);
+    super::graphics_probe::correlate(&mut vulkan.observations, &devices, inventory_complete);
+    let mut state = super::graphics_policy::detection_state(opengl.state, vulkan.state);
+    let mut backend =
+        super::graphics_policy::operational_backend(opengl.state, vulkan.state).to_string();
+    if state == DetectionState::Software && (!inventory_complete || devices.len() > 1) {
+        state = DetectionState::Indeterminate;
+        backend = "auto".into();
+    }
+    let preferred = if backend == "vulkan" {
+        &vulkan
+    } else {
+        &opengl
+    };
+    let observations: Vec<_> = preferred
+        .observations
+        .iter()
+        .filter(|observation| observation.state == DetectionState::Accelerated)
+        .collect();
+    let candidate = observations
+        .first()
+        .and_then(|observation| observation.device_id.clone());
+    let selected = candidate.filter(|id| {
+        observations
+            .iter()
+            .all(|observation| observation.device_id.as_ref() == Some(id))
+    });
+    let renderer = observations
+        .first()
+        .map(|observation| observation.renderer.clone())
+        .or_else(|| {
+            preferred
+                .observations
+                .first()
+                .map(|observation| observation.renderer.clone())
+        })
+        .unwrap_or_else(|| "Unknown GPU".into());
+    let vendor = selected
+        .as_ref()
+        .and_then(|id| devices.iter().find(|device| &device.id == id))
+        .map(|device| device.vendor.clone())
+        .unwrap_or_else(|| vendor_from_text(&renderer).into());
+    let kind = match state {
+        DetectionState::Software => "software",
+        DetectionState::Indeterminate => "unknown",
+        DetectionState::Accelerated if vendor == "virtual" => "virtual",
+        DetectionState::Accelerated if selected.is_some() && vendor != "unknown" => "physical",
+        _ => "unknown",
+    };
+    GraphicsCapabilities {
+        detection_state: state,
+        inventory_complete,
+        selected_device_id: selected,
+        active_device_id: None,
+        accelerated: state == DetectionState::Accelerated,
+        vendor,
+        renderer,
+        gpu_kind: kind.into(),
+        opengl: opengl.state != DetectionState::Indeterminate,
+        opengl_renderer: opengl
+            .observations
+            .iter()
+            .find(|observation| observation.state == DetectionState::Accelerated)
+            .or_else(|| opengl.observations.first())
+            .map(|observation| observation.renderer.clone()),
+        vulkan: vulkan.state == DetectionState::Accelerated,
+        operational_backend: backend.clone(),
+        backend,
+        devices,
+        probes: vec![opengl, vulkan],
+        ..Default::default()
+    }
+}
+
+pub fn session_environment() -> String {
+    let graphics = detect();
+    let selected = graphics
+        .selected_device_id
+        .as_ref()
+        .and_then(|id| graphics.devices.iter().find(|device| &device.id == id));
+    let status = |value: bool| if value { "1" } else { "0" }.to_string();
+    let state = match graphics.detection_state {
+        DetectionState::Accelerated => "accelerated",
+        DetectionState::Software => "software",
+        DetectionState::Indeterminate => "indeterminate",
+    };
+    let reason = format!(
+        "inventory:{};{}",
+        graphics.inventory_reason.as_deref().unwrap_or("complete"),
+        graphics
+            .probes
+            .iter()
+            .map(|probe| format!("{}:{}", probe.api, probe.reason))
+            .collect::<Vec<_>>()
+            .join(";")
+    );
+    let opengl_accelerated = graphics
+        .probes
+        .iter()
+        .any(|probe| probe.api == "opengl" && probe.state == DetectionState::Accelerated);
+    [
+        ("GRAPHICS_DETECTION_STATE", state.into()),
+        ("GRAPHICS_PROBE_REASONS", reason),
+        ("GRAPHICS_BACKEND", graphics.backend.clone()),
+        (
+            "GRAPHICS_OPERATIONAL_BACKEND",
+            graphics.operational_backend.clone(),
+        ),
+        (
+            "GRAPHICS_FALLBACK_REASON",
+            graphics.fallback_reason.clone().unwrap_or_default(),
+        ),
+        ("GPU_VENDOR", graphics.vendor.clone()),
+        (
+            "GPU_DRIVER",
+            selected
+                .map(|device| device.driver.clone())
+                .unwrap_or_else(|| "unknown".into()),
+        ),
+        (
+            "GPU_DEVICE",
+            graphics
+                .selected_device_id
+                .clone()
+                .unwrap_or_else(|| "unknown".into()),
+        ),
+        ("GPU_ACTIVE_DEVICE", "unknown".into()),
+        ("GPU_KIND", graphics.gpu_kind.clone()),
+        ("RENDERER_DESC", graphics.renderer.clone()),
+        ("DEVICE_MODEL", graphics.device.clone()),
+        ("HAS_HW_VULKAN", status(graphics.vulkan)),
+        ("HAS_OPENGL", status(graphics.opengl)),
+        ("HAS_HW_OPENGL", status(opengl_accelerated)),
+        (
+            "OPENGL_RENDERER",
+            graphics
+                .opengl_renderer
+                .clone()
+                .unwrap_or_else(|| "unknown".into()),
+        ),
+        ("HAS_ACCELERATION", status(graphics.accelerated)),
+        ("HAS_DRM", status(graphics.drm)),
+        ("HAS_CAGE", status(graphics.cage)),
+        ("HAS_GAMESCOPE", status(graphics.gamescope)),
+        ("GAMESCOPE_READY", status(graphics.gamescope_ready)),
+        ("IS_VIRTUAL_MACHINE", status(graphics.virtual_machine)),
+        ("EMUBOX_COMPOSITOR", graphics.compositor.clone()),
+    ]
+    .into_iter()
+    .map(|(key, value)| format!("{key}={}\n", value.replace(['\n', '\r'], " ")))
+    .collect()
 }
 
 #[cfg(test)]
@@ -180,7 +292,21 @@ mod tests {
             (true, false, "vulkan"),
             (false, false, "software"),
         ] {
-            assert_eq!(select_backend(vulkan, opengl), backend);
+            assert_eq!(
+                super::super::graphics_policy::operational_backend(
+                    if opengl {
+                        DetectionState::Accelerated
+                    } else {
+                        DetectionState::Software
+                    },
+                    if vulkan {
+                        DetectionState::Accelerated
+                    } else {
+                        DetectionState::Software
+                    }
+                ),
+                backend
+            );
             assert_eq!(
                 select_session("auto", backend, true, true, vulkan),
                 if backend == "vulkan" {
@@ -222,6 +348,73 @@ mod tests {
     }
 
     #[test]
+    fn different_gpus_never_merge_compositor_capabilities() {
+        let devices = ["128", "129"]
+            .map(|number| GraphicsDevice {
+                id: format!("gpu-{number}"),
+                card_nodes: vec![],
+                render_nodes: vec![format!("/dev/dri/renderD{number}")],
+                render_identifiers: vec![format!("drm:226:{number}")],
+                pci_address: None,
+                driver: String::new(),
+                vendor: "unknown".into(),
+            })
+            .to_vec();
+        let opengl = super::super::graphics_probe::classify(
+            "opengl",
+            Some(0),
+            "EGL DRM render node: /dev/dri/renderD128\nOpenGL renderer string: GPU OpenGL",
+            "",
+        );
+        let vulkan = super::super::graphics_probe::classify("vulkan", Some(0), "GPU0:\n deviceType = PHYSICAL_DEVICE_TYPE_DISCRETE_GPU\n deviceName = GPU Vulkan\n drmHasRender = true\n renderMajor = 226\n renderMinor = 129", "");
+        let mut graphics = summarize(devices.clone(), true, opengl, vulkan);
+        graphics.gamescope = true;
+        assert_eq!(graphics.backend, "opengl");
+        assert_eq!(graphics.selected_device_id.as_deref(), Some("gpu-128"));
+        assert!(graphics.vulkan);
+        assert!(!gamescope_for_selection(&graphics, true));
+        assert_eq!(graphics.active_device_id, None);
+        let uncorrelated = super::super::graphics_probe::classify(
+            "opengl",
+            Some(0),
+            "OpenGL renderer string: GPU",
+            "",
+        );
+        let unavailable =
+            super::super::graphics_probe::classify("vulkan", Some(1), "", "initialization failed");
+        let unknown_device = summarize(devices, true, uncorrelated, unavailable);
+        assert!(unknown_device.accelerated);
+        assert_eq!(unknown_device.backend, "opengl");
+        assert_eq!(unknown_device.selected_device_id, None);
+        assert_eq!(
+            select_session("auto", &unknown_device.backend, true, true, false),
+            "cage"
+        );
+    }
+
+    #[test]
+    fn software_probe_is_not_complete_hardware_coverage() {
+        let opengl = super::super::graphics_probe::classify(
+            "opengl",
+            Some(0),
+            "OpenGL renderer string: llvmpipe",
+            "",
+        );
+        let vulkan = super::super::graphics_probe::classify(
+            "vulkan",
+            Some(0),
+            "GPU0:\n deviceType = PHYSICAL_DEVICE_TYPE_CPU\n deviceName = llvmpipe",
+            "",
+        );
+        let inconclusive = summarize(vec![], false, opengl.clone(), vulkan.clone());
+        assert_eq!(inconclusive.detection_state, DetectionState::Indeterminate);
+        assert_eq!(inconclusive.backend, "auto");
+        let software = summarize(vec![], true, opengl, vulkan);
+        assert_eq!(software.detection_state, DetectionState::Software);
+        assert_eq!(software.backend, "software");
+    }
+
+    #[test]
     #[ignore = "Read-only host probe; requires graphics tools and device access"]
     fn host_graphics_probe() {
         let graphics = detect();
@@ -235,15 +428,15 @@ mod tests {
             graphics.vulkan,
             graphics.compositor
         );
-        assert_eq!(graphics.accelerated, graphics.backend != "software");
+        assert_eq!(
+            graphics.accelerated,
+            graphics.detection_state == DetectionState::Accelerated
+        );
         assert_eq!(
             graphics.backend,
-            select_backend(
-                graphics.vulkan,
-                graphics
-                    .opengl_renderer
-                    .as_deref()
-                    .is_some_and(|renderer| !is_software_renderer(renderer))
+            super::super::graphics_policy::operational_backend(
+                graphics.probes[0].state,
+                graphics.probes[1].state
             )
         );
     }

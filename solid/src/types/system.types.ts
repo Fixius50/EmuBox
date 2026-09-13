@@ -1,6 +1,7 @@
-import type { GraphicsBackend, GpuKind } from './graphics.types';
+import type { GraphicsBackend, GpuKind, NativeGraphicsEvidence } from './graphics.types';
 
 export interface HardwareInfo {
+  graphics?: NativeGraphicsEvidence;
   gpuVendor: 'amd' | 'nvidia' | 'intel' | 'generic' | 'unknown' | 'virtual' | 'mali' | 'broadcom' | 'qualcomm' | 'apple';
   gpuRenderer: string;
   vulkanDriverVersion?: string;

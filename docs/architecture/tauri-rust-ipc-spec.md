@@ -14,6 +14,10 @@ Vulkan, DRM, Gamescope availability, recommended compositor and device model.
 EGL/OpenGL availability, including accelerated virtual GPUs without Vulkan.
 `graphicsAccelerated`, `graphicsBackend`, `gpuKind`, `isVirtualMachine` and
 `gamescopeReady` distinguish acceleration, selected API and compositor requirements.
+`hardware.graphics` carries the full evidence: `detectionState`, inventory,
+per-API observations and correlation, nullable selected/active device IDs,
+recommended `backend` and effective `operationalBackend`. Indeterminate probes
+use `auto`; an explicit software fallback never rewrites the detection state.
 Automatic selection prefers accelerated OpenGL with Cage; Gamescope is chosen only
 when its own requirements and preference/alternative route permit it. Vulkan is not
 an EmuBox requirement. `recommendedCompositor` may be `unavailable`.

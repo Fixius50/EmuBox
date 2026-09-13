@@ -83,8 +83,8 @@ Telemetry representing hardware capabilities, display composition, and Linux ker
      report EGL/OpenGL capabilities separately from Vulkan. These describe detected
      availability, not a guarantee that every application uses that renderer.
 * `gamescopeAvailable` describes executable availability, not an active session.
-* `graphicsAccelerated`, `graphicsBackend` (`opengl`, `vulkan`, `software`),
-     `gpuKind` (`physical`, `virtual`, `software`) and `isVirtualMachine` separate
+* `graphicsAccelerated`, `graphicsBackend` (`opengl`, `vulkan`, `software`, `auto`),
+     `gpuKind` (`physical`, `virtual`, `software`, `unknown`) and `isVirtualMachine` separate
      rendering capability from CPU architecture and compositor selection.
 * `gamescopeReady` reports its own Vulkan/DRM/executable prerequisites, not GPU
      availability. `recommendedCompositor` can be `cage`, `gamescope` or `unavailable`.
@@ -92,6 +92,24 @@ Telemetry representing hardware capabilities, display composition, and Linux ker
      preference or an unavailable Cage route. These are probe results, not runtime certification.
 * GPU vendor `mali` denotes the GPU family; CPU `aarch64` does not imply a GPU vendor.
 * `display.activeCompositor` and `display.gamescopeActive` describe display state.
+
+`hardware.graphics` is the authoritative evidence snapshot. `detectionState` is
+`accelerated`, `software` or `indeterminate`; a legacy boolean false only means
+acceleration was not confirmed. `devices` groups DRM card/render nodes by sysfs
+identity, including PCI address and render major/minor identifiers. `probes`
+contains API, state, reason, exit code and observations with nullable `deviceId`.
+Correlation is `device_identifier`, `single_device_inference` or `unknown`.
+Renderer names are not cross-device identifiers. An unresolved explicit identifier
+never falls back to single-device inference.
+
+`selectedDeviceId` is nullable when selection cannot be correlated uniquely;
+`activeDeviceId` is null until actual process evidence exists. `backend` is the
+recommended API; `operationalBackend` records explicit software fallback without
+changing the detection state. `fallbackReason` records that choice. `inventoryComplete`
+and `inventoryReason` distinguish failed inventory from an empty inventory.
+Indeterminate detection uses automatic compositor initialization, not forced CPU.
+The launcher consumes this same service through `--graphics-session`, with
+`--graphics-info` for structured read-only diagnostics.
 
 Installer support is limited to Arch Linux x86_64 and Arch Linux ARM aarch64.
 ARM32 is unsupported. CPU support does not imply GPU or emulator availability.

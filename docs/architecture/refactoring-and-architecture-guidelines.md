@@ -91,7 +91,7 @@ solid/src/
 - `commands/` es el adaptador IPC: recibe argumentos tipados, delega y devuelve `Result`. No posee consultas SQL, parsers de hardware, configuración de emuladores ni políticas de selección.
 - `models/` contiene DTO, modelos compartidos, formatos de manifiesto y enums de dominio. La serialización `camelCase` se coordina con `solid/src/types/`; cualquier campo desconocido se representa con `Option`, no con telemetría inventada.
 - `services/` contiene servicios por responsabilidad. Una fachada puede orquestar varios servicios, pero no debe duplicar su política ni su persistencia.
-- La política gráfica pura reside en `graphics_policy`; el sondeo del host, en `graphics_service`; el DTO, en `models/graphics`. CPU, GPU, API y compositor son dimensiones distintas.
+- La política gráfica pura reside en `graphics_policy`; inventario y sondeo, en `graphics_probe`; orquestación, en `graphics_service`; el DTO, en `models/graphics`. El lanzador consume la CLI nativa, sin mantener otro inventario Shell. CPU, GPU, API y compositor son dimensiones distintas. No correlacionar GPU por nombre ni convertir incertidumbre en software confirmado.
 - `config_service` posee lectura, validación y escritura de configuración. Solo `NotFound` permite valores de fábrica; un error de permisos o de formato debe propagarse. Escritura temporal y renombrado evitan publicar JSON truncado.
 - `input_service`, `display_service`, `audio_service`, `storage_service`, `bios_service`, `log_service` y `power_service` son responsables de sus propios datos y efectos.
 - `host_command` centraliza comandos de sondeo con argumentos separados, locale estable y timeout. No construir comandos de shell para operaciones que puedan expresarse con argumentos tipados.

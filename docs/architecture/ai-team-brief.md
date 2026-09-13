@@ -67,9 +67,17 @@ Las pruebas Rust utilizan una base temporal por proceso. Esta separacion es crit
 
 ## 5. Politica grafica y limites
 
-La politica es GPU/3D utilizable, luego API compatible, luego compositor. Software solo cuando no se detecta aceleracion utilizable. Ni la arquitectura CPU ni estar dentro de una VM determinan por si solas si hay GPU.
+La politica es GPU/3D utilizable, luego API compatible, luego compositor. La deteccion distingue `accelerated`, `software` e `indeterminate`. Un fallo, permiso insuficiente o herramienta ausente no demuestra ausencia de GPU. Ni la arquitectura CPU ni estar dentro de una VM determinan por si solas si hay GPU.
 
 Las APIs actualmente son OpenGL/EGL y Vulkan en el sondeo nativo. Se prefiere OpenGL acelerado para la ruta Cage/WebKitGTK; Vulkan es otra posibilidad acelerada. No hay una promesa de soporte para cualquier API futura simplemente porque el contrato permita ampliarlo.
+
+Si ambos sondeos concluyen mostrando solo software y el inventario es completo sin ambiguedad multigpu se puede elegir CPU. Un inventario fallido o varias GPU sin cobertura individual conservan incertidumbre. Si ninguno confirma aceleracion y alguno no concluye, el backend recomendado es `auto`, el diagnostico sigue indeterminado y se intenta Cage sin forzar renderer software. Si esa sesion falla, se conserva el error: no se relanza silenciosamente por CPU. `EMUBOX_RENDER_MODE=software` (o el archivo de modo de la appliance) permite fallback explicito ante incertidumbre, registrado aparte; nunca invalida aceleracion confirmada.
+
+El inventario agrupa nodos DRM por ruta canonica de dispositivo, con PCI, driver y numeros de render node. Vulkan puede aportar `VK_EXT_physical_device_drm`; EGL puede aportar nodos DRM segun su salida/version. La correlacion utiliza esos identificadores, no nombres de GPU. Cuando faltan, varias GPU quedan sin asociacion; una sola GPU con inventario completo y evidencia no ambigua permite `single_device_inference`. Esa inferencia no es prueba de uso por el proceso.
+
+`devices` y `probes.observations` conservan inventario y capacidades por separado. `selectedDeviceId` solo existe cuando las observaciones de la API preferida permiten una seleccion no ambigua; `activeDeviceId` permanece ausente sin evidencia real del proceso. No se combinan OpenGL de una GPU y Vulkan de otra para habilitar Gamescope. Falta de correlacion no impide usar OpenGL ya observado mediante Cage. No se fuerza una GPU mediante variables de offload ni se promete seleccionar la mas rapida.
+
+El lanzador consulta el mismo servicio Rust mediante `--graphics-session`; `--graphics-info` ofrece el JSON completo sin abrir la UI ni consultar el catalogo. Si el detector nativo no puede ejecutarse, el arranque conserva el estado indeterminado y registra el motivo. Los campos resumidos de HardwareInfo son compatibilidad; `hardware.graphics` contiene la evidencia y el estado autoritativos.
 
 La seleccion de compositor se hace aparte. Cage es automatico cuando puede utilizar el backend y DRM disponibles. Gamescope tiene requisitos propios, incluidos Vulkan acelerado y una salida compatible; detectar Vulkan no obliga a elegirlo. Puede solicitarse por preferencia compatible o servir como alternativa si Cage no soporta la ruta. Sin compositor compatible se informa del problema: no se oculta una GPU detectada pasando silenciosamente a CPU.
 
@@ -148,6 +156,8 @@ Quedan pendientes la aceptacion en hardware ARM real, arranque en frio sin SSH, 
 BitTorrent, conectores de alojamiento, OTA nativa completa, aplicacion de todos los ajustes al sistema y una distribucion reproducible son trabajos separados. No deben mezclarse con una refactorizacion mecanica ni declararse terminados por tener un tipo o un boton.
 
 ## 11. Reglas de colaboracion
+
+La definicion de producto se mantiene aparte en [emubox-os-specification.md](emubox-os-specification.md), con estados de soporte y decisiones aun pendientes. No hay aprobacion de ISO, particiones ni bootloader.
 
 No ejecutar comandos de Git ni pruebas de navegador en el flujo actual. No reiniciar TTY1 automaticamente ni ejecutar acciones de energia como pruebas. No revertir cambios del usuario. No tocar ROMs, BIOS, partidas, configuracion de produccion o catalogo real para generar datos de prueba.
 

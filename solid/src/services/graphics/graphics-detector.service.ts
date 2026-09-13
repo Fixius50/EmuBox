@@ -1,4 +1,4 @@
-import type { GraphicsCapabilities, GraphicsDetectorOptions, RenderPipelineMode } from '@contracts/graphics.types';
+import type { GraphicsCapabilities, GraphicsDetectorOptions, RenderPipelineMode, DetectionState } from '@contracts/graphics.types';
 import type { HardwareInfo } from '@contracts/system.types';
 
 const SOFTWARE_RENDERER_PATTERNS = [
@@ -18,13 +18,20 @@ export class GraphicsDetectorService {
 
   public detectFromHardware(hardware: HardwareInfo, customDocument?: Document): GraphicsCapabilities {
     const software = SOFTWARE_RENDERER_PATTERNS.some(pattern => hardware.gpuRenderer.toLowerCase().includes(pattern));
-    const accelerated = !software && (hardware.graphicsAccelerated ?? (hardware.vulkanSupported === true || hardware.openglAccelerated === true));
+    const evidence = hardware.graphics;
+    const legacyAccelerated = !software && (hardware.graphicsAccelerated ?? (hardware.vulkanSupported === true || hardware.openglAccelerated === true));
+    const state: DetectionState = evidence?.detectionState ?? (legacyAccelerated ? 'accelerated' : software ? 'software' : 'indeterminate');
+    const accelerated = state === 'accelerated';
+    const backend = evidence?.backend ?? (accelerated ? hardware.graphicsBackend ?? (hardware.openglAccelerated ? 'opengl' : 'vulkan') : state === 'software' ? 'software' : 'auto');
     const virtualGpu = /vmware|virtualbox|svga3d|virgl|virtio|venus/.test(`${hardware.gpuRenderer} ${hardware.gpuVendor}`.toLowerCase()) || hardware.gpuVendor === 'virtual';
     this.capabilities = {
-      pipeline: accelerated ? 'accelerated' : 'cpu-compatible',
-      isGpuAccelerated: accelerated,
-      selectedBackend: accelerated ? hardware.graphicsBackend ?? (hardware.openglAccelerated ? 'opengl' : 'vulkan') : 'software',
-      gpuKind: accelerated ? hardware.gpuKind ?? (virtualGpu ? 'virtual' : 'physical') : 'software',
+      pipeline: state === 'software' ? 'cpu-compatible' : state,
+      isGpuAccelerated: state === 'indeterminate' ? null : accelerated,
+      detectionState: state,
+      evidence,
+      selectedBackend: backend,
+      operationalBackend: evidence?.operationalBackend ?? backend,
+      gpuKind: accelerated ? hardware.gpuKind ?? (virtualGpu ? 'virtual' : 'unknown') : state === 'software' ? 'software' : 'unknown',
       renderer: hardware.gpuRenderer,
       vendor: hardware.gpuVendor,
       isVirtualMachine: hardware.isVirtualMachine ?? virtualGpu,
@@ -76,13 +83,16 @@ export class GraphicsDetectorService {
       isAccelerated = false;
     }
 
-    const pipeline: RenderPipelineMode = isAccelerated ? 'accelerated' : 'cpu-compatible';
+    const state: DetectionState = isAccelerated ? 'accelerated' : isKnownSoftware ? 'software' : 'indeterminate';
+    const pipeline: RenderPipelineMode = state === 'software' ? 'cpu-compatible' : state;
 
     this.capabilities = {
       pipeline,
-      isGpuAccelerated: isAccelerated,
-      selectedBackend: isAccelerated ? 'webgl' : 'software',
-      gpuKind: isAccelerated ? (isVm ? 'virtual' : 'unknown') : 'software',
+      isGpuAccelerated: state === 'indeterminate' ? null : isAccelerated,
+      detectionState: state,
+      operationalBackend: isAccelerated ? 'webgl' : isKnownSoftware ? 'software' : 'auto',
+      selectedBackend: isAccelerated ? 'webgl' : isKnownSoftware ? 'software' : 'auto',
+      gpuKind: isAccelerated ? (isVm ? 'virtual' : 'unknown') : isKnownSoftware ? 'software' : 'unknown',
       renderer,
       vendor,
       isVirtualMachine: isVm,
@@ -106,6 +116,8 @@ export class GraphicsDetectorService {
 
     doc.documentElement.setAttribute('data-render-pipeline', this.capabilities.pipeline);
     doc.documentElement.setAttribute('data-render-backend', this.capabilities.selectedBackend);
+    doc.documentElement.setAttribute('data-graphics-detection', this.capabilities.detectionState);
+    doc.documentElement.setAttribute('data-operational-backend', this.capabilities.operationalBackend);
     doc.documentElement.setAttribute('data-blur-mode', this.capabilities.recommendedBlur ? 'hardware' : 'software');
   }
 }

@@ -119,7 +119,7 @@ impl ProcessService {
         // 6. Determinar si usar Gamescope para composición nativa
         let use_gamescope = request.use_gamescope.unwrap_or(false);
         let graphics = super::graphics_service::detect();
-        let has_gamescope = super::graphics_service::gamescope_supported(graphics.vulkan, graphics.gamescope,
+        let has_gamescope = super::graphics_service::gamescope_for_selection(&graphics,
             graphics.drm || std::env::var_os("WAYLAND_DISPLAY").is_some() || std::env::var_os("DISPLAY").is_some());
 
         let child = if use_gamescope && has_gamescope {

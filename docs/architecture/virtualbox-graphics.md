@@ -9,12 +9,14 @@ disponible, incluida aceleracion 3D virtual como SVGA3D/virgl; no se considera
 software simplemente por ejecutarse en una VM. Primero elige OpenGL acelerado
 para Cage/WebKitGTK, o Vulkan acelerado si falta esa ruta. Cage es automatico
 con OpenGL/DRM; Gamescope solo por preferencia compatible o cuando Cage no
-soporta el backend disponible. Si no se detecta aceleracion Vulkan
-ni OpenGL, el lanzador recurre a CPU con Cage/Pixman y Mesa/WebKit software.
+soporta el backend disponible. Si ambos sondeos concluyen mostrando solo software,
+el lanzador puede usar CPU. Sondeos incompletos mantienen diagnostico indeterminado
+y se intenta Cage automatico, sin forzar Pixman ni Mesa software.
 
 El nombre de la CPU y sus nucleos se registran independientemente. Vulkan y
 OpenGL son APIs, no modelos de GPU. Si faltan herramientas/drivers de sondeo,
-no se puede certificar aceleracion y puede seleccionarse el fallback conservador.
+no se puede certificar aceleracion ni ausencia de ella. El fallback software ante
+incertidumbre requiere una eleccion explicita y se registra separado del diagnostico.
 Un valor legado `software` ya no desactiva aceleracion utilizable detectada.
 La UI nativa recibe las capacidades Rust; la deteccion WebGL se usa en navegador.
 
@@ -97,8 +99,9 @@ observo recurrencia junto a errores de kernel `vmwgfx: Failed to open channel`.
 La politica actual elimina el override CPU cuando hay aceleracion: los valores
 legados de `/etc/emubox/graphics-mode` o `EMUBOX_RENDER_MODE` no anulan una GPU
 detectada. El arranque limpia variables heredadas que forzaban Mesa/software,
-Pixman o desactivaban composicion WebKit antes de sondear. Solo sin aceleracion
-elige Cage/Pixman, `LIBGL_ALWAYS_SOFTWARE=1` y `WEBKIT_DISABLE_COMPOSITING_MODE=1`.
+Pixman o desactivaban composicion WebKit antes de sondear. Software confirmado o
+fallback explicito con diagnostico indeterminado permite Cage/Pixman,
+`LIBGL_ALWAYS_SOFTWARE=1` y `WEBKIT_DISABLE_COMPOSITING_MODE=1`.
 El workaround `WEBKIT_DISABLE_DMABUF_RENDERER=1` se limita a `vmwgfx`; no es
 equivalente a desactivar OpenGL. Revisar VirtualBox, Guest Additions y driver del
 anfitrion si persiste la corrupcion; detectar capacidad no certifica estabilidad.

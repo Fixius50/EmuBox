@@ -53,7 +53,8 @@ impl DiagnosticsService {
                     .filter(|entry| entry.level == "error")
                     .collect()
             }),
-            raw_summary_text: summary,
+            raw_summary_text: format!("{summary}\ngraphicsEvidence={}", serde_json::to_string(&hardware.graphics)
+                .map_err(|error| EmuBoxError::Unknown(error.to_string()))?),
         })
     }
 

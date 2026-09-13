@@ -34,15 +34,13 @@ impl SystemService {
         let (mem_total_mb, mem_free_mb) = Self::detect_memory_mb();
 
         Ok(HardwareInfo {
+            graphics: graphics.clone(),
             gpu_vendor: graphics.vendor,
             gpu_renderer: graphics.renderer,
             vulkan_driver_version: graphics.driver_version,
             vulkan_supported: graphics.vulkan,
             opengl_supported: graphics.opengl,
-            opengl_accelerated: graphics
-                .opengl_renderer
-                .as_deref()
-                .is_some_and(|renderer| !super::graphics_service::is_software_renderer(renderer)),
+            opengl_accelerated: graphics.probes.iter().any(|probe| probe.api == "opengl" && probe.state == crate::models::graphics::DetectionState::Accelerated),
             opengl_renderer: graphics.opengl_renderer,
             graphics_accelerated: graphics.accelerated,
             graphics_backend: graphics.backend,
