@@ -121,22 +121,22 @@ fi
 mkdir -p "${EMUBOX_DIR}/bin"
 TARGET_DIR=$(cargo metadata --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" --no-deps --format-version 1 | node -e 'let data="";process.stdin.on("data",chunk=>data+=chunk);process.stdin.on("end",()=>console.log(JSON.parse(data).target_directory))')
 TAURI_BINARY="${TARGET_DIR}/${TARGET}/release/emubox"
-CARGO_LOG="${LOG_DIR}/cargo-build.log"
-: > "${CARGO_LOG}"
+BUILD_CARGO_LOG="${LOG_DIR}/cargo-build.log"
+: > "${BUILD_CARGO_LOG}"
 
 log_step "Compilando EmuBox Tauri en modo produccion con frontend embebido..."
 
-if npx tauri build --no-bundle --target "$TARGET" --config '{"build":{"beforeBuildCommand":""}}' >"${CARGO_LOG}" 2>&1; then
+if npx tauri build --no-bundle --target "$TARGET" --config '{"build":{"beforeBuildCommand":""}}' >"${BUILD_CARGO_LOG}" 2>&1; then
   log_ok "Binario nativo Tauri compilado exitosamente con frontend embebido (tauri build)."
-elif cargo build --release --target "$TARGET" --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" >>"${CARGO_LOG}" 2>&1; then
+elif cargo build --release --target "$TARGET" --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" >>"${BUILD_CARGO_LOG}" 2>&1; then
   log_ok "Binario nativo Tauri compilado exitosamente mediante Cargo release."
 else
   CARGO_STATUS=$?
   log_error "La compilacion de Tauri ha fallado (codigo ${CARGO_STATUS})."
-  log_error "Log completo: ${CARGO_LOG}"
+  log_error "Log completo: ${BUILD_CARGO_LOG}"
   echo ""
   echo "Ultimas 40 lineas del error:"
-  tail -n 40 "${CARGO_LOG}"
+  tail -n 40 "${BUILD_CARGO_LOG}"
   exit "${CARGO_STATUS}"
 fi
 
