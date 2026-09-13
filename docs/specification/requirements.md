@@ -39,7 +39,7 @@
 
 La fase de catálogo e integración de juegos está completada:
 
-- el dataset `data/games-10000.json` alimenta el catálogo visible cuando SQLite no contiene ROMs instaladas;
+- SQLite y el escaneo alimentan el catalogo; una biblioteca vacia no se sustituye por datos de demostracion;
 - las tarjetas exponen plataforma, año, valoración, género y desarrollador;
 - la navegación usa virtualización para 10.000 entradas;
 - `DESCARGAR` y `JUGAR` dependen del estado instalado;

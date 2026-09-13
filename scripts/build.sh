@@ -37,7 +37,7 @@ LOG_DIR="${EMUBOX_LOG_DIR:-/var/log/emubox}"
 if ! mkdir -p "${LOG_DIR}" 2>/dev/null || [[ ! -w "${LOG_DIR}" ]]; then
   LOG_DIR=$(mktemp -d "${TMPDIR:-/tmp}/emubox-build-XXXXXXXX")
 fi
-for LOG_NAME in npm-install.log npm-esbuild.log npm-build.log cargo-build.log; do
+for LOG_NAME in npm-install.log npm-build.log cargo-build.log; do
   if [[ -e "$LOG_DIR/$LOG_NAME" && ! -w "$LOG_DIR/$LOG_NAME" ]]; then
     LOG_DIR=$(mktemp -d "${TMPDIR:-/tmp}/emubox-build-XXXXXXXX")
     break
@@ -64,55 +64,11 @@ log_step "Node: $(node --version) | npm: $(npm --version)"
 # ------------------------------------------------------------------------------
 # 2. Instalacion de dependencias (npm ci / npm install)
 # ------------------------------------------------------------------------------
-log_step "Instalando dependencias npm..."
+log_step "Validando dependencias npm y cache..."
 NPM_LOG="${LOG_DIR}/npm-install.log"
-: > "${NPM_LOG}"
-
-if [[ -f package-lock.json ]]; then
-  log_step "package-lock.json detectado. Ejecutando npm ci..."
-  if npm ci --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
-    log_ok "npm ci completado correctamente."
-  else
-    NPM_STATUS=$?
-    log_warn "npm ci ha fallado (codigo ${NPM_STATUS}). Intentando npm install..."
-    if npm install --no-audit --no-fund >>"${NPM_LOG}" 2>&1; then
-      log_ok "npm install alternativo completado correctamente."
-    else
-      INSTALL_STATUS=$?
-      log_error "La instalacion de dependencias npm ha fallado."
-      log_error "Codigo de salida: ${INSTALL_STATUS}"
-      log_error "Consulta el log completo: ${NPM_LOG}"
-      echo ""
-      echo "Ultimas 30 lineas del error:"
-      tail -n 30 "${NPM_LOG}"
-      exit "${INSTALL_STATUS}"
-    fi
-  fi
-else
-  log_step "No existe package-lock.json. Ejecutando npm install..."
-  if npm install --no-audit --no-fund >"${NPM_LOG}" 2>&1; then
-    log_ok "npm install completado correctamente."
-  else
-    INSTALL_STATUS=$?
-    log_error "npm install ha fallado (codigo ${INSTALL_STATUS})."
-    echo "Ultimas 30 lineas del error:"
-    tail -n 30 "${NPM_LOG}"
-    exit "${INSTALL_STATUS}"
-  fi
-fi
-
-# ------------------------------------------------------------------------------
-# 3. Preparacion de esbuild
-# ------------------------------------------------------------------------------
-log_step "Preparando binarios nativos de esbuild..."
-ESBUILD_LOG="${LOG_DIR}/npm-esbuild.log"
-: > "${ESBUILD_LOG}"
-
-if npm rebuild esbuild >>"${ESBUILD_LOG}" 2>&1; then
-  log_ok "esbuild preparado correctamente."
-else
-  ESBUILD_STATUS=$?
-  log_warn "npm rebuild esbuild ha reportado advertencias (log: ${ESBUILD_LOG})."
+if ! node scripts/build-cache.mjs dependencies >"${NPM_LOG}" 2>&1; then
+  tail -n 30 "${NPM_LOG}"
+  exit 1
 fi
 
 log_ok "Dependencias npm preparadas."
@@ -121,16 +77,10 @@ log_ok "Dependencias npm preparadas."
 # 4. Compilacion del frontend SolidJS
 # ------------------------------------------------------------------------------
 log_step "Compilando frontend SolidJS..."
-if ! rm -rf solid/dist 2>/dev/null; then
-  if command -v sudo >/dev/null 2>&1; then
-    sudo rm -rf solid/dist 2>/dev/null || true
-  fi
-fi
-
 BUILD_LOG="${LOG_DIR}/npm-build.log"
 : > "${BUILD_LOG}"
 
-if npm run build >"${BUILD_LOG}" 2>&1; then
+if node scripts/build-cache.mjs frontend >"${BUILD_LOG}" 2>&1; then
   log_ok "Frontend SolidJS compilado correctamente."
 else
   BUILD_STATUS=$?
@@ -149,10 +99,6 @@ export PATH="${HOME}/.cargo/bin:/usr/local/bin:${PATH}"
 if [[ -f "${HOME}/.cargo/env" ]]; then
   # shellcheck source=/dev/null
   . "${HOME}/.cargo/env"
-fi
-
-if command -v rustup >/dev/null 2>&1; then
-  rustup default stable >/dev/null 2>&1 || true
 fi
 
 if ! command -v rustc >/dev/null 2>&1 || ! command -v cargo >/dev/null 2>&1; then
@@ -180,10 +126,7 @@ CARGO_LOG="${LOG_DIR}/cargo-build.log"
 
 log_step "Compilando EmuBox Tauri en modo produccion con frontend embebido..."
 
-# Limpiar cache del crate emubox para forzar re-empaquetado limpio de ../solid/dist
-cargo clean --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" -p emubox >/dev/null 2>&1 || true
-
-if npx tauri build --no-bundle --target "$TARGET" >"${CARGO_LOG}" 2>&1; then
+if npx tauri build --no-bundle --target "$TARGET" --config '{"build":{"beforeBuildCommand":""}}' >"${CARGO_LOG}" 2>&1; then
   log_ok "Binario nativo Tauri compilado exitosamente con frontend embebido (tauri build)."
 elif cargo build --release --target "$TARGET" --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" >>"${CARGO_LOG}" 2>&1; then
   log_ok "Binario nativo Tauri compilado exitosamente mediante Cargo release."

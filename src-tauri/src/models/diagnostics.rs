@@ -3,7 +3,7 @@ use serde::{Serialize, Deserialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LogEntry {
-    pub timestamp: u64,
+    pub timestamp: Option<u64>,
     pub level: String,
     pub source: String,
     pub category: String,
@@ -26,6 +26,6 @@ pub struct DiagnosticReport {
     pub emulators_installed_count: usize,
     pub emulators_missing_count: usize,
     pub connected_gamepads_count: usize,
-    pub recent_errors: Vec<LogEntry>,
+    pub recent_errors: Option<Vec<LogEntry>>,
     pub raw_summary_text: String,
 }

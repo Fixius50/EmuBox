@@ -39,7 +39,7 @@ ejecutado desde esta sesión: build y arranque ARM real siguen pendientes.
 Pruebas reproducibles: `npm run test:architecture`, `npm test`,
 `npm run typecheck`, `cargo test --manifest-path src-tauri/Cargo.toml`.
 La suite de arquitectura cubre CPU/distribución, binarios, paquetes opcionales,
-selección gráfica, mocks y recuperación del ejecutable ante fallos de actualización.
+selección gráfica y contratos nativos. Las suites actuales no certifican la recuperacion ante todos los fallos de actualizacion.
 
 Los diagnósticos consultan CPU, núcleos, RAM, GPU/renderer, Vulkan, DRM,
 Gamescope y modelo del equipo. No deben mostrar x86_64/RADV como valores fijos.
@@ -130,7 +130,7 @@ El pipeline de construcción y empaquetado nativo (`scripts/build.sh`) funciona 
 3. **Cero Convolución en CPU**:
    * *Modo GPU Acelerada*: Superficies translúcidas con desenfoque Gaussiano y resplandores de neón.
    * *Modo CPU Compatible*: Superficies oscuras sólidas de alto contraste (`rgba(10, 15, 26, 0.96)`) con contornos precisos de 2px a **60 FPS estables**.
-4. **Verificación**: **42/42 pruebas superadas** en la suite automatizada (`tests/vertical-slice.test.ts`).
+4. **Verificación histórica**: aquella suite fue sustituida por pruebas de reglas y contratos nativos; sus resultados no certifican el estado actual.
 
 ---
 

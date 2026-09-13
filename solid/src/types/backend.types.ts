@@ -112,7 +112,7 @@ export interface GameFilter {
 
 /**
  * Master EmuBox Backend Interface.
- * Universal contract implemented identically by MockBackend (dev) and TauriBackend (production).
+ * Native backend contract exposed through Tauri IPC.
  */
 export interface IEmuBoxBackend {
   // 1. Sistema & Hardware Telemetry

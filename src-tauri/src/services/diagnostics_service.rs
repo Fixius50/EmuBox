@@ -5,12 +5,12 @@ use std::process::Command;
 pub struct DiagnosticsService;
 
 impl DiagnosticsService {
-    pub fn get_system_logs(_limit: Option<usize>) -> Result<Vec<LogEntry>, EmuBoxError> {
-        Ok(vec![])
+    pub fn get_system_logs(limit: Option<usize>) -> Result<Vec<LogEntry>, EmuBoxError> {
+        super::log_service::system(limit)
     }
 
-    pub fn get_emubox_logs(_limit: Option<usize>) -> Result<Vec<LogEntry>, EmuBoxError> {
-        Ok(vec![])
+    pub fn get_emubox_logs(limit: Option<usize>) -> Result<Vec<LogEntry>, EmuBoxError> {
+        super::log_service::session(limit)
     }
 
     pub fn get_diagnostics() -> Result<DiagnosticReport, EmuBoxError> {
@@ -37,7 +37,7 @@ impl DiagnosticsService {
             emulators_installed_count: installed,
             emulators_missing_count: emulators.len() - installed,
             connected_gamepads_count: super::SystemService::detect_gamepads().len(),
-            recent_errors: vec![],
+            recent_errors: Self::get_system_logs(Some(100)).ok().map(|entries| entries.into_iter().filter(|entry| entry.level == "error").collect()),
             raw_summary_text: summary,
         })
     }

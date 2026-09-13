@@ -6,6 +6,16 @@
   -webkit-user-select: none;
 }
 
+.native-runtime-required {
+  min-block-size: 100dvh;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+}
+
 html,
 body {
   inline-size: 100dvw;

@@ -65,4 +65,4 @@ EmuBox is an Arch Linux appliance and uses a canonical system-wide layout under 
 
 The migration helper `scripts/migrate-filesystem.sh` is intentionally one-way: it copies legacy user data from older local XDG folders only when present, without overwriting the canonical appliance paths. This is a recovery compatibility mechanism, not the active runtime architecture.
 
-The canonical architecture is the authoritative layout. Any references to `~/.config/emubox`, `~/.local/share/emubox`, `~/.cache/emubox`, or bare `roms/`/`logs/` paths in code comments, documentation, or mock data are considered stale and should be treated as migration-only artifacts.
+The canonical architecture is the authoritative layout. References to `~/.config/emubox`, `~/.local/share/emubox`, `~/.cache/emubox`, or bare `roms/`/`logs/` paths are migration-only artifacts, not active appliance paths.

@@ -89,4 +89,3 @@ export class TauriIpcProvider implements IInputProvider {
   }
 }
 
-export { TauriIpcProvider as MockTauriInputProvider };

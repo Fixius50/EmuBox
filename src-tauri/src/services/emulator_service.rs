@@ -309,30 +309,16 @@ impl EmulatorService {
 mod tests {
     use super::*;
 
-    struct MockTestProfile;
-    impl EmulatorProfile for MockTestProfile {
-        fn id(&self) -> &'static str { "test_emu" }
-        fn official_name(&self) -> &'static str { "Test Emulator" }
-        fn binary_candidates(&self) -> &'static [&'static str] { &["test_emu"] }
-        fn supported_platforms(&self) -> &'static [&'static str] { &["snes"] }
-        fn core_type(&self) -> &'static str { "standalone" }
-        fn default_arguments(&self) -> &'static [&'static str] { &[] }
-        fn version_flag(&self) -> &'static str { "--version" }
-    }
-
     #[test]
     fn test_provision_dedicated_environment() {
-        let temp_bin = std::env::temp_dir().join(format!("test-bin-{}", std::process::id()));
-        let _ = std::fs::write(&temp_bin, "#!/bin/sh\necho test");
+        let binary = super::super::binary_service::resolve_executable("true").expect("coreutils true must exist");
+        let profile = emulators::registry().into_iter().find(|profile| profile.id() == "ppsspp").unwrap();
+        let provisioned = EmulatorService::provision_dedicated_environment(profile.as_ref(), &binary);
 
-        let profile = MockTestProfile;
-        let provisioned = EmulatorService::provision_dedicated_environment(&profile, &temp_bin);
-
-        assert!(provisioned.starts_with(PathBuf::from(paths::emulator_dir("test_emu")).join("bin")
+        assert!(provisioned.starts_with(PathBuf::from(paths::emulator_dir("ppsspp")).join("bin")
             .join(crate::models::Architecture::current().as_str())));
         assert!(provisioned.is_file());
 
-        let _ = std::fs::remove_file(&temp_bin);
-        let _ = std::fs::remove_dir_all(paths::emulator_dir("test_emu"));
+        let _ = std::fs::remove_dir_all(paths::emulator_dir("ppsspp"));
     }
 }

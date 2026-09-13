@@ -28,10 +28,10 @@ export interface DisplayInfo {
   resolution: string;
   width: number;
   height: number;
-  refreshRate: number;
-  devicePixelRatio: number;
-  colorDepth: number;
-  hdrSupported: boolean;
+  refreshRate: number | null;
+  devicePixelRatio: number | null;
+  colorDepth: number | null;
+  hdrSupported: boolean | null;
   activeCompositor: 'gamescope' | 'wayland' | 'x11' | 'browser';
   gamescopeActive: boolean;
 }
@@ -44,11 +44,11 @@ export interface AudioDevice {
 }
 
 export interface AudioInfo {
-  masterVolume: number;
+  masterVolume: number | null;
   uiSoundEffects: boolean;
   backgroundMusic: boolean;
-  latencyMs: number;
-  sampleRate: number;
+  latencyMs: number | null;
+  sampleRate: number | null;
   devices: AudioDevice[];
 }
 
@@ -60,8 +60,8 @@ export interface SystemInfo {
   hostname: string;
   uptimeSeconds: number;
   hardware: HardwareInfo;
-  display: DisplayInfo;
-  audio: AudioInfo;
+  display: DisplayInfo | null;
+  audio: AudioInfo | null;
   batteryLevelPercent?: number;
   isPluggedIn?: boolean;
 }

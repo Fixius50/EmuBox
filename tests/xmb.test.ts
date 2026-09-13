@@ -11,8 +11,8 @@ import { useXmbLibrary } from "../solid/src/hooks/useXmbLibrary";
 import type { InputAction } from "../solid/src/types/input.types";
 import { useSettingsNavigation } from "../solid/src/hooks/useSettingsNavigation";
 import { useMaintenanceController } from "../solid/src/hooks/useMaintenanceController";
-import { MockBackendService } from "../solid/src/services/backend/mock-backend.service";
-import type { SoundFxService } from "../solid/src/services/audio/sound-fx.service";
+import { TauriBackendService } from "../solid/src/services/backend/tauri-backend.service";
+import { SoundFxService } from "../solid/src/services/audio/sound-fx.service";
 
 const bounds = { categories: 5, rows: 120000, games: 3 };
 let position: XmbPosition = { category: 1, row: 0, expanded: false, game: 0 };
@@ -135,7 +135,7 @@ let settingsRow = 0;
 let volumeChange = 0;
 let wentBack = false;
 const settingsAction = useSettingsNavigation({
-  soundFx: { playBack() {}, playMove() {}, playSelect() {} } as SoundFxService,
+  soundFx: new SoundFxService(),
   emulatorCount: () => 0,
   activeSettingsTab: () => settingsTab,
   settingsFocusArea: () => settingsArea,
@@ -173,7 +173,7 @@ let maintenanceController: ((action: InputAction) => void) | null = null;
 const maintenance = createRoot((dispose) => {
   const [index, setIndex] = createSignal(0);
   const model = useMaintenanceController({
-    backend: new MockBackendService(),
+    backend: new TauriBackendService(),
     isOpen: () => true,
     focusedIndex: index,
     onSelectIndex: setIndex,

@@ -135,7 +135,7 @@ export class GamepadProvider implements IInputProvider {
       }
 
       if (activePad) {
-        this.processGamepadInput(activePad);
+        this.processGamepadInput(activePad, performance.now());
       } else {
         this.resetInputState();
       }
@@ -144,7 +144,7 @@ export class GamepadProvider implements IInputProvider {
     this.animFrameId = requestAnimationFrame(() => this.pollLoop());
   }
 
-  private processGamepadInput(pad: Gamepad): void {
+  public processGamepadInput(pad: Pick<Gamepad, 'buttons' | 'axes'>, now: number): void {
     const checkButton = (index: number, action: InputAction) => {
       const isPressed = pad.buttons[index]?.pressed || (pad.buttons[index]?.value || 0) > 0.5;
       const wasPressed = this.buttonStates[index] || false;
@@ -184,8 +184,6 @@ export class GamepadProvider implements IInputProvider {
 
     const normX = Math.abs(rawX) > this.deadzone ? rawX : 0;
     const normY = Math.abs(rawY) > this.deadzone ? rawY : 0;
-
-    const now = performance.now();
 
     const pressed = (index: number) => Boolean(pad.buttons[index]?.pressed) || (pad.buttons[index]?.value ?? 0) > 0.5;
     const horizontal = Number(pressed(15)) - Number(pressed(14));

@@ -19,7 +19,7 @@ export type InputAction =
 export interface InputDeviceStatus {
   isConnected: boolean;
   deviceName: string;
-  source: 'gamepad' | 'keyboard' | 'tauri_gilrs' | 'mock';
+  source: 'gamepad' | 'keyboard' | 'tauri_gilrs';
   batteryLevel?: number;
 }
 
@@ -30,16 +30,16 @@ export interface GamepadDevice {
   connected: boolean;
   vendorId?: string;
   productId?: string;
-  buttonsCount: number;
-  axesCount: number;
-  hasVibration: boolean;
+  buttonsCount: number | null;
+  axesCount: number | null;
+  hasVibration: boolean | null;
   batteryPercent?: number;
   isPrimary: boolean;
 }
 
 export interface GamepadStatus {
   connectedCount: number;
-  primaryDeviceIndex: number;
+  primaryDeviceIndex: number | null;
   devices: GamepadDevice[];
 }
 

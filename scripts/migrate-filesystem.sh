@@ -42,7 +42,7 @@ if [[ -f /opt/emubox/data/emulators.json && ! -f /etc/emubox/emulators.json ]]; 
     cp -n /opt/emubox/data/emulators.json /etc/emubox/emulators.json
 fi
 if [[ ! -f /etc/emubox/download-links.txt ]]; then
-    cp /opt/emubox/data/download-links.example.txt /etc/emubox/download-links.txt
+    install -m 0644 /dev/null /etc/emubox/download-links.txt
 fi
 
 chown -R "${EMUBOX_USER}:${EMUBOX_GROUP}" /var/lib/emubox /var/cache/emubox /var/log/emubox /run/emubox

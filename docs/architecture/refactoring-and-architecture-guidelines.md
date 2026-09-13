@@ -85,3 +85,28 @@ solid/src/
 - Preferir `rem`, `em`, porcentajes, `dvh`/`dvw`, `minmax`, `aspect-ratio` y propiedades lógicas. La tipografía no se escala según el ancho de ventana. Respetar `prefers-reduced-motion` y el modo gráfico compatible.
 - Antes de eliminar módulos, comprobar consumidores de la aplicación y de pruebas. Los servicios de dominio ejercitados por tests no son archivos huérfanos aunque no se importen directamente desde la UI.
 - Las pruebas reactivas se ejecutan en Node con la condición de exportación `browser` de Solid; no requieren un navegador.
+
+## 5. Reglas para Rust
+
+- `commands/` es el adaptador IPC: recibe argumentos tipados, delega y devuelve `Result`. No posee consultas SQL, parsers de hardware, configuración de emuladores ni políticas de selección.
+- `models/` contiene DTO, modelos compartidos, formatos de manifiesto y enums de dominio. La serialización `camelCase` se coordina con `solid/src/types/`; cualquier campo desconocido se representa con `Option`, no con telemetría inventada.
+- `services/` contiene servicios por responsabilidad. Una fachada puede orquestar varios servicios, pero no debe duplicar su política ni su persistencia.
+- La política gráfica pura reside en `graphics_policy`; el sondeo del host, en `graphics_service`; el DTO, en `models/graphics`. CPU, GPU, API y compositor son dimensiones distintas.
+- `config_service` posee lectura, validación y escritura de configuración. Solo `NotFound` permite valores de fábrica; un error de permisos o de formato debe propagarse. Escritura temporal y renombrado evitan publicar JSON truncado.
+- `input_service`, `display_service`, `audio_service`, `storage_service`, `bios_service`, `log_service` y `power_service` son responsables de sus propios datos y efectos.
+- `host_command` centraliza comandos de sondeo con argumentos separados, locale estable y timeout. No construir comandos de shell para operaciones que puedan expresarse con argumentos tipados.
+- Usar `match` sobre enums/tuplas para decisiones excluyentes. Las cláusulas de guarda deben expresar requisitos, no convertir falta de Vulkan en falta de GPU.
+- Usar APIs estructuradas para JSON, SQLite y filesystem. No añadir una abstracción por cada función: extraer módulos cuando haya responsabilidad o reutilización real.
+- No devolver `Ok(())`, listas vacías ni cifras fijas para representar una operación no implementada. Un resultado vacío solo es válido después de una consulta real.
+- Operaciones costosas de disco, red o procesos no deben bloquear el hilo de presentación. Separar el adaptador async de las operaciones blocking al ampliar comandos existentes.
+- Un método `save_*` debe indicar si persiste una preferencia o si también aplica el cambio al SO. No anunciar que audio, gráficos o energía se han aplicado si solo se guardó JSON.
+- Las pruebas usan funciones reales y recursos temporales aislados. Nunca abren la SQLite de producción, ejecutan apagados, instalan paquetes ni descargan juegos como parte de la suite.
+- Conservar contratos y comportamiento público durante una extracción mecánica. Ejecutar primero la prueba del módulo afectado y después controles del conjunto.
+
+## 6. Runtime y Compilación
+
+- La aplicación requiere Tauri; no existe un backend alternativo de datos ficticios ni un catálogo de demostración.
+- Las funciones sin implementación nativa deben rechazar la operación o estar deshabilitadas explícitamente.
+- No ejecutar comandos de Git ni pruebas de navegador en el flujo de trabajo actual.
+- El build central reutiliza dependencias y frontend por huellas verificadas; Cargo conserva sus artefactos. No ejecutar `cargo clean` ni `npm ci` incondicionalmente.
+- `EMUBOX_REINSTALL_DEPS=1` fuerza reinstalar dependencias y `EMUBOX_REBUILD_FRONTEND=1` fuerza Vite. Nunca omitir comprobación de arquitectura del ELF para ahorrar tiempo.

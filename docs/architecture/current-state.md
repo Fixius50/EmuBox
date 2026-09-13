@@ -30,7 +30,7 @@ Ver [criterios de validacion](appliance-validation.md).
         pull/build y restaura ese binario si falla. No hace reset ni auto-stash.
 - Las dependencias requeridas se consultan con pacman; las opcionales ausentes
         no se presentan como instaladas. La disponibilidad concreta ARM debe verificarse allí.
-- `data/emulator-capabilities.json` comparte la matriz conservadora entre Rust y mocks.
+- `data/emulator-capabilities.json` define la matriz conservadora del runtime Rust.
 - La UI consume capacidades del backend; no detecta la CPU desde el navegador.
 - El workflow Runtime Linux (native) usa `ubuntu-24.04` y `ubuntu-24.04-arm`, no emulación.
         Son entornos de compilación, no prueba de instalación en Arch Linux ARM.
@@ -77,7 +77,7 @@ getty@tty1 -> autologin de appliance -> emubox-session
 
 La biblioteca ya está lista para operar:
 
-- La UI muestra SQLite; `data/games-10000.json` queda solo para pruebas, sin fallback en la appliance.
+- La UI muestra SQLite; no se distribuyen datasets generados ni biblioteca de demostracion.
 - Las tarjetas muestran portada, título, plataforma, año, valoración, género y desarrollador.
 - `DESCARGAR` se muestra para juegos no instalados.
 - `JUGAR` requiere una ROM instalada y un emulador compatible; el bloqueo muestra su motivo.

@@ -129,7 +129,7 @@ OpenGL/Vulkan, compositor, fecha y evidencia para cada punto:
 | Prueba | Criterio |
 | --- | --- |
 | Arranque | Inicio en frio, sin SSH, una sesion TTY1 como emubox |
-| UI | Tauri/SolidJS visible y navegable, no frontend mock del navegador |
+| UI | Tauri/SolidJS visible y navegable, con runtime nativo |
 | IPC | Diagnostico y operaciones reales del backend desde la UI |
 | SQLite/filesystem | Guardar un favorito de un juego propio y comprobar persistencia al reiniciar |
 | Input | Navegacion real con mando y teclado, permisos sin root |
@@ -138,7 +138,7 @@ OpenGL/Vulkan, compositor, fecha y evidencia para cada punto:
 | Sin emuladores | Ajustes y biblioteca cargan sin motores instalados |
 
 Conservar resultados `PASS`, `FAIL`, `PENDING` o `NO APLICA` con justificacion.
-Un mock o un binario ELF correcto no cierra estas filas. La validacion de ROMs,
+Una prueba aislada o un binario ELF correcto no cierra estas filas. La validacion de ROMs,
 cores y motores se registra despues, separada del soporte de la appliance.
 
 No se ha validado aqui una appliance AArch64 real ni una distribucion reproducible

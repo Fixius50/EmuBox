@@ -1,5 +1,7 @@
 use serde::{Serialize, Deserialize};
 
+pub enum PowerAction { Shutdown, Restart, Sleep, Logout }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HardwareInfo {
@@ -40,10 +42,10 @@ pub struct DisplayInfo {
     pub resolution: String,
     pub width: u32,
     pub height: u32,
-    pub refresh_rate: u32,
-    pub device_pixel_ratio: f32,
-    pub color_depth: u32,
-    pub hdr_supported: bool,
+    pub refresh_rate: Option<u32>,
+    pub device_pixel_ratio: Option<f32>,
+    pub color_depth: Option<u32>,
+    pub hdr_supported: Option<bool>,
     pub active_compositor: String,
     pub gamescope_active: bool,
 }
@@ -60,11 +62,11 @@ pub struct AudioDevice {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AudioInfo {
-    pub master_volume: u32,
+    pub master_volume: Option<u32>,
     pub ui_sound_effects: bool,
     pub background_music: bool,
-    pub latency_ms: u32,
-    pub sample_rate: u32,
+    pub latency_ms: Option<u32>,
+    pub sample_rate: Option<u32>,
     pub devices: Vec<AudioDevice>,
 }
 
@@ -78,8 +80,8 @@ pub struct SystemInfo {
     pub hostname: String,
     pub uptime_seconds: u64,
     pub hardware: HardwareInfo,
-    pub display: DisplayInfo,
-    pub audio: AudioInfo,
+    pub display: Option<DisplayInfo>,
+    pub audio: Option<AudioInfo>,
     pub battery_level_percent: Option<u32>,
     pub is_plugged_in: Option<bool>,
 }

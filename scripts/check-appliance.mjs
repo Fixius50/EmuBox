@@ -115,7 +115,7 @@ export function evaluateAppliance(facts) {
   check('sqlite-file', facts.databaseHeader, 'SQLite header present; no database opened or modified', 'pending');
   for (const [id, detail] of [
     ['cold-boot', 'Boot independently of SSH; verify one session'],
-    ['ui-ipc', 'Visible responsive UI; real Tauri IPC, not browser mocks'],
+    ['ui-ipc', 'Visible responsive UI with real Tauri IPC'],
     ['sqlite-persistence', 'Save an authorized setting/favorite, restart and verify persistence'],
     ['input-functional', 'Navigate with the physical controller and keyboard'],
     ['audio-functional', 'Verify audible output on the intended device'],

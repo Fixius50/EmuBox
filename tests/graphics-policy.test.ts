@@ -23,23 +23,5 @@ for (const cpuArchitecture of ['x86_64', 'aarch64']) {
 }
 assert.equal(detector.detectFromHardware({ ...hardware, vulkanSupported: false, openglAccelerated: false }).pipeline, 'cpu-compatible');
 
-const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
-const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
-try {
-  Object.defineProperty(globalThis, 'window', { configurable: true, value: {} });
-  Object.defineProperty(globalThis, 'document', { configurable: true, value: {
-    documentElement: { setAttribute() {} },
-    createElement: () => ({ getContext: () => ({ getExtension: () => null, RENDERER: 1, VENDOR: 2,
-      getParameter: (parameter: number) => parameter === 1 ? 'SVGA3D; build RELEASE; LLVM;' : 'VMware, Inc.' }) }),
-  } });
-  assert.equal(detector.detect().isGpuAccelerated, true);
-  assert.equal(detector.getCapabilities().isVirtualMachine, true);
-  assert.equal(detector.getCapabilities().selectedBackend, 'webgl');
-} finally {
-  if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);
-  else Reflect.deleteProperty(globalThis, 'window');
-  if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument);
-  else Reflect.deleteProperty(globalThis, 'document');
-}
 assert.equal(detector.detect().isGpuAccelerated, false);
 console.log('Graphics policy: native GPU and accelerated VM preferred, CPU fallback independent of architecture');

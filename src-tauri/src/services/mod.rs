@@ -1,8 +1,16 @@
 pub mod paths;
+pub mod host_command;
+pub mod input_service;
+pub mod power_service;
+pub mod display_service;
+pub mod audio_service;
+pub mod log_service;
 pub mod binary_service;
 pub mod emulator_capabilities;
 pub mod graphics_service;
+pub mod graphics_policy;
 pub mod system_service;
+pub mod config_service;
 pub mod game_service;
 pub mod emulator_service;
 pub mod emulators;

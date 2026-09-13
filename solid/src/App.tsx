@@ -7,7 +7,6 @@ import type { InputAction } from "@contracts/input.types";
 import { gameBlockReason } from "@services/compatibility/launch-capability";
 
 // Services
-import { MockBackendService } from "@services/backend/mock-backend.service";
 import { TauriBackendService } from "@services/backend/tauri-backend.service";
 import { SoundFxService } from "@services/audio/sound-fx.service";
 import { GraphicsDetectorService } from "@services/graphics/graphics-detector.service";
@@ -32,16 +31,14 @@ import { SettingsView } from "@components/settings/SettingsView";
 import { MaintenanceModal } from "@components/modals/MaintenanceModal";
 import { DownloadSourceModal } from "@components/modals/DownloadSourceModal";
 
-export const App: Component = () => {
+const NativeApp: Component = () => {
   // 1. Singletons & Stores Initialization
   const viewport = ViewportService.getInstance();
   onCleanup(() => viewport.destroy());
 
   const graphicsDetector = new GraphicsDetectorService();
 
-  const mockBackend = new MockBackendService();
-  const backend = new TauriBackendService(mockBackend);
-  if (!backend.isTauriEnvironment) graphicsDetector.detect();
+  const backend = new TauriBackendService();
   const soundFx = new SoundFxService();
 
   const libraryStore = createLibraryStore(backend);
@@ -329,5 +326,13 @@ export const App: Component = () => {
     </div>
   );
 };
+
+export const App: Component = () => (
+  <Show when={new TauriBackendService().isTauriEnvironment} fallback={
+    <main class="native-runtime-required" role="alert">
+      <h1>EmuBox</h1><p>Runtime nativo Tauri no disponible.</p>
+    </main>
+  }><NativeApp /></Show>
+);
 
 export default App;

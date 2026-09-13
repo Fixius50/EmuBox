@@ -49,26 +49,27 @@ pub fn save_settings(settings: SystemSettings) -> Result<bool, EmuBoxError> {
 
 #[tauri::command]
 pub fn system_shutdown() -> Result<(), EmuBoxError> {
-    log::info!("System shutdown requested");
-    Ok(())
+    crate::services::power_service::execute(crate::models::system::PowerAction::Shutdown)
 }
 
 #[tauri::command]
 pub fn system_restart() -> Result<(), EmuBoxError> {
-    log::info!("System restart requested");
-    Ok(())
+    crate::services::power_service::execute(crate::models::system::PowerAction::Restart)
 }
 
 #[tauri::command]
 pub fn system_sleep() -> Result<(), EmuBoxError> {
-    log::info!("System sleep requested");
-    Ok(())
+    crate::services::power_service::execute(crate::models::system::PowerAction::Sleep)
 }
 
 #[tauri::command]
 pub fn system_logout() -> Result<(), EmuBoxError> {
-    log::info!("System logout requested");
-    Ok(())
+    crate::services::power_service::execute(crate::models::system::PowerAction::Logout)
+}
+
+#[tauri::command]
+pub fn restart_app_session(app: tauri::AppHandle) {
+    app.restart();
 }
 
 #[tauri::command]

@@ -1,6 +1,28 @@
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
+#[derive(Deserialize)]
+pub struct BiosManifest { pub requirements: Vec<BiosDefinition> }
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BiosDefinition {
+    pub platform_id: String,
+    pub platform_name: String,
+    pub emulator_id: String,
+    pub bios_files: Vec<BiosFileDefinition>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BiosFileDefinition {
+    pub filename: String,
+    pub description: String,
+    pub required: bool,
+    pub expected_md5: Option<String>,
+    pub expected_sha1: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BiosFile {

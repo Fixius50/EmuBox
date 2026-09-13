@@ -13,27 +13,17 @@ EmuBox is engineered with a strict, decoupled boundary between the **UI Presenta
                         │
                   IEmuBoxBackend
                         │
-             ┌──────────┴──────────┐
-             │                     │
-        MockBackend          TauriBackend
-             │                     │
-             │                    IPC
-             │                     │
-             │               ┌─────┴─────┐
-             │               │ Rust/Tauri│
-             │               └─────┬─────┘
-             │                     │
-             │       ┌─────────────┼─────────────┐
-             │       │             │             │
-             │    Filesystem    Processes     Hardware
-             │       │             │             │
-             │      ROMs       Emuladores      Gamepad
-             │
-        Desarrollo
+                   TauriBackend
+                        │
+                       IPC
+                        │
+                   Rust/Tauri
+                        │
+           Filesystem / Processes / Hardware
 ```
 
 ### Core Tenet
-> **The UI must remain 100% agnostic to whether it is running against the in-memory MockBackend or real Linux system services via Tauri IPC.**
+> **The UI delegates to native services through IPC. Missing runtime, unavailable capability and real failures must remain explicit; no fabricated success or hardware.**
 
 ---
 
@@ -105,8 +95,13 @@ Telemetry representing hardware capabilities, display composition, and Linux ker
 
 Installer support is limited to Arch Linux x86_64 and Arch Linux ARM aarch64.
 ARM32 is unsupported. CPU support does not imply GPU or emulator availability.
-Mocks accept an architecture constructor option;
-browser code never infers host architecture from `navigator`.
+Browser code never infers host architecture from `navigator`.
+
+Telemetry that cannot be queried is nullable: `SystemInfo.display` and `audio`,
+unmeasured display/audio fields, gamepad capability counts and primary index.
+Log timestamps can be absent for unstructured session logs; log source is a
+native identifier, and unavailable recent journal errors are `null`, not an
+invented empty history. OTA methods explicitly reject unsupported operations.
 
 ### `EmuBoxConfig`
 Single, central, versioned JSON configuration model:

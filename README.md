@@ -110,7 +110,7 @@ La arquitectura vigente está en
 ```text
 solid/src/
 ├── types/         # @contracts/*  -> Interfaces TypeScript (Game, Platform, Emulator, InputAction)
-├── services/      # @services/*   -> SoundFx, Backend Mock/Tauri, InputManager, SpatialNavigator
+├── services/      # @services/*   -> SoundFx, Tauri IPC, InputManager, SpatialNavigator
 ├── stores/        # @stores/*     -> LibraryStore, SystemStore, NavigationStore, ModalStore
 ├── hooks/         # @hooks/*      -> useXmbLibrary, useSettingsNavigation, useConsoleInput, useGameLauncher
 ├── animations/    # @animations/* -> Transiciones de ajustes, emuladores y modales
@@ -129,7 +129,7 @@ solid/src/
 
 Flechas y D-pad navegan; Enter/A abre; Escape/B retrocede. LB/RB cambia categoría, X alterna favorito y Y enfoca búsqueda. En la ficha, LT/RT desplaza los detalles; en fuentes, Y permite jugar si el título instalado es compatible.
 
-El CSS se organiza por componente, con medidas relativas, propiedades lógicas y movimiento reducido. Las reglas y controladores de navegación se prueban en Node; el navegador de desarrollo mantiene una biblioteca mock vacía y no representa la base de datos nativa.
+El CSS se organiza por componente, con medidas relativas, propiedades lógicas y movimiento reducido. Las reglas y controladores de navegación se prueban en Node. La aplicación requiere Tauri; Vite solo no ofrece un backend alternativo ni inventa una biblioteca.
 
 ---
 
@@ -158,6 +158,8 @@ EmuBox implementa una arquitectura gráfica desacoplada y adaptativa:
 * **Sincronización Event-Driven (`emubox-drm-sync`)**: Escucha eventos nativos del kernel Linux (`SUBSYSTEM=drm`, `HOTPLUG=1`) mediante `udevadm` (0% CPU, sin polling). Al redimensionar la ventana o cambiar de monitor, adapta la superficie Wayland y la UI SolidJS en caliente sin resoluciones fijas ni reinicios.
 
 ## Documentación y Guías de Arquitectura
+
+- [Informe técnico extenso para el equipo de IA: arquitectura, operación y límites](docs/architecture/ai-team-brief.md).
 
 - [Requisitos](docs/specification/requirements.md), [diseño](docs/specification/design.md) y [matriz de primitivas](docs/specification/headless_primitives_matrix.md).
 - [Aceleración 3D en VirtualBox](docs/architecture/virtualbox-graphics.md).

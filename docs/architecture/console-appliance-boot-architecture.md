@@ -113,6 +113,6 @@ Verificar en cada CPU admitida:
 6. UI, IPC, persistencia SQLite, mando y audio sin emuladores instalados.
 7. Arranque en frío y reconexión de pantalla cuando sea compatible.
 
-Las pruebas shell y mocks no sustituyen estas comprobaciones físicas. La CI sobre
+Las pruebas unitarias no sustituyen estas comprobaciones físicas. La CI sobre
 Ubuntu ARM valida compilación nativa, no instalación de paquetes en Arch Linux ARM.
 El lanzamiento de motores/cores nativos es una fase posterior independiente.

@@ -1,9 +1,9 @@
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'unknown';
 
 export interface LogEntry {
-  timestamp: number;
+  timestamp: number | null;
   level: LogLevel;
-  source: 'frontend' | 'tauri' | 'emulator' | 'system';
+  source: string;
   category: string;
   message: string;
   data?: Record<string, unknown>;
@@ -22,6 +22,6 @@ export interface DiagnosticReport {
   emulatorsInstalledCount: number;
   emulatorsMissingCount: number;
   connectedGamepadsCount: number;
-  recentErrors: LogEntry[];
+  recentErrors: LogEntry[] | null;
   rawSummaryText: string;
 }

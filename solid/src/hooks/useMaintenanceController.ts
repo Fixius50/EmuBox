@@ -37,19 +37,20 @@ export function useMaintenanceController(
     {
       id: "repair-dirs",
       tag: "STORAGE",
-      title: "Reparar Permisos y Directorios XDG",
+      title: "Inspeccionar Almacenamiento",
       description:
-        "Restaura y valida la estructura de carpetas de ROMs, partidas, BIOS y logs",
+        "Consulta directorios de juegos, partidas, BIOS y registros",
       variant: "default",
       action: async () => {
         setIsLoading(true);
         setFeedbackMsg(
-          "Comprobando y asegurando directorios del appliance EmuBox...",
+          "Inspeccionando directorios del appliance EmuBox...",
         );
-        await options.backend.getStorageLocations();
+        const locations = await options.backend.getStorageLocations();
+        const unavailable = Object.values(locations).filter(location => !location.accessible || !location.isWritable);
         setTimeout(() => {
           setIsLoading(false);
-          setFeedbackMsg("Directorios y permisos verificados correctamente.");
+          setFeedbackMsg(unavailable.length ? `Directorios ausentes o sin escritura: ${unavailable.map(location => location.label).join(', ')}` : "Directorios accesibles y con permiso de escritura. No se han modificado permisos.");
         }, 800);
       },
     },
