@@ -121,6 +121,8 @@ Guardar ajustes no significa que todo se aplique en caliente. Varias preferencia
 
 La API OTA del runtime no esta implementada: rechaza operaciones. Los scripts externos de actualizacion/recuperacion no son equivalentes a una OTA con firma, verificacion remota, transacciones de paquetes y rollback completo del SO.
 
+El PID y estado del juego se consultan realmente; CPU y memoria del proceso aun no se muestrean y se devuelven como ausentes, no como cero medido.
+
 La ejecucion de comandos de mantenimiento es una superficie sensible. El IPC permite acciones con los permisos del usuario; no es una frontera para ejecutar codigo no confiable. Hace falta una auditoria especifica de permisos Tauri, CSP, contenido remoto y autorizacion antes de presentar la appliance como entorno endurecido o multiusuario.
 
 ## 9. Compilacion
@@ -134,6 +136,8 @@ Las dependencias se reutilizan solo con huella coherente de manifiestos/Node/arq
 La primera compilacion y los cambios en dependencias nativas seguiran siendo costosos. CPU, RAM, disco, procesos concurrentes y enlazado ponen limites reales. Aumentar hilos sin memoria suficiente puede empeorar el tiempo o provocar OOM. No se habilitan optimizaciones de tamaño/LTO agresivas solo para declarar un build mas rapido.
 
 `EMUBOX_REINSTALL_DEPS=1` fuerza reinstalacion y `EMUBOX_REBUILD_FRONTEND=1` fuerza regenerar assets. Los tiempos deben medirse en builds equivalentes; un build caliente no se compara honestamente con una compilacion limpia de dependencias.
+
+Mediciones locales de esta tarea: primer build con preparacion de caches, 137,6 s; build repetido que aun invalidaba Cargo, 49,7 s; build repetido final, 2,9 s, con etapa Cargo de 0,35 s. Son medidas de esta VM, no un compromiso de tiempo para otros equipos. `src-tauri/capabilities` debe existir aunque no agregue permisos: su ausencia provocaba invalidacion permanente en `tauri-build`. El script evita ademas usar `CARGO_LOG` como variable local de ruta, porque ese nombre pertenece al diagnostico de Cargo.
 
 ## 10. Criterios de aceptacion y trabajo pendiente
 

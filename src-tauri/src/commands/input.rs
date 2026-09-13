@@ -1,5 +1,5 @@
-use crate::models::{GamepadDevice, GamepadStatus};
 use crate::errors::EmuBoxError;
+use crate::models::{GamepadDevice, GamepadStatus};
 
 #[tauri::command]
 pub fn get_gamepads() -> Result<Vec<GamepadDevice>, EmuBoxError> {

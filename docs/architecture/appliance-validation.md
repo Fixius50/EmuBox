@@ -56,10 +56,11 @@ npm run test:appliance
 npm run test:architecture
 ```
 
-La primera suite simula pacman para comprobar que la base no instala motores,
-valida la configuracion generada de sesion/systemd y comprueba el bootstrap de
-stores sin motores en ambas CPU simuladas. El evaluador de requisitos se prueba
-con fixtures; no arranca systemd ni instala servicios durante los tests.
+La primera suite valida la configuracion generada de sesion/systemd y el
+evaluador de requisitos con entradas aisladas. La segunda comprueba arquitectura,
+ELF y politica grafica. No se sustituyen comandos del sistema por respuestas
+ficticias: no arranca systemd ni instala servicios durante los tests. La aceptacion
+del gestor de paquetes y del bootstrap completo requiere integracion nativa.
 
 El workflow `Runtime Linux (native)` ejecuta estas pruebas junto al runtime sobre
 runners x86_64 y ARM64 nativos. Ubuntu CI no valida los paquetes de Arch Linux ARM

@@ -1,7 +1,10 @@
-use crate::models::{SystemInfo, HardwareInfo, DisplayInfo, AudioInfo, FirstRunDetectionResult, EmuBoxConfig, SystemSettings};
 use crate::errors::EmuBoxError;
-use crate::services::EmulatorService;
+use crate::models::{
+    AudioInfo, DisplayInfo, EmuBoxConfig, FirstRunDetectionResult, HardwareInfo, SystemInfo,
+    SystemSettings,
+};
 use crate::services::paths;
+use crate::services::EmulatorService;
 use std::fs;
 use std::process::Command;
 
@@ -11,9 +14,11 @@ impl SystemService {
     pub fn get_system_info() -> Result<SystemInfo, EmuBoxError> {
         Ok(SystemInfo {
             os_name: Self::detect_os_name(),
-            kernel_version: Self::run_trim("uname", &["-r"]).unwrap_or_else(|| "unknown".to_string()),
+            kernel_version: Self::run_trim("uname", &["-r"])
+                .unwrap_or_else(|| "unknown".to_string()),
             architecture: crate::models::Architecture::current().as_str().to_string(),
-            kernel_architecture: Self::run_trim("uname", &["-m"]).unwrap_or_else(|| "unknown".into()),
+            kernel_architecture: Self::run_trim("uname", &["-m"])
+                .unwrap_or_else(|| "unknown".into()),
             hostname: Self::detect_hostname(),
             uptime_seconds: Self::detect_uptime_seconds(),
             hardware: Self::get_hardware_info()?,
@@ -34,7 +39,9 @@ impl SystemService {
             vulkan_driver_version: graphics.driver_version,
             vulkan_supported: graphics.vulkan,
             opengl_supported: graphics.opengl,
-            opengl_accelerated: graphics.opengl_renderer.as_deref()
+            opengl_accelerated: graphics
+                .opengl_renderer
+                .as_deref()
                 .is_some_and(|renderer| !super::graphics_service::is_software_renderer(renderer)),
             opengl_renderer: graphics.opengl_renderer,
             graphics_accelerated: graphics.accelerated,
@@ -71,7 +78,8 @@ impl SystemService {
         let scanned_emulators = EmulatorService::scan_emulators()?;
         EmulatorService::apply_hardware_profile(&hardware)?;
 
-        let installed_emulators: Vec<String> = scanned_emulators.into_iter()
+        let installed_emulators: Vec<String> = scanned_emulators
+            .into_iter()
             .filter(|e| e.status == "active")
             .map(|e| e.id)
             .collect();
@@ -100,7 +108,11 @@ impl SystemService {
             return None;
         }
         let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if text.is_empty() { None } else { Some(text) }
+        if text.is_empty() {
+            None
+        } else {
+            Some(text)
+        }
     }
 
     fn detect_os_name() -> String {
@@ -139,7 +151,9 @@ impl SystemService {
 
     fn detect_plugged_in() -> Option<bool> {
         for supply in ["AC", "ADP1", "AC0"] {
-            if let Ok(content) = fs::read_to_string(format!("/sys/class/power_supply/{supply}/online")) {
+            if let Ok(content) =
+                fs::read_to_string(format!("/sys/class/power_supply/{supply}/online"))
+            {
                 return content.trim().parse::<u8>().ok().map(|v| v == 1);
             }
         }
@@ -161,12 +175,17 @@ impl SystemService {
 
     fn detect_cpu_cores() -> usize {
         if let Ok(content) = fs::read_to_string("/proc/cpuinfo") {
-            let count = content.lines().filter(|l| l.starts_with("processor")).count();
+            let count = content
+                .lines()
+                .filter(|l| l.starts_with("processor"))
+                .count();
             if count > 0 {
                 return count;
             }
         }
-        std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1)
+        std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1)
     }
 
     fn detect_memory_mb() -> (u64, u64) {
@@ -185,7 +204,12 @@ impl SystemService {
     }
 
     fn parse_kb(value: &str) -> u64 {
-        value.trim().trim_end_matches("kB").trim().parse::<u64>().unwrap_or(0)
+        value
+            .trim()
+            .trim_end_matches("kB")
+            .trim()
+            .parse::<u64>()
+            .unwrap_or(0)
     }
 
     /// Lista gamepads reales conectados vía `/proc/bus/input/devices` (entradas con handler `js*`).
@@ -232,4 +256,3 @@ impl SystemService {
         super::config_service::save_settings(settings)
     }
 }
-

@@ -145,8 +145,8 @@ impl ProcessService {
             executable: executable_path.clone(),
             arguments: final_args,
             start_time,
-            cpu_percent: 0.0,
-            memory_mb: 0,
+            cpu_percent: None,
+            memory_mb: None,
             status: "running".to_string(),
         };
 

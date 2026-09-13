@@ -1,6 +1,9 @@
-use crate::models::{SystemInfo, HardwareInfo, DisplayInfo, AudioInfo, FirstRunDetectionResult, EmuBoxConfig, SystemSettings};
-use crate::services::SystemService;
 use crate::errors::EmuBoxError;
+use crate::models::{
+    AudioInfo, DisplayInfo, EmuBoxConfig, FirstRunDetectionResult, HardwareInfo, SystemInfo,
+    SystemSettings,
+};
+use crate::services::SystemService;
 
 #[tauri::command]
 pub fn get_system_info() -> Result<SystemInfo, EmuBoxError> {

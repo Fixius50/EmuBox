@@ -10,8 +10,8 @@ export interface RunningGameInfo {
   executable: string;
   arguments: string[];
   startTime: number;
-  cpuPercent: number;
-  memoryMb: number;
+  cpuPercent: number | null;
+  memoryMb: number | null;
   status: ProcessExecutionStatus;
 }
 

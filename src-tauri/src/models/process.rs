@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -12,8 +12,8 @@ pub struct RunningGameInfo {
     pub executable: String,
     pub arguments: Vec<String>,
     pub start_time: u64,
-    pub cpu_percent: f32,
-    pub memory_mb: u64,
+    pub cpu_percent: Option<f32>,
+    pub memory_mb: Option<u64>,
     pub status: String,
 }
 

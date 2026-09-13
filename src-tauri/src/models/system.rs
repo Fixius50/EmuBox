@@ -1,6 +1,11 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-pub enum PowerAction { Shutdown, Restart, Sleep, Logout }
+pub enum PowerAction {
+    Shutdown,
+    Restart,
+    Sleep,
+    Logout,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -1,8 +1,10 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 
 #[derive(Deserialize)]
-pub struct BiosManifest { pub requirements: Vec<BiosDefinition> }
+pub struct BiosManifest {
+    pub requirements: Vec<BiosDefinition>,
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
