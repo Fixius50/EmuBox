@@ -62,6 +62,9 @@ enlaces simbolicos, duplicados conflictivos y expansiones excesivas. Limites:
 100.000 entradas, 100 GiB expandidos y ratio de expansion acotado. No se interpretan
 EXE o PKG como instaladores ejecutables automaticamente. 7z/RAR y archivos ambiguos
 pueden obtenerse, pero su preparacion automatica no esta implementada.
+PS3 y descriptores CUE/M3U requieren preparacion explicita: no se presupone que
+sus archivos dependientes o instalacion esten completos por existir un fichero.
+Cancelar elimina solo staging del trabajo; pausa y fallo conservan los parciales.
 
 `completed` significa que la preparacion encontro un candidato de lanzamiento
 no ambiguo; no certifica compatibilidad del emulador. `downloaded` significa que

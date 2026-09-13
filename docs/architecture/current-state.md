@@ -85,8 +85,8 @@ La biblioteca ya está lista para operar:
 - Las fuentes se importan desde `/etc/emubox/download-links.txt` si tiene URLs; si no, desde `data/download-links.txt`.
 - Importar crea metadatos y fuentes, no trabajos de descarga. Se actualiza al arrancar y cada seis horas.
 - El evento oficial Tauri `library-updated` recarga la biblioteca despues de importar cada manifiesto.
-- `DownloadService` guarda trabajos en SQLite y descargas HTTP en `/var/lib/emubox/games/<platform>`.
-- El watcher y el escaneo convierten una descarga completada en una entrada instalada.
+- El gestor guarda trabajos y snapshot de fuente en SQLite, con proveedores HTTP/BitTorrent y staging por trabajo.
+- Solo una preparacion no ambigua registra el juego como instalado; archivos pendientes quedan `downloaded`, no jugables automaticamente.
 - PS3/RPCS3, asociaciones de compatibilidad y lanzamiento forman parte del flujo de backend.
 
 RPCS3 no se oculta en ARM: su disponibilidad depende de la matriz, del binario
@@ -100,8 +100,9 @@ solo se inicia si existe una fuente autorizada registrada para su `gameId`.
 La importacion real del 5 de septiembre registro 167.901 juegos y 278.460 fuentes
 unicas, con cero trabajos de descarga. Varias URLs devolvieron 403/404 o fallaron
 por conectividad; no se presentan como importadas. El backend descarga archivos
-HTTP directos y rechaza magnet/torrent con un mensaje explicito hasta incorporar
-un motor BitTorrent. Ver [detalle y limites](catalog-sources.md).
+HTTP directos y dispone de proveedor BitTorrent mediante aria2 instalado. El conector
+publico Pixeldrain no elude limites; otros hostings requieren conectores adicionales.
+Ver [detalle y limites](download-providers.md).
 
 ## Appliance y sistema
 

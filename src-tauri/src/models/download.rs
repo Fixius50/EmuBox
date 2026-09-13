@@ -1,12 +1,26 @@
 use serde::{Deserialize, Serialize};
-use std::{path::{Path, PathBuf}, sync::{Arc, atomic::{AtomicBool, Ordering}}};
+use std::{
+    path::{Path, PathBuf},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum ProviderId { Http, BitTorrent }
+pub enum ProviderId {
+    Http,
+    BitTorrent,
+}
 
 impl ProviderId {
-    pub fn as_str(self) -> &'static str { match self { Self::Http => "http", Self::BitTorrent => "bittorrent" } }
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Http => "http",
+            Self::BitTorrent => "bittorrent",
+        }
+    }
 }
 
 #[derive(Default, Clone)]
@@ -16,7 +30,9 @@ pub struct TransferControl {
 }
 
 impl TransferControl {
-    pub fn interrupted(&self) -> bool { self.paused.load(Ordering::Relaxed) || self.cancelled.load(Ordering::Relaxed) }
+    pub fn interrupted(&self) -> bool {
+        self.paused.load(Ordering::Relaxed) || self.cancelled.load(Ordering::Relaxed)
+    }
 }
 
 pub struct TransferRequest<'a> {
@@ -27,9 +43,16 @@ pub struct TransferRequest<'a> {
     pub max_bytes: Option<u64>,
 }
 
-pub struct TransferProgress { pub downloaded: u64, pub total: Option<u64>, pub speed: u64 }
+pub struct TransferProgress {
+    pub downloaded: u64,
+    pub total: Option<u64>,
+    pub speed: u64,
+}
 
-pub enum TransferOutcome { Complete(Vec<PathBuf>), Interrupted }
+pub enum TransferOutcome {
+    Complete(Vec<PathBuf>),
+    Interrupted,
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct PublishedDownload {

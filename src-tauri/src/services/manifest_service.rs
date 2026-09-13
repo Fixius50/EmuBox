@@ -1,23 +1,7 @@
 use serde_json::{Map, Value};
 use scraper::Html;
-use crate::models::DownloadSource;
-
 pub use crate::models::DownloadSourceOption as SourceOption;
-pub use super::download_resolver::source_access;
-
-pub fn source_option(source: DownloadSource) -> SourceOption {
-    let access = source_access(&source.uri).unwrap_or("unsupported");
-    let resolution = super::download_resolver::resolve(&source);
-    let downloadable = resolution.is_ok();
-    let provider = resolution.as_ref().ok().map(|provider| provider.as_str().to_string());
-    let connector = super::download_connectors::connector(&source.uri).map(str::to_string);
-    let reason = resolution.err().map(|error| error.to_string()).or_else(|| {
-        if provider.as_deref() == Some("bittorrent") { Some("BitTorrent puede subir piezas durante la descarga (limite 64 KiB/s); sin seeding al completar".into()) }
-        else if access == "unverified_http" || connector.is_some() { Some("Acceso sujeto a disponibilidad y limites del servidor; no se eluden restricciones".into()) }
-        else { None }
-    });
-    SourceOption { downloadable, source, access: access.into(), reason, provider, connector }
-}
+pub use super::download_resolver::{source_access, source_option};
 
 pub fn text(value: &Value) -> Option<String> {
     let value = value.as_str()?.trim();

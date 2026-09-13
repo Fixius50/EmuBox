@@ -31,24 +31,20 @@ EmuBox supports two manifest formats:
    with optional `name`, `gameId`, `checksum` and `sizeBytes`.
 
 `import_download_links`, `import_downloads_from_json`, and `import_downloads_from_url`
-create jobs and register games in the catalog so that their metadata is immediately
-visible. The UI invokes `download_game` for a registered source and refreshes the
-library after completion, changing the card from `DESCARGAR` to `JUGAR` when the
-scanner finds the ROM.
+register sources and catalog metadata without creating download jobs. The UI
+invokes `download_game` for the selected source. Transfer completion and game
+preparation are separate: a downloaded PKG/EXE is not automatically installed.
 
-EmuBox owns the download lifecycle. `DownloadService` stores sources and jobs
-in SQLite and writes HTTP downloads to:
+The manager owns the lifecycle and source snapshots; providers transfer content.
+Validated packages are published to an exclusive directory:
 
 ```text
-/var/lib/emubox/games/<platform>/<filename>
+/var/lib/emubox/games/<platform>/<job-id>/
 ```
 
-Downloads are written to a sibling `.part` file and renamed only after the
-transfer completes. An optional SHA-256 checksum is verified before completion.
-The library watcher then discovers the final file and `GameService` updates the
-library. Download code never inserts games directly into the games table without going
-through the catalog and scanner pipeline.
-
-Sources of type HTTP/HTTPS are automatically queued for download execution.
-Torrent and magnet sources are registered in the catalog and SQLite sources table,
-while their direct execution remains reserved for a dedicated adapter.
+Private staging is excluded from the scanner. Verification precedes publication,
+ZIP preparation rejects unsafe paths and managed packages avoid duplicate imports.
+HTTP and BitTorrent (aria2) are separate providers; remote torrent descriptors
+are obtained over HTTP before BitTorrent transfers their content. Downloads start
+only after explicit source selection. See [download-providers.md](download-providers.md)
+for dependencies, seeding policy, preparation and unsupported host connectors.

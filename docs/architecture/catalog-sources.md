@@ -104,10 +104,11 @@ alojamientos conocidos y BitTorrent. Esta clasificacion es heuristica, no una
 comprobacion de disponibilidad ni de seguridad. Las paginas de alojamiento conocidas
 se bloquean hasta tener un conector. Un candidato HTTP aun puede fallar, redirigir
 o devolver HTML; el descargador mantiene sus comprobaciones HTTP y TLS.
-Magnet/torrent se registran para catalogo pero su descarga se rechaza con
-un mensaje claro: el motor BitTorrent no esta implementado. Una pagina HTML no
-se considera un archivo de juego. Tampoco se resuelven automaticamente portales
-con login, captchas o pasos intermedios.
+Magnet/torrent disponen de proveedor BitTorrent con aria2. Si falta el ejecutable,
+se indica el paquete necesario sin anunciar descarga disponible. Pixeldrain tiene
+conector publico de archivo; otros hostings siguen bloqueados por conector ausente.
+Una pagina HTML no se considera un juego y no se eluden login, CAPTCHA o limites.
+Ver [proveedores y preparacion](download-providers.md).
 
 La importacion de las 71 URLs del usuario registro 167.901 juegos y 278.460
 fuentes unicas el 5 de septiembre de 2026; la cola de descargas siguio vacia.
