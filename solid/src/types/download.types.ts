@@ -1,10 +1,11 @@
-export type DownloadSourceType = 'http' | 'torrent' | 'magnet';
+export type DownloadSourceType = 'http' | 'torrent' | 'magnet' | 'other';
 
 export type DownloadStatus =
   | 'queued'
   | 'downloading'
   | 'paused'
   | 'completed'
+  | 'downloaded'
   | 'failed'
   | 'cancelled';
 
@@ -31,12 +32,16 @@ export interface DownloadJob {
   totalBytes?: number;
   speedBytesPerSecond: number;
   error?: string;
+  provider?: string | null;
+  phase?: string | null;
 }
 
 export interface DownloadSourceOption extends DownloadSource {
   access: 'http' | 'host_page' | 'unverified_http' | 'magnet' | 'torrent' | 'unsupported';
   downloadable: boolean;
   reason?: string | null;
+  provider?: string | null;
+  connector?: string | null;
 }
 
 export interface CreateDownloadRequest {

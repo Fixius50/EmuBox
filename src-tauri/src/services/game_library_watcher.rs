@@ -72,6 +72,7 @@ impl GameLibraryWatcher {
         match event.kind {
             EventKind::Create(_) | EventKind::Remove(_) | EventKind::Modify(_) => {
                 event.paths.iter().any(|p| {
+                    if p.components().any(|component| component.as_os_str() == ".emubox-staging") { return false; }
                     if p.is_dir() {
                         return true;
                     }

@@ -23,6 +23,11 @@ pub mod db_service;
 pub mod compatibility_service;
 pub mod game_library_watcher;
 pub mod download_service;
+pub mod download_resolver;
+pub mod download_connectors;
+pub mod download_providers;
+pub mod download_manager;
+pub mod download_preparation;
 pub mod manifest_service;
 pub mod manifest_cache;
 

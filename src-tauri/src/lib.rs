@@ -14,6 +14,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppState::new())
         .setup(|app| {
+            services::download_manager::recover()?;
             let app_handle = app.handle().clone();
 
             // 1. Iniciar escaneo inicial en segundo plano sin bloquear arranque de UI

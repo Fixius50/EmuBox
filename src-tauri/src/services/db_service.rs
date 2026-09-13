@@ -152,7 +152,14 @@ impl DatabaseService {
                 error TEXT
             );
 
-            CREATE INDEX IF NOT EXISTS idx_download_jobs_status ON download_jobs(status);"
+            CREATE INDEX IF NOT EXISTS idx_download_jobs_status ON download_jobs(status);
+            CREATE TABLE IF NOT EXISTS download_execution (
+                job_id TEXT PRIMARY KEY,
+                source_json TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                phase TEXT NOT NULL DEFAULT 'queued',
+                artifacts_json TEXT
+            );"
         ).map_err(|e| EmuBoxError::StorageUnavailable(format!("Error al inicializar tablas en SQLite: {}", e)))?;
 
         Ok(())

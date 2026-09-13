@@ -27,4 +27,4 @@ CORE_PKGS=(
 echo "  -> Comprobando gestor de paquetes de Arch Linux (pacman)..."
 
 install_packages_if_missing "${CORE_PKGS[@]}"
-install_optional_packages gamescope vulkan-tools
+install_optional_packages gamescope vulkan-tools aria2

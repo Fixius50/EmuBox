@@ -2,31 +2,21 @@ use serde_json::{Map, Value};
 use scraper::Html;
 use crate::models::DownloadSource;
 
-#[derive(Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SourceOption {
-    #[serde(flatten)]
-    pub source: DownloadSource,
-    pub access: String,
-    pub downloadable: bool,
-    pub reason: Option<String>,
-}
+pub use crate::models::DownloadSourceOption as SourceOption;
+pub use super::download_resolver::source_access;
 
 pub fn source_option(source: DownloadSource) -> SourceOption {
     let access = source_access(&source.uri).unwrap_or("unsupported");
-    let reason = if !source.available {
-        Some("Fuente marcada como no disponible")
-    } else {
-        match access {
-            "host_page" => Some("Pagina de alojamiento: requiere un conector; no es un archivo directo"),
-            "magnet" | "torrent" => Some("BitTorrent no disponible en esta version"),
-            "unverified_http" => Some("URL HTTP sin verificar; puede requerir una pagina intermedia"),
-            "unsupported" => Some("Protocolo no admitido"),
-            _ => None,
-        }
-    };
-    SourceOption { downloadable: source.available && matches!(access, "http" | "unverified_http"),
-        source, access: access.into(), reason: reason.map(str::to_string) }
+    let resolution = super::download_resolver::resolve(&source);
+    let downloadable = resolution.is_ok();
+    let provider = resolution.as_ref().ok().map(|provider| provider.as_str().to_string());
+    let connector = super::download_connectors::connector(&source.uri).map(str::to_string);
+    let reason = resolution.err().map(|error| error.to_string()).or_else(|| {
+        if provider.as_deref() == Some("bittorrent") { Some("BitTorrent puede subir piezas durante la descarga (limite 64 KiB/s); sin seeding al completar".into()) }
+        else if access == "unverified_http" || connector.is_some() { Some("Acceso sujeto a disponibilidad y limites del servidor; no se eluden restricciones".into()) }
+        else { None }
+    });
+    SourceOption { downloadable, source, access: access.into(), reason, provider, connector }
 }
 
 pub fn text(value: &Value) -> Option<String> {
@@ -84,24 +74,6 @@ pub fn normalize(item: &Value) -> Option<Value> {
     let cover = result.get("coverImage").and_then(text).or_else(|| result.get("cover").and_then(text));
     result.insert("coverImage".into(), cover.map(Value::String).unwrap_or(Value::Null));
     Some(result.into())
-}
-
-pub fn source_access(uri: &str) -> Option<&'static str> {
-    let url = reqwest::Url::parse(uri).ok()?;
-    if url.scheme() == "magnet" { return Some("magnet"); }
-    if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() { return None; }
-    let path = url.path().to_ascii_lowercase();
-    if path.ends_with(".torrent") { return Some("torrent"); }
-    let host = url.host_str()?.trim_start_matches("www.");
-    if host == "pixeldrain.com" && path.starts_with("/api/file/") { return Some("http"); }
-    if ["megadb.net", "gofile.io", "mediafire.com", "1fichier.com", "pixeldrain.com",
-        "datanodes.to", "buzzheavier.com", "bzzhr.to", "1337x.to", "rutor.info", "tapochek.net",
-        "t.me", "vikingfile.com", "files.fm", "akirabox.com", "filekeeper.net"]
-        .iter().any(|domain| host == *domain || host.ends_with(&format!(".{domain}"))) {
-        return Some("host_page");
-    }
-    if ["zip", "7z", "rar", "iso", "chd", "pkg", "exe", "bin", "gz", "xz", "rvz", "gba", "sfc"]
-        .iter().any(|extension| path.ends_with(&format!(".{extension}"))) { Some("http") } else { Some("unverified_http") }
 }
 
 #[cfg(test)]

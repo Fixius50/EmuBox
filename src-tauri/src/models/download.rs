@@ -1,4 +1,43 @@
 use serde::{Deserialize, Serialize};
+use std::{path::{Path, PathBuf}, sync::{Arc, atomic::{AtomicBool, Ordering}}};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderId { Http, BitTorrent }
+
+impl ProviderId {
+    pub fn as_str(self) -> &'static str { match self { Self::Http => "http", Self::BitTorrent => "bittorrent" } }
+}
+
+#[derive(Default, Clone)]
+pub struct TransferControl {
+    pub paused: Arc<AtomicBool>,
+    pub cancelled: Arc<AtomicBool>,
+}
+
+impl TransferControl {
+    pub fn interrupted(&self) -> bool { self.paused.load(Ordering::Relaxed) || self.cancelled.load(Ordering::Relaxed) }
+}
+
+pub struct TransferRequest<'a> {
+    pub uri: &'a str,
+    pub directory: &'a Path,
+    pub filename: &'a str,
+    pub control: &'a TransferControl,
+    pub max_bytes: Option<u64>,
+}
+
+pub struct TransferProgress { pub downloaded: u64, pub total: Option<u64>, pub speed: u64 }
+
+pub enum TransferOutcome { Complete(Vec<PathBuf>), Interrupted }
+
+#[derive(Serialize, Deserialize)]
+pub struct PublishedDownload {
+    pub job_id: String,
+    pub source_digest: String,
+    pub files: Vec<PathBuf>,
+    pub launch: Option<PathBuf>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -6,6 +45,19 @@ pub enum DownloadSourceType {
     Http,
     Torrent,
     Magnet,
+    Other,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadSourceOption {
+    #[serde(flatten)]
+    pub source: DownloadSource,
+    pub access: String,
+    pub downloadable: bool,
+    pub reason: Option<String>,
+    pub provider: Option<String>,
+    pub connector: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,6 +80,7 @@ pub enum DownloadStatus {
     Downloading,
     Paused,
     Completed,
+    Downloaded,
     Failed,
     Cancelled,
 }
@@ -46,6 +99,8 @@ pub struct DownloadJob {
     pub total_bytes: Option<u64>,
     pub speed_bytes_per_second: u64,
     pub error: Option<String>,
+    pub provider: Option<String>,
+    pub phase: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -129,4 +184,4 @@ pub fn parse_file_size_str(input: &str) -> Option<u64> {
     };
 
     Some((num * multiplier) as u64)
-}
+}

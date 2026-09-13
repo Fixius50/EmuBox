@@ -321,6 +321,7 @@ impl GameService {
         added: &mut usize,
         updated: &mut usize,
     ) {
+        if dir.join(".emubox-managed").is_file() || dir.file_name().is_some_and(|name| name == ".emubox-staging") { return; }
         if plat.id == "ps3" && dir.join("PS3_GAME").is_dir() {
             *scanned += 1;
             let title = dir.file_name().and_then(|name| name.to_str()).unwrap_or("Unknown");

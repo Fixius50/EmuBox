@@ -9,7 +9,7 @@ import {
   onCleanup,
 } from "solid-js";
 import { Dialog } from "@kobalte/core/dialog";
-import { Download, Heart, Play, X } from "lucide-solid";
+import { Download, Heart, Play, Pause, X, Square } from "lucide-solid";
 import type { LibraryStore } from "@stores/library.store";
 import type { Game } from "@contracts/game.types";
 import type { InputAction } from "@contracts/input.types";
@@ -35,6 +35,7 @@ interface DownloadSourceModalProps {
 export function DownloadSourceModal(props: DownloadSourceModalProps) {
   const selected = () => props.store.sourceOptions()[props.store.sourceIndex()];
   const game = () => props.store.sourceGame();
+  const currentJob = () => props.store.downloadJobs().find(job => job.sourceId === selected()?.id);
   const variant = createMemo(() =>
     props.store.games().find((entry) => entry.id === selected()?.gameId),
   );
@@ -320,6 +321,15 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                 </p>
               </Show>
               <footer class="download-source-actions">
+                <Show when={currentJob()}>{job => <>
+                  <Show when={job().status === 'downloading' || job().status === 'queued'}>
+                    <button title="Pausar descarga" aria-label="Pausar descarga" onClick={() => void props.store.controlDownload(job(), 'pause')}><Pause size={18} /></button>
+                    <button title="Cancelar descarga" aria-label="Cancelar descarga" onClick={() => void props.store.controlDownload(job(), 'cancel')}><Square size={18} /></button>
+                  </Show>
+                  <Show when={job().status === 'paused' || job().status === 'failed'}>
+                    <button title="Reanudar descarga" aria-label="Reanudar descarga" onClick={() => void props.store.controlDownload(job(), 'resume')}><Play size={18} /></button>
+                  </Show>
+                </>}</Show>
                 <button
                   class="game-case-download"
                   disabled={
@@ -348,6 +358,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                   </button>
                 </Show>
               </footer>
+              <Show when={currentJob()}>{job => <p class="game-case-state" role="status">{job().provider || 'Proveedor'} · {job().phase || job().status} · {Math.round(job().progress * 100)}%<Show when={job().status === 'downloaded'}> · {job().error}</Show></p>}</Show>
               <Show when={game()?.installed && props.playBlockReason}>
                 <p class="game-case-state" role="status">
                   {props.playBlockReason}

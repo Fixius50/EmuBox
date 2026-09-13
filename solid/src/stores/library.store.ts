@@ -18,6 +18,12 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
   const [sourcesLoading, setSourcesLoading] = createSignal(false);
   const [sourcesError, setSourcesError] = createSignal('');
   const [sourceIndex, setSourceIndex] = createSignal(0);
+  const [downloadJobs, setDownloadJobs] = createSignal<DownloadJob[]>([]);
+  const refreshJobs = async () => {
+    const jobs = await backend.getDownloadJobs();
+    setDownloadJobs(jobs);
+    return jobs;
+  };
   const catalogGames = createMemo(() => groupCatalog(games()));
   const groupByVariant = createMemo(() => new Map(catalogGames().flatMap(group => group.variants.map(variant => [variant.id, group] as const))));
   const catalogDownloadingIds = createMemo(() => new Set([...downloadingIds()].map(id => groupByVariant().get(id)?.id || id)));
@@ -36,6 +42,7 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
     setSourcesLoading(true);
     try {
       const variants = groupByVariant().get(game.id)?.variants || [game];
+      await refreshJobs();
       const sources: DownloadSourceOption[] = [];
       for (let offset = 0; offset < variants.length && request === sourceRequest; offset += 4) {
         const batch = await Promise.all(variants.slice(offset, offset + 4).map(async variant =>
@@ -133,19 +140,23 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
         fail(job.error || (job.status === 'failed' ? 'La descarga ha fallado.' : 'Descarga cancelada.'));
         return true;
       }
-      if (job.status === 'completed') {
+      if (job.status === 'completed' || job.status === 'downloaded') {
         await loadGames();
+        await refreshJobs();
+        if (job.status === 'downloaded') setDownloadError({ gameId, message: job.error || 'Contenido descargado; requiere preparacion.' });
         clear();
         return true;
       }
+      if (job.status === 'paused') { clear(); return true; }
       return false;
     };
     try {
       const job = await backend.downloadGame(gameId, sourceId);
+      await refreshJobs();
       if (await finish(job)) return;
       const poll = async () => {
         try {
-          const jobs = await backend.getDownloadJobs();
+          const jobs = await refreshJobs();
           if (!await finish(jobs.find(current => current.id === job.id))) setTimeout(poll, 2000);
         } catch (error) {
           fail(error);
@@ -158,6 +169,15 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
   };
 
   return {
+    downloadJobs, refreshJobs,
+    controlDownload: async (job: DownloadJob, action: 'pause' | 'resume' | 'cancel') => {
+      try {
+        if (action === 'pause') await backend.pauseDownload(job.id);
+        else if (action === 'cancel') await backend.cancelDownload(job.id);
+        else { await downloadGame(job.gameId, job.sourceId); }
+        await refreshJobs();
+      } catch (error) { setDownloadError({ gameId: job.gameId, message: error instanceof Error ? error.message : 'No se pudo cambiar el estado de la descarga' }); }
+    },
     catalogGames, catalogDownloadingIds,
     confirmSource: async () => {
       const source = sourceOptions()[sourceIndex()];

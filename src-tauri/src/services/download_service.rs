@@ -1,12 +1,7 @@
 use std::collections::HashMap;
-use std::fs::{self, File, OpenOptions};
-use std::io::{Read, Write};
+use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, OnceLock};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread;
-use std::time::Instant;
-use reqwest::blocking::Client;
+use std::sync::Mutex;
 use sha2::{Digest, Sha256};
 use rusqlite::{params, OptionalExtension};
 use crate::errors::EmuBoxError;
@@ -15,17 +10,8 @@ use crate::services::db_service::DatabaseService;
 use crate::services::game_service::{CatalogEntry, GameService};
 use crate::services::paths;
 
-struct RuntimeControl {
-    paused: Arc<AtomicBool>,
-    cancelled: Arc<AtomicBool>,
-}
-
-static ACTIVE_JOBS: OnceLock<Mutex<HashMap<String, RuntimeControl>>> = OnceLock::new();
 static CATALOG_IMPORT: Mutex<()> = Mutex::new(());
-
-fn active_jobs() -> &'static Mutex<HashMap<String, RuntimeControl>> {
-    ACTIVE_JOBS.get_or_init(|| Mutex::new(HashMap::new()))
-}
+static JOB_CREATION: Mutex<()> = Mutex::new(());
 
 pub struct DownloadService;
 
@@ -199,6 +185,7 @@ impl DownloadService {
                     let source_type = match super::manifest_service::source_access(&uri) {
                         Some("magnet") => DownloadSourceType::Magnet,
                         Some("torrent") => DownloadSourceType::Torrent,
+                        Some("unsupported") | None => DownloadSourceType::Other,
                         _ => DownloadSourceType::Http,
                     };
                     let existing = transaction.query_row(
@@ -455,6 +442,7 @@ impl DownloadService {
             DownloadSourceType::Http => "http",
             DownloadSourceType::Torrent => "torrent",
             DownloadSourceType::Magnet => "magnet",
+            DownloadSourceType::Other => "other",
         };
         conn.execute(
             "INSERT INTO download_sources (id, game_id, name, source_type, uri, size_bytes, checksum, available)
@@ -466,6 +454,7 @@ impl DownloadService {
     }
 
     pub fn create_job(request: CreateDownloadRequest) -> Result<DownloadJob, EmuBoxError> {
+        let _guard = JOB_CREATION.lock().map_err(super::download_providers::io_error)?;
         let source = request.source;
         let option = super::manifest_service::source_option(source.clone());
         if !option.downloadable {
@@ -474,46 +463,42 @@ impl DownloadService {
         if source.game_id != request.game_id {
             return Err(EmuBoxError::InvalidConfiguration("La fuente no pertenece al juego solicitado".into()));
         }
+        let platform: String = DatabaseService::get_connection()?.query_row("SELECT platform_id FROM games WHERE id=?1", params![request.game_id], |row| row.get(0))
+            .map_err(|_| EmuBoxError::NotFound("Juego de catalogo inexistente".into()))?;
+        if platform != request.platform { return Err(EmuBoxError::InvalidConfiguration("La plataforma no coincide con el juego".into())); }
+        let provider = super::download_resolver::resolve(&source)?;
         Self::create_source(source.clone())?;
-        let _ = GameService::upsert_catalog_entry(CatalogEntry {
-            id: request.game_id.clone(),
-            title: source.name.clone(),
-            platform_id: request.platform.clone(),
-            platform_name: GameService::platform_name(&request.platform),
-            release_year: None,
-            genre: None,
-            developer: None,
-            publisher: None,
-            rating: None,
-            cover_image: None,
-            backdrop_image: None,
-            description: None,
-        });
-        let destination = Self::destination_path(&request.platform, &source.uri)?;
+        Self::destination_path(&request.platform, &source.uri)?;
         let existing = DatabaseService::get_connection()?.query_row(
-            "SELECT id FROM download_jobs WHERE source_id = ?1 AND status IN ('queued', 'downloading', 'paused', 'completed') ORDER BY rowid DESC LIMIT 1",
+            "SELECT id FROM download_jobs WHERE source_id = ?1 AND status IN ('queued', 'downloading', 'paused', 'completed', 'downloaded') ORDER BY rowid DESC LIMIT 1",
             params![source.id],
             |row| row.get::<_, String>(0),
         ).ok();
         if let Some(existing_id) = existing {
-            return Self::get_job(&existing_id)?.ok_or_else(|| EmuBoxError::NotFound(existing_id));
+            if let Some(job) = Self::get_job(&existing_id)? {
+                if !matches!(job.status, DownloadStatus::Completed | DownloadStatus::Downloaded) || Path::new(&job.destination_path).exists() { return Ok(job); }
+            }
         }
         let id = format!("download-{}", uuid_like());
-        let conn = DatabaseService::get_connection()?;
-        conn.execute(
+        let destination = super::download_manager::content_root().join(&request.platform).join(&id);
+        let mut conn = DatabaseService::get_connection()?;
+        let transaction = conn.transaction().map_err(super::download_providers::io_error)?;
+        transaction.execute(
             "INSERT INTO download_jobs (id, game_id, source_id, platform, destination_path, status, total_bytes)
              VALUES (?1, ?2, ?3, ?4, ?5, 'queued', ?6);",
             params![id, request.game_id, source.id, request.platform, destination.to_string_lossy().to_string(), source.size_bytes],
         ).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
+        transaction.execute("INSERT INTO download_execution(job_id,source_json,provider) VALUES (?1,?2,?3)", params![id,serde_json::to_string(&source).map_err(super::download_providers::io_error)?,provider.as_str()]).map_err(super::download_providers::io_error)?;
+        transaction.commit().map_err(super::download_providers::io_error)?;
         Self::get_job(&id)?.ok_or_else(|| EmuBoxError::Unknown("No se pudo crear el trabajo de descarga".to_string()))
     }
 
     pub fn list_jobs() -> Result<Vec<DownloadJob>, EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
-        let mut stmt = conn.prepare("SELECT id, game_id, source_id, platform, destination_path, status, progress, downloaded_bytes, total_bytes, speed_bytes_per_second, error FROM download_jobs ORDER BY rowid DESC")
+        let mut stmt = conn.prepare("SELECT id, game_id, source_id, platform, destination_path, status, progress, downloaded_bytes, total_bytes, speed_bytes_per_second, error, (SELECT provider FROM download_execution WHERE job_id=id), (SELECT phase FROM download_execution WHERE job_id=id) FROM download_jobs ORDER BY rowid DESC")
             .map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
         let rows = stmt.query_map([], Self::row_to_job).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
-        Ok(rows.flatten().collect())
+        rows.collect::<Result<Vec<_>, _>>().map_err(super::download_providers::io_error)
     }
 
     pub fn import_and_start() -> Result<Vec<DownloadJob>, EmuBoxError> {
@@ -536,6 +521,7 @@ impl DownloadService {
             let source_type = match super::manifest_service::source_access(&uri) {
                 Some("magnet") => DownloadSourceType::Magnet,
                 Some("torrent") => DownloadSourceType::Torrent,
+                Some("unsupported") | None => DownloadSourceType::Other,
                 _ => DownloadSourceType::Http,
             };
             Ok(super::manifest_service::source_option(DownloadSource {
@@ -575,111 +561,26 @@ impl DownloadService {
 
     pub fn get_job(id: &str) -> Result<Option<DownloadJob>, EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
-        let mut stmt = conn.prepare("SELECT id, game_id, source_id, platform, destination_path, status, progress, downloaded_bytes, total_bytes, speed_bytes_per_second, error FROM download_jobs WHERE id = ?1")
+        let mut stmt = conn.prepare("SELECT id, game_id, source_id, platform, destination_path, status, progress, downloaded_bytes, total_bytes, speed_bytes_per_second, error, (SELECT provider FROM download_execution WHERE job_id=id), (SELECT phase FROM download_execution WHERE job_id=id) FROM download_jobs WHERE id = ?1")
             .map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
         let mut rows = stmt.query_map(params![id], Self::row_to_job).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
         rows.next().transpose().map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))
     }
 
     pub fn start(id: String) -> Result<DownloadJob, EmuBoxError> {
-        let job = Self::get_job(&id)?.ok_or_else(|| EmuBoxError::NotFound(format!("Descarga no encontrada: {}", id)))?;
-        if !active_jobs().lock().unwrap().is_empty() {
-            return Ok(job);
-        }
-        let (source_uri, checksum): (String, Option<String>) = DatabaseService::get_connection()?.query_row("SELECT uri, checksum FROM download_sources WHERE id = ?1", params![job.source_id], |row| Ok((row.get(0)?, row.get(1)?)))
-            .map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
-        if !matches!(super::manifest_service::source_access(&source_uri), Some("http" | "unverified_http")) {
-            return Err(EmuBoxError::InvalidConfiguration("Esta fuente requiere un conector de alojamiento o BitTorrent; no es una descarga HTTP directa".into()));
-        }
-        let paused = Arc::new(AtomicBool::new(false));
-        let cancelled = Arc::new(AtomicBool::new(false));
-        active_jobs().lock().unwrap().insert(id.clone(), RuntimeControl { paused: paused.clone(), cancelled: cancelled.clone() });
-        Self::update_status(&id, DownloadStatus::Downloading, None)?;
-        let worker_id = id.clone();
-        thread::spawn(move || {
-            let result = Self::run_http(worker_id.clone(), job.game_id.clone(), source_uri, checksum, job.destination_path, paused, cancelled);
-            active_jobs().lock().unwrap().remove(&worker_id);
-            if let Err(error) = result {
-                let _ = Self::update_status(&worker_id, DownloadStatus::Failed, Some(error.to_string()));
-            }
-            Self::start_next_queued();
-        });
-        Self::get_job(&id)?.ok_or(EmuBoxError::NotFound(id))
+        super::download_manager::start(id)
     }
 
     pub fn pause(id: &str) -> Result<DownloadJob, EmuBoxError> {
-        if let Some(control) = active_jobs().lock().unwrap().get(id) { control.paused.store(true, Ordering::Relaxed); }
-        Self::update_status(id, DownloadStatus::Paused, None)?;
-        Self::get_job(id)?.ok_or_else(|| EmuBoxError::NotFound(id.to_string()))
+        super::download_manager::pause(id)
     }
 
     pub fn resume(id: String) -> Result<DownloadJob, EmuBoxError> {
-        if let Some(control) = active_jobs().lock().unwrap().get(&id) { control.paused.store(false, Ordering::Relaxed); return Self::get_job(&id)?.ok_or(EmuBoxError::NotFound(id)); }
-        Self::start(id)
+        super::download_manager::start(id)
     }
 
     pub fn cancel(id: &str) -> Result<DownloadJob, EmuBoxError> {
-        if let Some(control) = active_jobs().lock().unwrap().get(id) { control.cancelled.store(true, Ordering::Relaxed); }
-        Self::update_status(id, DownloadStatus::Cancelled, None)?;
-        Self::get_job(id)?.ok_or_else(|| EmuBoxError::NotFound(id.to_string()))
-    }
-
-    fn run_http(id: String, game_id: String, uri: String, checksum: Option<String>, destination: String, paused: Arc<AtomicBool>, cancelled: Arc<AtomicBool>) -> Result<(), EmuBoxError> {
-        let destination = PathBuf::from(destination);
-        let parent = destination.parent().ok_or_else(|| EmuBoxError::InvalidConfiguration("Destino inválido".to_string()))?;
-        fs::create_dir_all(parent).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
-        let partial_name = destination.file_name().and_then(|name| name.to_str()).unwrap_or("download.bin");
-        let cache_root = paths::downloads_cache_dir();
-        let partial = Path::new(&cache_root).join(format!("{}.part", partial_name));
-        fs::create_dir_all(&cache_root).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
-        let existing = partial.metadata().map(|m| m.len()).unwrap_or(0);
-        let client = Client::builder().connect_timeout(std::time::Duration::from_secs(15))
-            .build().map_err(request_error)?;
-        let mut request = client.get(&uri);
-        if existing > 0 { request = request.header(reqwest::header::RANGE, format!("bytes={}-", existing)); }
-        let mut response = request.send().map_err(request_error)?;
-        let mut downloaded = if existing > 0 && response.status() == reqwest::StatusCode::PARTIAL_CONTENT { existing } else { 0 };
-        if existing > 0 && downloaded == 0 { response = client.get(&uri).send().map_err(request_error)?; }
-        if !response.status().is_success() { return Err(EmuBoxError::Unknown(format!("HTTP {}", response.status()))); }
-        if response.headers().get(reqwest::header::CONTENT_TYPE).and_then(|value| value.to_str().ok())
-            .is_some_and(|value| value.to_ascii_lowercase().contains("text/html")) {
-            return Err(EmuBoxError::InvalidConfiguration("La fuente devuelve una pagina web, no un archivo descargable directo.".into()));
-        }
-        let total = response.content_length().map(|size| size + downloaded);
-        let mut file = if downloaded > 0 { OpenOptions::new().append(true).open(&partial) } else { File::create(&partial) }
-            .map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
-        let started = Instant::now();
-        let mut buffer = [0u8; 64 * 1024];
-        loop {
-            if cancelled.load(Ordering::Relaxed) { return Ok(()); }
-            if paused.load(Ordering::Relaxed) { thread::sleep(std::time::Duration::from_millis(100)); continue; }
-            let read = response.read(&mut buffer).map_err(|e| EmuBoxError::Unknown(e.to_string()))?;
-            if read == 0 { break; }
-            file.write_all(&buffer[..read]).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
-            downloaded += read as u64;
-            let speed = (downloaded as f64 / started.elapsed().as_secs_f64().max(0.001)) as u64;
-            Self::update_progress(&id, downloaded, total, speed)?;
-        }
-        fs::rename(&partial, &destination).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
-        if let Some(expected) = checksum {
-            let mut file = File::open(&destination).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
-            let mut hasher = Sha256::new();
-            let mut hash_buffer = [0u8; 64 * 1024];
-            loop {
-                let read = file.read(&mut hash_buffer).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
-                if read == 0 { break; }
-                hasher.update(&hash_buffer[..read]);
-            }
-            let actual = format!("{:x}", hasher.finalize());
-            if actual != expected.trim().to_ascii_lowercase() {
-                let _ = fs::remove_file(&destination);
-                return Err(EmuBoxError::Unknown("El checksum SHA-256 de la descarga no coincide".to_string()));
-            }
-        }
-        Self::update_status(&id, DownloadStatus::Completed, None)?;
-        let file_size = fs::metadata(&destination).map(|metadata| metadata.len()).unwrap_or(0);
-        let _ = GameService::mark_installed(&game_id, &destination.to_string_lossy(), file_size);
-        Ok(())
+        super::download_manager::cancel(id)
     }
 
     fn destination_path(platform: &str, uri: &str) -> Result<PathBuf, EmuBoxError> {
@@ -695,47 +596,15 @@ impl DownloadService {
         Ok(Path::new(&paths::games_dir()).join(platform).join(filename))
     }
 
-    fn update_status(id: &str, status: DownloadStatus, error: Option<String>) -> Result<(), EmuBoxError> {
-        let value = match status { DownloadStatus::Queued => "queued", DownloadStatus::Downloading => "downloading", DownloadStatus::Paused => "paused", DownloadStatus::Completed => "completed", DownloadStatus::Failed => "failed", DownloadStatus::Cancelled => "cancelled" };
-        DatabaseService::get_connection()?.execute("UPDATE download_jobs SET status = ?1, error = ?2 WHERE id = ?3", params![value, error, id]).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
-        Ok(())
-    }
-
-    fn update_progress(id: &str, downloaded: u64, total: Option<u64>, speed: u64) -> Result<(), EmuBoxError> {
-        let progress = total.map(|total| (downloaded as f32 / total.max(1) as f32).min(1.0)).unwrap_or(0.0);
-        DatabaseService::get_connection()?.execute("UPDATE download_jobs SET progress = ?1, downloaded_bytes = ?2, total_bytes = COALESCE(?3, total_bytes), speed_bytes_per_second = ?4 WHERE id = ?5", params![progress, downloaded, total, speed, id]).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
-        Ok(())
-    }
-
-    fn start_next_queued() {
-        if active_jobs().lock().unwrap().is_empty() {
-            if let Ok(jobs) = Self::list_jobs() {
-                if let Some(next) = jobs.into_iter().find(|job| matches!(job.status, DownloadStatus::Queued)) {
-                    let _ = Self::start(next.id);
-                }
-            }
-        }
-    }
-
     fn row_to_job(row: &rusqlite::Row<'_>) -> rusqlite::Result<DownloadJob> {
         let status: String = row.get(5)?;
-        Ok(DownloadJob { id: row.get(0)?, game_id: row.get(1)?, source_id: row.get(2)?, platform: row.get(3)?, destination_path: row.get(4)?, status: match status.as_str() { "downloading" => DownloadStatus::Downloading, "paused" => DownloadStatus::Paused, "completed" => DownloadStatus::Completed, "failed" => DownloadStatus::Failed, "cancelled" => DownloadStatus::Cancelled, _ => DownloadStatus::Queued }, progress: row.get(6)?, downloaded_bytes: row.get(7)?, total_bytes: row.get(8)?, speed_bytes_per_second: row.get(9)?, error: row.get(10)? })
+        Ok(DownloadJob { id: row.get(0)?, game_id: row.get(1)?, source_id: row.get(2)?, platform: row.get(3)?, destination_path: row.get(4)?, status: match status.as_str() { "downloading" => DownloadStatus::Downloading, "paused" => DownloadStatus::Paused, "completed" => DownloadStatus::Completed, "downloaded" => DownloadStatus::Downloaded, "failed" => DownloadStatus::Failed, "cancelled" => DownloadStatus::Cancelled, _ => DownloadStatus::Queued }, progress: row.get(6)?, downloaded_bytes: row.get(7)?, total_bytes: row.get(8)?, speed_bytes_per_second: row.get(9)?, error: row.get(10)?, provider: row.get(11).unwrap_or(None), phase: row.get(12).unwrap_or(None) })
     }
 }
 
 fn uuid_like() -> String { format!("{}-{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default()) }
 
-fn request_error(error: reqwest::Error) -> EmuBoxError {
-    use std::error::Error;
-    let mut detail = String::new();
-    let mut cause: Option<&dyn Error> = Some(&error);
-    while let Some(current) = cause {
-        detail.push_str(&current.to_string().to_ascii_lowercase());
-        cause = current.source();
-    }
-    EmuBoxError::IpcError(network_message(&detail, error.is_timeout()).into())
-}
-
+#[cfg(test)]
 fn network_message(detail: &str, timeout: bool) -> &'static str {
     if detail.contains("certificate") || detail.contains("certificado") {
         "No se pudo validar el certificado HTTPS de la fuente. No se ha desactivado la comprobacion de seguridad."
