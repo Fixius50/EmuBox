@@ -1,6 +1,6 @@
 # Estado actual de EmuBox
 
-**Fecha de referencia:** 5 de septiembre de 2026  
+**Fecha de referencia:** 13 de septiembre de 2026
 **Estado:** runtime nativo y configuracion de appliance x86_64/aarch64 implementados;
 aceptacion funcional ARM real pendiente. Distribucion reproducible: fase posterior.
 
@@ -50,9 +50,9 @@ Arch Linux + systemd
         v
 getty@tty1 -> autologin de appliance -> emubox-session
         |
-        +--> Gamescope -> EmuBox       (Vulkan hardware + DRM + Gamescope)
+        +--> detectar aceleracion -> elegir OpenGL/Vulkan/software
         |
-        +--> Cage -> EmuBox            (resto de capacidades)
+        +--> compositor compatible (Cage por defecto) -> EmuBox
                               |
                               v
                  Tauri v2 + WebKitGTK 4.1
@@ -67,7 +67,7 @@ getty@tty1 -> autologin de appliance -> emubox-session
 - SolidJS gestiona señales, stores y navegación espacial.
 - Kobalte aporta diálogos, focus traps y primitivas accesibles.
 - CSS propio define la interfaz 10-Foot UI.
-- TanStack Virtual permite navegar el catalogo importado sin renderizar todas sus tarjetas.
+- XMB renderiza una ventana acotada de carpetas y versiones; `useXmbLibrary` controla entradas y estado, sin TanStack Virtual.
 - Tauri conecta la UI con servicios Rust mediante IPC.
 - SQLite y `/var/lib/emubox/games` son la fuente de verdad de juegos instalados.
 - `GameLibraryWatcher` actualiza la biblioteca cuando aparece una ROM.
@@ -123,13 +123,16 @@ un motor BitTorrent. Ver [detalle y limites](catalog-sources.md).
 
 La seleccion automatica prioriza GPU real o 3D virtual. Sin Vulkan hardware ni
 OpenGL acelerado detectados, usa CPU como alternativa. Cage no implica CPU:
-puede componer con OpenGL acelerado. El override local de diagnostico `software`
-se ha devuelto a `auto`; esto no certifica la estabilidad de SVGA3D.
+puede componer con OpenGL acelerado. Un valor legado `software` en la configuracion
+no prevalece sobre aceleracion detectada; esto no certifica la estabilidad de SVGA3D.
 
-La detección consulta DRM/sysfs, dispositivos DRI y Vulkan; PCI es un apoyo,
+La detección consulta DRM/sysfs, dispositivos DRI, EGL/OpenGL y Vulkan; PCI es un apoyo,
 no un requisito. Reconoce AMD, Intel, NVIDIA, Broadcom, Mali, Adreno, Apple,
-drivers virtuales y desconocidos sin inferir GPU desde la CPU. Gamescope requiere
-Vulkan hardware, DRM y ejecutable disponible; en otro caso se selecciona Cage.
+drivers virtuales y desconocidos sin inferir GPU desde la CPU. Primero se selecciona
+OpenGL acelerado, Vulkan acelerado o software. Cage es la opcion automatica con
+OpenGL/DRM; Gamescope mantiene sus requisitos Vulkan propios, pero solo se elige
+por preferencia compatible o si Cage no puede servir el backend. Si falta un
+compositor compatible se informa del error sin degradar una GPU detectada a CPU.
 No tener Vulkan no equivale a renderizar por CPU. No se exporta RADV_PERFTEST global.
 
 El sondeo EGL/OpenGL identifica `SVGA3D` acelerado en la VM actual, sin confundir

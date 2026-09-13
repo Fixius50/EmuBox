@@ -5,19 +5,31 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/installer/lib/graphics.
 [[ "$(emubox_gpu_vendor 'AMD Radeon')" == amd ]]
 [[ "$(emubox_gpu_vendor 'Intel i915')" == intel ]]
 [[ "$(emubox_gpu_vendor NVIDIA)" == nvidia ]]
-[[ "$(emubox_gpu_vendor 'Mali panfrost')" == arm ]]
+[[ "$(emubox_gpu_vendor 'Mali panfrost')" == mali ]]
+[[ "$(emubox_gpu_vendor 'ARM aarch64 CPU')" == unknown ]]
 [[ "$(emubox_gpu_vendor v3d)" == broadcom ]]
 [[ "$(emubox_gpu_vendor Adreno)" == qualcomm ]]
 [[ "$(emubox_gpu_vendor 'Apple AGX')" == apple ]]
-for vulkan in 0 1; do
+for backend in opengl vulkan software; do
   for drm in 0 1; do
     for gamescope in 0 1; do
-      expected=cage
-      [[ "$vulkan:$drm:$gamescope" != 1:1:1 ]] || expected=gamescope
-      [[ "$(select_emubox_compositor "$vulkan" "$drm" "$gamescope")" == "$expected" ]]
+      expected=unavailable
+      if [[ "$drm" == 1 ]]; then
+        if [[ "$backend" != vulkan ]]; then expected=cage
+        elif [[ "$gamescope" == 1 ]]; then expected=gamescope; fi
+      fi
+      [[ "$(select_emubox_compositor auto "$backend" "$drm" 1 "$gamescope")" == "$expected" ]]
     done
   done
 done
+[[ "$(select_emubox_backend 0 1)" == opengl ]]
+[[ "$(select_emubox_backend 1 1)" == opengl ]]
+[[ "$(select_emubox_backend 1 0)" == vulkan ]]
+[[ "$(select_emubox_backend 0 0)" == software ]]
+[[ "$(select_emubox_compositor gamescope opengl 1 1 0)" == cage ]]
+[[ "$(select_emubox_compositor gamescope opengl 1 1 1)" == gamescope ]]
+[[ "$(select_emubox_compositor auto software 1 0 1)" == unavailable ]]
+[[ -z "$(printf '%s\n' $'GPU0:\n deviceType = PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU\n deviceName = SwiftShader' | emubox_vulkan_renderer)" ]]
 software=$'GPU0:\n deviceType = PHYSICAL_DEVICE_TYPE_CPU\n deviceName = llvmpipe'
 [[ -z "$(printf '%s\n' "$software" | emubox_vulkan_renderer)" ]]
 [[ "$(printf '%s\n' "$software" $'GPU1:\n deviceType = PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU\n deviceName = Mali' | emubox_vulkan_renderer)" == Mali ]]
@@ -43,6 +55,9 @@ echo 'Explicit software diagnostic mode and unchanged automatic mode: OK'
 [[ "$(select_emubox_render_mode auto 1 0)" == auto ]]
 [[ "$(select_emubox_render_mode auto 0 1)" == auto ]]
 [[ "$(select_emubox_render_mode auto 0 0)" == software ]]
-[[ "$(select_emubox_render_mode software 1 1)" == software ]]
+[[ "$(select_emubox_render_mode software 1 1)" == auto ]]
+( configure_emubox_render_mode software; configure_emubox_render_mode auto; [[ ! -v LIBGL_ALWAYS_SOFTWARE && ! -v WLR_RENDERER && ! -v WEBKIT_DISABLE_COMPOSITING_MODE ]] )
+( export GALLIUM_DRIVER=llvmpipe MESA_LOADER_DRIVER_OVERRIDE=swrast; configure_emubox_render_mode auto; [[ ! -v GALLIUM_DRIVER && ! -v MESA_LOADER_DRIVER_OVERRIDE ]] )
+( export GALLIUM_DRIVER=zink MESA_LOADER_DRIVER_OVERRIDE=iris; configure_emubox_render_mode auto; [[ "$GALLIUM_DRIVER" == zink && "$MESA_LOADER_DRIVER_OVERRIDE" == iris ]] )
 ! select_emubox_render_mode invalid 1 1
 echo 'GPU Vulkan/OpenGL (including VM 3D) first, CPU only without acceleration: OK'

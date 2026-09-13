@@ -13,6 +13,16 @@ pub struct HardwareInfo {
     pub opengl_renderer: Option<String>,
     #[serde(default)]
     pub opengl_accelerated: bool,
+    #[serde(default)]
+    pub graphics_accelerated: bool,
+    #[serde(default)]
+    pub graphics_backend: String,
+    #[serde(default)]
+    pub gpu_kind: String,
+    #[serde(default)]
+    pub is_virtual_machine: bool,
+    #[serde(default)]
+    pub gamescope_ready: bool,
     pub drm_available: bool,
     pub gamescope_available: bool,
     pub recommended_compositor: String,

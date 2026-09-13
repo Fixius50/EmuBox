@@ -18,6 +18,7 @@ for (const architecture of ['x86_64', 'aarch64', 'armv7l']) {
   assert.equal((await backend.getDiagnostics()).architecture, expected);
   const emulators = await backend.getEmulators();
   assert.ok(emulators.some(emulator => emulator.id === 'rpcs3'));
+  assert.notEqual(emulators.find(emulator => emulator.id === 'rpcs3')?.requirements?.vulkan, true);
   const pcsx2 = emulators.find(emulator => emulator.id === 'pcsx2')!;
   assert.equal(pcsx2.compatibility?.status, architecture === 'x86_64' ? 'supported' : 'unsupported_architecture');
   assert.equal(emulatorBlockReason(pcsx2) === null, architecture === 'x86_64');

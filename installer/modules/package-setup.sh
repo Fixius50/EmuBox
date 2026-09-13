@@ -18,11 +18,12 @@ REQUIRED_PACKAGES=(
   "pipewire"
   "pipewire-pulse"
   "wireplumber"
-  "vulkan-icd-loader"
+  "mesa"
+  "mesa-utils"
   "xdg-user-dirs"
   "libevdev"
 )
 
 log_step "Comprobando e instalando paquetes necesarios..."
 install_packages_if_missing "${REQUIRED_PACKAGES[@]}"
-install_optional_packages gamescope vulkan-tools mesa-utils
+install_optional_packages gamescope vulkan-tools

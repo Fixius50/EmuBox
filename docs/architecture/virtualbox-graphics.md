@@ -6,15 +6,16 @@
 
 EmuBox detecta CPU y GPU por separado. La prioridad automatica es usar la GPU
 disponible, incluida aceleracion 3D virtual como SVGA3D/virgl; no se considera
-software simplemente por ejecutarse en una VM. Si detecta Vulkan hardware,
-DRM y Gamescope disponible, usa Gamescope. Si detecta OpenGL acelerado, Cage
-puede usar esa GPU aunque no haya Vulkan. Si no se detecta aceleracion Vulkan
+software simplemente por ejecutarse en una VM. Primero elige OpenGL acelerado
+para Cage/WebKitGTK, o Vulkan acelerado si falta esa ruta. Cage es automatico
+con OpenGL/DRM; Gamescope solo por preferencia compatible o cuando Cage no
+soporta el backend disponible. Si no se detecta aceleracion Vulkan
 ni OpenGL, el lanzador recurre a CPU con Cage/Pixman y Mesa/WebKit software.
 
 El nombre de la CPU y sus nucleos se registran independientemente. Vulkan y
 OpenGL son APIs, no modelos de GPU. Si faltan herramientas/drivers de sondeo,
 no se puede certificar aceleracion y puede seleccionarse el fallback conservador.
-El modo `software` sigue disponible solo como override explicito de diagnostico.
+Un valor legado `software` ya no desactiva aceleracion utilizable detectada.
 La UI nativa recibe las capacidades Rust; la deteccion WebGL se usa en navegador.
 
 La VM vuelve a modo `auto` el 6 de septiembre de 2026 por peticion del usuario.
@@ -89,24 +90,18 @@ El proveedor de mando combina D-pad y stick en una sola direccion por lectura,
 con repeticion tras 350 ms y cada 120 ms al mantenerla. El scroll de la biblioteca
 no selecciona la tarjeta bajo un raton inmovil; se exige movimiento real del raton.
 
-### Prueba reversible si la corrupcion persiste
+### Si la corrupcion persiste
 
 DRM legacy y cursor software no garantizan estabilidad de SVGA3D. En la VM se
 observo recurrencia junto a errores de kernel `vmwgfx: Failed to open channel`.
-Para discriminar la ruta 3D, el lanzador admite `/etc/emubox/graphics-mode` con
-un unico valor: `auto` (por defecto) o `software`. La variable de entorno
-`EMUBOX_RENDER_MODE` tiene prioridad sobre ese archivo.
-
-`software` selecciona Cage/Pixman, `LIBGL_ALWAYS_SOFTWARE=1` y
-`WEBKIT_DISABLE_COMPOSITING_MODE=1`. Es una prueba temporal con posible coste de
-rendimiento, no una mejora de aceleracion ni una solucion confirmada del driver.
-El cambio no requiere build, pero si reiniciar TTY1. El log debe mostrar
-`renderMode=software` y `Creating pixman renderer`.
-
-Para volver a la deteccion automatica, cambiar el contenido del archivo a `auto`
-y reiniciar TTY1. No se aplica este modo por defecto en otras maquinas. Si la
-imagen se estabiliza solo en software, revisar la version de VirtualBox y el
-driver del anfitrion antes de volver a activar la ruta 3D.
+La politica actual elimina el override CPU cuando hay aceleracion: los valores
+legados de `/etc/emubox/graphics-mode` o `EMUBOX_RENDER_MODE` no anulan una GPU
+detectada. El arranque limpia variables heredadas que forzaban Mesa/software,
+Pixman o desactivaban composicion WebKit antes de sondear. Solo sin aceleracion
+elige Cage/Pixman, `LIBGL_ALWAYS_SOFTWARE=1` y `WEBKIT_DISABLE_COMPOSITING_MODE=1`.
+El workaround `WEBKIT_DISABLE_DMABUF_RENDERER=1` se limita a `vmwgfx`; no es
+equivalente a desactivar OpenGL. Revisar VirtualBox, Guest Additions y driver del
+anfitrion si persiste la corrupcion; detectar capacidad no certifica estabilidad.
 
 ```bash
 systemd-detect-virt
@@ -116,15 +111,20 @@ vulkaninfo --summary
 ```
 
 Las herramientas `eglinfo` y `glxinfo` pertenecen a `mesa-utils` en Arch;
-`vulkaninfo`, a `vulkan-tools`. Son diagnósticos opcionales del instalador.
+`vulkaninfo`, a `vulkan-tools`. `mesa-utils` forma parte del sondeo requerido;
+Gamescope y las herramientas Vulkan son opcionales.
 Por SSH, que fallen las plataformas EGL X11/Wayland no invalida un sondeo GBM
 o surfaceless válido. No asumir que todas las aplicaciones usan el renderer
 detectado: confirmar también el log de la sesión y del emulador.
 
-Gamescope requiere Vulkan. Si no está disponible, EmuBox utiliza Cage; los
+Gamescope tiene requisitos Vulkan propios, no globales de EmuBox. Cage usa
+OpenGL acelerado aunque falte Vulkan y no se sustituye solo porque este exista; los
 perfiles que implementan selección de API usan OpenGL cuando no hay Vulkan.
 Un emulador puede requerir versiones/extensiones no expuestas por VirtualBox;
 el rendimiento y la compatibilidad no equivalen a una GPU física dedicada.
+RPCS3 dispone de renderer OpenGL y no se bloquea globalmente por falta de Vulkan.
+Su configuracion nativa debe seleccionar una API compatible; EmuBox no certifica
+sus extensiones ni modifica automaticamente su YAML de configuracion.
 
 Referencias oficiales: [pantalla y VMSVGA](https://www.virtualbox.org/manual/ch03.html#settings-display)
 y [aceleración 3D](https://www.virtualbox.org/manual/ch04.html#guestadd-3d).

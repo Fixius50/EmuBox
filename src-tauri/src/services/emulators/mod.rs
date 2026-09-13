@@ -127,8 +127,7 @@ pub(crate) fn upsert_ini_key(path: &Path, section: &str, key: &str, value: &str)
         .map_err(|e| EmuBoxError::StorageUnavailable(format!("No se pudo escribir {}: {}", path.display(), e)))
 }
 
-/// `true` si hay un driver Vulkan real detectado sobre un vendor de GPU conocido
-/// (no una VM sin passthrough ni un renderer software).
+/// Vulkan usable por este perfil, incluidas las GPU virtuales aceleradas.
 pub(crate) fn vulkan_ok(hardware: &HardwareInfo) -> bool {
     hardware.vulkan_supported
 }

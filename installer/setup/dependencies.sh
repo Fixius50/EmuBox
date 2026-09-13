@@ -18,7 +18,8 @@ CORE_PKGS=(
   "pipewire-pulse"
   "pipewire-alsa"
   "wireplumber"
-  "vulkan-icd-loader"
+  "mesa"
+  "mesa-utils"
   "xdg-user-dirs"
   "libevdev"
 )
@@ -26,4 +27,4 @@ CORE_PKGS=(
 echo "  -> Comprobando gestor de paquetes de Arch Linux (pacman)..."
 
 install_packages_if_missing "${CORE_PKGS[@]}"
-install_optional_packages gamescope vulkan-tools mesa-utils
+install_optional_packages gamescope vulkan-tools

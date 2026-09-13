@@ -1,6 +1,6 @@
 # 🎮 EmuBox: Frontend de Consola Dedicada para Arch Linux
 
-EmuBox es una interfaz de usuario cinematográfica de 10 pies (10-Foot UI) para consolas de emulación dedicadas bajo **Arch Linux (Direct DRM/KMS + Gamescope Compositor)**.
+EmuBox es una interfaz de usuario de 10 pies (10-Foot UI) para consolas de emulación dedicadas bajo **Arch Linux (DRM/KMS + compositor Wayland compatible)**.
 
 ## Estado actual
 
@@ -138,24 +138,23 @@ El CSS se organiza por componente, con medidas relativas, propiedades lógicas y
 EmuBox implementa una arquitectura gráfica desacoplada y adaptativa:
 
 ```text
-                                 EMUBOX OS
-                                     │
-                     ┌───────────────┴───────────────┐
-                     ▼                               ▼
-               VULKAN + DRM + GAMESCOPE          SIN ESTAS CAPACIDADES
-                  (independiente de CPU)          (no implica solo CPU)
-                     │                               │
-                     ▼                               ▼
-                 GAMESCOPE                          CAGE
-                     │                               │
-                     └───────────────┬───────────────┘
-                                     ▼
-                                 EMUBOX UI
-                     (Tauri v2 + WebKitGTK + SolidJS)
+                   GPU fisica o virtual: sondeo de aceleracion, independiente de CPU
+                               |
+                         +-----------+-----------+
+                         |                       |
+                      Aceleracion                Sin aceleracion
+                      OpenGL / Vulkan            Software / CPU
+                         |                       |
+                      Compositor compatible     Cage / Pixman
+                         +-----------+-----------+
+                               |
+                         Tauri + WebKitGTK + SolidJS
 ```
 
-* **Gamescope**: `Gamescope -> EmuBox` con Vulkan hardware, DRM y Gamescope instalado, tanto en x86_64 como en aarch64.
-* **Cage**: `Cage -> EmuBox` cuando falta alguna de esas capacidades. Puede usar aceleración OpenGL aunque no haya Vulkan.
+* **Backend**: OpenGL acelerado tiene preferencia para la sesión Cage/WebKitGTK; Vulkan acelerado es otra ruta disponible. Solo si ninguna está detectada se utiliza software. La presencia de una biblioteca o ejecutable Vulkan no demuestra aceleración.
+* **Cage**: opción automática si están disponibles DRM, Cage y OpenGL acelerado; Pixman únicamente sin aceleración.
+* **Gamescope**: sus requisitos propios incluyen Vulkan acelerado, ejecutable y salida compatible. Se elige mediante `EMUBOX_COMPOSITOR_PREFERENCE=gamescope` si es compatible, o como alternativa cuando Cage no soporta el backend disponible. Detectar Vulkan no fuerza Gamescope. Sin compositor compatible se informa del error, no se oculta pasando a CPU.
+* **GPU virtual**: SVGA3D/virgl con OpenGL y sin Vulkan permanece acelerada. CPU `aarch64` y GPU Mali/AMD/Intel/NVIDIA son datos independientes.
 * **Sincronización Event-Driven (`emubox-drm-sync`)**: Escucha eventos nativos del kernel Linux (`SUBSYSTEM=drm`, `HOTPLUG=1`) mediante `udevadm` (0% CPU, sin polling). Al redimensionar la ventana o cambiar de monitor, adapta la superficie Wayland y la UI SolidJS en caliente sin resoluciones fijas ni reinicios.
 
 ## Documentación y Guías de Arquitectura

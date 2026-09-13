@@ -67,6 +67,7 @@ mod tests {
         assert!(supports("pcsx2", Architecture::X86_64));
         assert!(!supports("pcsx2", Architecture::Aarch64));
         assert!(supports("rpcs3", Architecture::Aarch64));
+        assert!(!DEFINITIONS.get("rpcs3").unwrap().requirements.vulkan);
         assert!(supports("retroarch", Architecture::Aarch64));
         assert!(!supports("unverified", Architecture::Aarch64));
         assert!(!supports("retroarch", Architecture::Unsupported));

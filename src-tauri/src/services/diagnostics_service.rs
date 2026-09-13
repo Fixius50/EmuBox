@@ -18,11 +18,12 @@ impl DiagnosticsService {
         let emulators = super::EmulatorService::get_emulators()?;
         let installed = emulators.iter().filter(|emulator| emulator.compatibility.status == "supported").count();
         let hardware = &system.hardware;
-        let summary = format!("architecture={} kernelArchitecture={} cpu={} cores={} memoryMiB={} gpuVendor={} renderer={} vulkan={} opengl={} openglAccelerated={} openglRenderer={} drm={} gamescope={} compositor={} device={}",
+        let summary = format!("architecture={} kernelArchitecture={} cpu={} cores={} memoryMiB={} gpuVendor={} renderer={} vulkan={} opengl={} openglAccelerated={} openglRenderer={} drm={} gamescope={} compositor={} device={} accelerated={} backend={} gpuKind={} vm={}",
             system.architecture, system.kernel_architecture, hardware.cpu_model, hardware.cpu_cores,
             hardware.total_memory_mb, hardware.gpu_vendor, hardware.gpu_renderer, hardware.vulkan_supported,
             hardware.opengl_supported, hardware.opengl_accelerated, hardware.opengl_renderer.as_deref().unwrap_or("unknown"),
-            hardware.drm_available, hardware.gamescope_available, hardware.recommended_compositor, hardware.device_model);
+            hardware.drm_available, hardware.gamescope_available, hardware.recommended_compositor, hardware.device_model,
+            hardware.graphics_accelerated, hardware.graphics_backend, hardware.gpu_kind, hardware.is_virtual_machine);
         Ok(DiagnosticReport {
             generated_at: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
             os_info: system.os_name,
@@ -30,7 +31,7 @@ impl DiagnosticsService {
             architecture: system.architecture,
             gpu_adapter: hardware.gpu_renderer.clone(),
             vulkan_ready: hardware.vulkan_supported,
-            gamescope_ready: hardware.gamescope_available && hardware.vulkan_supported && hardware.drm_available,
+            gamescope_ready: hardware.gamescope_ready,
             pipewire_ready: Command::new("pgrep").args(["-x", "pipewire"]).output().map(|output| output.status.success()).unwrap_or(false),
             storage_mounted: std::path::Path::new(&super::paths::games_dir()).is_dir(),
             emulators_installed_count: installed,

@@ -93,6 +93,14 @@ Telemetry representing hardware capabilities, display composition, and Linux ker
      report EGL/OpenGL capabilities separately from Vulkan. These describe detected
      availability, not a guarantee that every application uses that renderer.
 * `gamescopeAvailable` describes executable availability, not an active session.
+* `graphicsAccelerated`, `graphicsBackend` (`opengl`, `vulkan`, `software`),
+     `gpuKind` (`physical`, `virtual`, `software`) and `isVirtualMachine` separate
+     rendering capability from CPU architecture and compositor selection.
+* `gamescopeReady` reports its own Vulkan/DRM/executable prerequisites, not GPU
+     availability. `recommendedCompositor` can be `cage`, `gamescope` or `unavailable`.
+     OpenGL + Cage is preferred automatically; Gamescope requires a compatible
+     preference or an unavailable Cage route. These are probe results, not runtime certification.
+* GPU vendor `mali` denotes the GPU family; CPU `aarch64` does not imply a GPU vendor.
 * `display.activeCompositor` and `display.gamescopeActive` describe display state.
 
 Installer support is limited to Arch Linux x86_64 and Arch Linux ARM aarch64.

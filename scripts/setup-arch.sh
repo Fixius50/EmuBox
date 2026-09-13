@@ -341,7 +341,7 @@ TAURI_PACKAGES=(
     cage
     foot
     mesa
-    vulkan-icd-loader
+    mesa-utils
     xorg-server
     xorg-xinit
     dbus
@@ -350,7 +350,7 @@ TAURI_PACKAGES=(
 )
 
 install_packages_if_missing "${TAURI_PACKAGES[@]}"
-install_optional_packages gamescope vulkan-tools mesa-utils
+install_optional_packages gamescope vulkan-tools
 bash "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/installer/setup/dependencies.sh"
 
 log_ok "Dependencias graficas, GStreamer y Cage instalados."

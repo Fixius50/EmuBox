@@ -18,7 +18,7 @@
 * **Diseño Visual**: **CSS Propio** (100% unidades relativas `rem`, `em`, `clamp()`, `%`, `vh`, `vw`, modularizado por zonas en `solid/src/styles/`).
 * **Lógica y Contratos**: **TypeScript 5.7+** (Tipado estricto de dominio e interfaces desacopladas para Input y Backend).
 * **Runtime de Escritorio**: **Tauri v2** (IPC Rust con ultra-baja latencia y soporte de mandos mediante `gilrs`).
-* **Plataforma Objetivo**: **Arch Linux** (Modo dedicado DRM/KMS + Gamescope Compositor).
+* **Plataforma Objetivo**: **Arch Linux** (Modo dedicado DRM/KMS + compositor Wayland compatible; Vulkan no obligatorio).
 
 ---
 

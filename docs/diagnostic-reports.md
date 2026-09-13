@@ -59,16 +59,16 @@ El detector actualizado devuelve OpenGL disponible/acelerado, Vulkan ausente,
 DRM presente y compositor Cage. No se han cambiado ajustes del anfitrión ni
 instalado drivers de la GPU física. Ver [guía de VM](architecture/virtualbox-graphics.md).
 
-La fase de catálogo e integración de juegos está completada. La UI muestra el
-dataset JSON de 10.000 títulos cuando SQLite está vacío, expone sus metadatos en
-hero y tarjetas, y mantiene el flujo `DESCARGAR` -> escaneo de ROM -> `JUGAR`.
+La UI XMB muestra el catalogo real de SQLite, sin fallback a datasets ficticios,
+y mantiene el flujo de fuentes -> descarga -> escaneo de ROM -> lanzamiento.
 Las descargas dependen de fuentes autorizadas importadas mediante manifiestos;
 el JSON de catálogo no contiene enlaces de distribución.
 
 La arquitectura vigente combina SolidJS/Kobalte, Tauri/Rust por IPC, SQLite y
 filesystem como persistencia, `GameLibraryWatcher` para cambios locales,
 `DownloadService` para trabajos autorizados y arranque `systemd/getty@tty1` con
-Gamescope con Vulkan hardware/DRM disponible o Cage en otro caso. El resumen canónico está
+seleccion de aceleracion -> backend compatible -> compositor, sin exigir Vulkan.
+El resumen canónico está
 en [current-state.md](architecture/current-state.md).
 
 Validación registrada: typecheck y build correctos, 68 pruebas pasadas, chequeos

@@ -7,7 +7,7 @@
   "mgba": { "architectures": ["x86_64", "aarch64"] },
   "melonds": { "architectures": ["x86_64", "aarch64"] },
   "flycast": { "architectures": ["x86_64", "aarch64"] },
-  "rpcs3": { "architectures": ["x86_64", "aarch64"], "requirements": { "minCpuCores": 4, "minMemoryMb": 4096, "vulkan": true } },
+  "rpcs3": { "architectures": ["x86_64", "aarch64"], "requirements": { "minCpuCores": 4, "minMemoryMb": 4096 } },
   "cemu": { "architectures": ["x86_64"] },
   "ryujinx": { "architectures": ["x86_64"] },
   "snes9x": { "architectures": ["x86_64", "aarch64"] },

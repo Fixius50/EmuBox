@@ -5,7 +5,7 @@
 #
 # Implementa los Puntos 1, 7, 8, 9 y 10:
 #   - Punto 1: Arranque como Appliance dedicado en TTY1 sin sesión gráfica previa.
-#   - Punto 7: Detección gráfica adaptativa (VM sin Vulkan -> Cage / HW real -> Gamescope).
+#   - Punto 7: Aceleracion real o virtual -> backend compatible -> compositor.
 #   - Punto 8: Detección dinámica de resolución DRM con fallback a 1080p.
 #   - Punto 9: Permisos de grupos para Gamepad (input, uinput, video, seat).
 #   - Punto 10: Política de recuperación anti-bucles (StartLimitBurst=3) y logs en /var/log/emubox/.
@@ -222,7 +222,6 @@ RestartSec=5
 Environment=HOME=$EMUBOX_HOME
 Environment=EMUBOX_HOME=/var/lib/emubox
 Environment=NODE_ENV=production
-Environment=WEBKIT_DISABLE_DMABUF_RENDERER=1
 Environment=GDK_BACKEND=wayland
 Environment=XDG_SESSION_TYPE=wayland
 
@@ -243,7 +242,7 @@ echo "======================================================================"
 echo -e "\033[1;32m[ÉXITO] Configuración de Consola Appliance Completada\033[0m"
 echo "======================================================================"
 echo "1. Autologin TTY1:        ACTIVO ($EMUBOX_USER)"
-echo "2. Detección Adaptativa:  Vulkan HW + DRM + Gamescope disponible / resto -> Cage"
+echo "2. Deteccion adaptativa: GPU fisica/virtual -> OpenGL/Vulkan -> compositor compatible; software solo sin aceleracion"
 echo "3. Resolución Dinámica:   Sondeo DRM automático (Fallback 1080p)"
 echo "4. Permisos de Mando:     video, input, uinput, seat asignados"
 echo "5. Aislamiento SSH:       Las conexiones SSH (pts/*) NO interfieren"

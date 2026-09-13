@@ -33,8 +33,10 @@ PipeWire/WirePlumber se habilitan como servicios de usuario y systemd-tmpfiles
 recrea `/run/emubox` despues de reiniciar. Los directorios persistentes son
 `/etc/emubox`, `/var/lib/emubox`, `/var/cache/emubox` y `/var/log/emubox`.
 
-Gamescope requiere Vulkan hardware, DRM y el ejecutable disponible; de lo contrario
-se usa Cage. Cage puede usar OpenGL acelerado. La CPU no determina la GPU ni el
+La deteccion elige primero OpenGL/Vulkan acelerado o software. Cage es automatico
+con OpenGL y DRM. Gamescope requiere Vulkan hardware, DRM y el ejecutable, pero
+su disponibilidad no obliga a seleccionarlo: hace falta una preferencia compatible
+o que Cage no soporte el backend disponible. La CPU no determina la GPU ni el
 driver; disponibilidad detectada no garantiza renderizado correcto en cada programa.
 
 Un administrador puede solicitar motores opcionales por separado:

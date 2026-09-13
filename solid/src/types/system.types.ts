@@ -1,14 +1,21 @@
+import type { GraphicsBackend, GpuKind } from './graphics.types';
+
 export interface HardwareInfo {
-  gpuVendor: 'amd' | 'nvidia' | 'intel' | 'generic' | 'unknown' | 'virtual' | 'arm' | 'broadcom' | 'qualcomm' | 'apple';
+  gpuVendor: 'amd' | 'nvidia' | 'intel' | 'generic' | 'unknown' | 'virtual' | 'mali' | 'broadcom' | 'qualcomm' | 'apple';
   gpuRenderer: string;
   vulkanDriverVersion?: string;
   vulkanSupported?: boolean;
   openglSupported?: boolean;
   openglRenderer?: string | null;
   openglAccelerated?: boolean;
+  graphicsAccelerated?: boolean;
+  graphicsBackend?: GraphicsBackend;
+  gpuKind?: GpuKind;
+  isVirtualMachine?: boolean;
+  gamescopeReady?: boolean;
   drmAvailable?: boolean;
   gamescopeAvailable?: boolean;
-  recommendedCompositor?: 'gamescope' | 'cage';
+  recommendedCompositor?: 'gamescope' | 'cage' | 'unavailable';
   deviceModel?: string;
   cpuModel: string;
   cpuCores: number;
