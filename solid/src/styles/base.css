@@ -1,7 +1,3 @@
-/* ==========================================================================
-   ZONE 2: BASE RESET & STAGE CONTAINER
-   ========================================================================== */
-
 * {
   box-sizing: border-box;
   margin: 0;
@@ -10,9 +6,10 @@
   -webkit-user-select: none;
 }
 
-html, body {
-  width: 100vw;
-  height: 100vh;
+html,
+body {
+  inline-size: 100dvw;
+  block-size: 100dvh;
   overflow: hidden;
   background-color: var(--bg-void);
   font-family: var(--font-family);
@@ -21,52 +18,34 @@ html, body {
   cursor: default;
 }
 
-button, a, input, select, [role="button"], .sidebar-tab-trigger, .setting-card-row, .console-shelf-card, .dome-console-card {
+button,
+a,
+input,
+select,
+[role="button"],
+.sidebar-tab-trigger,
+.setting-card-row,
+.console-shelf-card,
+.dome-console-card {
   cursor: pointer;
 }
-
-.emubox-1080p-root {
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #020408;
-  overflow: hidden;
+#root {
+  inline-size: 100%;
+  block-size: 100%;
 }
-
-.emubox-1080p-stage {
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-deep);
-  box-shadow: 0 0 6rem rgba(0, 0, 0, 0.95);
+.emubox-xmb-root *,
+.console-modal-center-container * {
+  letter-spacing: 0;
 }
-
-.stage-content-wrapper {
-  position: relative;
-  z-index: 10;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+.emubox-xmb-root {
+  inline-size: 100%;
+  block-size: 100%;
+  background: var(--xmb-bg);
+  color: var(--xmb-text);
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  letter-spacing: 0;
 }
-
-/* CRT Shader Scanlines Overlay */
-.emubox-1080p-stage.crt-scanlines-active::after {
-  content: "";
-  display: block;
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 255, 0, 0.03));
-  z-index: 999;
-  background-size: 100% 0.2rem, 0.4rem 100%;
-  pointer-events: none;
+.emubox-xmb-root button,
+.emubox-xmb-root input {
+  font: inherit;
 }

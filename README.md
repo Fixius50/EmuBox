@@ -112,20 +112,24 @@ solid/src/
 ├── types/         # @contracts/*  -> Interfaces TypeScript (Game, Platform, Emulator, InputAction)
 ├── services/      # @services/*   -> SoundFx, Backend Mock/Tauri, InputManager, SpatialNavigator
 ├── stores/        # @stores/*     -> LibraryStore, SystemStore, NavigationStore, ModalStore
-├── hooks/         # @hooks/*      -> useConsoleInput, useConsoleNavigation, useGameLauncher
-├── animations/    # @animations/* -> screen-transitions, shelf-animations, modal-animations
-├── components/    # @components/* -> Layout (Shell, Header), Wheel 3D, ShelfGrid, Modals
+├── hooks/         # @hooks/*      -> useXmbLibrary, useSettingsNavigation, useConsoleInput, useGameLauncher
+├── animations/    # @animations/* -> Transiciones de ajustes, emuladores y modales
+├── components/    # @components/* -> Biblioteca XMB, ajustes y modales
 ├── styles/        # @styles/*     -> CSS modular por zonas (100% relativo)
 └── App.tsx        # Orquestador raíz declarativo
 ```
 
 ---
 
-## 🎮 Navegación en 3 Niveles de Consola
+## Navegación XMB
 
-1. **Nivel 1: Rueda 3D de Consolas (`PlatformWheel.tsx`)**: Carrusel de logos y emblemas flotantes continuos con iluminación dinámica de marca (sin cards genéricas).
-2. **Nivel 2: Catálogo del Sistema (`PlatformGamesView.tsx`)**: Hero banner cinemático superior y estante virtualizado (*TanStack Virtual*) con entrada escalonada (*Anime.js Stagger*).
-3. **Nivel 3: Selector de Motor de Emulación (`EmulatorSelectorModal.tsx`)**: Diálogo Kobalte para elegir entre binarios Standalone (Vulkan) o núcleos Libretro antes del arranque DRM/KMS.
+1. **Categorías**: ajustes, todos los juegos, favoritos, instalados y plataformas del catálogo real.
+2. **Carpetas y versiones**: navegación vertical entre títulos y horizontal entre plataformas del mismo título. Solo se montan las filas cercanas a la selección, sin TanStack Virtual.
+3. **Ficha y acciones**: metadatos desplazables, favoritos, selección explícita de paquetes y emulador para los juegos instalados. Abrir una ficha no inicia descargas.
+
+Flechas y D-pad navegan; Enter/A abre; Escape/B retrocede. LB/RB cambia categoría, X alterna favorito y Y enfoca búsqueda. En la ficha, LT/RT desplaza los detalles; en fuentes, Y permite jugar si el título instalado es compatible.
+
+El CSS se organiza por componente, con medidas relativas, propiedades lógicas y movimiento reducido. Las reglas y controladores de navegación se prueban en Node; el navegador de desarrollo mantiene una biblioteca mock vacía y no representa la base de datos nativa.
 
 ---
 

@@ -1,8 +1,14 @@
-export type NavDirection = 'up' | 'down' | 'left' | 'right' | 'NAV_UP' | 'NAV_DOWN' | 'NAV_LEFT' | 'NAV_RIGHT';
+export type NavDirection =
+  | "up"
+  | "down"
+  | "left"
+  | "right"
+  | "NAV_UP"
+  | "NAV_DOWN"
+  | "NAV_LEFT"
+  | "NAV_RIGHT";
 
-export type AppSection = 'library' | 'emulators' | 'settings';
-
-export type LibraryViewMode = 'wheel' | 'games';
+export type AppSection = "library" | "settings";
 
 export interface SpatialRect {
   left?: number;
@@ -31,4 +37,7 @@ export interface SpatialContainer {
   isTrap?: boolean;
 }
 
-export type FocusChangeListener = (currentId: string | null, prevId: string | null) => void;
+export type FocusChangeListener = (
+  currentId: string | null,
+  prevId: string | null,
+) => void;

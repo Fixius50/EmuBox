@@ -1,16 +1,8 @@
-import { Component, onMount, Show } from 'solid-js';
-import type { EmulatorCrudModalProps } from '@contracts/modal.types';
-import { useEmulatorCrud } from '@hooks/useEmulatorCrud';
+import { Component, Show } from "solid-js";
+import type { EmulatorCrudModalProps } from "@contracts/modal.types";
+import { useEmulatorCrud } from "@hooks/useEmulatorCrud";
 
 export const EmulatorCrudModal: Component<EmulatorCrudModalProps> = (props) => {
-  let modalBoxRef: HTMLDivElement | undefined;
-  let nameInputRef: HTMLInputElement | undefined;
-  let execInputRef: HTMLInputElement | undefined;
-  let typeInputRef: HTMLInputElement | undefined;
-  let deleteBtnRef: HTMLButtonElement | undefined;
-  let cancelBtnRef: HTMLButtonElement | undefined;
-  let saveBtnRef: HTMLButtonElement | undefined;
-
   const {
     formData,
     setFormData,
@@ -19,94 +11,108 @@ export const EmulatorCrudModal: Component<EmulatorCrudModalProps> = (props) => {
     setIsTyping,
     handleSave,
     handleDelete,
-    setElementRefs
+    setElementRefs,
   } = useEmulatorCrud({
     isOpen: () => props.isOpen,
+    onControllerReady: props.onControllerReady,
     initialData: () => props.initialData,
     onClose: props.onClose,
     onSave: props.onSave,
-    onDelete: props.onDelete
-  });
-
-  onMount(() => {
-    setElementRefs({
-      modalBoxRef,
-      nameInputRef,
-      execInputRef,
-      typeInputRef,
-      deleteBtnRef,
-      cancelBtnRef,
-      saveBtnRef
-    });
+    onDelete: props.onDelete,
   });
 
   return (
     <Show when={props.isOpen}>
       <div class="crud-modal-backdrop" onClick={props.onClose}>
-        <div class="crud-modal-box" ref={modalBoxRef} onClick={(e) => e.stopPropagation()}>
+        <div
+          class="crud-modal-box"
+          ref={(element) => setElementRefs({ modalBoxRef: element })}
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            if (
+              event.target instanceof HTMLInputElement &&
+              !["Enter", "Escape"].includes(event.key)
+            )
+              event.stopPropagation();
+          }}
+        >
           <h3 class="crud-modal-title">
-            {formData().id ? 'Gestionar Motor / Núcleo de Emulación' : 'Añadir Nuevo Motor de Emulación'}
+            {formData().id
+              ? "Gestionar Motor / Núcleo de Emulación"
+              : "Añadir Nuevo Motor de Emulación"}
           </h3>
 
           <div class="crud-form-group">
             <label class="crud-label">Nombre del Motor</label>
             <input
-              ref={nameInputRef}
+              ref={(element) => setElementRefs({ nameInputRef: element })}
               type="text"
-              class={`crud-input ${modalFocusIdx() === 0 ? 'focused' : ''} ${isTyping() && modalFocusIdx() === 0 ? 'typing' : ''}`}
-              value={formData().name || ''}
+              class={`crud-input ${modalFocusIdx() === 0 ? "focused" : ""} ${isTyping() && modalFocusIdx() === 0 ? "typing" : ""}`}
+              value={formData().name || ""}
               onFocus={() => setIsTyping(true)}
               onBlur={() => setIsTyping(false)}
-              onInput={(e) => setFormData({ ...formData(), name: e.currentTarget.value })}
+              onInput={(e) =>
+                setFormData({ ...formData(), name: e.currentTarget.value })
+              }
             />
           </div>
 
           <div class="crud-form-group">
             <label class="crud-label">Binario / Ejecutable</label>
             <input
-              ref={execInputRef}
+              ref={(element) => setElementRefs({ execInputRef: element })}
               type="text"
-              class={`crud-input ${modalFocusIdx() === 1 ? 'focused' : ''} ${isTyping() && modalFocusIdx() === 1 ? 'typing' : ''}`}
-              value={formData().executable || ''}
+              class={`crud-input ${modalFocusIdx() === 1 ? "focused" : ""} ${isTyping() && modalFocusIdx() === 1 ? "typing" : ""}`}
+              value={formData().executable || ""}
               onFocus={() => setIsTyping(true)}
               onBlur={() => setIsTyping(false)}
-              onInput={(e) => setFormData({ ...formData(), executable: e.currentTarget.value })}
+              onInput={(e) =>
+                setFormData({
+                  ...formData(),
+                  executable: e.currentTarget.value,
+                })
+              }
             />
           </div>
 
           <div class="crud-form-group">
             <label class="crud-label">Tipo de Motor</label>
             <input
-              ref={typeInputRef}
+              ref={(element) => setElementRefs({ typeInputRef: element })}
               type="text"
-              class={`crud-input ${modalFocusIdx() === 2 ? 'focused' : ''} ${isTyping() && modalFocusIdx() === 2 ? 'typing' : ''}`}
-              value={formData().coreType || 'libretro'}
+              class={`crud-input ${modalFocusIdx() === 2 ? "focused" : ""} ${isTyping() && modalFocusIdx() === 2 ? "typing" : ""}`}
+              value={formData().coreType || "libretro"}
               onFocus={() => setIsTyping(true)}
               onBlur={() => setIsTyping(false)}
-              onInput={(e) => setFormData({ ...formData(), coreType: e.currentTarget.value as any })}
+              onInput={(e) =>
+                setFormData({
+                  ...formData(),
+                  coreType: e.currentTarget.value as any,
+                })
+              }
             />
           </div>
 
           <div class="crud-modal-actions">
             <Show when={formData().id}>
               <button
-                ref={deleteBtnRef}
-                class={`crud-btn-delete ${modalFocusIdx() === 3 ? 'focused' : ''}`}
+                ref={(element) => setElementRefs({ deleteBtnRef: element })}
+                class={`crud-btn-delete ${modalFocusIdx() === 3 ? "focused" : ""}`}
                 onClick={handleDelete}
               >
                 ELIMINAR NÚCLEO
               </button>
             </Show>
             <button
-              ref={cancelBtnRef}
-              class={`crud-btn-cancel ${(formData().id ? modalFocusIdx() === 4 : modalFocusIdx() === 3) ? 'focused' : ''}`}
+              ref={(element) => setElementRefs({ cancelBtnRef: element })}
+              class={`crud-btn-cancel ${(formData().id ? modalFocusIdx() === 4 : modalFocusIdx() === 3) ? "focused" : ""}`}
               onClick={props.onClose}
             >
               CANCELAR [B]
             </button>
             <button
-              ref={saveBtnRef}
-              class={`crud-btn-save ${(formData().id ? modalFocusIdx() === 5 : modalFocusIdx() === 4) ? 'focused' : ''}`}
+              ref={(element) => setElementRefs({ saveBtnRef: element })}
+              class={`crud-btn-save ${(formData().id ? modalFocusIdx() === 5 : modalFocusIdx() === 4) ? "focused" : ""}`}
               onClick={handleSave}
             >
               GUARDAR CAMBIOS [A]

@@ -1,0 +1,30 @@
+.console-minimal-icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: visible;
+}
+.console-minimal-svg {
+  inline-size: 100%;
+  block-size: 100%;
+  display: block;
+  object-fit: contain;
+  overflow: visible;
+}
+.console-hw-sm {
+  inline-size: 4rem;
+  block-size: 3.5rem;
+}
+.console-hw-md {
+  inline-size: 6.5rem;
+  block-size: 5.5rem;
+}
+.console-hw-lg {
+  inline-size: 9rem;
+  block-size: 7.5rem;
+}
+.console-hw-xl {
+  inline-size: 11.5rem;
+  block-size: 9.5rem;
+}

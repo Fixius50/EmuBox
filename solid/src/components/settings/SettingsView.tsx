@@ -1,28 +1,44 @@
-import { Component, createSignal, createEffect, onMount, Switch, Match, Show } from 'solid-js';
-import type { Emulator, SystemSettings } from '@contracts/game.types';
-import type { SettingsViewProps } from '@contracts/settings.types';
+import {
+  Component,
+  createSignal,
+  createEffect,
+  onMount,
+  onCleanup,
+  Switch,
+  Match,
+  Show,
+} from "solid-js";
+import type { InputAction } from "@contracts/input.types";
+import type { Emulator, SystemSettings } from "@contracts/game.types";
+import type { SettingsViewProps } from "@contracts/settings.types";
 
 // Subcomponents
-import { SettingsSidebar } from './SettingsSidebar';
-import { SystemTab } from './tabs/SystemTab';
-import { EmulatorsTab } from './tabs/EmulatorsTab';
-import { AudioTab } from './tabs/AudioTab';
-import { GamepadTab } from './tabs/GamepadTab';
-import { EmulatorCrudModal } from './modals/EmulatorCrudModal';
+import { SettingsSidebar } from "./SettingsSidebar";
+import { SystemTab } from "./tabs/SystemTab";
+import { EmulatorsTab } from "./tabs/EmulatorsTab";
+import { AudioTab } from "./tabs/AudioTab";
+import { GamepadTab } from "./tabs/GamepadTab";
+import { EmulatorCrudModal } from "./modals/EmulatorCrudModal";
 
 // Animations
-import { animateSettingsEntrance, animateTabTransition } from '@animations/settings-animations';
-import { ArrowLeft } from 'lucide-solid';
+import {
+  animateSettingsEntrance,
+  animateTabTransition,
+} from "@animations/settings-animations";
+import { ArrowLeft } from "lucide-solid";
 
 export const SettingsView: Component<SettingsViewProps> = (props) => {
-  const [selectedEmulatorForEdit, setSelectedEmulatorForEdit] = createSignal<Emulator | null>(null);
+  const [selectedEmulatorForEdit, setSelectedEmulatorForEdit] =
+    createSignal<Emulator | null>(null);
   const [isCrudModalOpen, setIsCrudModalOpen] = createSignal<boolean>(false);
+  let crudController: ((action: InputAction) => void) | null = null;
 
   let rootContainerRef: HTMLDivElement | undefined;
   let contentPaneRef: HTMLDivElement | undefined;
 
-  const currentTab = () => props.activeTab || 'system';
-  const isRowFocused = (row: number) => props.focusArea === 'content' && props.focusedRowIndex === row;
+  const currentTab = () => props.activeTab || "system";
+  const isRowFocused = (row: number) =>
+    props.focusArea === "content" && props.focusedRowIndex === row;
 
   onMount(() => {
     if (rootContainerRef) {
@@ -40,11 +56,13 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
   // Auto-scroll when focused row changes
   createEffect(() => {
     const row = props.focusedRowIndex;
-    if (props.focusArea === 'content' && contentPaneRef && row !== undefined) {
+    if (props.focusArea === "content" && contentPaneRef && row !== undefined) {
       setTimeout(() => {
-        const focusedEl = contentPaneRef?.querySelector('.setting-card-row.focused, .cyber-emulator-blade.focused, .gamepad-device-card.focused, .update-hero-blade.focused') as HTMLElement;
+        const focusedEl = contentPaneRef?.querySelector(
+          ".setting-card-row.focused, .cyber-emulator-blade.focused, .gamepad-device-card.focused, .update-hero-blade.focused",
+        ) as HTMLElement;
         if (focusedEl) {
-          focusedEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          focusedEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
       }, 30);
     }
@@ -55,12 +73,19 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
     setIsCrudModalOpen(true);
   };
 
-  createEffect(() => {
-    (window as any).__EMUBOX_OPEN_EMULATOR_CONFIG__ = (idx: number) => {
-      const list = props.emulators || [];
-      openEditEmulatorModal(list[idx] || list[0]);
-    };
-  });
+  onMount(() =>
+    props.onControllerReady?.((action) => {
+      if (isCrudModalOpen()) crudController?.(action);
+      else if (
+        action === "BUTTON_A" &&
+        currentTab() === "emulators" &&
+        props.focusArea === "content"
+      ) {
+        openEditEmulatorModal(props.emulators?.[props.focusedRowIndex ?? 0]);
+      } else props.onNavigate?.(action);
+    }),
+  );
+  onCleanup(() => props.onControllerReady?.(null));
 
   const handleUpdate = (updater: (s: SystemSettings) => void) => {
     if (props.settings && props.onUpdateSettings) {
@@ -96,7 +121,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
         {/* Right Content Pane */}
         <div class="console-settings-content-pane" ref={contentPaneRef}>
           <Switch>
-            <Match when={currentTab() === 'system'}>
+            <Match when={currentTab() === "system"}>
               <SystemTab
                 settings={props.settings}
                 isRowFocused={isRowFocused}
@@ -105,7 +130,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
               />
             </Match>
 
-            <Match when={currentTab() === 'emulators'}>
+            <Match when={currentTab() === "emulators"}>
               <EmulatorsTab
                 emulators={props.emulators}
                 isRowFocused={isRowFocused}
@@ -114,7 +139,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
               />
             </Match>
 
-            <Match when={currentTab() === 'audio'}>
+            <Match when={currentTab() === "audio"}>
               <AudioTab
                 settings={props.settings}
                 isRowFocused={isRowFocused}
@@ -123,7 +148,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
               />
             </Match>
 
-            <Match when={currentTab() === 'gamepad'}>
+            <Match when={currentTab() === "gamepad"}>
               <GamepadTab
                 settings={props.settings}
                 isRowFocused={isRowFocused}
@@ -137,6 +162,9 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
 
       {/* CRUD Modal for Emulator / Core Management */}
       <EmulatorCrudModal
+        onControllerReady={(handler) => {
+          crudController = handler;
+        }}
         isOpen={isCrudModalOpen()}
         initialData={selectedEmulatorForEdit()}
         onClose={() => setIsCrudModalOpen(false)}

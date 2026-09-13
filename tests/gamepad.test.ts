@@ -14,9 +14,9 @@ const pad = { index: 0, id: 'Fixture', buttons, axes } as unknown as Gamepad;
 const actions: InputAction[] = [];
 const clock = mock.method(performance, 'now', () => now);
 const provider = new GamepadProvider();
-const shelf = readFileSync(new URL('../solid/src/components/library/ConsoleShelfGrid.tsx', import.meta.url), 'utf8');
-assert.ok(!shelf.includes('onMouseEnter='));
-assert.ok(shelf.includes('event.movementX !== 0 || event.movementY !== 0'));
+const library = readFileSync(new URL('../solid/src/components/library/XmbLibrary.tsx', import.meta.url), 'utf8');
+assert.ok(!library.includes('onMouseEnter='));
+assert.ok(!library.includes('onMouseMove='));
 try {
   Object.defineProperty(globalThis, 'window', { configurable: true, value: new EventTarget() });
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { getGamepads: () => [pad] } });

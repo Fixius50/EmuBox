@@ -1,20 +1,24 @@
-import type { Accessor, Setter } from 'solid-js';
-import type { Game, Emulator } from './game.types';
-import type { IEmuBoxBackend } from './backend.types';
+import type { Accessor, Setter } from "solid-js";
+import type { Game, Emulator } from "./game.types";
+import type { IEmuBoxBackend } from "./backend.types";
+import type { InputAction } from "./input.types";
 
-export type MaintenanceActionId = 'restart-app' | 'repair-dirs' | 'check-updates' | 'reboot' | 'poweroff';
+export type MaintenanceActionId =
+  "restart-app" | "repair-dirs" | "check-updates" | "reboot" | "poweroff";
 
 export interface MaintenanceAction {
   id: MaintenanceActionId;
   tag: string;
   title: string;
   description: string;
-  variant?: 'primary' | 'danger' | 'warning' | 'default';
+  variant?: "primary" | "danger" | "warning" | "default";
   action: () => Promise<void> | void;
 }
 
 export interface UseMaintenanceOptions {
   backend: IEmuBoxBackend;
+  isOpen: () => boolean;
+  onControllerReady?: (handler: ((action: InputAction) => void) | null) => void;
   onClose: () => void;
   focusedIndex?: () => number;
   onSelectIndex?: (idx: number) => void;
@@ -30,6 +34,7 @@ export interface UseMaintenanceReturn {
 
 export interface MaintenanceModalProps {
   isOpen: boolean;
+  onControllerReady?: (handler: ((action: InputAction) => void) | null) => void;
   onClose: () => void;
   backend: IEmuBoxBackend;
   focusedIndex?: number;
@@ -40,14 +45,15 @@ export interface EmulatorCrudFormData {
   id?: string;
   name?: string;
   supportedPlatforms?: string[];
-  coreType?: 'libretro' | 'standalone';
+  coreType?: "libretro" | "standalone";
   executable?: string;
   arguments?: string[];
   version?: string;
-  status?: 'active' | 'inactive';
+  status?: "active" | "inactive";
 }
 
 export interface UseEmulatorCrudOptions {
+  onControllerReady?: (handler: ((action: InputAction) => void) | null) => void;
   isOpen: () => boolean;
   initialData: () => Emulator | null | undefined;
   onClose: () => void;
@@ -76,6 +82,7 @@ export interface UseEmulatorCrudReturn {
 }
 
 export interface EmulatorCrudModalProps {
+  onControllerReady?: (handler: ((action: InputAction) => void) | null) => void;
   isOpen: boolean;
   initialData?: Emulator | null;
   onClose: () => void;
@@ -84,24 +91,10 @@ export interface EmulatorCrudModalProps {
 }
 
 export interface EmulatorSelectorModalProps {
+  onControllerReady?: (handler: ((action: InputAction) => void) | null) => void;
   game: Game | null;
   emulators: Emulator[];
   isOpen: boolean;
   onClose: () => void;
   onConfirmLaunch: (game: Game, emulator: Emulator) => void;
-}
-
-export interface ConfirmLaunchModalProps {
-  game: Game | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirmLaunch: (game: Game) => void;
-}
-
-export interface GameDetailsModalProps {
-  game: Game | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onLaunch: (game: Game) => void;
-  onToggleFavorite: (id: string) => void;
 }

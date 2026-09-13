@@ -1,20 +1,11 @@
-/* ==========================================================================
-   ZONE 1: DESIGN TOKENS & FLUID SCALE (COMPACT CONSOLE PROPORTIONS)
-   ========================================================================== */
-
 :root {
-  /* Fluid Base Typography Scale (Optimized for 1080p Console Stage) */
-  font-size: clamp(0.75rem, 0.75vw + 0.15vh, 0.9375rem);
-
-  /* Obsidian Depths & Void Backgrounds */
+  font-size: 100%;
   --bg-void: #05070a;
   --bg-deep: #080c14;
   --bg-surface-glass: rgba(15, 23, 42, 0.6);
   --bg-surface-elevated: rgba(30, 41, 59, 0.7);
   --bg-card: rgba(12, 17, 28, 0.88);
   --bg-card-focused: rgba(22, 33, 56, 0.98);
-
-  /* Adaptive Glass & Rendering Tokens (Accelerated Mode Default) */
   --glass-blur-sm: blur(0.5rem);
   --glass-blur-md: blur(1rem);
   --glass-blur-lg: blur(1.5rem);
@@ -22,13 +13,12 @@
   --glass-backdrop-bg: rgba(15, 23, 42, 0.65);
   --glass-backdrop-elevated: rgba(30, 41, 59, 0.75);
   --glass-modal-bg: rgba(8, 12, 20, 0.85);
-
-  /* Adaptive Focus Shadows & Glows */
-  --glow-focus-shadow: 0 0 2rem rgba(0, 240, 255, 0.9), inset 0 0 1rem rgba(0, 240, 255, 0.3), 0 1rem 2.5rem rgba(0, 0, 0, 0.95);
-  --glow-modal-shadow: 0 0 3.125rem var(--neon-cyan-glow), 0 1.875rem 3.75rem rgba(0, 0, 0, 0.95);
+  --glow-focus-shadow:
+    0 0 2rem rgba(0, 240, 255, 0.9), inset 0 0 1rem rgba(0, 240, 255, 0.3),
+    0 1rem 2.5rem rgba(0, 0, 0, 0.95);
+  --glow-modal-shadow:
+    0 0 3.125rem var(--neon-cyan-glow), 0 1.875rem 3.75rem rgba(0, 0, 0, 0.95);
   --glow-card-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.85);
-
-  /* Console Neon Accents */
   --neon-cyan: #00f0ff;
   --neon-cyan-glow: rgba(0, 240, 255, 0.45);
   --neon-cyan-subtle: rgba(0, 240, 255, 0.12);
@@ -37,15 +27,12 @@
   --accent-amber: #f59e0b;
   --accent-emerald: #10b981;
   --accent-crimson: #ef4444;
-
-  /* Typography */
-  --font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  --font-family:
+    "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --text-primary: #ffffff;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
-
-  /* Console Layout Proportions */
   --header-height: 3.5rem;
   --footer-height: 2.75rem;
   --shelf-card-height: 12.5rem;
@@ -55,11 +42,6 @@
   --border-radius-lg: 0.75rem;
   --border-radius-xl: 1rem;
 }
-
-/* ==========================================================================
-   CPU-COMPATIBLE / SOFTWARE RENDERER PIPELINE (VMware, llvmpipe, swrast)
-   Zero blur computation overhead, high contrast dark surfaces, 60 FPS target
-   ========================================================================== */
 [data-render-pipeline="cpu-compatible"] {
   --glass-blur-sm: none;
   --glass-blur-md: none;
@@ -71,7 +53,19 @@
   --glass-backdrop-elevated: rgba(18, 26, 44, 0.98);
   --glass-modal-bg: rgba(6, 9, 16, 0.98);
 
-  --glow-focus-shadow: 0 0 0 2px var(--neon-cyan), 0 0.5rem 1.5rem rgba(0, 0, 0, 0.9);
-  --glow-modal-shadow: 0 0 0 2px var(--neon-cyan), 0 1rem 2.5rem rgba(0, 0, 0, 0.98);
+  --glow-focus-shadow:
+    0 0 0 0.125rem var(--neon-cyan), 0 0.5rem 1.5rem rgba(0, 0, 0, 0.9);
+  --glow-modal-shadow:
+    0 0 0 0.125rem var(--neon-cyan), 0 1rem 2.5rem rgba(0, 0, 0, 0.98);
   --glow-card-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.9);
+}
+:root {
+  font-size: 100%;
+  --xmb-bg: #090f13;
+  --xmb-surface: #151f24;
+  --xmb-text: #eef1f0;
+  --xmb-muted: #9babaf;
+  --xmb-accent: #78d6c5;
+  --xmb-gold: #e8c276;
+  --xmb-border: #36484f;
 }

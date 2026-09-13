@@ -18,12 +18,11 @@ Este documento define los estándares arquitectónicos, las reglas de refactoriz
 - Toda lógica que involucre estado (`createSignal`, `createMemo`, `createEffect`), suscripciones a eventos de ventana, cálculo de geometría 3D, controladores de CRUD o telemetría de hardware debe encapsularse en **Custom Hooks puros** dentro de `solid/src/hooks/`.
 - Ejemplos del catálogo actual:
   - `useGamepadDevices`: Polling y detección de mandos en puertos 1-4.
-  - `useOtaUpdate`: Gestión de comprobación, descarga y aplicación atómica de actualizaciones.
   - `useEmulatorCrud`: Estado de formulario, validación y navegación espacial en modales de configuración.
   - `useMaintenanceController`: Control y ejecución de acciones de rescate del sistema.
-  - `usePlatformWheelLayout`: Trigonometría 3D y ordenación de slots del carrusel de consolas.
-  - `useSettingsController`: Orquestación global de ajustes, VSync, rendimiento y audio.
-  - `useConsoleNavigation`: Despachador de navegación espacial con mando y teclado.
+  - `useXmbLibrary`: Estado, búsqueda, ventanas acotadas del catálogo y navegación de biblioteca.
+  - `useSettingsController`: Cambios de ajustes, VSync, rendimiento y audio.
+  - `useSettingsNavigation`: Navegación entre pestañas y controles de ajustes.
   - `useConsoleInput`: Suscripción unificada a fuentes de entrada.
 
 ### C. Capa de Contratos e Interfaces (`solid/src/types/`)
@@ -31,7 +30,7 @@ Este documento define los estándares arquitectónicos, las reglas de refactoriz
 - Todo tipo o interface debe residir en su módulo correspondiente en `solid/src/types/`:
   - `common.types.ts`: Componentes atómicos comunes (`BadgeProps`, `ConsoleButtonProps`, `SettingCardRowProps`, etc.).
   - `settings.types.ts`: Ajustes, pestañas, mandos y opciones del controlador.
-  - `wheel.types.ts`: Rueda de plataformas, slots cilíndricos y callbacks.
+  - `xmb.types.ts`: Estado de navegación, carpetas y contrato de la biblioteca XMB.
   - `modal.types.ts`: Modales de lanzamiento, selectores y formularios CRUD.
   - `game.types.ts`, `backend.types.ts`, `update.types.ts`, etc.
 
@@ -67,11 +66,8 @@ solid/src/
 ├── animations/         # Animaciones puras con Anime.js
 ├── components/
 │   ├── common/         # Componentes atómicos reutilizables (Badge, ConsoleButton, SettingCardRow)
-│   ├── emulators/      # Componentes de emuladores
-│   ├── layout/         # Shell, Header
-│   ├── library/        # Vistas de catálogo, ShelfGrid con TanStack Virtual
+│   ├── library/        # Presentación XMB; estado en useXmbLibrary
 │   ├── modals/         # Modales desacoplados de selección y rescate
-│   ├── platforms/      # Rueda 3D de plataformas
 │   └── settings/       # Ajustes modularizados por pestañas (tabs/) y modales (modals/)
 ├── hooks/              # Custom hooks con la lógica pura desacoplada
 ├── services/           # Servicios de dominio, backend IPC, audio WebAudio, input Gilrs
@@ -79,3 +75,13 @@ solid/src/
 ├── styles/             # CSS Vanilla puro con variables de diseño
 └── types/              # Definiciones e interfaces TypeScript centralizadas
 ```
+
+## 4. Biblioteca XMB y Propiedad de los Estilos
+
+- `services/library/xmb-navigation.ts` contiene reglas puras de movimiento y agrupación visual. No modifica registros ni identificadores de descarga.
+- `useXmbLibrary` calcula categorías, búsqueda y ventanas de hasta siete carpetas y cinco versiones. Un movimiento no reconstruye la agrupación si el catálogo y el filtro no cambian.
+- `App` da prioridad a mantenimiento, fuentes, selector de emulador y pantalla activa. Los controladores se registran mediante callbacks tipados y se liberan al desmontar, sin puentes de navegación en `window`.
+- `xmb.css` contiene solo la biblioteca. `settings.css`, `source-selector.css`, `emulator-selector.css` y `modals.css` son responsables de sus superficies; `console-hardware.css` conserva los iconos compartidos.
+- Preferir `rem`, `em`, porcentajes, `dvh`/`dvw`, `minmax`, `aspect-ratio` y propiedades lógicas. La tipografía no se escala según el ancho de ventana. Respetar `prefers-reduced-motion` y el modo gráfico compatible.
+- Antes de eliminar módulos, comprobar consumidores de la aplicación y de pruebas. Los servicios de dominio ejercitados por tests no son archivos huérfanos aunque no se importen directamente desde la UI.
+- Las pruebas reactivas se ejecutan en Node con la condición de exportación `browser` de Solid; no requieren un navegador.
