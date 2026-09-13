@@ -1,0 +1,220 @@
+:root {
+  font-size: 16px;
+  --xmb-bg: #090f13;
+  --xmb-surface: #151f24;
+  --xmb-text: #eef1f0;
+  --xmb-muted: #9babaf;
+  --xmb-accent: #78d6c5;
+  --xmb-gold: #e8c276;
+  --xmb-border: #36484f;
+}
+
+#root { width: 100%; height: 100%; }
+.emubox-xmb-root *, .console-modal-center-container * { letter-spacing: 0; }
+.emubox-xmb-root { width: 100%; height: 100%; background: var(--xmb-bg); color: var(--xmb-text); font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; letter-spacing: 0; }
+.emubox-xmb-root button, .emubox-xmb-root input { font: inherit; }
+.xmb-library-layer { width: 100%; height: 100%; }
+.xmb-library-layer[hidden] { display: none; }
+.xmb {
+  --xmb-column: 7rem;
+  --xmb-row: 4.75rem;
+  --xmb-anchor: 26%;
+  --xmb-drawer: 23rem;
+  position: relative; isolation: isolate; width: 100%; height: 100%; overflow: hidden;
+  color: var(--xmb-text); background: var(--xmb-bg);
+}
+.xmb button { color: inherit; cursor: pointer; }
+.xmb button:focus-visible, .xmb input:focus-visible, .xmb [tabindex]:focus-visible { outline: 2px solid var(--xmb-gold); outline-offset: 4px; }
+.xmb-atmosphere { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: linear-gradient(125deg, #0b131b, #163133 58%, #11171e); }
+.xmb[data-category="settings"] .xmb-atmosphere { background: linear-gradient(125deg, #171b20, #25343b, #101619); }
+.xmb[data-category="favorites"] .xmb-atmosphere { background: linear-gradient(125deg, #16151d, #3b2632, #141a20); }
+.xmb[data-category="ps2"] .xmb-atmosphere, .xmb[data-category="ps3"] .xmb-atmosphere { background: linear-gradient(125deg, #151823, #253b49, #141b21); }
+.xmb-wave { position: absolute; left: -10%; right: -10%; top: 30%; height: 38%; border-top: 1px solid #78d6c52e; border-bottom: 1px solid #e8c27618; transform: rotate(-12deg); background: linear-gradient(180deg, #78d6c508, transparent); animation: xmb-tide 24s ease-in-out infinite alternate; }
+.xmb-wave::before, .xmb-wave::after { content: ''; position: absolute; inset: 12% -5%; border-top: 1px solid #c8e7db0d; transform: rotate(3deg); }
+.xmb-wave::after { inset: 24% -5%; transform: rotate(-2deg); }
+@keyframes xmb-tide { to { transform: translateY(12%) rotate(-8deg); } }
+.xmb-topbar { position: absolute; top: 1.65rem; left: 2rem; right: 2rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; z-index: 20; }
+.xmb-brand { display: flex; gap: 0.8rem; align-items: center; font-size: 0.75rem; color: var(--xmb-muted); min-width: 0; }
+.xmb-brand strong { color: var(--xmb-text); font-size: 1rem; font-weight: 700; }
+.xmb-brand span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xmb-top-actions { display: flex; gap: 1.5rem; align-items: center; }
+.xmb-topbar time { font-size: 1.4rem; font-weight: 400; font-variant-numeric: tabular-nums; }
+.xmb-search { display: flex; gap: 0.5rem; align-items: center; color: var(--xmb-muted); border-bottom: 1px solid #7a939455; padding: 0.35rem; }
+.xmb-search input { width: 9rem; background: transparent; border: 0; color: var(--xmb-text); font-size: 0.8rem; min-width: 0; }
+.xmb-search input::placeholder { color: var(--xmb-muted); }
+.xmb-category-rail { position: absolute; left: 0; right: 0; top: 30%; height: 5rem; transition: top 250ms ease; z-index: 5; pointer-events: none; }
+.xmb-in-list .xmb-category-rail { top: 5.5rem; }
+.xmb-category-track { display: flex; position: absolute; left: var(--xmb-anchor); transform: translateX(calc(var(--category-index) * var(--xmb-column) * -1 - var(--xmb-column) / 2)); transition: transform 260ms cubic-bezier(.22,1,.36,1); }
+.xmb-category { position: relative; flex: 0 0 var(--xmb-column); width: var(--xmb-column); height: 4.5rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.45rem; border: 0; background: transparent; opacity: 0.4; pointer-events: auto; transition: opacity 180ms, transform 180ms; }
+.xmb-category > svg { width: 1.8rem; height: 1.8rem; stroke-width: 1.5; }
+.xmb-category .console-minimal-icon-container { width: 2.1rem; height: 1.8rem; }
+.xmb-category .console-minimal-svg { width: 100%; height: 100%; }
+.xmb-category span { font-size: 0.62rem; max-width: calc(var(--xmb-column) - 0.7rem); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.xmb-category.selected { opacity: 1; color: var(--xmb-accent); }
+.xmb-category.selected::after { content: ''; width: 1rem; height: 2px; background: var(--xmb-accent); position: absolute; bottom: 0; }
+.xmb-category:hover { opacity: 1; }
+.xmb-category-intro { position: absolute; top: calc(30% + 6.5rem); left: calc(var(--xmb-anchor) + 3.8rem); max-width: calc(100% - var(--xmb-anchor) - 5rem); pointer-events: none; }
+.xmb-category-intro h1 { font-size: 1.8rem; font-weight: 600; line-height: 1.15; overflow-wrap: anywhere; }
+.xmb-category-intro p { margin-top: 0.65rem; color: var(--xmb-muted); font-size: 0.8rem; }
+.xmb-eyebrow { display: block; color: var(--xmb-accent); font-size: 0.64rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.55rem; }
+.xmb-folder-viewport { position: absolute; inset: 12rem 0 4.5rem; overflow: hidden; pointer-events: none; }
+.xmb-folder-row { position: absolute; top: 34%; left: calc(var(--xmb-anchor) - 1.75rem); height: var(--xmb-row); width: 3.5rem; transform: translateY(calc(var(--row-offset) * var(--xmb-row))); transition: transform 220ms cubic-bezier(.22,1,.36,1); opacity: 0.52; }
+.xmb-folder-row.active { opacity: 1; z-index: 3; }
+.xmb-folder-button { display: flex; align-items: center; justify-content: center; width: 3.5rem; height: 3.5rem; border: 1px solid #50797755; border-radius: 8px; color: #7ab5b2 !important; background: #132328dd; pointer-events: auto; position: relative; }
+.xmb-folder-row.active .xmb-folder-button { color: var(--xmb-text) !important; border-color: var(--xmb-accent); background: #34625f; box-shadow: 0 0 0 4px #78d6c512; }
+.xmb-folder-button .xmb-above, .xmb-folder-button .xmb-below { position: absolute; left: calc(50% - 6px); color: var(--xmb-accent); }
+.xmb-above { top: -0.85rem; }
+.xmb-below { bottom: -0.85rem; }
+.xmb-folder-label { position: absolute; left: 4.75rem; top: 0.3rem; width: min(38rem, calc(72vw - 5rem)); pointer-events: none; }
+.xmb-folder-label h2 { font-size: 1.7rem; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.xmb-folder-label p { margin-top: 0.6rem; color: var(--xmb-muted); font-size: 0.8rem; }
+.xmb-expanded { --xmb-anchor: 13%; }
+.xmb-expanded .xmb-folder-viewport { right: var(--xmb-drawer); }
+.xmb-game-shelf { position: absolute; top: calc(12rem + (100% - 16.5rem) * 0.34 - 0.75rem); left: calc(var(--xmb-anchor) + 3rem); right: calc(var(--xmb-drawer) + 1rem); height: 7.5rem; z-index: 6; overflow: hidden; }
+.xmb-game-tile { --tile-width: 13rem; position: absolute; top: 0.5rem; left: calc(var(--game-offset) * (var(--tile-width) + 1rem) + 0.25rem); width: var(--tile-width); height: 5.75rem; display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem; border-radius: 6px; border: 1px solid var(--xmb-border); background: #111c21f5; color: var(--xmb-muted) !important; opacity: 0.65; transition: left 220ms ease, border-color 160ms; text-align: left; }
+.xmb-game-tile.selected { opacity: 1; border-color: var(--xmb-accent); background: #23403f; color: white !important; }
+.xmb-game-tile img { width: 3rem; height: 4.1rem; object-fit: cover; border-radius: 2px; flex-shrink: 0; }
+.xmb-game-tile .console-minimal-icon-container { width: 2.5rem; height: 2.5rem; flex-shrink: 0; }
+.xmb-game-tile > span { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.xmb-game-tile strong { font-size: 0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.xmb-game-tile small { font-size: 0.65rem; color: var(--xmb-accent); }
+.xmb-detail-drawer { position: absolute; top: 5.5rem; bottom: 4.75rem; right: 1.5rem; width: calc(var(--xmb-drawer) - 1.5rem); z-index: 12; background: #101b21fa; border-left: 1px solid #50797780; display: flex; flex-direction: column; animation: xmb-drawer-in 240ms ease both; }
+@keyframes xmb-drawer-in { from { opacity: 0; transform: translateX(1.5rem); } to { opacity: 1; transform: translateX(0); } }
+.xmb-detail-drawer > header { padding: 0.85rem 1rem 0.4rem; display: flex; align-items: center; justify-content: space-between; }
+.xmb-detail-drawer .xmb-eyebrow { margin: 0; }
+.xmb-detail-scroll { overflow-y: auto; min-height: 0; padding: 0.5rem 1.1rem 1rem; scrollbar-width: thin; scrollbar-color: #5c7a7e transparent; }
+.xmb-boxart { height: 13rem; background: #0a1319; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 1.2rem; }
+.xmb-boxart > img { width: 100%; height: 100%; object-fit: contain; }
+.xmb-boxart .console-minimal-icon-container { width: 6rem; height: 6rem; }
+.xmb-title-line { display: flex; align-items: start; gap: 0.7rem; }
+.xmb-title-line h2 { font-size: 1.35rem; line-height: 1.25; flex: 1; overflow-wrap: anywhere; }
+.xmb-description { font-size: 0.82rem; color: #b9c9cd; line-height: 1.65; white-space: pre-line; margin: 1rem 0; overflow-wrap: anywhere; }
+.xmb-facts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0; }
+.xmb-facts > div { padding: 0.8rem 0.4rem 0.8rem 0; border-top: 1px solid #33494d; min-width: 0; }
+.xmb-facts dt { color: var(--xmb-muted); font-size: 0.63rem; margin-bottom: 0.4rem; }
+.xmb-facts dd { font-size: 0.76rem; overflow-wrap: anywhere; line-height: 1.4; }
+.xmb-detail-drawer > footer { padding: 0.85rem 1rem; border-top: 1px solid #34474e; margin-top: auto; }
+.xmb-primary { border: 0; border-radius: 4px; background: var(--xmb-accent); color: #0b2022 !important; padding: 0.8rem 1rem; display: flex; align-items: center; justify-content: center; gap: 0.65rem; font-weight: 700 !important; width: 100%; }
+.xmb-icon-button { width: 2.2rem; height: 2.2rem; border: 1px solid transparent; background: transparent; color: var(--xmb-muted); display: inline-flex; justify-content: center; align-items: center; flex-shrink: 0; border-radius: 4px; cursor: pointer; }
+.xmb-icon-button:hover, .xmb-icon-button[aria-pressed=true] { color: var(--xmb-gold); background: #e8c27612; }
+.xmb-bottom { position: absolute; bottom: 1.25rem; left: 2rem; right: 2rem; display: flex; align-items: center; gap: 1.5rem; z-index: 18; }
+.xmb-step-controls { display: flex; gap: 0.4rem; align-items: center; }
+.xmb-step-controls button { width: 2rem; height: 2rem; border: 0; border-radius: 4px; background: #a5c4c00c; display: grid; place-items: center; color: var(--xmb-muted); }
+.xmb-step-controls button:hover { background: #a5c4c025; color: white; }
+.xmb-step-controls span { color: var(--xmb-muted); font-variant-numeric: tabular-nums; font-size: 0.7rem; min-width: 5.5rem; text-align: center; }
+.xmb-input-status { display: flex; align-items: center; gap: 0.5rem; color: var(--xmb-muted); font-size: 0.68rem; margin-left: auto; }
+.xmb-error { position: absolute; bottom: 4.6rem; left: 2rem; max-width: calc(100% - 4rem); max-height: 4rem; overflow: auto; border-left: 2px solid var(--xmb-gold); color: #f6dbb1; background: #1c2025; padding: 0.65rem 1rem; font-size: 0.78rem; z-index: 22; }
+
+.emubox-xmb-root .console-settings-container { height: 100%; padding: 2rem; background: linear-gradient(125deg,#0e191e,#182e30); }
+.emubox-xmb-root .settings-top-bar { border-bottom: 1px solid var(--xmb-border); margin-bottom: 1rem; background: transparent; }
+.emubox-xmb-root .settings-screen-title { font-size: 1.25rem; text-shadow: none; color: var(--xmb-text); letter-spacing: 0; }
+.emubox-xmb-root .settings-back-pill { background: transparent; border: 1px solid var(--xmb-border); border-radius: 4px; box-shadow: none; }
+.emubox-xmb-root .console-settings-content-pane { background: transparent; border-radius: 0; }
+.emubox-xmb-root .setting-card-row, .emubox-xmb-root .cyber-emulator-blade, .emubox-xmb-root .gamepad-device-card { background: #142329; border: 0; border-bottom: 1px solid #31484d; border-radius: 0; box-shadow: none; transform: none; }
+.emubox-xmb-root .setting-card-row.focused, .emubox-xmb-root .cyber-emulator-blade.focused { background: #23413f; box-shadow: inset 3px 0 var(--xmb-accent); }
+.emubox-xmb-root .sidebar-tab-trigger { border-radius: 4px; box-shadow: none; }
+.emubox-xmb-root .sidebar-tab-trigger.active { background: #243e40; color: var(--xmb-accent); }
+.console-modal-backdrop { background: #03090edb; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.download-source-dialog.game-case { border-radius: 6px; border-color: #4b666a; box-shadow: 0 24px 80px #0008; background: #132127; }
+.game-case .game-case-left { background: #15262c; }
+.game-case .game-case-right { background: #101b22; border-left: 1px solid #3c5357; }
+.game-case::before, .game-case::after { display: none; }
+.game-case .game-case-heading h2 { font-size: 1.4rem; text-shadow: none; }
+.game-case .game-case-cover { border-radius: 3px; box-shadow: none; transform: none; }
+.game-case .download-source-option { border-radius: 4px; background: #142126; border: 1px solid #344d52; box-shadow: none; }
+.game-case .download-source-option.selected { border-color: var(--xmb-accent); background: #26413f; }
+.game-case .game-case-download { background: var(--xmb-accent); color: #09211f; border-radius: 4px; box-shadow: none; }
+.game-case .game-case-download:disabled { background: #28383c; color: #849494; }
+.console-game-blade.emulator-selector-blade { background: #132127; border: 1px solid #4b666a; border-radius: 6px; box-shadow: 0 24px 80px #0008; }
+.emulator-core-row { width: 100%; text-align: left; border-radius: 4px; font: inherit; color: var(--xmb-text); background: #182b30; }
+.emulator-core-row.active-core { border-color: var(--xmb-accent); background: #284641; box-shadow: none; }
+.console-btn.primary-glow-btn { background: var(--xmb-accent); color: #0a2021; box-shadow: none; border-radius: 4px; }
+.console-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.emubox-xmb-root .console-sidebar-menu { width: 17rem; }
+.emubox-xmb-root .sidebar-tab-trigger { background: transparent; border: 0; }
+.emubox-xmb-root .sidebar-tab-trigger.active.focused-sidebar { background: #29443f; box-shadow: none; transform: none; }
+.emubox-xmb-root .tab-neon-caret { background: var(--xmb-accent); box-shadow: none; }
+.emubox-xmb-root .tab-label-group, .emubox-xmb-root .console-settings-content-pane { min-width: 0; }
+.emubox-xmb-root .panel-header-block { background: transparent; box-shadow: none; border-radius: 0; }
+.emubox-xmb-root .panel-section-title { color: var(--xmb-text); font-size: 1.25rem; text-shadow: none; }
+.emubox-xmb-root .panel-section-desc { color: var(--xmb-muted); }
+.emulator-selector-blade { max-height: calc(100dvh - 2rem); }
+.selector-game-preview { flex: 0 0 30%; width: auto; align-items: center; justify-content: center; }
+.selector-game-preview .console-minimal-icon-container { width: 6rem; height: 6rem; }
+.selector-cores-panel { min-width: 0; padding: 1.5rem; gap: 1rem; }
+.core-text-group { min-width: 0; }
+.core-title-line { flex-wrap: wrap; }
+.core-command-line, .core-status-pill { overflow-wrap: anywhere; }
+.core-status-pill { max-width: 8rem; }
+.emulator-selector-blade .blade-action-buttons { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.emulator-selector-blade .console-btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.8rem 1rem; }
+.crud-modal-box { max-width: calc(100vw - 2rem); max-height: calc(100dvh - 2rem); overflow-y: auto; background: #132127; border: 1px solid var(--xmb-border); border-radius: 6px; box-shadow: 0 24px 80px #0008; }
+.xmb-maintenance { width: 42rem; }
+.xmb-maintenance .crud-modal-title { font-size: 1.25rem; color: var(--xmb-gold); }
+.xmb-maintenance .setting-card-row { border-radius: 4px; transform: none; }
+.xmb-maintenance .crud-btn-cancel { border-radius: 4px; }
+
+@media (max-width: 768px) {
+  .game-case .game-case-close { position: sticky; top: 0.8rem; right: auto; align-self: flex-end; margin: 0.8rem 0.8rem -3.3rem 0; }
+}
+
+@media (max-width: 1000px) {
+  .xmb { --xmb-column: 5.5rem; --xmb-drawer: 20rem; --xmb-anchor: 23%; }
+  .xmb-expanded { --xmb-anchor: 9%; }
+  .xmb-category-intro h1 { font-size: 1.5rem; }
+  .xmb-folder-label h2 { font-size: 1.35rem; }
+  .xmb-boxart { height: 10rem; }
+  .xmb-game-tile { --tile-width: 11rem; }
+  .xmb-detail-drawer { right: 0.75rem; width: calc(var(--xmb-drawer) - 0.75rem); }
+}
+@media (max-width: 640px) {
+  .xmb { --xmb-column: 4.2rem; --xmb-row: 4.3rem; --xmb-anchor: 18%; }
+  .xmb-topbar { top: 1rem; left: 1rem; right: 1rem; }
+  .xmb-brand span { display: none; }
+  .xmb-top-actions { gap: 0.65rem; }
+  .xmb-topbar time { font-size: 1rem; }
+  .xmb-search input { width: 5.5rem; }
+  .xmb-category-intro { left: calc(var(--xmb-anchor) + 2.7rem); max-width: calc(100% - var(--xmb-anchor) - 3.5rem); }
+  .xmb-category-intro h1 { font-size: 1.25rem; }
+  .xmb-category-rail { top: 22%; }
+  .xmb-category-intro { top: calc(22% + 5rem); }
+  .xmb-category span { display: none; }
+  .xmb-in-list .xmb-category-rail { top: 4rem; }
+  .xmb-folder-viewport { top: 9rem; }
+  .xmb-folder-label { left: 4.25rem; width: calc(100vw - 8rem); }
+  .xmb-folder-label h2 { font-size: 1.15rem; }
+  .xmb-folder-label p { font-size: 0.7rem; }
+  .xmb-expanded .xmb-folder-viewport { top: 5rem; right: 0; bottom: 60%; }
+  .xmb-expanded .xmb-folder-row:not(.active) { visibility: hidden; }
+  .xmb-expanded .xmb-folder-row.active { top: 1rem; }
+  .xmb-expanded .xmb-category-rail { visibility: hidden; }
+  .xmb-game-shelf { top: 6rem; left: 6rem; right: 1rem; }
+  .xmb-game-tile { --tile-width: 12rem; }
+  .xmb-detail-drawer { top: 14rem; bottom: 4rem; left: 1rem; right: 1rem; width: auto; border-left: 0; border-top: 1px solid var(--xmb-border); }
+  .xmb-boxart { height: 8rem; }
+  .xmb-bottom { left: 1rem; right: 1rem; bottom: 0.75rem; gap: 0.3rem; }
+  .xmb-input-status { display: none; }
+  .xmb-bottom > .xmb-icon-button { margin-left: auto; }
+  .emubox-xmb-root .console-settings-container { padding: 0.75rem; }
+  .emubox-xmb-root .console-tabs-system { flex-direction: column; gap: 1rem; }
+  .emubox-xmb-root .console-sidebar-menu { flex-direction: row; width: 100%; padding: 0 0 0.5rem; overflow-x: auto; overflow-y: hidden; border: 0; }
+  .emubox-xmb-root .sidebar-tab-trigger { flex: 0 0 auto; padding: 0.6rem; gap: 0.45rem; }
+  .emubox-xmb-root .tab-sub-text, .emubox-xmb-root .settings-top-clock, .emubox-xmb-root .tab-neon-caret { display: none; }
+  .emubox-xmb-root .tab-main-text { font-size: 0.7rem; }
+  .emubox-xmb-root .console-settings-content-pane { padding: 0 0.25rem 1rem; }
+  .emubox-xmb-root .setting-card-row { flex-wrap: wrap; gap: 1rem; padding: 1rem; }
+  .emulator-selector-layout { flex-direction: column; }
+  .selector-game-preview { flex: 0 0 7rem; width: 100%; height: 7rem; }
+  .selector-game-preview .preview-cover-art { object-fit: contain; }
+  .selector-game-preview .console-minimal-icon-container { width: 3rem; height: 3rem; margin-left: auto; margin-right: 1rem; }
+  .selector-cores-panel { padding: 1rem; overflow-y: auto; }
+  .emulator-core-row { padding: 0.75rem; gap: 0.5rem; flex-wrap: wrap; }
+  .core-status-pill { max-width: 100%; }
+  .emulator-selector-blade { height: calc(100dvh - 2rem); }
+  .game-case .game-case-heading h2 { font-size: 1.15rem; }
+  .crud-modal-box { padding: 1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xmb *, .xmb *::before, .xmb *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+html[data-render-pipeline="cpu-compatible"] .xmb-wave { animation: none; }

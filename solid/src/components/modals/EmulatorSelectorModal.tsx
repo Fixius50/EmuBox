@@ -1,10 +1,13 @@
-import { Component, For, Show, createSignal, createEffect } from 'solid-js';
+import { Component, For, Show, createSignal, createEffect, onMount, onCleanup } from 'solid-js';
 import { Dialog } from '@kobalte/core/dialog';
 import { animateModalOpen } from '@animations/modal-animations';
 import type { EmulatorSelectorModalProps } from '@contracts/modal.types';
 import { emulatorBlockReason } from '@services/compatibility/launch-capability';
+import type { InputAction } from '@contracts/input.types';
+import { ConsoleHardwareVisual } from '@components/common/ConsoleHardwareVisual';
+import { ArrowLeft, Play } from 'lucide-solid';
 
-export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (props) => {
+export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps & { onControllerReady?: (handler: ((action: InputAction) => void) | null) => void }> = (props) => {
   const [selectedEmulatorId, setSelectedEmulatorId] = createSignal<string>('');
   let modalContentRef!: HTMLDivElement;
 
@@ -24,6 +27,21 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (pro
     return list.find(emulator => !emulatorBlockReason(emulator)) || list[0] || null;
   };
 
+  const controller = (action: InputAction) => {
+    if (!props.isOpen) return;
+    const entries = compatibleEmulators();
+    const current = Math.max(0, entries.findIndex(entry => entry.id === selectedEmulator()?.id));
+    if (action === 'NAV_DOWN' || action === 'NAV_UP') {
+      setSelectedEmulatorId(entries[Math.max(0, Math.min(entries.length - 1, current + (action === 'NAV_DOWN' ? 1 : -1)))]?.id || '');
+    } else if (action === 'BUTTON_B') props.onClose();
+    else if (action === 'BUTTON_A') {
+      const emulator = selectedEmulator();
+      if (props.game && emulator && !emulatorBlockReason(emulator)) props.onConfirmLaunch(props.game, emulator);
+    }
+  };
+  onMount(() => props.onControllerReady?.(controller));
+  onCleanup(() => props.onControllerReady?.(null));
+
   createEffect(() => {
     if (props.isOpen) {
       setTimeout(() => {
@@ -39,13 +57,19 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (pro
       <Dialog.Portal>
         <Dialog.Overlay class="console-modal-backdrop" />
         <div class="console-modal-center-container">
-          <Dialog.Content class="console-game-blade emulator-selector-blade" ref={modalContentRef}>
+          <Dialog.Content class="console-game-blade emulator-selector-blade" ref={modalContentRef} onKeyDown={event => {
+            event.stopPropagation();
+            const action = ({ ArrowDown: 'NAV_DOWN', ArrowUp: 'NAV_UP', Escape: 'BUTTON_B' } as const)[event.key];
+            if (action) { event.preventDefault(); controller(action); }
+          }}>
             <Show when={props.game}>
               {(g) => (
                 <div class="emulator-selector-layout">
                   {/* Left Game Preview */}
                   <div class="selector-game-preview">
-                    <img src={g().coverImage} alt={g().title} class="preview-cover-art" />
+                    <Show when={g().coverImage} fallback={<ConsoleHardwareVisual platformId={g().platform} size="lg" />}>
+                      <img src={g().coverImage} alt={g().title} class="preview-cover-art" />
+                    </Show>
                     <div class="preview-info-dock">
                       <div class="preview-game-title">{g().title}</div>
                       <div class="preview-platform-tag">{g().platformName.toUpperCase()}</div>
@@ -55,12 +79,12 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (pro
                   {/* Right Emulator Core Selection */}
                   <div class="selector-cores-panel">
                     <div>
-                      <div class="selector-header-badge">SELECCIÓN DE MOTOR DE EJECUCIÓN</div>
+                      <div class="selector-header-badge">{g().platformName}</div>
                       <Dialog.Title class="blade-game-title" style={{ "font-size": '1.5rem', "margin-bottom": '0.5rem' }}>
-                        ¿Con qué emulador deseas ejecutar el título?
+                        Emulador
                       </Dialog.Title>
                       <Dialog.Description class="selector-sub-note">
-                        Elige el binario o núcleo libretro optimizado para esta sesión DRM/KMS
+                        {compatibleEmulators().length} disponibles para esta plataforma
                       </Dialog.Description>
                     </div>
 
@@ -73,7 +97,7 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (pro
                           const isSelected = () => (selectedEmulator()?.id === emu.id);
 
                           return (
-                            <div
+                            <button type="button" aria-pressed={isSelected()}
                               class={`emulator-core-row ${isSelected() ? 'active-core' : ''}`}
                               onClick={() => setSelectedEmulatorId(emu.id)}
                             >
@@ -95,7 +119,7 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (pro
                               <div class="core-status-pill" title={emulatorBlockReason(emu) ?? 'Listo'}>
                                 {emulatorBlockReason(emu) ?? 'LISTO'}
                               </div>
-                            </div>
+                            </button>
                           );
                         }}
                       </For>
@@ -114,7 +138,7 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (pro
                           }
                         }}
                       >
-                        <span>[A] EJECUTAR CON {selectedEmulator()?.name.toUpperCase() || 'EMULADOR'}</span>
+                        <Play size={18} /><span>Jugar</span>
                       </button>
 
                       <button
@@ -122,7 +146,7 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (pro
                         id="btn-cancel-core-select"
                         onClick={props.onClose}
                       >
-                        <span>[B] VOLVER</span>
+                        <ArrowLeft size={18} /><span>Volver</span>
                       </button>
                     </div>
                   </div>

@@ -1,4 +1,4 @@
-import { Component, createMemo, onMount, onCleanup, createSignal, Show } from 'solid-js';
+import { Component, onMount, onCleanup, createSignal, Show } from 'solid-js';
 import { listen } from '@tauri-apps/api/event';
 
 // Types
@@ -26,9 +26,7 @@ import { useGameLauncher } from '@hooks/useGameLauncher';
 import { useSettingsController } from '@hooks/useSettingsController';
 
 // Components
-import { Shell } from '@components/layout/Shell';
-import { Header } from '@components/layout/Header';
-import { GameLibraryView } from '@components/library/GameLibraryView';
+import { XmbLibrary } from '@components/library/XmbLibrary';
 import { EmulatorSelectorModal } from '@components/modals/EmulatorSelectorModal';
 import { SettingsView } from '@components/settings/SettingsView';
 import { MaintenanceModal } from '@components/modals/MaintenanceModal';
@@ -56,6 +54,8 @@ export const App: Component = () => {
     void libraryStore.openSources(game);
   };
   let sourceController: ((action: InputAction) => void) | null = null;
+  let xmbController: ((action: InputAction) => void) | null = null;
+  let emulatorController: ((action: InputAction) => void) | null = null;
 
   const [activeSettingsTab, setActiveSettingsTab] = createSignal<string>('system');
   const confirmSource = () => {
@@ -80,8 +80,6 @@ export const App: Component = () => {
     onCleanup(() => window.removeEventListener('keydown', handleKeyDown));
   });
 
-  const [selectedPlatform, setSelectedPlatform] = createSignal<string>('all');
-
   // 2. Settings Controller (Business Logic & OTA Lifecycle)
   const {
     updateInfo,
@@ -100,25 +98,6 @@ export const App: Component = () => {
     settingsRowIndex
   });
 
-  // 3. Computed View Memos
-  const platformGames = createMemo(() => {
-    const all = libraryStore.catalogGames();
-    const platform = selectedPlatform();
-    return platform === 'all' ? all : all.filter((game) => game.platform === platform);
-  });
-
-  const focusedGame = createMemo(() => {
-    const list = platformGames();
-    const idx = navigationStore.focusedGameIndex();
-    return list.length === 0 ? null : (list[idx] || list[list.length - 1] || null);
-  });
-
-  const ambientBackdrop = createMemo(() => {
-    const game = focusedGame();
-    if (game) return game.backdropImage || game.coverImage;
-    return '';
-  });
-
   // 4. Composable Logic Hooks
   const { launchWithEmulator } = useGameLauncher({ backend, systemStore, modalStore, soundFx });
 
@@ -128,8 +107,8 @@ export const App: Component = () => {
     systemStore,
     modalStore,
     soundFx,
-    platformGames,
-    focusedGame,
+    platformGames: libraryStore.catalogGames,
+    focusedGame: () => libraryStore.catalogGames()[navigationStore.focusedGameIndex()] || null,
     activeSettingsTab,
     onSettingsTabChange: (tab) => {
       setActiveSettingsTab(tab);
@@ -152,11 +131,14 @@ export const App: Component = () => {
 
   const { inputStatus } = useConsoleInput({
     onAction: action => {
+      if (action === 'MAINTENANCE_MENU' || modalStore.isMaintenanceOpen()) { handleAction(action); return; }
       if (libraryStore.sourceGame()) {
         sourceController?.(action);
         return;
       }
-      handleAction(action);
+      if (modalStore.isEmulatorSelectorOpen()) { emulatorController?.(action); return; }
+      if (navigationStore.currentSection() === 'settings') handleAction(action);
+      else xmbController?.(action);
     }
   });
 
@@ -229,40 +211,18 @@ export const App: Component = () => {
   });
 
   return (
-    <Shell ambientBackdropUrl={ambientBackdrop()} crtShaderEnabled={false}>
-      <Header
-        inputStatus={inputStatus()}
-        totalGamesCount={libraryStore.catalogGames().length}
-        currentSection={navigationStore.currentSection() === 'settings' ? 'settings' : 'library'}
-        onNavigate={(section) => {
-          navigationStore.setCurrentSection(section);
-          if (section === 'library') navigationStore.setLibraryViewMode('games');
-        }}
-      />
-
-      <Show when={navigationStore.currentSection() === 'library'}>
-        <GameLibraryView
-            games={libraryStore.catalogGames()}
-            platforms={systemStore.platforms()}
-            emulators={systemStore.emulators()}
-            selectedPlatform={selectedPlatform()}
-            focusedIndex={navigationStore.focusedGameIndex()}
-            onSelectPlatform={(platform) => {
-              soundFx.playSelect();
-              setSelectedPlatform(platform);
-              navigationStore.setFocusedGameIndex(0);
-            }}
-            onFocusIndex={(idx) => navigationStore.setFocusedGameIndex(idx)}
-            downloadingIds={libraryStore.catalogDownloadingIds()}
-            downloadError={libraryStore.downloadError()}
-            onSelectGame={handleGameActivate}
-            onDownloadGame={handleGameActivate}
-            onToggleFavorite={(id) => {
-              soundFx.playFavorite();
-              libraryStore.toggleFavorite(id);
-            }}
-        />
-      </Show>
+    <div class="emubox-xmb-root">
+      <div hidden={navigationStore.currentSection() !== 'library'} class="xmb-library-layer">
+        <XmbLibrary games={libraryStore.catalogGames()} platforms={systemStore.platforms()}
+          downloadingIds={libraryStore.catalogDownloadingIds()}
+          loading={libraryStore.isLoading()} inputStatus={inputStatus()} error={libraryStore.downloadError()}
+          onOpenGame={handleGameActivate} onOpenSettings={tab => {
+            setActiveSettingsTab(tab); setSettingsFocusArea('content'); setSettingsRowIndex(0);
+            navigationStore.setCurrentSection('settings');
+          }} onMaintenance={() => modalStore.openMaintenance()}
+          onFavorite={id => { void libraryStore.toggleFavorite(id).catch(error => console.error('[Favorite]', error)); }}
+          onMove={() => soundFx.playMove()} onControllerReady={handler => { xmbController = handler; }} />
+      </div>
 
       <Show when={navigationStore.currentSection() === 'settings'}>
         <SettingsView
@@ -272,6 +232,7 @@ export const App: Component = () => {
           activeTab={activeSettingsTab()}
           focusArea={settingsFocusArea()}
           focusedRowIndex={settingsRowIndex()}
+          onSelectContentArea={() => setSettingsFocusArea('content')}
           onTabChange={(tab) => {
             setActiveSettingsTab(tab);
             setSettingsRowIndex(0);
@@ -293,6 +254,7 @@ export const App: Component = () => {
       </Show>
 
       <EmulatorSelectorModal
+        onControllerReady={handler => { emulatorController = handler; }}
         game={modalStore.selectedGame()}
         emulators={systemStore.emulators()}
         isOpen={modalStore.isEmulatorSelectorOpen()}
@@ -318,7 +280,7 @@ export const App: Component = () => {
         focusedIndex={modalStore.maintenanceIndex()}
         onSelectIndex={(idx) => modalStore.setMaintenanceIndex(idx)}
       />
-    </Shell>
+    </div>
   );
 };
 

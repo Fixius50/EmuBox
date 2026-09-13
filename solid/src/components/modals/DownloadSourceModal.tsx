@@ -30,6 +30,8 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
   const favorite = () => props.store.catalogGames().find(entry => entry.variants.some(item => item.id === game()?.id))?.favorite ?? game()?.favorite;
   let list: HTMLDivElement | undefined;
   let details: HTMLDivElement | undefined;
+  let dialogContent: HTMLDivElement | undefined;
+  let closeButton: HTMLButtonElement | undefined;
   let returnGameId: string | undefined;
   const busy = () => Boolean(game() && props.store.catalogDownloadingIds().has(game()!.id));
   const toggleFavorite = async () => {
@@ -74,6 +76,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
     else if (action === 'NAV_LEFT') focusPanel('sources');
     else if (action === 'NAV_UP' || action === 'NAV_DOWN') move(action === 'NAV_DOWN' ? 1 : -1);
     else if (action === 'BUTTON_X') void toggleFavorite();
+    else if (action === 'BUTTON_Y' && game()?.installed && !props.playBlockReason) props.onPlay?.(game()!);
     else if (action === 'BUTTON_A' && panel() === 'sources' && selected()?.downloadable && !busy()) props.onConfirm();
   };
   onMount(() => props.onControllerReady?.(controller));
@@ -83,7 +86,11 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
       <Dialog.Portal>
         <Dialog.Overlay class="console-modal-backdrop game-case-overlay" />
         <div class="console-modal-center-container">
-          <Dialog.Content class="download-source-dialog game-case" onCloseAutoFocus={event => {
+          <Dialog.Content class="download-source-dialog game-case" ref={dialogContent} onOpenAutoFocus={event => {
+            event.preventDefault();
+            closeButton?.focus({ preventScroll: true });
+            if (dialogContent) dialogContent.scrollTop = 0;
+          }} onCloseAutoFocus={event => {
             event.preventDefault();
             const id = returnGameId;
             requestAnimationFrame(() => {
@@ -98,12 +105,15 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
             } else if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
               event.preventDefault();
               focusPanel(event.key === 'ArrowRight' ? 'details' : 'sources');
+            } else if (event.key.toLowerCase() === 'y') {
+              event.preventDefault();
+              controller('BUTTON_Y');
             } else if (event.key === 'Enter' && event.target instanceof HTMLInputElement) {
               event.preventDefault();
               controller('BUTTON_A');
             }
           }}>
-            <Dialog.CloseButton class="game-case-close" aria-label="Cerrar ficha" title="Cerrar ficha"><X size={20} /></Dialog.CloseButton>
+            <Dialog.CloseButton ref={closeButton} class="game-case-close" aria-label="Cerrar ficha" title="Cerrar ficha"><X size={20} /></Dialog.CloseButton>
             <div class="game-case-left" onFocusIn={() => setPanel('sources')}>
               <header class="game-case-summary">
                 <div class="game-case-cover">

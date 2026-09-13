@@ -12,6 +12,7 @@ import { EmulatorCrudModal } from './modals/EmulatorCrudModal';
 
 // Animations
 import { animateSettingsEntrance, animateTabTransition } from '@animations/settings-animations';
+import { ArrowLeft } from 'lucide-solid';
 
 export const SettingsView: Component<SettingsViewProps> = (props) => {
   const [selectedEmulatorForEdit, setSelectedEmulatorForEdit] = createSignal<Emulator | null>(null);
@@ -75,12 +76,12 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
       <div class="settings-top-bar">
         <Show when={props.onBack}>
           <button class="settings-back-pill" onClick={props.onBack}>
-            <span class="back-key-badge">B</span>
-            <span class="back-label">MENÚ PRINCIPAL</span>
+            <ArrowLeft size={18} />
+            <span class="back-label">Biblioteca</span>
           </button>
         </Show>
-        <div class="settings-screen-title">AJUSTES DEL SISTEMA</div>
-        <div class="settings-top-clock">EmuBox OS • Arch Linux</div>
+        <div class="settings-screen-title">Ajustes</div>
+        <div class="settings-top-clock">EMUBOX</div>
       </div>
 
       {/* Main Settings Master-Detail Layout */}
