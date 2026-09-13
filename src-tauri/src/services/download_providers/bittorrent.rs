@@ -4,7 +4,9 @@ use base64::Engine;
 use serde_json::{json, Value};
 use std::{fs, io::{Read, Write}, net::TcpListener, os::unix::fs::OpenOptionsExt, path::PathBuf, process::{Child, Command, Stdio}, thread, time::{Duration, Instant}};
 
-pub struct BitTorrentProvider;
+pub struct BitTorrentProvider { pub discovery: bool }
+
+impl Default for BitTorrentProvider { fn default() -> Self { Self { discovery: true } } }
 
 struct EngineProcess { child: Child, config: PathBuf, client: reqwest::blocking::Client, endpoint: String, token: String }
 
@@ -54,12 +56,14 @@ impl DownloadProvider for BitTorrentProvider {
         let config = request.directory.join("aria2-private.conf");
         let mut file = fs::OpenOptions::new().create(true).truncate(true).write(true).mode(0o600).open(&config).map_err(io_error)?;
         writeln!(file, "enable-rpc=true\nrpc-listen-all=false\nrpc-listen-port={port}\nrpc-secret={token}\nno-netrc=true\nseed-time=0\nbt-hash-check-seed=false\ncheck-integrity=true\nauto-save-interval=1\nfile-allocation=none\nallow-overwrite=false\nauto-file-renaming=false\nfollow-metalink=false\nmax-concurrent-downloads=1\nmax-overall-upload-limit=64K\nbt-stop-timeout=300\nconsole-log-level=error\nquiet=true\nstop-with-process={}", std::process::id()).map_err(io_error)?;
+        writeln!(file,"enable-dht={}\nenable-dht6={}\nenable-peer-exchange={}\nbt-enable-lpd=false",self.discovery,self.discovery,self.discovery).map_err(io_error)?;
         drop(file); drop(listener);
+        let client = reqwest::blocking::Client::builder().no_proxy().timeout(Duration::from_secs(2)).build().map_err(io_error)?;
         let child = Command::new(executable).arg(format!("--conf-path={}", config.display()))
             .arg(format!("--dir={}", payload.display())).arg(format!("--dht-file-path={}", request.directory.join("dht.dat").display()))
             .arg(format!("--dht-file-path6={}", request.directory.join("dht6.dat").display()))
             .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(io_error)?;
-        let mut engine = EngineProcess { child, config, client: reqwest::blocking::Client::builder().no_proxy().timeout(Duration::from_secs(2)).build().map_err(io_error)?,
+        let mut engine = EngineProcess { child, config, client,
             endpoint: format!("http://127.0.0.1:{port}/jsonrpc"), token };
         let deadline = Instant::now() + Duration::from_secs(8);
         loop {
@@ -101,5 +105,46 @@ impl DownloadProvider for BitTorrentProvider {
             }
             thread::sleep(Duration::from_millis(500));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::TransferControl;
+
+    #[test]
+    #[ignore = "Requires real aria2c; transfers four private test bytes over localhost only"]
+    fn local_torrent_descriptor_downloads_payload() {
+        let server = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        server.set_nonblocking(true).unwrap();
+        let seed = format!("http://{address}/content.bin");
+        let mut torrent = b"d4:infod6:lengthi4e4:name11:content.bin12:piece lengthi16384e6:pieces20:".to_vec();
+        for pair in "a17c9aaa61e80a1bf71d0d850af4e5baa9800bbd".as_bytes().chunks(2) {
+            torrent.push(u8::from_str_radix(std::str::from_utf8(pair).unwrap(),16).unwrap());
+        }
+        torrent.extend_from_slice(format!("7:privatei1ee8:url-listl{}:{seed}ee",seed.len()).as_bytes());
+        let worker = thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(25);
+            while Instant::now() < deadline {
+                let Ok((mut stream,_)) = server.accept() else { thread::sleep(Duration::from_millis(10)); continue; };
+                stream.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+                let mut bytes = [0u8;8192]; let length = stream.read(&mut bytes).unwrap();
+                let request = String::from_utf8_lossy(&bytes[..length]);
+                let descriptor = request.starts_with("GET /descriptor.torrent ");
+                let body = if descriptor {torrent.as_slice()} else {b"data"};
+                let header = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",body.len());
+                stream.write_all(header.as_bytes()).unwrap(); stream.write_all(body).unwrap();
+                if !descriptor { return; }
+            }
+            panic!("BitTorrent did not request local payload");
+        });
+        let root = std::env::temp_dir().join(format!("emubox-torrent-{}",std::process::id()));
+        let control = TransferControl::default();
+        let result = BitTorrentProvider {discovery:false}.transfer(&TransferRequest {uri:&format!("http://{address}/descriptor.torrent"),directory:&root,filename:"descriptor.torrent",control:&control,max_bytes:None},&mut |_| Ok(())).unwrap();
+        let TransferOutcome::Complete(files) = result else {panic!("interrupted");};
+        assert_eq!(files.len(),1); assert_eq!(fs::read(&files[0]).unwrap(),b"data");
+        worker.join().unwrap(); fs::remove_dir_all(root).unwrap();
     }
 }

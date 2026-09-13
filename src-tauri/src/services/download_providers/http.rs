@@ -21,6 +21,17 @@ pub fn content_range(value: &str) -> Option<(u64, u64, u64)> {
     (start <= end && end < total).then_some((start, end, total))
 }
 
+async fn controlled<T>(future: impl std::future::Future<Output=Result<T,reqwest::Error>>, control: &crate::models::TransferControl) -> Result<Option<T>,EmuBoxError> {
+    let timed=tokio::time::timeout(Duration::from_secs(30),future);
+    tokio::pin!(timed);
+    loop {
+        tokio::select! {
+            result=&mut timed => return result.map_err(|_| EmuBoxError::IpcError("HTTP: timeout de red; parcial conservado".into()))?.map(Some).map_err(network),
+            _=tokio::time::sleep(Duration::from_millis(100)) => if control.interrupted() {return Ok(None);},
+        }
+    }
+}
+
 impl DownloadProvider for HttpProvider {
     fn transfer(&self, request: &TransferRequest<'_>, progress: &mut dyn FnMut(TransferProgress) -> Result<(), EmuBoxError>) -> Result<TransferOutcome, EmuBoxError> {
         tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(io_error)?
@@ -44,8 +55,7 @@ async fn transfer(request: &TransferRequest<'_>, progress: &mut dyn FnMut(Transf
         .redirect(reqwest::redirect::Policy::limited(5)).build().map_err(network)?;
     let mut builder = client.get(url).header(header::ACCEPT_ENCODING, "identity");
     if offset > 0 { builder = builder.header(header::RANGE, format!("bytes={offset}-")).header(header::IF_RANGE, validator.unwrap()); }
-    let mut response = tokio::time::timeout(Duration::from_secs(30), builder.send()).await
-        .map_err(|_| EmuBoxError::IpcError("HTTP: timeout de cabeceras".into()))?.map_err(network)?;
+    let Some(mut response) = controlled(builder.send(),request.control).await? else {return Ok(TransferOutcome::Interrupted);};
     if !matches!(response.url().scheme(), "http" | "https") { return Err(EmuBoxError::InvalidConfiguration("Redireccion a protocolo no permitido".into())); }
     if response.status() == StatusCode::RANGE_NOT_SATISFIABLE {
         let _ = fs::remove_file(&identity_path);
@@ -74,8 +84,7 @@ async fn transfer(request: &TransferRequest<'_>, progress: &mut dyn FnMut(Transf
     let mut reported = Instant::now();
     loop {
         if request.control.interrupted() { file.sync_all().map_err(io_error)?; return Ok(TransferOutcome::Interrupted); }
-        let chunk = tokio::time::timeout(Duration::from_secs(30), response.chunk()).await
-            .map_err(|_| EmuBoxError::IpcError("HTTP: timeout de lectura; parcial conservado".into()))?.map_err(network)?;
+        let Some(chunk) = controlled(response.chunk(),request.control).await? else {file.sync_all().map_err(io_error)?; return Ok(TransferOutcome::Interrupted);};
         let Some(chunk) = chunk else { break; };
         if downloaded == 0 {
             let prefix = String::from_utf8_lossy(&chunk[..chunk.len().min(512)]).trim_start().to_ascii_lowercase();
@@ -129,5 +138,29 @@ mod tests {
         let TransferOutcome::Complete(files) = result else { panic!("transfer interrupted"); };
         assert_eq!(fs::read(&files[0]).unwrap(), b"data");
         worker.join().unwrap(); fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn resume_checks_range_and_resource_identity() {
+        for (index,range,etag,valid) in [(0,"bytes 4-7/8","\"v1\"",true),(1,"bytes 0-3/8","\"v1\"",false),(2,"bytes 4-7/8","\"v2\"",false)] {
+            let server=TcpListener::bind("127.0.0.1:0").unwrap();
+            let uri=format!("http://{}/content.bin",server.local_addr().unwrap());
+            let worker=thread::spawn(move || {
+                let (mut stream,_)=server.accept().unwrap(); stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+                let mut bytes=[0u8;4096]; let count=stream.read(&mut bytes).unwrap();
+                let request=String::from_utf8_lossy(&bytes[..count]).to_ascii_lowercase();
+                assert!(request.contains("range: bytes=4-")); assert!(request.contains("if-range: \"v1\""));
+                let response=format!("HTTP/1.1 206 Partial Content\r\nContent-Length: 4\r\nContent-Range: {range}\r\nETag: {etag}\r\nConnection: close\r\n\r\nmore");
+                stream.write_all(response.as_bytes()).unwrap();
+            });
+            let root=std::env::temp_dir().join(format!("emubox-resume-{}-{index}",std::process::id())); fs::create_dir_all(&root).unwrap();
+            fs::write(root.join("payload.part"),b"data").unwrap();
+            fs::write(root.join("resume.json"),serde_json::to_vec(&ResumeIdentity{uri:uri.clone(),etag:Some("\"v1\"".into())}).unwrap()).unwrap();
+            let result=HttpProvider.transfer(&TransferRequest{uri:&uri,directory:&root,filename:"content.bin",control:&TransferControl::default(),max_bytes:None},&mut |_| Ok(()));
+            assert_eq!(result.is_ok(),valid);
+            if valid {assert_eq!(fs::read(root.join("content.bin")).unwrap(),b"datamore");}
+            else {assert!(!root.join("content.bin").exists()); assert_eq!(fs::read(root.join("payload.part")).unwrap(),b"data");}
+            worker.join().unwrap(); fs::remove_dir_all(root).unwrap();
+        }
     }
 }

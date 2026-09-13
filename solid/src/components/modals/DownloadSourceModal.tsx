@@ -24,6 +24,11 @@ const labels = {
   unsupported: "No compatible",
 };
 
+const phases: Record<string, string> = {
+  queued: 'En cola', transferring: 'Descargando', verifying: 'Verificando', preparing: 'Preparando',
+  ready: 'Preparado', preparation_required: 'Requiere preparacion', paused: 'Pausado', failed: 'Error', cancelled: 'Cancelado',
+};
+
 interface DownloadSourceModalProps {
   store: LibraryStore;
   onConfirm: () => void;
@@ -54,7 +59,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
   let closeButton: HTMLButtonElement | undefined;
   let returnGameId: string | undefined;
   const busy = () =>
-    Boolean(game() && props.store.catalogDownloadingIds().has(game()!.id));
+    Boolean(game() && props.store.catalogDownloadingIds().has(game()!.id)) || currentJob()?.status === 'downloading' || currentJob()?.status === 'queued';
   const toggleFavorite = async () => {
     const current = game();
     if (!current) return;
@@ -132,6 +137,8 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
     else if (action === "NAV_UP" || action === "NAV_DOWN")
       move(action === "NAV_DOWN" ? 1 : -1);
     else if (action === "BUTTON_X") void toggleFavorite();
+    else if (action === 'BUTTON_LB' && currentJob()) void props.store.controlDownload(currentJob()!, 'pause');
+    else if (action === 'BUTTON_RB' && currentJob()?.status === 'paused') void props.store.controlDownload(currentJob()!, 'resume');
     else if (
       action === "BUTTON_Y" &&
       game()?.installed &&
@@ -358,7 +365,9 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                   </button>
                 </Show>
               </footer>
-              <Show when={currentJob()}>{job => <p class="game-case-state" role="status">{job().provider || 'Proveedor'} · {job().phase || job().status} · {Math.round(job().progress * 100)}%<Show when={job().status === 'downloaded'}> · {job().error}</Show></p>}</Show>
+              <Show when={currentJob()}>{job => <p class="game-case-state" role="status">{job().provider || 'Proveedor'} · {phases[job().phase || ''] || job().status} · {Math.round(job().progress * 100)}%<Show when={job().status === 'downloaded'}> · {job().error}</Show></p>}</Show>
+              <Show when={currentJob()?.status === 'downloaded'}><span class="download-source-uri">{currentJob()?.destinationPath}</span></Show>
+              <Show when={props.store.downloadError()?.gameId === game()?.id}><p class="game-case-state" role="alert">{props.store.downloadError()?.message}</p></Show>
               <Show when={game()?.installed && props.playBlockReason}>
                 <p class="game-case-state" role="status">
                   {props.playBlockReason}

@@ -59,7 +59,8 @@ pub fn start(id: String) -> Result<DownloadJob, EmuBoxError> {
     status(&id,"downloading","transferring",None)?;
     guard.insert(id.clone(),control.clone());
     thread::spawn(move || {
-        let result = run(&job,&source,provider,&control);
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run(&job,&source,provider,&control)))
+            .unwrap_or_else(|_| Err(EmuBoxError::ProcessFailed("Proveedor interrumpido inesperadamente".into())));
         let mut guard = active().lock().unwrap();
         if control.cancelled.load(Ordering::Relaxed) { let _ = status(&job.id,"cancelled","cancelled",None); }
         else if control.paused.load(Ordering::Relaxed) { let _ = status(&job.id,"paused","paused",None); }
@@ -108,7 +109,7 @@ fn run(job: &DownloadJob, source: &DownloadSource, provider: ProviderId, control
         if !control.interrupted() { finish(job,&package)?; }
         return Ok(());
     }
-    let root = content_root().join(".emubox-staging").join(&job.id);
+    let root = destination.parent().ok_or_else(|| EmuBoxError::InvalidConfiguration("Destino sin plataforma".into()))?.join(".emubox-staging").join(&job.id);
     fs::create_dir_all(&root).map_err(io_error)?;
     fs::set_permissions(&root,fs::Permissions::from_mode(0o700)).map_err(io_error)?;
     let filename = reqwest::Url::parse(&source.uri).ok().and_then(|url| url.path_segments().and_then(|mut segments| segments.rfind(|segment| !segment.is_empty())).map(str::to_string)).unwrap_or_else(|| "content.bin".into());
@@ -123,7 +124,11 @@ fn run(job: &DownloadJob, source: &DownloadSource, provider: ProviderId, control
     super::download_preparation::verify(&files,&root,source.checksum.as_deref(),control)?;
     if control.interrupted() { return Ok(()); }
     DatabaseService::get_connection()?.execute("UPDATE download_execution SET phase='preparing' WHERE job_id=?1",params![job.id]).map_err(io_error)?;
-    let files = super::download_preparation::prepare(&files,&root,control)?;
+    let (files, preparation_reason) = match super::download_preparation::prepare(&files,&root,control) {
+        Ok(prepared) => (prepared,None),
+        Err(_) if control.interrupted() => return Ok(()),
+        Err(error) => (files,Some(format!("Contenido obtenido; preparacion no completada: {error}"))),
+    };
     let target = super::download_preparation::launch_target(&job.platform,&files);
     let prepared = root.join("publish");
     if prepared.exists() { fs::remove_dir_all(&prepared).map_err(io_error)?; }
@@ -139,7 +144,7 @@ fn run(job: &DownloadJob, source: &DownloadSource, provider: ProviderId, control
         if target.as_ref() == Some(file) { launch = Some(relative.clone()); }
         published.push(relative);
     }
-    let package = PublishedDownload { job_id:job.id.clone(),source_digest:digest,files:published,launch };
+    let package = PublishedDownload { job_id:job.id.clone(),source_digest:digest,files:published,launch,preparation_reason };
     fs::write(prepared.join(".emubox-managed"),serde_json::to_vec(&package).map_err(io_error)?).map_err(io_error)?;
     let _guard = active().lock().map_err(io_error)?;
     if control.interrupted() { return Ok(()); }
@@ -160,8 +165,51 @@ fn finish(job: &DownloadJob, package: &PublishedDownload) -> Result<(), EmuBoxEr
         let path = destination.join(filename);
         transaction.execute("UPDATE games SET rom_path=?1,file_size_bytes=?2 WHERE id=?3",params![path.to_string_lossy(),fs::metadata(&path).map_err(io_error)?.len(),job.game_id]).map_err(io_error)?;
     }
-    transaction.execute("UPDATE download_jobs SET status=?1,progress=1,speed_bytes_per_second=0,error=?2 WHERE id=?3",params![if package.launch.is_some() {"completed"} else {"downloaded"},if package.launch.is_some() {None} else {Some("Contenido descargado y verificado; requiere preparacion o seleccion de archivo")},job.id]).map_err(io_error)?;
+    transaction.execute("UPDATE download_jobs SET status=?1,progress=1,speed_bytes_per_second=0,error=?2 WHERE id=?3",params![if package.launch.is_some() {"completed"} else {"downloaded"},if package.launch.is_some() {None} else {Some(package.preparation_reason.as_deref().unwrap_or("Contenido descargado; requiere preparacion o seleccion de archivo"))},job.id]).map_err(io_error)?;
     transaction.execute("UPDATE download_execution SET phase=?1,artifacts_json=?2 WHERE job_id=?3",params![if package.launch.is_some() {"ready"} else {"preparation_required"},serde_json::to_string(&package.files).map_err(io_error)?,job.id]).map_err(io_error)?;
     transaction.commit().map_err(io_error)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{io::{Read,Write},net::TcpListener,time::{Instant,Duration}};
+
+    #[test]
+    fn http_jobs_keep_source_snapshot_and_verify_before_publication() {
+        let server = TcpListener::bind("127.0.0.1:0").unwrap();
+        let uri = format!("http://{}/content.dat",server.local_addr().unwrap());
+        let worker = thread::spawn(move || {
+            for _ in 0..2 {
+                let (mut stream,_) = server.accept().unwrap();
+                stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+                let mut buffer=[0u8;4096]; stream.read(&mut buffer).unwrap();
+                stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nETag: \"v1\"\r\nConnection: close\r\n\r\ndata").unwrap();
+            }
+        });
+        for (index,checksum) in [format!("{:x}",Sha256::digest(b"data")),"0".repeat(64)].into_iter().enumerate() {
+            let game_id=format!("manager-http-{index}");
+            let imported=DownloadService::import_from_json(&serde_json::json!({"downloads":[{"gameId":game_id,"title":game_id,"platform":"ps2","uris":[uri],"checksum":checksum}]}).to_string()).unwrap();
+            let source=imported[0].clone();
+            let job=DownloadService::create_job(crate::models::CreateDownloadRequest{game_id:game_id.clone(),platform:"ps2".into(),source:source.clone()}).unwrap();
+            let mut changed=source; changed.uri="http://127.0.0.1:1/changed".into(); DownloadService::create_source(changed).unwrap();
+            start(job.id.clone()).unwrap();
+            let deadline=Instant::now()+Duration::from_secs(10);
+            let finished=loop {
+                let current=DownloadService::get_job(&job.id).unwrap().unwrap();
+                if matches!(current.status,DownloadStatus::Downloaded|DownloadStatus::Failed) {break current;}
+                assert!(Instant::now()<deadline,"job did not finish"); thread::sleep(Duration::from_millis(10));
+            };
+            if index==0 {
+                assert!(matches!(finished.status,DownloadStatus::Downloaded));
+                assert_eq!(finished.provider.as_deref(),Some("http"));
+                assert_eq!(fs::read(Path::new(&finished.destination_path).join("content.dat")).unwrap(),b"data");
+                assert!(Path::new(&finished.destination_path).join(".emubox-managed").is_file());
+                assert!(!super::super::GameService::get_game_by_id(game_id).unwrap().unwrap().installed);
+                assert!(matches!(start(job.id).unwrap().status,DownloadStatus::Downloaded));
+            } else { assert!(matches!(finished.status,DownloadStatus::Failed)); assert!(!Path::new(&finished.destination_path).exists()); }
+        }
+        worker.join().unwrap();
+    }
 }

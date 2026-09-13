@@ -113,7 +113,7 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
     );
   };
 
-  const downloadGame = async (gameId: string, sourceId?: string) => {
+  const downloadGame = async (gameId: string, sourceId?: string, resumeId?: string) => {
     if (downloadingIds().has(gameId)) return;
     setDownloadError(null);
     setDownloadingIds(prev => new Set(prev).add(gameId));
@@ -151,7 +151,7 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
       return false;
     };
     try {
-      const job = await backend.downloadGame(gameId, sourceId);
+      const job = resumeId ? await backend.resumeDownload(resumeId) : await backend.downloadGame(gameId, sourceId);
       await refreshJobs();
       if (await finish(job)) return;
       const poll = async () => {
@@ -174,7 +174,10 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
       try {
         if (action === 'pause') await backend.pauseDownload(job.id);
         else if (action === 'cancel') await backend.cancelDownload(job.id);
-        else { await downloadGame(job.gameId, job.sourceId); }
+        else {
+          setDownloadingIds(previous => { const next = new Set(previous); next.delete(job.gameId); return next; });
+          await downloadGame(job.gameId, job.sourceId, job.id);
+        }
         await refreshJobs();
       } catch (error) { setDownloadError({ gameId: job.gameId, message: error instanceof Error ? error.message : 'No se pudo cambiar el estado de la descarga' }); }
     },

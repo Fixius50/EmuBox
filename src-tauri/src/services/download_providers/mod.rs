@@ -8,7 +8,7 @@ pub trait DownloadProvider: Send + Sync {
 }
 
 pub fn provider(id: crate::models::ProviderId) -> Box<dyn DownloadProvider> {
-    match id { crate::models::ProviderId::Http => Box::new(http::HttpProvider), crate::models::ProviderId::BitTorrent => Box::new(bittorrent::BitTorrentProvider) }
+    match id { crate::models::ProviderId::Http => Box::new(http::HttpProvider), crate::models::ProviderId::BitTorrent => Box::new(bittorrent::BitTorrentProvider::default()) }
 }
 
 pub fn io_error(error: impl std::fmt::Display) -> EmuBoxError { EmuBoxError::StorageUnavailable(error.to_string()) }

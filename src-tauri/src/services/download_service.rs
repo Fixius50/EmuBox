@@ -438,6 +438,9 @@ impl DownloadService {
         if source.id.trim().is_empty() || source.game_id.trim().is_empty() || source.name.trim().is_empty() {
             return Err(EmuBoxError::InvalidConfiguration("La fuente necesita id, gameId y nombre".to_string()));
         }
+        let owner: Option<String> = conn.query_row("SELECT game_id FROM download_sources WHERE id=?1",params![source.id],|row| row.get(0)).optional()
+            .map_err(super::download_providers::io_error)?;
+        if owner.is_some_and(|owner| owner != source.game_id) { return Err(EmuBoxError::InvalidConfiguration("No se puede reasignar una fuente a otro juego".into())); }
         let source_type_str = match &source.source_type {
             DownloadSourceType::Http => "http",
             DownloadSourceType::Torrent => "torrent",

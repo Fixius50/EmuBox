@@ -22,6 +22,7 @@ pub fn prepare(files: &[PathBuf], root: &Path, control: &TransferControl) -> Res
         if entry.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000) { return Err(EmuBoxError::InvalidConfiguration("ZIP contiene enlaces simbolicos".into())); }
         if relative.components().any(|component| !matches!(component,std::path::Component::Normal(_))) { return Err(EmuBoxError::InvalidConfiguration("ZIP contiene una ruta no segura".into())); }
         total = total.checked_add(entry.size()).ok_or_else(|| EmuBoxError::InvalidConfiguration("Tamano ZIP desbordado".into()))?;
+        if entry.size() > 1024 * 1024 && entry.size() / entry.compressed_size().max(1) > 1000 { return Err(EmuBoxError::InvalidConfiguration("ZIP excede la relacion de expansion permitida".into())); }
         if total > 100 * 1024 * 1024 * 1024 { return Err(EmuBoxError::InvalidConfiguration("ZIP excede 100 GiB descomprimidos".into())); }
         let destination = extraction.join(relative);
         if entry.is_dir() { fs::create_dir_all(destination).map_err(io_error)?; continue; }
@@ -101,5 +102,16 @@ mod tests {
         assert_eq!(files[0],root.join("extracted/folder/game.chd"));
         assert_eq!(fs::read(&files[0]).unwrap(),b"local test data");
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn zip_traversal_is_rejected_without_writing_outside() {
+        let root = std::env::temp_dir().join(format!("emubox-zip-security-{}",std::process::id()));
+        fs::create_dir_all(&root).unwrap(); let archive = root.join("content.zip");
+        let mut zip = zip::ZipWriter::new(fs::File::create(&archive).unwrap());
+        zip.start_file("../escape.bin",zip::write::SimpleFileOptions::default()).unwrap();
+        zip.write_all(b"data").unwrap(); zip.finish().unwrap();
+        assert!(prepare(&[archive],&root,&TransferControl::default()).is_err());
+        assert!(!root.join("escape.bin").exists()); fs::remove_dir_all(root).unwrap();
     }
 }

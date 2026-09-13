@@ -37,6 +37,7 @@ pub struct PublishedDownload {
     pub source_digest: String,
     pub files: Vec<PathBuf>,
     pub launch: Option<PathBuf>,
+    pub preparation_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
