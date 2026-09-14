@@ -3,6 +3,8 @@ export type PlatformId =
   | 'ps1'
   | 'ps2'
   | 'ps3'
+  | 'ps4'
+  | '3ds'
   | 'n64'
   | 'genesis'
   | 'gba'

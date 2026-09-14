@@ -54,6 +54,16 @@ pub enum TransferOutcome {
     Interrupted,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InstallationKind { Inno, Ps3 }
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct PreparedInstallation {
+    pub kind: InstallationKind,
+    pub root: PathBuf,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct PublishedDownload {
     pub job_id: String,
@@ -61,6 +71,8 @@ pub struct PublishedDownload {
     pub files: Vec<PathBuf>,
     pub launch: Option<PathBuf>,
     pub preparation_reason: Option<String>,
+    #[serde(default)]
+    pub installation: Option<PreparedInstallation>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

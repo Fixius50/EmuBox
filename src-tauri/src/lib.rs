@@ -126,6 +126,8 @@ pub fn run() {
             commands::downloads::pause_download,
             commands::downloads::resume_download,
             commands::downloads::cancel_download,
+            commands::downloads::get_download_candidates,
+            commands::downloads::select_download_candidate,
             commands::downloads::import_download_links,
             commands::downloads::import_downloads_from_json,
             commands::downloads::import_downloads_from_url,

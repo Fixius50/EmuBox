@@ -111,7 +111,7 @@ La importacion registra metadatos y fuentes, no inicia automaticamente descargas
 
 Existe cache HTTP persistente con validadores, huellas y pertenencia por manifiesto. Si el servidor permite respuestas condicionales se evita retransmitir contenido sin cambios. Sin ETag/Last-Modified o protocolo delta, el cliente no puede inventar una sincronizacion incremental de red: puede necesitar descargar el documento completo antes de comparar huellas.
 
-El transporte esta separado por proveedores HTTP y BitTorrent (aria2 externo). Una URL torrent obtiene primero el descriptor mediante HTTP; magnet obtiene metadata mediante el motor. Pixeldrain cuenta con un conector de archivo publico; el resto de hostings sin conector se indica explicitamente. No hay un conector universal ni evasion de CAPTCHA o login. HTML no es un archivo de juego. Ver [download-providers.md](download-providers.md).
+El transporte esta separado por proveedores HTTP y BitTorrent (aria2 externo). Una URL torrent obtiene primero el descriptor mediante HTTP; magnet obtiene metadata mediante el motor. Pixeldrain cuenta con un conector de archivo publico. EmuBox no requiere registro y los conectores con cuenta, incluido 1fichier, estan desactivados por defecto. GoFile y el resto de hostings sin conector se indican explicitamente. No hay un conector universal ni evasion de CAPTCHA o login. HTML no es un archivo de juego. Ver [download-providers.md](download-providers.md).
 
 El tamaño del catalogo no es el numero de juegos instalados ni una garantia de que las fuentes sigan disponibles. HTTP 403/404, TLS, DNS, limites del servidor, firmas caducadas y contenido retirado no se solucionan inventando exito. No se debe desactivar la validacion TLS para ocultar errores.
 
@@ -153,7 +153,7 @@ Las pruebas unitarias y de contratos validan reglas, errores, parsers y aislamie
 
 Quedan pendientes la aceptacion en hardware ARM real, arranque en frio sin SSH, navegacion fisica, audio audible, persistencia tras reinicio y estabilidad grafica en cada equipo. El sondeo SVGA3D positivo no cierra la incidencia visual del hipervisor.
 
-La integracion BitTorrent requiere aria2 instalado y fuentes con peers disponibles; faltan conectores de alojamiento adicionales y preparadores de formatos distintos de ZIP. OTA nativa completa, aplicacion de todos los ajustes al sistema y una distribucion reproducible siguen pendientes. No deben declararse terminados por tener un tipo o un boton.
+La integracion BitTorrent requiere aria2 instalado y fuentes con peers disponibles. ZIP dispone de preparador; 7z/RAR usan libarchive (7z y RAR5 almacenado/comprimido probados; otras variantes pendientes). El selector permite reintentar preparacion y elegir entre candidatos locales, conservando originales al reprocesar y sin contactar al proveedor. Faltan conectores publicos adicionales, instaladores PKG/EXE y descriptores multidisco. GoFile y la validacion autenticada de 1fichier se excluyen del flujo sin cuentas solicitado. OTA nativa completa, aplicacion de todos los ajustes al sistema y una distribucion reproducible siguen pendientes. No deben declararse terminados por tener un tipo o un boton.
 
 ## 11. Reglas de colaboracion
 

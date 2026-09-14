@@ -26,4 +26,9 @@ REQUIRED_PACKAGES=(
 
 log_step "Comprobando e instalando paquetes necesarios..."
 install_packages_if_missing "${REQUIRED_PACKAGES[@]}"
+install_packages_if_missing libarchive cabextract innoextract unshield bubblewrap util-linux
+if [[ "$(uname -m)" == x86_64 ]]; then
+  install_packages_if_missing wine
+fi
 install_optional_packages gamescope vulkan-tools aria2
+install_optional_packages libretro-snes9x libretro-mupen64plus-next libretro-genesis-plus-gx mgba-qt ppsspp gamemode mangohud

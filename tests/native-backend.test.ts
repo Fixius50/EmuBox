@@ -10,6 +10,8 @@ for (const operation of [
   () => backend.getHardwareInfo(),
   () => backend.getSettings(),
   () => backend.getDownloadJobs(),
+  () => backend.getDownloadCandidates('unavailable'),
+  () => backend.selectDownloadCandidate('unavailable', 'disc.iso'),
   () => backend.launchGame('unavailable'),
   () => backend.executeCommand('true'),
 ]) {

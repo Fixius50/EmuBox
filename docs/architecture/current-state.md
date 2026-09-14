@@ -101,8 +101,56 @@ La importacion real del 5 de septiembre registro 167.901 juegos y 278.460 fuente
 unicas, con cero trabajos de descarga. Varias URLs devolvieron 403/404 o fallaron
 por conectividad; no se presentan como importadas. El backend descarga archivos
 HTTP directos y dispone de proveedor BitTorrent mediante aria2 instalado. El conector
-publico Pixeldrain no elude limites; otros hostings requieren conectores adicionales.
+publico Pixeldrain no elude limites. EmuBox funciona sin registro; los conectores
+con cuenta, incluido 1fichier, estan desactivados por defecto. No se requieren
+claves para HTTP publico, BitTorrent publico ni preparacion local. Otros hostings, incluido
+GoFile, requieren conectores adicionales. La preparacion reconoce ZIP, 7z y RAR
+mediante lectores de archivo; 7z, RAR5 almacenado y comprimido probados localmente.
+El selector permite reintentar preparacion y elegir un archivo de lanzamiento
+entre candidatos del paquete, sin repetir la descarga. Los EXE Inno Setup compatibles
+se extraen mediante innoextract, sin ejecutar el instalador; Wine tiene perfil PC y
+prefijo propio por paquete. PKG PS3 usa RPCS3 headless en un entorno aislado, requiere
+firmware local y comprueba log y estructura de salida. No son instaladores universales:
+EXE de otros formatos, descriptores multidisco y compatibilidad de juegos quedan pendientes.
 Ver [detalle y limites](download-providers.md).
+
+## Ampliacion del 14 de septiembre de 2026
+
+- Firmware PS3 4.93 descargado desde el enlace oficial Sony. Los nombres CDN fallaron
+        TLS; se uso el enlace HTTP publicado, contrastando el MD5 incluido en la URL obtenida
+        por HTTPS. Ese digest no equivale a una firma criptografica independiente.
+        RPCS3 confirmo en su log la instalacion; fallo al cerrar el proceso tras instalar.
+        PUP conservado en `/var/lib/emubox/bios/ps3/PS3UPDAT.PUP` y `dev_flash` en
+        `/var/lib/emubox/emulators/rpcs3/config/rpcs3/dev_flash`. El preparador descubre
+        esa ubicacion y permite override `EMUBOX_PS3_FIRMWARE_DIR`.
+- RPCS3 0.0.42-19996, Azahar 2126.1.1 y shadPS4 0.18.0 instalados desde publicaciones
+        oficiales. Sus binarios descargados se comprobaron con SHA-256 publicado. Azahar
+        continua Citra; tambien se instalo su core Libretro x86_64. No se ejecutaron juegos.
+- Plataformas PS4 y 3DS registradas. PS4 reconoce carpetas con `eboot.bin` y
+        `sce_sys/param.sfo`; 3DS admite los formatos registrados por el perfil Azahar.
+- Alternativas Libretro con core explicito: Dolphin, Flycast, melonDS, mGBA,
+        PPSSPP, Azahar, Snes9x, Mupen64Plus Next, Genesis Plus GX y FinalBurn Neo.
+        Un perfil registrado no implica core instalado; FinalBurn Neo no estaba disponible.
+        RetroArch generico sin core no se anuncia listo para lanzar.
+- Instalados y comprobados via pacman: Wine, cabextract, innoextract, unshield,
+        aria2, libarchive, los cores Snes9x/Mupen64Plus Next/Genesis Plus GX, mGBA Qt,
+        PPSSPP, GameMode y MangoHud. Estos dos ultimos no se activan automaticamente.
+- La tarjeta abre la seleccion de motor; permite guardar preferencia por juego sin
+        ejecutarlo. El lanzamiento directo respeta la asociacion. Se corrigio el contrato
+        `customArgs`, conservando lectura del alias anterior `customArguments`.
+- Preparadores ejecutados con bubblewrap sin red, entradas de solo lectura y staging
+        escribible, limites de CPU/tiempo/espacio virtual y comprobacion periodica de disco.
+        No es una cuota estricta de disco ni un sandbox del juego una vez lanzado por Wine.
+        `WINEDLLOVERRIDES=mscoree,mshtml=` evita descargas automaticas Mono/Gecko.
+- Pruebas reales: extraccion del instalador oficial Inno 6.0.5, conservacion del
+        original, seleccion y configuracion Wine sin ejecutar el EXE extraido; RPCS3 headless
+        y rechazo de PKG invalido con firmware. Sigue sin validarse un PKG de juego correcto.
+
+La ausencia de Vulkan en esta VM es una limitacion del entorno de prueba, no una exclusion de Intel, AMD o NVIDIA. La deteccion y las rutas GPU se conservan para hardware compatible; no se certifican drivers, extensiones ni juegos no probados.
+shadPS4 necesita Vulkan 1.3 y otros requisitos de CPU/GPU: su instalacion no garantiza ejecucion en esta VM. No se encontraron modulos PS4 ni datos BIOS/3DS locales.
+No se descargaron copias de firmware de terceros sin autorizacion.
+
+UMU con Proton permite ejecutar fuera de Steam sin cuenta; fue investigado, no instalado. DXVK y vkd3d-proton se evaluaron como complementos Vulkan, no se activaron ni se presentan como mejoras universales. No hay mediciones de rendimiento en GPU fisicas.
 
 ## Appliance y sistema
 

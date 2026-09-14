@@ -96,7 +96,7 @@ const NativeApp: Component = () => {
   });
 
   // 4. Composable Logic Hooks
-  const { launchWithEmulator } = useGameLauncher({
+  const { launchWithEmulator, getPreferredEmulator, saveEmulatorPreference } = useGameLauncher({
     backend,
     systemStore,
     modalStore,
@@ -288,6 +288,8 @@ const NativeApp: Component = () => {
           modalStore.closeEmulatorSelector();
         }}
         onConfirmLaunch={launchWithEmulator}
+        getPreferredEmulator={getPreferredEmulator}
+        onSavePreference={saveEmulatorPreference}
       />
 
       <DownloadSourceModal

@@ -74,7 +74,25 @@ pub struct GameEmulatorAssociation {
     pub emulator_id: String,
     pub is_default: bool,
     pub priority: i32,
+    #[serde(default, rename = "customArgs", alias = "customArguments")]
     pub custom_arguments: Vec<String>,
     pub custom_config_path: Option<String>,
     pub enabled: bool,
+}
+
+#[cfg(test)]
+mod association_tests {
+    use super::*;
+    #[test]
+    fn frontend_custom_args_round_trip_and_legacy_alias() {
+        for key in ["customArgs", "customArguments"] {
+            let mut input = serde_json::json!({"gameId":"test", "emulatorId":"azahar", "isDefault":true, "priority":0, "enabled":true});
+            input[key] = serde_json::json!(["--test"]);
+            let association: GameEmulatorAssociation = serde_json::from_value(input).unwrap();
+            assert_eq!(association.custom_arguments, ["--test"]);
+            let encoded = serde_json::to_value(association).unwrap();
+            assert_eq!(encoded["customArgs"], serde_json::json!(["--test"]));
+            assert!(encoded.get("customArguments").is_none());
+        }
+    }
 }

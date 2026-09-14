@@ -170,6 +170,12 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
 
   return {
     downloadJobs, refreshJobs,
+    getDownloadCandidates: (id: string) => backend.getDownloadCandidates(id),
+    selectDownloadCandidate: async (id: string, path: string) => {
+      await backend.selectDownloadCandidate(id, path);
+      await refreshJobs();
+      await loadGames();
+    },
     controlDownload: async (job: DownloadJob, action: 'pause' | 'resume' | 'cancel') => {
       try {
         if (action === 'pause') await backend.pauseDownload(job.id);

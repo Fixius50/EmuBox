@@ -14,6 +14,10 @@ mod ppsspp;
 mod retroarch;
 mod rpcs3;
 mod ryujinx;
+mod wine;
+mod azahar;
+mod shadps4;
+mod libretro;
 
 /// Un emulador = un archivo = un mantenedor. Cada implementación posee sus propios
 /// binarios candidatos, plataformas soportadas y (si está verificada) su lógica de
@@ -27,6 +31,10 @@ pub trait EmulatorProfile: Sync + Send {
     fn core_type(&self) -> &'static str;
     fn default_arguments(&self) -> &'static [&'static str];
     fn version_flag(&self) -> &'static str;
+    fn version_arguments(&self) -> Vec<&'static str> {
+        let flag = self.version_flag();
+        if flag.trim().is_empty() { Vec::new() } else { vec![flag] }
+    }
 
     /// Escribe/actualiza la configuración nativa real del emulador según el hardware
     /// detectado (renderer, etc.). Por defecto no hace nada: solo se sobreescribe cuando
@@ -38,7 +46,7 @@ pub trait EmulatorProfile: Sync + Send {
 }
 
 pub fn registry() -> Vec<Box<dyn EmulatorProfile>> {
-    vec![
+    let mut profiles: Vec<Box<dyn EmulatorProfile>> = vec![
         Box::new(pcsx2::Pcsx2),
         Box::new(duckstation::DuckStation),
         Box::new(dolphin::Dolphin),
@@ -50,7 +58,12 @@ pub fn registry() -> Vec<Box<dyn EmulatorProfile>> {
         Box::new(rpcs3::Rpcs3),
         Box::new(cemu::Cemu),
         Box::new(ryujinx::Ryujinx),
-    ]
+        Box::new(wine::Wine),
+        Box::new(azahar::Azahar),
+        Box::new(shadps4::ShadPs4),
+    ];
+    profiles.extend(libretro::profiles());
+    profiles
 }
 
 pub(crate) fn config_home() -> PathBuf {

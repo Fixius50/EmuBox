@@ -97,4 +97,6 @@ export interface EmulatorSelectorModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirmLaunch: (game: Game, emulator: Emulator) => void;
+  getPreferredEmulator: (gameId: string) => Promise<string | undefined>;
+  onSavePreference: (game: Game, emulator: Emulator) => Promise<void>;
 }

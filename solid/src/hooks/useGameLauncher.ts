@@ -41,8 +41,7 @@ export function useGameLauncher(options: UseGameLauncherOptions) {
         return;
       }
 
-      const emulatorId = targetEmulator ? targetEmulator.id : '';
-      const result = await backend.launchGame(game.id, emulatorId);
+      const result = await backend.launchGame(game.id);
       console.log(`[GameLauncher] Juego iniciado: ${result.message} (Motor: ${targetEmulator ? targetEmulator.name : 'Auto'}, PID: ${result.pid})`);
     } catch (err: any) {
       console.error('[GameLauncher] Error al lanzar juego:', err);
@@ -55,6 +54,19 @@ export function useGameLauncher(options: UseGameLauncherOptions) {
 
   return {
     launchWithEmulator,
-    launchGameDirect
+    launchGameDirect,
+    getPreferredEmulator: async (gameId: string) => {
+      const associations = await backend.getGameAssociations(gameId);
+      return associations.find(association => association.enabled && association.isDefault)?.emulatorId;
+    },
+    saveEmulatorPreference: async (game: Game, emulator: Emulator) => {
+      if (emulatorBlockReason(emulator) || !emulator.supportedPlatforms.includes(game.platform)) {
+        throw new Error('Emulador no disponible para este juego');
+      }
+      const associations = await backend.getGameAssociations(game.id);
+      const existing = associations.find(association => association.emulatorId === emulator.id);
+      await backend.setGameAssociation({ ...existing, gameId: game.id, emulatorId: emulator.id,
+        isDefault: true, priority: existing?.priority ?? 0, enabled: true, customArgs: existing?.customArgs ?? [] });
+    }
   };
 }

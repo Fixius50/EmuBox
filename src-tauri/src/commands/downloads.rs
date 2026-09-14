@@ -58,6 +58,16 @@ pub fn cancel_download(id: String) -> Result<DownloadJob, EmuBoxError> {
 }
 
 #[tauri::command]
+pub fn get_download_candidates(id: String) -> Result<Vec<String>, EmuBoxError> {
+    crate::services::download_manager::candidates(&id)
+}
+
+#[tauri::command]
+pub fn select_download_candidate(id: String, path: String) -> Result<DownloadJob, EmuBoxError> {
+    crate::services::download_manager::select_candidate(&id, &path)
+}
+
+#[tauri::command]
 pub fn get_download_sources(game_id: String) -> Result<Vec<crate::services::manifest_service::SourceOption>, EmuBoxError> {
     DownloadService::list_sources(&game_id)
 }

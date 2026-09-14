@@ -22,9 +22,19 @@ CORE_PKGS=(
   "mesa-utils"
   "xdg-user-dirs"
   "libevdev"
+  "libarchive"
+  "cabextract"
+  "innoextract"
+  "unshield"
+  "bubblewrap"
+  "util-linux"
 )
 
 echo "  -> Comprobando gestor de paquetes de Arch Linux (pacman)..."
 
 install_packages_if_missing "${CORE_PKGS[@]}"
+if [[ "$(uname -m)" == x86_64 ]]; then
+  install_packages_if_missing wine
+fi
 install_optional_packages gamescope vulkan-tools aria2
+install_optional_packages libretro-snes9x libretro-mupen64plus-next libretro-genesis-plus-gx mgba-qt ppsspp gamemode mangohud

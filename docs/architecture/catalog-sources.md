@@ -106,7 +106,11 @@ se bloquean hasta tener un conector. Un candidato HTTP aun puede fallar, redirig
 o devolver HTML; el descargador mantiene sus comprobaciones HTTP y TLS.
 Magnet/torrent disponen de proveedor BitTorrent con aria2. Si falta el ejecutable,
 se indica el paquete necesario sin anunciar descarga disponible. Pixeldrain tiene
-conector publico de archivo; otros hostings siguen bloqueados por conector ausente.
+conector publico de archivo; 1fichier dispone de conector API opcional, desactivado
+por defecto para mantener el uso sin registro. Solo se activa mediante opt-in
+explicito y cuenta propia autorizada; no es requisito de EmuBox. Otros hostings
+siguen bloqueados por conector ausente. Elegir un candidato local no consulta al
+hosting ni altera la identidad de la fuente seleccionada.
 Una pagina HTML no se considera un juego y no se eluden login, CAPTCHA o limites.
 Ver [proveedores y preparacion](download-providers.md).
 

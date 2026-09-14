@@ -13,12 +13,39 @@ import type { EmulatorSelectorModalProps } from "@contracts/modal.types";
 import { emulatorBlockReason } from "@services/compatibility/launch-capability";
 import type { InputAction } from "@contracts/input.types";
 import { ConsoleHardwareVisual } from "@components/common/ConsoleHardwareVisual";
-import { ArrowLeft, Play } from "lucide-solid";
+import { ArrowLeft, Play, Save } from "lucide-solid";
 
 export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (
   props,
 ) => {
   const [selectedEmulatorId, setSelectedEmulatorId] = createSignal<string>("");
+  const [preferenceBusy, setPreferenceBusy] = createSignal(false);
+  const [preferenceMessage, setPreferenceMessage] = createSignal("");
+  createEffect(() => {
+    const gameId = props.isOpen ? props.game?.id : undefined;
+    let stale = false;
+    setSelectedEmulatorId("");
+    setPreferenceMessage("");
+    if (gameId) {
+      setPreferenceBusy(true);
+      void props.getPreferredEmulator(gameId).then(id => { if (!stale) setSelectedEmulatorId(id || ""); })
+        .catch(() => { if (!stale) setPreferenceMessage("No se pudo leer la preferencia."); })
+        .finally(() => { if (!stale) setPreferenceBusy(false); });
+    } else setPreferenceBusy(false);
+    onCleanup(() => { stale = true; });
+  });
+  const savePreference = async () => {
+    const game = props.game;
+    const emulator = selectedEmulator();
+    if (!game || !emulator || preferenceBusy() || emulatorBlockReason(emulator)) return;
+    setPreferenceBusy(true);
+    try {
+      await props.onSavePreference(game, emulator);
+      if (props.game?.id === game.id) setPreferenceMessage("Preferencia guardada.");
+    } catch {
+      if (props.game?.id === game.id) setPreferenceMessage("No se pudo guardar la preferencia.");
+    } finally { setPreferenceBusy(false); }
+  };
   let modalContentRef!: HTMLDivElement;
 
   const compatibleEmulators = () => {
@@ -43,6 +70,8 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (
 
   const controller = (action: InputAction) => {
     if (!props.isOpen) return;
+    if (action === "BUTTON_X") { void savePreference(); return; }
+    if (preferenceBusy() && action !== "BUTTON_B") return;
     const entries = compatibleEmulators();
     const current = Math.max(
       0,
@@ -171,6 +200,7 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (
                               type="button"
                               aria-pressed={isSelected()}
                               class={`emulator-core-row ${isSelected() ? "active-core" : ""}`}
+                              disabled={preferenceBusy()}
                               onClick={() => setSelectedEmulatorId(emu.id)}
                             >
                               <div class="core-radio-indicator">
@@ -215,7 +245,7 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (
                         class="console-btn primary-glow-btn"
                         id="btn-launch-with-core"
                         disabled={Boolean(
-                          emulatorBlockReason(selectedEmulator()),
+                          preferenceBusy() || emulatorBlockReason(selectedEmulator()),
                         )}
                         onClick={() => {
                           const emu = selectedEmulator();
@@ -228,6 +258,7 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (
                         <span>Jugar</span>
                       </button>
 
+                      <button class="console-btn ghost-btn" title="Guardar emulador para este juego" aria-label="Guardar emulador para este juego" disabled={preferenceBusy() || Boolean(emulatorBlockReason(selectedEmulator()))} onClick={() => void savePreference()}><Save size={18} /></button>
                       <button
                         class="console-btn ghost-btn"
                         id="btn-cancel-core-select"
@@ -237,6 +268,7 @@ export const EmulatorSelectorModal: Component<EmulatorSelectorModalProps> = (
                         <span>Volver</span>
                       </button>
                     </div>
+                    <Show when={preferenceMessage()}><p role="status">{preferenceMessage()}</p></Show>
                   </div>
                 </div>
               )}
