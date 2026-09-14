@@ -1,10 +1,6 @@
 use super::DownloadService;
 use crate::errors::EmuBoxError;
-use crate::{
-    models::{CreateDownloadRequest, DownloadJob},
-    services::db_service::DatabaseService,
-};
-use rusqlite::params;
+use crate::models::{CreateDownloadRequest, DownloadJob};
 
 impl DownloadService {
     pub fn import_and_start() -> Result<Vec<DownloadJob>, EmuBoxError> {
@@ -22,16 +18,7 @@ impl DownloadService {
         game_id: String,
         source_id: Option<String>,
     ) -> Result<DownloadJob, EmuBoxError> {
-        let conn = DatabaseService::get_connection()?;
-        let platform: String = conn
-            .query_row(
-                "SELECT platform_id FROM games WHERE id = ?1",
-                params![game_id],
-                |row| row.get(0),
-            )
-            .map_err(|_| {
-                EmuBoxError::NotFound(format!("Juego no encontrado en el catálogo: {}", game_id))
-            })?;
+        let platform = Self::game_platform(&game_id)?;
 
         let sources = Self::list_sources(&game_id)?;
         let chosen = if let Some(source_id) = source_id {

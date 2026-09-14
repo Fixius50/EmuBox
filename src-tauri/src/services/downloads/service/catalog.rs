@@ -53,8 +53,12 @@ impl DownloadService {
     pub fn import_link_file_with_progress(
         mut updated: impl FnMut(),
     ) -> Result<Vec<DownloadSource>, EmuBoxError> {
-        let Ok(_import_guard) = CATALOG_IMPORT.try_lock() else {
-            return Ok(Vec::new());
+        let _import_guard = match CATALOG_IMPORT.try_lock() {
+            Ok(guard) => guard,
+            Err(std::sync::TryLockError::WouldBlock) => return Ok(Vec::new()),
+            Err(std::sync::TryLockError::Poisoned(error)) => {
+                return Err(EmuBoxError::StorageUnavailable(error.to_string()));
+            }
         };
         let file = paths::download_links_file();
         let content = fs::read_to_string(&file).map_err(|error| {
@@ -72,7 +76,15 @@ impl DownloadService {
             "[Catalog] {} manifiestos desde {file}; solo metadatos",
             links.len()
         );
+        Self::import_links(&links, &mut updated)
+    }
+
+    fn import_links(
+        links: &[(usize, &str)],
+        updated: &mut impl FnMut(),
+    ) -> Result<Vec<DownloadSource>, EmuBoxError> {
         let mut sources = Vec::new();
+        let mut errors = Vec::new();
         for chunk in links.chunks(4) {
             std::thread::scope(|scope| {
                 let handles: Vec<_> = chunk
@@ -80,24 +92,37 @@ impl DownloadService {
                     .map(|(line, link)| (*line, scope.spawn(move || Self::fetch_manifest(link))))
                     .collect();
                 for (line, handle) in handles {
-                    match handle.join() {
-                        Ok(Ok(fetched)) => match Self::import_fetched(fetched) {
-                            Ok(mut imported) => {
-                                eprintln!("[Catalog] linea {line}: {} fuentes modificadas (cache incremental)", imported.len());
-                                if !imported.is_empty() {
-                                    updated();
-                                }
-                                sources.append(&mut imported);
+                    let result = handle
+                        .join()
+                        .map_err(|_| EmuBoxError::Unknown("Importador interrumpido".into()))
+                        .and_then(|result| result)
+                        .and_then(Self::import_fetched);
+                    match result {
+                        Ok(mut imported) => {
+                            eprintln!("[Catalog] linea {line}: {} fuentes modificadas (cache incremental)", imported.len());
+                            if !imported.is_empty() {
+                                updated();
                             }
-                            Err(error) => eprintln!("[Catalog] linea {line}: {error}"),
-                        },
-                        Ok(Err(error)) => eprintln!("[Catalog] linea {line}: {error}"),
-                        Err(_) => eprintln!("[Catalog] linea {line}: importador interrumpido"),
+                            sources.append(&mut imported);
+                        }
+                        Err(error) => {
+                            eprintln!("[Catalog] linea {line}: {error}");
+                            errors.push(format!("linea {line}: {error}"));
+                        }
                     }
                 }
             });
         }
-        Ok(sources)
+        if errors.is_empty() {
+            Ok(sources)
+        } else {
+            Err(EmuBoxError::Unknown(format!(
+                "Importacion parcial: {} fuentes modificadas; {} manifiestos fallidos: {}",
+                sources.len(),
+                errors.len(),
+                errors.join("; ")
+            )))
+        }
     }
 
     pub fn import_manifest_content(
@@ -133,7 +158,6 @@ impl DownloadService {
         if skipped > 0 {
             eprintln!("[Catalog] {skipped} entradas omitidas: titulo o URLs validas ausentes");
         }
-        let parsed = serde_json::json!({"name":original.get("name"), "platform":original.get("platform"), "downloads":normalized});
 
         let mut sources = Vec::new();
         let mut connection = DatabaseService::get_connection()?;
@@ -165,344 +189,270 @@ impl DownloadService {
             }
         }
 
-        // 1. Detectar formato estándar Hydra / downloads[]
-        let downloads_array = parsed
-            .get("downloads")
-            .and_then(|d| d.as_array())
-            .or_else(|| {
-                // Si el objeto raíz es directamente un array de objetos con "uris" o "title"
-                parsed.as_array().filter(|arr| {
+        let manifest_name = original
+            .get("name")
+            .and_then(|n| n.as_str())
+            .or(source_name_fallback);
+        let manifest_platform = original
+            .get("platform")
+            .and_then(|platform| platform.as_str());
+
+        for item in &normalized {
+            let title = item
+                .get("title")
+                .and_then(|t| t.as_str())
+                .unwrap_or("")
+                .trim();
+            if title.is_empty() {
+                continue;
+            }
+
+            let uris: Vec<String> = item
+                .get("uris")
+                .and_then(|u| u.as_array())
+                .map(|arr| {
                     arr.iter()
-                        .any(|item| item.get("uris").is_some() && item.get("title").is_some())
+                        .filter_map(|v| v.as_str().map(str::to_string))
+                        .collect()
                 })
-            });
+                .unwrap_or_default();
 
-        if let Some(downloads) = downloads_array {
-            let manifest_name = parsed
-                .get("name")
-                .and_then(|n| n.as_str())
-                .or(source_name_fallback);
-            let manifest_platform = parsed.get("platform").and_then(|p| p.as_str());
-
-            for item in downloads {
-                let title = item
-                    .get("title")
-                    .and_then(|t| t.as_str())
-                    .unwrap_or("")
-                    .trim();
-                if title.is_empty() {
-                    continue;
-                }
-
-                let uris: Vec<String> = item
-                    .get("uris")
-                    .and_then(|u| u.as_array())
-                    .map(|arr| {
-                        arr.iter()
-                            .filter_map(|v| v.as_str().map(str::to_string))
-                            .collect()
-                    })
-                    .unwrap_or_default();
-
-                if uris.is_empty() {
-                    continue;
-                }
-
-                let item_platform = item.get("platform").and_then(|p| p.as_str());
-                let platform = Self::infer_platform(
-                    item_platform,
-                    manifest_platform,
-                    title,
-                    &uris,
-                    manifest_name,
-                );
-
-                let size_bytes = item
-                    .get("sizeBytes")
-                    .or_else(|| item.get("fileSize"))
-                    .and_then(crate::models::download::parse_file_size_value);
-                let release_year = item
-                    .get("releaseYear")
-                    .and_then(|value| value.as_u64())
-                    .map(|year| year as u32);
-
-                let game_id = item
-                    .get("gameId")
-                    .and_then(|v| v.as_str())
-                    .map(str::to_string)
-                    .unwrap_or_else(|| format!("download-{}-{}", platform, slug(title)));
-
-                let entry_digest = format!(
-                    "{:x}",
-                    Sha256::digest(serde_json::json!([item, platform]).to_string().as_bytes())
-                );
-                if let Some(cache) = cache {
-                    if previous.remove(&game_id).as_deref() == Some(&entry_digest) {
-                        continue;
-                    }
-                    let mut statement = transaction.prepare("SELECT source_id FROM manifest_sources WHERE manifest_url=?1 AND game_id=?2")
-                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
-                    let rows = statement
-                        .query_map(params![cache.url, game_id], |row| row.get::<_, String>(0))
-                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
-                    for row in rows {
-                        retired.push(
-                            row.map_err(|error| {
-                                EmuBoxError::StorageUnavailable(error.to_string())
-                            })?,
-                        );
-                    }
-                    transaction
-                        .execute(
-                            "DELETE FROM manifest_sources WHERE manifest_url=?1 AND game_id=?2",
-                            params![cache.url, game_id],
-                        )
-                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
-                }
-                GameService::upsert_catalog_entry_on(
-                    &transaction,
-                    CatalogEntry {
-                        id: game_id.clone(),
-                        title: title.to_string(),
-                        platform_id: platform.clone(),
-                        platform_name: GameService::platform_name(&platform),
-                        release_year,
-                        genre: item
-                            .get("genre")
-                            .and_then(|v| v.as_str())
-                            .map(str::to_string),
-                        developer: item
-                            .get("developer")
-                            .and_then(|v| v.as_str())
-                            .map(str::to_string),
-                        publisher: item
-                            .get("publisher")
-                            .and_then(|v| v.as_str())
-                            .map(str::to_string),
-                        rating: item
-                            .get("rating")
-                            .and_then(|v| v.as_f64())
-                            .map(|v| v as f32),
-                        cover_image: item
-                            .get("coverImage")
-                            .or_else(|| item.get("cover"))
-                            .and_then(|v| v.as_str())
-                            .map(str::to_string),
-                        backdrop_image: item
-                            .get("backdropImage")
-                            .and_then(|v| v.as_str())
-                            .map(str::to_string),
-                        description: item
-                            .get("description")
-                            .and_then(|v| v.as_str())
-                            .map(str::to_string),
-                    },
-                )?;
-                for uri in uris {
-                    let source_type = match crate::services::manifest_service::source_access(&uri) {
-                        Some("magnet") => DownloadSourceType::Magnet,
-                        Some("torrent") => DownloadSourceType::Torrent,
-                        Some("unsupported") | None => DownloadSourceType::Other,
-                        _ => DownloadSourceType::Http,
-                    };
-                    let existing = transaction.query_row(
-                        "SELECT id FROM download_sources WHERE game_id = ?1 AND uri = ?2 LIMIT 1",
-                        params![game_id, uri], |row| row.get::<_, String>(0),
-                    ).optional().map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
-                    let identity =
-                        serde_json::json!([game_id, uri, item.get("sourceId")]).to_string();
-                    let source = DownloadSource {
-                        id: existing.unwrap_or_else(|| {
-                            format!("source-{:x}", Sha256::digest(identity.as_bytes()))
-                        }),
-                        game_id: game_id.clone(),
-                        name: title.to_string(),
-                        source_type,
-                        uri,
-                        size_bytes,
-                        checksum: item
-                            .get("checksum")
-                            .and_then(|value| value.as_str())
-                            .map(str::to_string),
-                        available: item
-                            .get("available")
-                            .and_then(|value| value.as_bool())
-                            .unwrap_or(true),
-                    };
-                    if let Some(cache) = cache {
-                        transaction
-                            .execute(
-                                "INSERT OR IGNORE INTO manifest_sources VALUES (?1, ?2, ?3)",
-                                params![cache.url, game_id, source.id],
-                            )
-                            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
-                    }
-                    sources.push(Self::create_source_on(&transaction, source)?);
-                }
-                if let Some(cache) = cache {
-                    transaction
-                        .execute(
-                            "INSERT INTO manifest_entry_cache VALUES (?1, ?2, ?3)
-                        ON CONFLICT(manifest_url, game_id) DO UPDATE SET digest=excluded.digest",
-                            params![cache.url, game_id, entry_digest],
-                        )
-                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
-                }
-            }
-            if let Some(cache) = cache {
-                for game_id in previous.keys() {
-                    let mut statement = transaction.prepare("SELECT source_id FROM manifest_sources WHERE manifest_url=?1 AND game_id=?2")
-                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
-                    for row in statement
-                        .query_map(params![cache.url, game_id], |row| row.get::<_, String>(0))
-                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?
-                    {
-                        retired.push(
-                            row.map_err(|error| {
-                                EmuBoxError::StorageUnavailable(error.to_string())
-                            })?,
-                        );
-                    }
-                    transaction
-                        .execute(
-                            "DELETE FROM manifest_sources WHERE manifest_url=?1 AND game_id=?2",
-                            params![cache.url, game_id],
-                        )
-                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
-                    transaction
-                        .execute(
-                            "DELETE FROM manifest_entry_cache WHERE manifest_url=?1 AND game_id=?2",
-                            params![cache.url, game_id],
-                        )
-                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
-                }
-                for source in retired {
-                    transaction
-                        .execute(
-                            "UPDATE download_sources SET available=0 WHERE id=?1
-                        AND NOT EXISTS (SELECT 1 FROM manifest_sources WHERE source_id=?1)",
-                            params![source],
-                        )
-                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
-                }
-                crate::services::manifest_cache::remember(&transaction, cache)?;
-            }
-            transaction
-                .commit()
-                .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
-            return Ok(sources);
-        }
-
-        // 2. Formato legado (games[] o array plano de { platform, url, name })
-        let entries = parsed
-            .get("games")
-            .and_then(|games| games.as_array())
-            .cloned()
-            .or_else(|| parsed.as_array().cloned())
-            .ok_or_else(|| {
-                EmuBoxError::InvalidConfiguration(
-                    "El manifiesto debe contener downloads[] o games[]".to_string(),
-                )
-            })?;
-
-        for entry in entries {
-            let platform = entry.get("platform").and_then(|v| v.as_str()).unwrap_or("");
-            if !Self::supported_platform(platform) {
+            if uris.is_empty() {
                 continue;
             }
-            let download_uri = entry
-                .get("url")
-                .or_else(|| entry.get("uri"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-            if download_uri.is_empty() {
-                continue;
-            }
-            let name = entry
-                .get("name")
-                .or_else(|| entry.get("title"))
-                .and_then(|v| v.as_str())
-                .map(str::to_string)
-                .unwrap_or_else(|| "Untitled".to_string());
-            let game_id = entry
+
+            let item_platform = item.get("platform").and_then(|p| p.as_str());
+            let platform = Self::infer_platform(
+                item_platform,
+                manifest_platform,
+                title,
+                &uris,
+                manifest_name,
+            );
+
+            let size_bytes = item
+                .get("sizeBytes")
+                .or_else(|| item.get("fileSize"))
+                .and_then(crate::models::download::parse_file_size_value);
+            let release_year = item
+                .get("releaseYear")
+                .and_then(|value| value.as_u64())
+                .map(|year| year as u32);
+
+            let game_id = item
                 .get("gameId")
                 .and_then(|v| v.as_str())
                 .map(str::to_string)
-                .unwrap_or_else(|| format!("download-{}-{}", platform, slug(&name)));
+                .unwrap_or_else(|| format!("download-{}-{}", platform, slug(title)));
 
-            let source = DownloadSource {
-                id: entry
-                    .get("sourceId")
-                    .and_then(|v| v.as_str())
-                    .map(str::to_string)
-                    .unwrap_or_else(|| format!("source-{}-{}", platform, slug(download_uri))),
-                game_id: game_id.clone(),
-                name: name.clone(),
-                source_type: DownloadSourceType::Http,
-                uri: download_uri.to_string(),
-                size_bytes: entry.get("sizeBytes").and_then(|v| v.as_u64()).or_else(|| {
-                    entry
-                        .get("fileSize")
-                        .and_then(crate::models::download::parse_file_size_value)
-                }),
-                checksum: entry
-                    .get("checksum")
-                    .and_then(|v| v.as_str())
-                    .map(str::to_string),
-                available: entry
-                    .get("available")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(true),
-            };
-
+            let entry_digest = format!(
+                "{:x}",
+                Sha256::digest(serde_json::json!([item, platform]).to_string().as_bytes())
+            );
+            if let Some(cache) = cache {
+                if previous.remove(&game_id).as_deref() == Some(&entry_digest) {
+                    continue;
+                }
+                let mut statement = transaction.prepare("SELECT source_id FROM manifest_sources WHERE manifest_url=?1 AND game_id=?2")
+                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+                let rows = statement
+                    .query_map(params![cache.url, game_id], |row| row.get::<_, String>(0))
+                    .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+                for row in rows {
+                    retired.push(
+                        row.map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?,
+                    );
+                }
+                transaction
+                    .execute(
+                        "DELETE FROM manifest_sources WHERE manifest_url=?1 AND game_id=?2",
+                        params![cache.url, game_id],
+                    )
+                    .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+            }
             GameService::upsert_catalog_entry_on(
                 &transaction,
                 CatalogEntry {
                     id: game_id.clone(),
-                    title: name,
-                    platform_id: platform.to_string(),
-                    platform_name: GameService::platform_name(platform),
-                    release_year: entry
-                        .get("releaseYear")
-                        .and_then(|v| v.as_u64())
-                        .map(|v| v as u32),
-                    genre: entry
+                    title: title.to_string(),
+                    platform_id: platform.clone(),
+                    platform_name: GameService::platform_name(&platform),
+                    release_year,
+                    genre: item
                         .get("genre")
                         .and_then(|v| v.as_str())
                         .map(str::to_string),
-                    developer: entry
+                    developer: item
                         .get("developer")
                         .and_then(|v| v.as_str())
                         .map(str::to_string),
-                    publisher: entry
+                    publisher: item
                         .get("publisher")
                         .and_then(|v| v.as_str())
                         .map(str::to_string),
-                    rating: entry
+                    rating: item
                         .get("rating")
                         .and_then(|v| v.as_f64())
                         .map(|v| v as f32),
-                    cover_image: entry
+                    cover_image: item
                         .get("coverImage")
+                        .or_else(|| item.get("cover"))
                         .and_then(|v| v.as_str())
                         .map(str::to_string),
-                    backdrop_image: entry
+                    backdrop_image: item
                         .get("backdropImage")
                         .and_then(|v| v.as_str())
                         .map(str::to_string),
-                    description: entry
+                    description: item
                         .get("description")
                         .and_then(|v| v.as_str())
                         .map(str::to_string),
                 },
             )?;
-            sources.push(Self::create_source_on(&transaction, source)?);
+            for uri in uris {
+                let source_type = match crate::services::manifest_service::source_access(&uri) {
+                    Some("magnet") => DownloadSourceType::Magnet,
+                    Some("torrent") => DownloadSourceType::Torrent,
+                    Some("unsupported") | None => DownloadSourceType::Other,
+                    _ => DownloadSourceType::Http,
+                };
+                let existing = transaction
+                    .query_row(
+                        "SELECT id FROM download_sources WHERE game_id = ?1 AND uri = ?2 LIMIT 1",
+                        params![game_id, uri],
+                        |row| row.get::<_, String>(0),
+                    )
+                    .optional()
+                    .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+                let identity = serde_json::json!([game_id, uri, item.get("sourceId")]).to_string();
+                let source = DownloadSource {
+                    id: existing.unwrap_or_else(|| {
+                        format!("source-{:x}", Sha256::digest(identity.as_bytes()))
+                    }),
+                    game_id: game_id.clone(),
+                    name: title.to_string(),
+                    source_type,
+                    uri,
+                    size_bytes,
+                    checksum: item
+                        .get("checksum")
+                        .and_then(|value| value.as_str())
+                        .map(str::to_string),
+                    available: item
+                        .get("available")
+                        .and_then(|value| value.as_bool())
+                        .unwrap_or(true),
+                };
+                if let Some(cache) = cache {
+                    transaction
+                        .execute(
+                            "INSERT OR IGNORE INTO manifest_sources VALUES (?1, ?2, ?3)",
+                            params![cache.url, game_id, source.id],
+                        )
+                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+                }
+                sources.push(Self::create_source_on(&transaction, source)?);
+            }
+            if let Some(cache) = cache {
+                transaction
+                    .execute(
+                        "INSERT INTO manifest_entry_cache VALUES (?1, ?2, ?3)
+                        ON CONFLICT(manifest_url, game_id) DO UPDATE SET digest=excluded.digest",
+                        params![cache.url, game_id, entry_digest],
+                    )
+                    .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+            }
         }
-
+        if let Some(cache) = cache {
+            for game_id in previous.keys() {
+                let mut statement = transaction.prepare("SELECT source_id FROM manifest_sources WHERE manifest_url=?1 AND game_id=?2")
+                        .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+                for row in statement
+                    .query_map(params![cache.url, game_id], |row| row.get::<_, String>(0))
+                    .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?
+                {
+                    retired.push(
+                        row.map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?,
+                    );
+                }
+                transaction
+                    .execute(
+                        "DELETE FROM manifest_sources WHERE manifest_url=?1 AND game_id=?2",
+                        params![cache.url, game_id],
+                    )
+                    .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+                transaction
+                    .execute(
+                        "DELETE FROM manifest_entry_cache WHERE manifest_url=?1 AND game_id=?2",
+                        params![cache.url, game_id],
+                    )
+                    .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+            }
+            for source in retired {
+                transaction
+                    .execute(
+                        "UPDATE download_sources SET available=0 WHERE id=?1
+                        AND NOT EXISTS (SELECT 1 FROM manifest_sources WHERE source_id=?1)",
+                        params![source],
+                    )
+                    .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+            }
+            crate::services::manifest_cache::remember(&transaction, cache)?;
+        }
         transaction
             .commit()
             .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
         Ok(sources)
+    }
+}
+
+#[cfg(test)]
+mod import_result_tests {
+    use super::*;
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+    };
+
+    #[test]
+    fn batch_reports_failed_lines_and_keeps_successful_imports() {
+        let server = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/catalog.json", server.local_addr().unwrap());
+        let worker = std::thread::spawn(move || {
+            let (mut stream, _) = server.accept().unwrap();
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                .unwrap();
+            let mut request = Vec::new();
+            let mut buffer = [0; 1024];
+            while !request.windows(4).any(|part| part == b"\r\n\r\n") {
+                let size = stream.read(&mut buffer).unwrap();
+                assert!(size > 0);
+                request.extend_from_slice(&buffer[..size]);
+            }
+            let content = r#"{"games":[{"gameId":"batch-partial-3ds-fixture","name":"Batch Fixture","platform":"3ds","url":"https://example.invalid/game.3ds"}]}"#;
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{content}",
+                content.len()
+            )
+            .unwrap();
+        });
+        let mut notifications = 0;
+        let result =
+            DownloadService::import_links(&[(1, "file:///invalid.json"), (2, &url)], &mut || {
+                notifications += 1
+            });
+        worker.join().unwrap();
+        let message = result.unwrap_err().to_string();
+        assert!(message.contains("linea 1"));
+        assert!(message.contains("1 manifiestos fallidos"));
+        assert_eq!(notifications, 1);
+        let game = GameService::get_game_by_id("batch-partial-3ds-fixture".into())
+            .unwrap()
+            .unwrap();
+        assert_eq!(game.platform, "3ds");
+        assert!(!game.installed);
     }
 }
 

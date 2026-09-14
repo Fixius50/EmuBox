@@ -7,6 +7,22 @@ use rusqlite::params;
 
 pub struct CompatibilityService;
 
+fn row_to_association(row: &rusqlite::Row<'_>) -> rusqlite::Result<GameEmulatorAssociation> {
+    let args_json: String = row.get(4)?;
+    let custom_arguments = serde_json::from_str(&args_json).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(4, rusqlite::types::Type::Text, Box::new(error))
+    })?;
+    Ok(GameEmulatorAssociation {
+        game_id: row.get(0)?,
+        emulator_id: row.get(1)?,
+        is_default: row.get::<_, i32>(2)? == 1,
+        priority: row.get(3)?,
+        custom_arguments,
+        custom_config_path: row.get(5)?,
+        enabled: row.get::<_, i32>(6)? == 1,
+    })
+}
+
 impl CompatibilityService {
     pub fn resolve_for_game(
         game: &Game,
@@ -90,42 +106,27 @@ impl CompatibilityService {
         ).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
 
         let rows = stmt
-            .query_map(params![game_id], |row| {
-                let game_id: String = row.get(0)?;
-                let emulator_id: String = row.get(1)?;
-                let is_default_int: i32 = row.get(2)?;
-                let priority: i32 = row.get(3)?;
-                let args_json: String = row.get(4)?;
-                let custom_config_path: Option<String> = row.get(5)?;
-                let enabled_int: i32 = row.get(6)?;
-
-                let custom_arguments: Vec<String> =
-                    serde_json::from_str(&args_json).unwrap_or_default();
-
-                Ok(GameEmulatorAssociation {
-                    game_id,
-                    emulator_id,
-                    is_default: is_default_int == 1,
-                    priority,
-                    custom_arguments,
-                    custom_config_path,
-                    enabled: enabled_int == 1,
-                })
-            })
+            .query_map(params![game_id], row_to_association)
             .map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
 
-        let mut list = Vec::new();
-        for association in rows.flatten() {
-            list.push(association);
-        }
-
-        Ok(list)
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))
     }
 
     pub fn set_game_association(association: GameEmulatorAssociation) -> Result<(), EmuBoxError> {
-        let conn = DatabaseService::get_connection()?;
+        let mut conn = DatabaseService::get_connection()?;
+        Self::set_game_association_on(&mut conn, association)
+    }
+
+    fn set_game_association_on(
+        connection: &mut rusqlite::Connection,
+        association: GameEmulatorAssociation,
+    ) -> Result<(), EmuBoxError> {
+        let conn = connection
+            .transaction()
+            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
         let args_json = serde_json::to_string(&association.custom_arguments)
-            .unwrap_or_else(|_| "[]".to_string());
+            .map_err(|error| EmuBoxError::InvalidConfiguration(error.to_string()))?;
 
         // Si se marca como default, desmarcar cualquier otra asociación previa del mismo juego
         if association.is_default {
@@ -161,7 +162,8 @@ impl CompatibilityService {
             ]
         ).map_err(|e| EmuBoxError::StorageUnavailable(format!("Error al guardar asociación juego ↔ emulador en SQLite: {}", e)))?;
 
-        Ok(())
+        conn.commit()
+            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))
     }
 
     pub fn remove_game_association(
@@ -181,5 +183,46 @@ impl CompatibilityService {
         })?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn invalid_arguments_are_not_silently_discarded() {
+        let connection = rusqlite::Connection::open_in_memory().unwrap();
+        assert!(connection
+            .query_row(
+                "SELECT 'game','emulator',1,0,'not json',NULL,1",
+                [],
+                row_to_association
+            )
+            .is_err());
+    }
+    #[test]
+    fn failed_preference_change_preserves_previous_default() {
+        let mut connection = rusqlite::Connection::open_in_memory().unwrap();
+        connection.execute_batch("CREATE TABLE game_emulator_associations (game_id TEXT, emulator_id TEXT CHECK(emulator_id != 'invalid'), is_default INTEGER, priority INTEGER, custom_arguments_json TEXT, custom_config_path TEXT, enabled INTEGER, PRIMARY KEY(game_id,emulator_id)); INSERT INTO game_emulator_associations VALUES ('game','previous',1,0,'[]',NULL,1);").unwrap();
+        let association = GameEmulatorAssociation {
+            game_id: "game".into(),
+            emulator_id: "invalid".into(),
+            is_default: true,
+            priority: 0,
+            custom_arguments: vec![],
+            custom_config_path: None,
+            enabled: true,
+        };
+        assert!(
+            CompatibilityService::set_game_association_on(&mut connection, association).is_err()
+        );
+        let default: i32 = connection
+            .query_row(
+                "SELECT is_default FROM game_emulator_associations WHERE emulator_id='previous'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(default, 1);
     }
 }

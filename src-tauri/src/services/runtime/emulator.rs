@@ -9,6 +9,32 @@ use std::process::Command;
 
 pub struct EmulatorService;
 
+fn row_to_emulator(row: &rusqlite::Row<'_>) -> rusqlite::Result<Emulator> {
+    let parse_list = |column| -> rusqlite::Result<Vec<String>> {
+        let json: String = row.get(column)?;
+        serde_json::from_str(&json).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(
+                column,
+                rusqlite::types::Type::Text,
+                Box::new(error),
+            )
+        })
+    };
+    Ok(Emulator {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        version: row.get(2)?,
+        supported_platforms: parse_list(3)?,
+        core_type: row.get(4)?,
+        status: row.get(5)?,
+        executable: row.get(6)?,
+        arguments: parse_list(7)?,
+        architectures: Vec::new(),
+        requirements: Default::default(),
+        compatibility: Default::default(),
+    })
+}
+
 impl EmulatorService {
     fn provision_dedicated_environment(
         profile: &dyn EmulatorProfile,
@@ -279,45 +305,19 @@ impl EmulatorService {
         ).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
 
         let rows = stmt
-            .query_map([], |row| {
-                let id: String = row.get(0)?;
-                let name: String = row.get(1)?;
-                let version: String = row.get(2)?;
-                let platforms_str: String = row.get(3)?;
-                let core_type: String = row.get(4)?;
-                let status: String = row.get(5)?;
-                let executable: String = row.get(6)?;
-                let args_str: String = row.get(7)?;
-
-                let supported_platforms: Vec<String> =
-                    serde_json::from_str(&platforms_str).unwrap_or_default();
-                let arguments: Vec<String> = serde_json::from_str(&args_str).unwrap_or_default();
-
-                Ok(Emulator {
-                    id,
-                    name,
-                    version,
-                    supported_platforms,
-                    core_type,
-                    status,
-                    executable,
-                    arguments,
-                    architectures: Vec::new(),
-                    requirements: Default::default(),
-                    compatibility: Default::default(),
-                })
-            })
+            .query_map([], row_to_emulator)
             .map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
 
-        let mut list = Vec::new();
+        let mut list = rows
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
         let hardware = crate::services::SystemService::get_hardware_info()?;
-        for mut emulator in rows.flatten() {
+        for emulator in &mut list {
             crate::services::emulator_capabilities::refresh(
-                &mut emulator,
+                emulator,
                 crate::models::Architecture::current(),
                 &hardware,
             );
-            list.push(emulator);
         }
 
         if list.is_empty() {
@@ -342,9 +342,9 @@ impl EmulatorService {
     pub fn save_emulator(emulator: Emulator) -> Result<(), EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
         let platforms_json = serde_json::to_string(&emulator.supported_platforms)
-            .unwrap_or_else(|_| "[]".to_string());
-        let args_json =
-            serde_json::to_string(&emulator.arguments).unwrap_or_else(|_| "[]".to_string());
+            .map_err(|error| EmuBoxError::InvalidConfiguration(error.to_string()))?;
+        let args_json = serde_json::to_string(&emulator.arguments)
+            .map_err(|error| EmuBoxError::InvalidConfiguration(error.to_string()))?;
 
         conn.execute(
             "INSERT INTO emulators (id, official_name, version, supported_platforms_json, core_type, status, executable_path, default_arguments_json)
@@ -388,6 +388,33 @@ impl EmulatorService {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn emulator_mapping_rejects_invalid_json_and_rows() {
+        let connection = rusqlite::Connection::open_in_memory().unwrap();
+        for (platforms, arguments) in [("not json", "[]"), ("[]", "[1]"), ("{}", "[]")] {
+            assert!(connection
+                .query_row(
+                    "SELECT 'id','name','1',?1,'standalone','installed','/bin/true',?2",
+                    params![platforms, arguments],
+                    row_to_emulator,
+                )
+                .is_err());
+        }
+        let emulator = connection.query_row(
+            "SELECT 'id','name','1','[\"ps3\"]','standalone','installed','/bin/true','[\"--fullscreen\"]'",
+            [], row_to_emulator,
+        ).unwrap();
+        assert_eq!(emulator.supported_platforms, vec!["ps3"]);
+        assert_eq!(emulator.arguments, vec!["--fullscreen"]);
+        assert!(connection
+            .query_row(
+                "SELECT NULL,'name','1','[]','standalone','installed','/bin/true','[]'",
+                [],
+                row_to_emulator
+            )
+            .is_err());
+    }
 
     #[test]
     fn test_provision_dedicated_environment() {

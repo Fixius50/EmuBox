@@ -16,6 +16,9 @@ Se consultan hasta cuatro manifiestos simultaneamente, con conexion limitada a
 guarda cada manifiesto secuencialmente en una transaccion, sin crear trabajos
 ni iniciar descargas. Los fallos se registran por numero de linea en stderr,
 que en la appliance llega a `/var/log/emubox/session.log`.
+El lote devuelve un error parcial si alguna linea falla, despues de procesar las
+demas; las importaciones correctas ya persistidas y sus notificaciones se conservan.
+Una sincronizacion concurrente se omite; un mutex invalidado devuelve error.
 
 La sincronizacion ocurre al arrancar y cada seis horas. Cada manifiesto guardado
 emite `library-updated`; la UI escucha mediante `@tauri-apps/api/event`, sin exigir
@@ -29,6 +32,16 @@ SHA-256 y fecha de la ultima comprobacion correcta, en la misma base que el cata
 Durante seis horas no se vuelve a consultar una fuente importada. Despues se
 envian If-None-Match/If-Modified-Since: un HTTP 304 evita descargar el cuerpo JSON.
 Si el servidor devuelve 200, se compara la huella antes de normalizar o importar.
+La version de cache HTTP 2 invalida la version anterior para reevaluar la inferencia
+de plataformas incluso con contenido remoto identico. No inicia descargas de juegos.
+
+La plataforma explicita del elemento precede a la del manifiesto; ambas admiten
+PS4 y 3DS. Despues se consideran etiquetas del titulo, palabras completas y nombre
+de fuente, y finalmente extensiones no ambiguas del ultimo segmento HTTP o del
+nombre `dn` de un magnet. No se usan dominios ni queries HTTP como evidencia.
+`.pkg`, `.pbp`, `.rvz` y `.ciso` no determinan por si solos una plataforma.
+Ante ausencia de evidencia se mantiene `pc` por compatibilidad del contrato;
+no significa que se haya identificado el contenido ni comprobado su ejecucion.
 
 Los servidores sin validadores requieren descargar su manifiesto cuando vence
 la cache: no existe un protocolo universal de deltas que permita pedir solo filas.

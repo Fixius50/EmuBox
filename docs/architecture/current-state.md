@@ -162,6 +162,16 @@ SQLite protege la inicializacion concurrente WAL/esquema sin serializar el traba
 posterior. El detalle y la deuda pendiente estan en la
 [guia de arquitectura](refactoring-and-architecture-guidelines.md).
 
+La segunda fase unifica SQL y conversiones de juegos/trabajos, elimina el importador
+legado inalcanzable y corrige la inferencia de plataformas, incluyendo PS4/3DS.
+La cache HTTP cambia a version 2 para reevaluar clasificaciones anteriores al sincronizar.
+Favoritos y preferencias son atomicos; filas o JSON corruptos ya no se omiten en
+los repositorios revisados. El escaner reporta fallos, no sigue enlaces ni inventa
+metadatos y conserva registros de raices no recorridas completamente. Los lotes de
+manifiestos devuelven un error parcial sin perder las importaciones correctas.
+Se mantiene el IPC publico y no se ha ejecutado una migracion del catalogo real
+para probar estos cambios. El fallback `pc` no certifica plataforma o jugabilidad.
+
 - Código y binario: `/opt/emubox`.
 - Configuración: `/etc/emubox`.
 - Datos y ROMs: `/var/lib/emubox`.

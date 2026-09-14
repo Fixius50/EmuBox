@@ -168,8 +168,12 @@ La refactorizacion Rust agrupa los servicios en downloads, graphics, infrastruct
 library, runtime y system, manteniendo perfiles en emulators y reexportaciones publicas.
 Se han separado gestor, instaladores, servicio de descargas, biblioteca y definiciones
 de plataformas. Se corrigio una carrera de inicializacion SQLite detectada por las
-pruebas concurrentes. Queda deuda interna de SQL, heuristicas y manejo de errores;
-la reorganizacion no se presenta como auditoria completa. Ver la
+pruebas concurrentes. La segunda fase unifica consultas/conversiones, retira el
+importador muerto manteniendo formatos antiguos, revisa inferencia PS4/3DS y URLs,
+hace atomicas preferencias/favoritos y expone errores de filas, escaneo e importacion
+parcial. El escaner conserva registros ante raices fallidas y no inventa metadatos.
+Quedan limites de identidad por nombre, fallback de directorios y servicios no
+auditados; la reorganizacion no se presenta como auditoria completa. Ver la
 [estructura y reglas](refactoring-and-architecture-guidelines.md).
 
 ## 11. Reglas de colaboracion

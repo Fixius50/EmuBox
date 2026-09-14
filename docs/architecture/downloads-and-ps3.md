@@ -23,15 +23,21 @@ EmuBox supports two manifest formats:
    An object with `downloads[]` (or root array of download items) containing:
    `title`, `uris` (array of download URLs/magnets), `fileSize` (human-readable string
    e.g. `"13.58 GB"`, `"450 MB"` or bytes), and `uploadDate` (ISO 8601 string).
-   EmuBox automatically infers the target platform based on title tags (e.g. `[PS1]`,
-   `[PS2]`, `[PS3]`, `[PSP]`, `[SNES]`), file extensions (`.pkg`, `.sfc`, etc.), and source
-   hints, defaulting to PC/Linux.
+   Explicit item/manifest platforms take precedence, including PS4 and 3DS.
+   Otherwise EmuBox considers title tags, whole-word source hints and unambiguous
+   filename extensions such as `.sfc` or `.3ds`. HTTP hosts and query strings are
+   not platform evidence; magnet names use structured URL decoding. Ambiguous
+   `.pkg`, `.pbp`, `.rvz` and `.ciso` extensions do not imply a console. The legacy
+   fallback remains `pc`, not a guarantee of platform identification or playability.
 2. **Legacy EmuBox format:**
    An array or object with `games[]` providing `platform` and a direct HTTP/HTTPS `url`,
    with optional `name`, `gameId`, `checksum` and `sizeBytes`.
 
 `import_download_links`, `import_downloads_from_json`, and `import_downloads_from_url`
 register sources and catalog metadata without creating download jobs. The UI
+receives an error for partial batch failures while successful imports remain saved.
+The normalizer handles both formats; the unreachable duplicate importer was removed.
+HTTP cache version 2 re-evaluates classifications from the previous rules. The UI
 invokes `download_game` for the selected source. Transfer completion and game
 preparation are separate: Inno Setup EXE extraction and PS3 PKG preparation use
 isolated native tools, and downloaded bytes alone never establish installation.

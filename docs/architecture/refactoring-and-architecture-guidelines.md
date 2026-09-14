@@ -152,10 +152,25 @@ src-tauri/src/
 - `scripts/architecture-check.mjs` comprueba la presencia de los modulos canonicos;
   Cargo comprueba resolucion, visibilidad e importaciones. La comprobacion de rutas
   por si sola no demuestra ausencia de ciclos arquitectonicos.
-- Pendientes de otra fase: reducir SQL y mapeos duplicados, retirar el importador
-  legado inalcanzable tras normalizacion, revisar heuristicas de plataforma y errores
-  silenciados, y completar extracciones de runtime/graficos donde aporten claridad.
-  No se cambian esas politicas dentro de un traslado mecanico.
+- Segunda fase: juegos y trabajos comparten proyecciones SQL y conversiones de filas;
+  las lecturas no descartan errores SQL/JSON. Favoritos usa una actualizacion atomica,
+  las preferencias de emulador una transaccion y las instalaciones validan existencia
+  y rango de tamano. Una fuente no puede reasignarse a otro juego en un upsert concurrente.
+- Se retiro el importador legado inalcanzable, manteniendo `games[]`, `downloads[]`
+  y arrays mediante el normalizador comun. Los lotes notifican importaciones correctas
+  y devuelven errores parciales; no se revierten manifiestos ya guardados.
+- La inferencia reconoce PS4/3DS declarados, etiquetas y extensiones no ambiguas;
+  analiza URLs estructuradas sin clasificar por dominio o query HTTP. Conserva `pc`
+  como fallback historico, no como compatibilidad demostrada. Cache HTTP version 2
+  fuerza reevaluar manifiestos importados con las reglas anteriores.
+- El escaner comparte una sola insercion, no inventa metadatos del juego, no sigue
+  enlaces simbolicos y reporta errores de recorrido. Solo purga rutas desaparecidas
+  bajo raices recorridas completamente; una raiz ausente o fallida conserva registros.
+- Limites conservados: el escaner usa IDs derivados del nombre y puede encontrar
+  colisiones; las comunica como errores, sin resolver identidades automaticamente.
+  Persiste el fallback temporal de directorios y hay servicios del sistema fuera
+  de esta revision. No se afirma una auditoria Rust completa ni se crean mas carpetas
+  sin una responsabilidad concreta que separar.
 
 - La aplicación requiere Tauri; no existe un backend alternativo de datos ficticios ni un catálogo de demostración.
 - Las funciones sin implementación nativa deben rechazar la operación o estar deshabilitadas explícitamente.

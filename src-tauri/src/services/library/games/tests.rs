@@ -4,6 +4,40 @@ use std::fs;
 use super::*;
 
 #[test]
+fn failed_scan_preserves_records_and_does_not_invent_metadata() {
+    let root = std::env::temp_dir().join(format!("emubox-scan-errors-{}", std::process::id()));
+    let platform = root.join("ps2");
+    fs::create_dir_all(&platform).unwrap();
+    let file = platform.join("Scan Integrity Fixture.iso");
+    fs::write(&file, b"fixture").unwrap();
+    std::os::unix::fs::symlink(&platform, platform.join("cycle")).unwrap();
+    let request = || {
+        Some(ScanGamesRequest {
+            platforms: Some(vec!["ps2".into()]),
+            roms_directory: Some(root.to_string_lossy().into_owned()),
+            deep_scan: Some(true),
+        })
+    };
+    let first = GameService::scan_games(request()).unwrap();
+    assert_eq!(first.scanned_count, 1);
+    let id = "ps2-scan-integrity-fixture";
+    let game = GameService::get_game_by_id(id.into()).unwrap().unwrap();
+    assert_eq!(game.rating, 0.0);
+    assert_eq!(game.release_year, 0);
+    assert!(game.genre.is_empty());
+    fs::remove_dir_all(&platform).unwrap();
+    fs::write(&platform, b"not a directory").unwrap();
+    let failed = GameService::scan_games(request()).unwrap();
+    assert_eq!(failed.errors.len(), 1);
+    assert_eq!(failed.removed_count, 0);
+    assert!(GameService::get_game_by_id(id.into()).unwrap().is_some());
+    fs::remove_file(&platform).unwrap();
+    fs::create_dir(&platform).unwrap();
+    assert_eq!(GameService::scan_games(request()).unwrap().removed_count, 1);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn test_clean_title_from_filename() {
     assert_eq!(
         GameService::clean_title_from_filename("2048 (World) (Homebrew)"),

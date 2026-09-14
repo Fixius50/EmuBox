@@ -6,7 +6,7 @@ use std::{io::Read, time::Duration};
 
 pub const REFRESH_SECONDS: u64 = 6 * 60 * 60;
 const MAX_BYTES: u64 = 32 * 1024 * 1024;
-const FORMAT_VERSION: i64 = 1;
+const FORMAT_VERSION: i64 = 2;
 
 #[derive(Debug)]
 pub struct CacheRecord {
@@ -230,6 +230,17 @@ mod tests {
         });
         let connection = Connection::open_in_memory().unwrap();
         let start = 100_000;
+        remember(
+            &connection,
+            &CacheRecord::fixture(&url, "{\"downloads\":[]}", start),
+        )
+        .unwrap();
+        connection
+            .execute(
+                "UPDATE manifest_http_cache SET format_version=1, etag='old-version'",
+                [],
+            )
+            .unwrap();
         let FetchResult::Changed { cache, .. } = fetch(&connection, &url, start).unwrap() else {
             panic!("first import");
         };

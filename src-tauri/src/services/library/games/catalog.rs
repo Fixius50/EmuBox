@@ -88,14 +88,25 @@ impl GameService {
         rom_path: &str,
         file_size_bytes: u64,
     ) -> Result<(), EmuBoxError> {
+        let file_size = i64::try_from(file_size_bytes)
+            .map_err(|error| EmuBoxError::InvalidConfiguration(error.to_string()))?;
         let conn = DatabaseService::get_connection()?;
-        conn.execute(
-            "UPDATE games SET rom_path = ?1, file_size_bytes = ?2 WHERE id = ?3;",
-            params![rom_path, file_size_bytes as i64, game_id],
-        )
-        .map_err(|e| {
-            EmuBoxError::StorageUnavailable(format!("Error marcando juego como instalado: {}", e))
-        })?;
+        let changed = conn
+            .execute(
+                "UPDATE games SET rom_path = ?1, file_size_bytes = ?2 WHERE id = ?3;",
+                params![rom_path, file_size, game_id],
+            )
+            .map_err(|e| {
+                EmuBoxError::StorageUnavailable(format!(
+                    "Error marcando juego como instalado: {}",
+                    e
+                ))
+            })?;
+        if changed == 0 {
+            return Err(EmuBoxError::NotFound(format!(
+                "Juego no encontrado: {game_id}"
+            )));
+        }
         Ok(())
     }
 
@@ -105,5 +116,22 @@ impl GameService {
             .find(|p| p.id == platform_id)
             .map(|p| p.name.to_string())
             .unwrap_or_else(|| platform_id.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn installation_rejects_missing_game_and_oversized_file() {
+        assert!(matches!(
+            GameService::mark_installed("missing-installation-fixture", "/tmp/unused", 1),
+            Err(EmuBoxError::NotFound(_))
+        ));
+        assert!(matches!(
+            GameService::mark_installed("missing-installation-fixture", "/tmp/unused", u64::MAX),
+            Err(EmuBoxError::InvalidConfiguration(_))
+        ));
     }
 }
