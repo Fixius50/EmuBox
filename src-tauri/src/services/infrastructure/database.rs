@@ -1,14 +1,48 @@
-use std::path::PathBuf;
-#[cfg(not(test))]
-use std::path::Path;
-#[cfg(not(test))]
-use std::fs;
-use rusqlite::Connection;
 use crate::errors::EmuBoxError;
 #[cfg(not(test))]
 use crate::services::paths;
+use rusqlite::Connection;
+#[cfg(not(test))]
+use std::fs;
+#[cfg(not(test))]
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Mutex;
 
 pub struct DatabaseService;
+
+static CONNECTION_SETUP: Mutex<()> = Mutex::new(());
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn concurrent_connections_initialize_consistently() {
+        let barrier = std::sync::Barrier::new(8);
+        std::thread::scope(|scope| {
+            let workers: Vec<_> = (0..8)
+                .map(|_| {
+                    scope.spawn(|| {
+                        barrier.wait();
+                        let connection = DatabaseService::get_connection().unwrap();
+                        let mode: String = connection
+                            .query_row("PRAGMA journal_mode", [], |row| row.get(0))
+                            .unwrap();
+                        let foreign_keys: i32 = connection
+                            .query_row("PRAGMA foreign_keys", [], |row| row.get(0))
+                            .unwrap();
+                        assert_eq!(mode, "wal");
+                        assert_eq!(foreign_keys, 1);
+                    })
+                })
+                .collect();
+            for worker in workers {
+                worker.join().unwrap();
+            }
+        });
+    }
+}
 
 impl DatabaseService {
     pub fn get_db_path() -> PathBuf {
@@ -16,7 +50,8 @@ impl DatabaseService {
         // proceso de test obtiene su propio archivo aislado bajo /tmp.
         #[cfg(test)]
         {
-            let isolated = std::env::temp_dir().join(format!("emubox-test-{}.db", std::process::id()));
+            let isolated =
+                std::env::temp_dir().join(format!("emubox-test-{}.db", std::process::id()));
             return isolated;
         }
         #[cfg(not(test))]
@@ -33,18 +68,25 @@ impl DatabaseService {
     }
 
     pub fn get_connection() -> Result<Connection, EmuBoxError> {
+        let _setup = CONNECTION_SETUP.lock().map_err(|error| {
+            EmuBoxError::StorageUnavailable(format!("Inicializacion SQLite interrumpida: {error}"))
+        })?;
         let db_path = Self::get_db_path();
-        let conn = Connection::open(db_path)
-            .map_err(|e| EmuBoxError::StorageUnavailable(format!("Error al abrir base de datos SQLite: {}", e)))?;
+        let conn = Connection::open(db_path).map_err(|e| {
+            EmuBoxError::StorageUnavailable(format!("Error al abrir base de datos SQLite: {}", e))
+        })?;
         conn.busy_timeout(std::time::Duration::from_secs(5))
             .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
-        
+
         // Configuración de alto rendimiento para consola dedicada
         conn.execute_batch(
             "PRAGMA journal_mode = WAL;
              PRAGMA synchronous = NORMAL;
-             PRAGMA foreign_keys = ON;"
-        ).map_err(|e| EmuBoxError::StorageUnavailable(format!("Error al configurar pragmas de SQLite: {}", e)))?;
+             PRAGMA foreign_keys = ON;",
+        )
+        .map_err(|e| {
+            EmuBoxError::StorageUnavailable(format!("Error al configurar pragmas de SQLite: {}", e))
+        })?;
 
         Self::init_schema(&conn)?;
         Ok(conn)
@@ -159,8 +201,11 @@ impl DatabaseService {
                 provider TEXT NOT NULL,
                 phase TEXT NOT NULL DEFAULT 'queued',
                 artifacts_json TEXT
-            );"
-        ).map_err(|e| EmuBoxError::StorageUnavailable(format!("Error al inicializar tablas en SQLite: {}", e)))?;
+            );",
+        )
+        .map_err(|e| {
+            EmuBoxError::StorageUnavailable(format!("Error al inicializar tablas en SQLite: {}", e))
+        })?;
 
         Ok(())
     }

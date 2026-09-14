@@ -13,7 +13,10 @@ pub fn games_dir() -> String {
 
 pub fn emulators_dir() -> String {
     #[cfg(test)]
-    return std::env::temp_dir().join(format!("emubox-emulators-test-{}", std::process::id())).to_string_lossy().to_string();
+    return std::env::temp_dir()
+        .join(format!("emubox-emulators-test-{}", std::process::id()))
+        .to_string_lossy()
+        .to_string();
     #[cfg(not(test))]
     format!("{DATA_DIR}/emulators")
 }
@@ -57,13 +60,19 @@ pub fn download_links_file() -> String {
 }
 
 fn select_download_links_file(configured: &str, repository: &str) -> String {
-    let has_links = std::fs::read_to_string(configured).ok().is_some_and(|content| {
-        content.lines().any(|line| {
-            let link = line.split('#').next().unwrap_or("").trim();
-            link.starts_with("https://") || link.starts_with("http://")
-        })
-    });
-    if has_links || !std::path::Path::new(repository).is_file() { configured.into() } else { repository.into() }
+    let has_links = std::fs::read_to_string(configured)
+        .ok()
+        .is_some_and(|content| {
+            content.lines().any(|line| {
+                let link = line.split('#').next().unwrap_or("").trim();
+                link.starts_with("https://") || link.starts_with("http://")
+            })
+        });
+    if has_links || !std::path::Path::new(repository).is_file() {
+        configured.into()
+    } else {
+        repository.into()
+    }
 }
 
 #[cfg(test)]
@@ -78,9 +87,15 @@ mod download_link_tests {
         let repository = directory.join("repository.txt");
         std::fs::write(&configured, "# placeholder\n").unwrap();
         std::fs::write(&repository, "https://example.test/catalog.json\n").unwrap();
-        assert_eq!(select_download_links_file(configured.to_str().unwrap(), repository.to_str().unwrap()), repository.to_string_lossy());
+        assert_eq!(
+            select_download_links_file(configured.to_str().unwrap(), repository.to_str().unwrap()),
+            repository.to_string_lossy()
+        );
         std::fs::write(&configured, "https://example.test/custom.json\n").unwrap();
-        assert_eq!(select_download_links_file(configured.to_str().unwrap(), repository.to_str().unwrap()), configured.to_string_lossy());
+        assert_eq!(
+            select_download_links_file(configured.to_str().unwrap(), repository.to_str().unwrap()),
+            configured.to_string_lossy()
+        );
         std::fs::remove_dir_all(directory).unwrap();
     }
 }

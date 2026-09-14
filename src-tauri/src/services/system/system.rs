@@ -40,7 +40,10 @@ impl SystemService {
             vulkan_driver_version: graphics.driver_version,
             vulkan_supported: graphics.vulkan,
             opengl_supported: graphics.opengl,
-            opengl_accelerated: graphics.probes.iter().any(|probe| probe.api == "opengl" && probe.state == crate::models::graphics::DetectionState::Accelerated),
+            opengl_accelerated: graphics.probes.iter().any(|probe| {
+                probe.api == "opengl"
+                    && probe.state == crate::models::graphics::DetectionState::Accelerated
+            }),
             opengl_renderer: graphics.opengl_renderer,
             graphics_accelerated: graphics.accelerated,
             graphics_backend: graphics.backend,

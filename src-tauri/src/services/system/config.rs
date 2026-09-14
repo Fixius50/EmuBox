@@ -9,8 +9,14 @@ use std::{
     path::Path,
 };
 
-const DEFAULT_CONFIG: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../data/config/config.json"));
-const DEFAULT_SETTINGS: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../data/settings.json"));
+const DEFAULT_CONFIG: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../data/config/config.json"
+));
+const DEFAULT_SETTINGS: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../data/settings.json"
+));
 
 fn read_or_default(path: &Path, defaults: &str) -> Result<String, EmuBoxError> {
     match fs::read_to_string(path) {

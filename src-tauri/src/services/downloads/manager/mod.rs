@@ -1,7 +1,7 @@
 mod publication;
-mod transfer;
 #[cfg(test)]
 mod tests;
+mod transfer;
 pub use publication::{candidates, select_candidate};
 use transfer::run;
 
@@ -10,16 +10,12 @@ use crate::services::{
 };
 use crate::{
     errors::EmuBoxError,
-    models::{
-        DownloadJob, DownloadSource, DownloadStatus,
-        TransferControl,
-    },
+    models::{DownloadJob, DownloadSource, DownloadStatus, TransferControl},
 };
 use rusqlite::{params, OptionalExtension};
 use std::{
     collections::HashMap,
     fs,
-    os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
     sync::{atomic::Ordering, Mutex, OnceLock},
     thread,
@@ -272,4 +268,3 @@ pub fn cancel(id: &str) -> Result<DownloadJob, EmuBoxError> {
     }
     DownloadService::get_job(id)?.ok_or_else(|| EmuBoxError::NotFound(id.into()))
 }
-

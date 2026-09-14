@@ -1,10 +1,10 @@
+use crate::services::game_service::GameService;
+use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
-use std::time::Duration;
 use std::thread;
-use notify::{Watcher, RecommendedWatcher, RecursiveMode, Event, EventKind};
+use std::time::Duration;
 use tauri::Emitter;
-use crate::services::game_service::GameService;
 
 pub struct GameLibraryWatcher;
 
@@ -23,17 +23,27 @@ impl GameLibraryWatcher {
             let mut watcher = match RecommendedWatcher::new(tx, notify::Config::default()) {
                 Ok(w) => w,
                 Err(e) => {
-                    log::error!("[GameLibraryWatcher] Error inicializando notify watcher: {}", e);
+                    log::error!(
+                        "[GameLibraryWatcher] Error inicializando notify watcher: {}",
+                        e
+                    );
                     return;
                 }
             };
 
             if let Err(e) = watcher.watch(&target_dir, RecursiveMode::Recursive) {
-                log::error!("[GameLibraryWatcher] Error observando directorio {}: {}", target_dir.display(), e);
+                log::error!(
+                    "[GameLibraryWatcher] Error observando directorio {}: {}",
+                    target_dir.display(),
+                    e
+                );
                 return;
             }
 
-            log::info!("[GameLibraryWatcher] Observando eventos reactivos en: {}", target_dir.display());
+            log::info!(
+                "[GameLibraryWatcher] Observando eventos reactivos en: {}",
+                target_dir.display()
+            );
 
             while let Ok(res) = rx.recv() {
                 match res {
@@ -45,17 +55,20 @@ impl GameLibraryWatcher {
 
                             if let Ok(result) = GameService::scan_games(None) {
                                 if let Some(handle) = &app_handle {
-                                    let _ = handle.emit("library-updated", serde_json::json!({
-                                        "scannedCount": result.scanned_count,
-                                        "addedCount": result.added_count,
-                                        "updatedCount": result.updated_count,
-                                        "removedCount": result.removed_count,
-                                        "totalCount": result.total_count,
-                                        "timestamp": std::time::SystemTime::now()
-                                            .duration_since(std::time::UNIX_EPOCH)
-                                            .unwrap_or_default()
-                                            .as_millis()
-                                    }));
+                                    let _ = handle.emit(
+                                        "library-updated",
+                                        serde_json::json!({
+                                            "scannedCount": result.scanned_count,
+                                            "addedCount": result.added_count,
+                                            "updatedCount": result.updated_count,
+                                            "removedCount": result.removed_count,
+                                            "totalCount": result.total_count,
+                                            "timestamp": std::time::SystemTime::now()
+                                                .duration_since(std::time::UNIX_EPOCH)
+                                                .unwrap_or_default()
+                                                .as_millis()
+                                        }),
+                                    );
                                 }
                             }
                         }
@@ -72,13 +85,39 @@ impl GameLibraryWatcher {
         match event.kind {
             EventKind::Create(_) | EventKind::Remove(_) | EventKind::Modify(_) => {
                 event.paths.iter().any(|p| {
-                    if p.components().any(|component| component.as_os_str() == ".emubox-staging") { return false; }
+                    if p.components()
+                        .any(|component| component.as_os_str() == ".emubox-staging")
+                    {
+                        return false;
+                    }
                     if p.is_dir() {
                         return true;
                     }
                     if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
                         let lower = ext.to_lowercase();
-                        matches!(lower.as_str(), "iso" | "chd" | "cso" | "bin" | "cue" | "rvz" | "gcm" | "sfc" | "smc" | "gba" | "z64" | "n64" | "md" | "gen" | "cdi" | "pbp" | "nds" | "pkg" | "zip" | "7z")
+                        matches!(
+                            lower.as_str(),
+                            "iso"
+                                | "chd"
+                                | "cso"
+                                | "bin"
+                                | "cue"
+                                | "rvz"
+                                | "gcm"
+                                | "sfc"
+                                | "smc"
+                                | "gba"
+                                | "z64"
+                                | "n64"
+                                | "md"
+                                | "gen"
+                                | "cdi"
+                                | "pbp"
+                                | "nds"
+                                | "pkg"
+                                | "zip"
+                                | "7z"
+                        )
                     } else {
                         false
                     }

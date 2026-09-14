@@ -1,10 +1,10 @@
-pub mod service;
-pub mod resolver;
-pub mod connectors;
-pub mod manager;
-pub mod preparation;
 pub mod archive;
+pub mod connectors;
+pub mod installers;
+pub mod manager;
 pub mod manifest;
 pub mod manifest_cache;
+pub mod preparation;
 pub mod providers;
-pub mod installers;
+pub mod resolver;
+pub mod service;

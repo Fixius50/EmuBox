@@ -1,6 +1,6 @@
-use crate::services::paths;
 use crate::errors::EmuBoxError;
 use crate::models::{StorageDrive, StorageInfo, StorageLocation};
+use crate::services::paths;
 use std::collections::HashMap;
 use std::{path::Path, process::Command};
 

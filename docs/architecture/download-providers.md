@@ -110,7 +110,8 @@ Un marcador de publicacion permite recuperar el paso filesystem/SQLite interrump
 ZIP se reconoce por firma, se extrae sin ejecutar codigo y rechaza escapes de ruta,
 enlaces simbolicos, duplicados conflictivos y expansiones excesivas. Limites:
 100.000 entradas, 100 GiB expandidos y ratio de expansion acotado. No se interpretan
-EXE o PKG como instaladores ejecutables automaticamente.
+EXE arbitrarios como instaladores ejecutables: los formatos admitidos se delegan
+a preparadores especificos, descritos mas abajo.
 7z y RAR4/RAR5 se reconocen por firma y pasan por `compress-tools`/libarchive;
 EmuBox escribe los archivos regulares, sin usar extraccion a disco de libarchive.
 Se comprueban rutas, tipos, duplicados y tamanos declarados/reales; no se crean
@@ -151,10 +152,39 @@ rename antes de actualizar SQLite. Pausa/cancelacion no eliminan los originales.
 Un fallo entre publicacion y marcador puede dejar un directorio preparado huerfano;
 no se borra automaticamente ni se confunde con un paquete listo. La reanudacion de
 un trabajo cuyo contenido publicado ha desaparecido falla sin volver a descargar.
-La instalacion PKG/EXE sigue fuera de la preparacion generica: requiere integracion
-especifica, prerrequisitos del emulador y contenido autorizado para probarla. No se
-ejecutan instaladores recibidos del catalogo ni se descargan firmware o licencias
-automaticamente. Es un limite funcional, no un requisito de registro en EmuBox.
+## Preparadores de instalacion
+
+`downloads/installers` divide deteccion y candidatos, descubrimiento de firmware,
+configuracion de lanzamiento, sandbox, validacion y orquestacion. El marcador
+`PublishedDownload.installation` es opcional para leer paquetes anteriores y registra
+tipo Inno/PS3 y raiz relativa. La publicacion conserva los originales y exige
+seleccion explicita del ejecutable preparado.
+
+EXE con firma MZ se envia a innoextract, que solo admite sus versiones soportadas de
+Inno Setup. No ejecuta el instalador ni sus acciones de registro o prerrequisitos.
+Los candidatos Windows son archivos PE x86/x64 bajo app, excluyendo setup/unins y DLL.
+Wine usa un prefijo por paquete y desactiva la descarga automatica de Mono/Gecko.
+No es una promesa de compatibilidad de todos los EXE ni aislamiento de juegos.
+
+PKG con firma PS3 se envia a RPCS3 `--headless --installpkg` en un entorno por trabajo.
+El firmware se obtiene de `EMUBOX_PS3_FIRMWARE_DIR` o del dev_flash administrado por
+EmuBox. El firmware PS3 oficial 4.93 ya fue instalado en este equipo; no se descarga
+firmware ni licencias durante cada trabajo. Se exige mensaje de instalacion completa
+en RPCS3.log y estructura instalada; el codigo de salida cero por si solo no basta.
+Los candidatos requieren EBOOT.BIN, USRDIR y PARAM.SFO con firmas esperadas.
+No se ha probado una instalacion completa con un juego PKG valido.
+
+Los preparadores usan bubblewrap sin red, entrada y herramienta de solo lectura,
+staging escribible y prlimit. Limites: 30 minutos, 1800 segundos CPU, 100 GiB por
+archivo y comprobacion periodica de 100.000 entradas/100 GiB totales. El limite
+de espacio virtual es 8 GiB para Inno y 128 GiB para RPCS3, no memoria residente.
+No es una cuota estricta de disco. Se rechazan enlaces y archivos especiales y la
+cancelacion termina el proceso aislado. La instalacion desconocida queda pendiente,
+sin pedir registro en servicios externos.
+
+Las rutas canonicas de descargas son `services/downloads/service/` (catalogo,
+plataforma, repositorio y orquestacion), `manager/` (cola, transferencia y publicacion),
+`providers/` e `installers/`. `services/mod.rs` conserva alias compatibles.
 
 ## Verificacion y limites pendientes
 
@@ -175,8 +205,8 @@ tiene pruebas locales de contrato, destinos y permisos, no prueba autenticada re
 prueba opcional BitTorrent usa aria2 real, un torrent privado de cuatro bytes y
 webseed localhost, con DHT y descubrimiento desactivados; no consulta juegos reales.
 
-Pendientes: conectores adicionales compatibles con acceso publico, instalacion PKG/EXE,
-descriptores multidisco y validacion por plataforma. GoFile y pruebas autenticadas
+Pendientes: conectores adicionales compatibles con acceso publico, instaladores EXE
+distintos de Inno, validacion PKG con juegos, descriptores multidisco y validacion por plataforma. GoFile y pruebas autenticadas
 de 1fichier quedan excluidos de la configuracion sin cuentas solicitada.
 Tambien deben auditarse politicas de acceso de red para manifiestos no confiables,
 cuotas de disco y aislamiento reforzado de procesos antes de exponer esto a usuarios

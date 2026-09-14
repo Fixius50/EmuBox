@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -95,4 +95,19 @@ mod association_tests {
             assert!(encoded.get("customArguments").is_none());
         }
     }
+}
+
+pub struct CatalogEntry {
+    pub id: String,
+    pub title: String,
+    pub platform_id: String,
+    pub platform_name: String,
+    pub release_year: Option<u32>,
+    pub genre: Option<String>,
+    pub developer: Option<String>,
+    pub publisher: Option<String>,
+    pub rating: Option<f32>,
+    pub cover_image: Option<String>,
+    pub backdrop_image: Option<String>,
+    pub description: Option<String>,
 }

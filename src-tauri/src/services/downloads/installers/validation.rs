@@ -1,6 +1,9 @@
 use super::failure;
 use crate::{errors::EmuBoxError, services::download_providers::io_error};
-use std::{fs, path::{Path, PathBuf}};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 const MAX_BYTES: u64 = 100 * 1024 * 1024 * 1024;
 
@@ -65,4 +68,3 @@ pub(super) fn pkg_succeeded(root: &Path, files: &[PathBuf]) -> bool {
                 })
         })
 }
-

@@ -1,7 +1,9 @@
-use std::{collections::HashMap, sync::LazyLock};
-use serde::Deserialize;
-use crate::models::{Architecture, Emulator, EmulatorCompatibility, EmulatorRequirements, HardwareInfo};
+use crate::models::{
+    Architecture, Emulator, EmulatorCompatibility, EmulatorRequirements, HardwareInfo,
+};
 use crate::services::binary_service::{resolve_core, resolve_executable, validate_binary};
+use serde::Deserialize;
+use std::{collections::HashMap, sync::LazyLock};
 
 #[derive(Default, Deserialize)]
 pub struct Definition {
@@ -11,12 +13,17 @@ pub struct Definition {
 }
 
 static DEFINITIONS: LazyLock<HashMap<String, Definition>> = LazyLock::new(|| {
-    serde_json::from_str(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../data/emulator-capabilities.json")))
-        .expect("Invalid embedded emulator capability manifest")
+    serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../data/emulator-capabilities.json"
+    )))
+    .expect("Invalid embedded emulator capability manifest")
 });
 
 pub fn supports(id: &str, host: Architecture) -> bool {
-    DEFINITIONS.get(id).is_some_and(|definition| definition.architectures.contains(&host))
+    DEFINITIONS
+        .get(id)
+        .is_some_and(|definition| definition.architectures.contains(&host))
 }
 
 pub fn refresh(emulator: &mut Emulator, host: Architecture, hardware: &HardwareInfo) {
@@ -25,33 +32,72 @@ pub fn refresh(emulator: &mut Emulator, host: Architecture, hardware: &HardwareI
         emulator.requirements = definition.requirements.clone();
     }
     let mut compatibility = EmulatorCompatibility {
-        status: "supported".into(), reason: String::new(),
-        host_architecture: host.as_str().into(), binary_architecture: None,
+        status: "supported".into(),
+        reason: String::new(),
+        host_architecture: host.as_str().into(),
+        binary_architecture: None,
     };
     let checked = (|| -> Result<(), (&str, String)> {
         if host == Architecture::Unsupported || !emulator.architectures.contains(&host) {
-            return Err(("unsupported_architecture", format!("{} no admite {} en EmuBox", emulator.name, host.as_str())));
+            return Err((
+                "unsupported_architecture",
+                format!("{} no admite {} en EmuBox", emulator.name, host.as_str()),
+            ));
         }
-        let path = resolve_executable(&emulator.executable)
-            .ok_or_else(|| ("not_installed", format!("{} no esta instalado", emulator.name)))?;
-        let binary = validate_binary(&path, host, true).map_err(|reason| (
-            if reason.starts_with("Unsupported architecture") { "unsupported_architecture" } else { "invalid_binary" }, reason))?;
+        let path = resolve_executable(&emulator.executable).ok_or_else(|| {
+            (
+                "not_installed",
+                format!("{} no esta instalado", emulator.name),
+            )
+        })?;
+        let binary = validate_binary(&path, host, true).map_err(|reason| {
+            (
+                if reason.starts_with("Unsupported architecture") {
+                    "unsupported_architecture"
+                } else {
+                    "invalid_binary"
+                },
+                reason,
+            )
+        })?;
         compatibility.binary_architecture = Some(binary.as_str().into());
-        if emulator.core_type == "libretro" && !emulator.arguments.windows(2).any(|args| args[0] == "-L" || args[0] == "--libretro") {
-            return Err(("not_configured", "Selecciona una alternativa Libretro con un core concreto".into()));
+        if emulator.core_type == "libretro"
+            && !emulator
+                .arguments
+                .windows(2)
+                .any(|args| args[0] == "-L" || args[0] == "--libretro")
+        {
+            return Err((
+                "not_configured",
+                "Selecciona una alternativa Libretro con un core concreto".into(),
+            ));
         }
         for arguments in emulator.arguments.windows(2) {
             if arguments[0] == "-L" || arguments[0] == "--libretro" {
-                let core = resolve_core(&arguments[1])
-                    .ok_or_else(|| ("not_installed", format!("Core no instalado: {}", arguments[1])))?;
-                validate_binary(&core, host, false).map_err(|reason| ("unsupported_architecture", reason))?;
+                let core = resolve_core(&arguments[1]).ok_or_else(|| {
+                    (
+                        "not_installed",
+                        format!("Core no instalado: {}", arguments[1]),
+                    )
+                })?;
+                validate_binary(&core, host, false)
+                    .map_err(|reason| ("unsupported_architecture", reason))?;
             }
         }
         if hardware.cpu_cores < emulator.requirements.min_cpu_cores
             || hardware.total_memory_mb < emulator.requirements.min_memory_mb
-            || (emulator.requirements.vulkan && !hardware.vulkan_supported) {
-            return Err(("requirements_not_met", format!("{} requiere {} nucleos, {} MiB y Vulkan={}", emulator.name,
-                emulator.requirements.min_cpu_cores, emulator.requirements.min_memory_mb, emulator.requirements.vulkan)));
+            || (emulator.requirements.vulkan && !hardware.vulkan_supported)
+        {
+            return Err((
+                "requirements_not_met",
+                format!(
+                    "{} requiere {} nucleos, {} MiB y Vulkan={}",
+                    emulator.name,
+                    emulator.requirements.min_cpu_cores,
+                    emulator.requirements.min_memory_mb,
+                    emulator.requirements.vulkan
+                ),
+            ));
         }
         Ok(())
     })();

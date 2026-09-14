@@ -1,9 +1,17 @@
-use crate::{errors::EmuBoxError, models::{DownloadJob, DownloadSource, PublishedDownload, TransferControl}, services::{db_service::DatabaseService, download_providers::io_error}};
+use super::{active, clean_staging};
+use crate::{
+    errors::EmuBoxError,
+    models::{DownloadJob, DownloadSource, PublishedDownload, TransferControl},
+    services::{db_service::DatabaseService, download_providers::io_error},
+};
+use crate::{models::DownloadStatus, services::download_service::DownloadService};
 use rusqlite::params;
 use sha2::{Digest, Sha256};
-use std::{fs, os::unix::fs::PermissionsExt, path::{Path, PathBuf}};
-use super::{active, clean_staging};
-use crate::{models::DownloadStatus, services::download_service::DownloadService};
+use std::{
+    fs,
+    os::unix::fs::PermissionsExt,
+    path::{Path, PathBuf},
+};
 
 fn validated_package(job: &DownloadJob) -> Result<PublishedDownload, EmuBoxError> {
     let destination = Path::new(&job.destination_path);
@@ -44,7 +52,12 @@ fn validated_package(job: &DownloadJob) -> Result<PublishedDownload, EmuBoxError
         .iter()
         .map(|path| destination.join(path))
         .collect();
-    crate::services::download_preparation::verify(&files, destination, None, &TransferControl::default())?;
+    crate::services::download_preparation::verify(
+        &files,
+        destination,
+        None,
+        &TransferControl::default(),
+    )?;
     if files.iter().any(|path| !path.is_file()) {
         return Err(EmuBoxError::StorageUnavailable("Paquete incompleto".into()));
     }
@@ -53,13 +66,18 @@ fn validated_package(job: &DownloadJob) -> Result<PublishedDownload, EmuBoxError
 
 fn candidate_paths(job: &DownloadJob, package: &PublishedDownload) -> Vec<String> {
     if package.installation.is_some() {
-        return crate::services::installer_preparation::candidates(&job.platform, Path::new(&job.destination_path), package);
+        return crate::services::installer_preparation::candidates(
+            &job.platform,
+            Path::new(&job.destination_path),
+            package,
+        );
     }
     package
         .files
         .iter()
         .filter(|path| {
-            crate::services::download_preparation::launch_target(&job.platform, &[(*path).clone()]).is_some()
+            crate::services::download_preparation::launch_target(&job.platform, &[(*path).clone()])
+                .is_some()
         })
         .map(|path| path.to_string_lossy().into_owned())
         .collect()
@@ -178,14 +196,16 @@ pub(super) fn prepare_published(
             return Ok(());
         }
     };
-    let mut installation = crate::services::installer_preparation::prepared_metadata(files, &prepared, &root);
+    let mut installation =
+        crate::services::installer_preparation::prepared_metadata(files, &prepared, &root);
     let target = crate::services::download_preparation::launch_target(&job.platform, &prepared);
     let _guard = active().lock().map_err(io_error)?;
     if control.interrupted() {
         return Ok(());
     }
     let has_candidates = prepared.iter().any(|path| {
-        crate::services::download_preparation::launch_target(&job.platform, &[path.clone()]).is_some()
+        crate::services::download_preparation::launch_target(&job.platform, &[path.clone()])
+            .is_some()
     });
     if has_candidates || installation.is_some() {
         if prepared.iter().all(|path| path.starts_with(&root)) {
@@ -197,7 +217,11 @@ pub(super) fn prepare_published(
             fs::create_dir(&published_root).map_err(io_error)?;
             fs::rename(root.join("extracted"), published_root.join("content")).map_err(io_error)?;
             if let Some(metadata) = installation.as_mut() {
-                metadata.root = published_root.join("content").strip_prefix(destination).map_err(io_error)?.to_path_buf();
+                metadata.root = published_root
+                    .join("content")
+                    .strip_prefix(destination)
+                    .map_err(io_error)?
+                    .to_path_buf();
             }
             for path in &prepared {
                 let relative = published_root
@@ -276,4 +300,3 @@ pub(super) fn finish(job: &DownloadJob, package: &PublishedDownload) -> Result<(
     transaction.commit().map_err(io_error)?;
     Ok(())
 }
-

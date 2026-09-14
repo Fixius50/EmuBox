@@ -154,6 +154,14 @@ UMU con Proton permite ejecutar fuera de Steam sin cuenta; fue investigado, no i
 
 ## Appliance y sistema
 
+La primera fase de refactorizacion Rust distribuye los servicios por dominio y
+conserva las fachadas e IPC anteriores. Descargas separa importacion, repositorio,
+orquestacion, cola, transferencia, publicacion y preparadores; biblioteca separa
+escaneo, consultas, catalogo y plataformas. `CatalogEntry` reside en models.
+SQLite protege la inicializacion concurrente WAL/esquema sin serializar el trabajo
+posterior. El detalle y la deuda pendiente estan en la
+[guia de arquitectura](refactoring-and-architecture-guidelines.md).
+
 - Código y binario: `/opt/emubox`.
 - Configuración: `/etc/emubox`.
 - Datos y ROMs: `/var/lib/emubox`.

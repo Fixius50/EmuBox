@@ -13,14 +13,28 @@ pub struct PlatformSpec {
 
 pub const PLATFORM_SPECS: &[PlatformSpec] = &[
     PlatformSpec {
-        id: "3ds", name: "Nintendo 3DS", short_name: "3DS", manufacturer: "Nintendo",
-        generation: 8, release_year: 2011, color: "#c82f42", icon: "3ds",
-        default_emulator_id: "azahar", extensions: &["cci", "cxi", "3dsx", "app"],
+        id: "3ds",
+        name: "Nintendo 3DS",
+        short_name: "3DS",
+        manufacturer: "Nintendo",
+        generation: 8,
+        release_year: 2011,
+        color: "#c82f42",
+        icon: "3ds",
+        default_emulator_id: "azahar",
+        extensions: &["cci", "cxi", "3dsx", "app"],
     },
     PlatformSpec {
-        id: "ps4", name: "PlayStation 4", short_name: "PS4", manufacturer: "Sony",
-        generation: 8, release_year: 2013, color: "#176abb", icon: "ps4",
-        default_emulator_id: "shadps4", extensions: &["elf"],
+        id: "ps4",
+        name: "PlayStation 4",
+        short_name: "PS4",
+        manufacturer: "Sony",
+        generation: 8,
+        release_year: 2013,
+        color: "#176abb",
+        icon: "ps4",
+        default_emulator_id: "shadps4",
+        extensions: &["elf"],
     },
     PlatformSpec {
         id: "pc",
@@ -179,4 +193,3 @@ pub const PLATFORM_SPECS: &[PlatformSpec] = &[
         extensions: &["zip", "7z", "chd"],
     },
 ];
-

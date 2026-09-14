@@ -7,9 +7,11 @@ pub struct BiosService;
 
 impl BiosService {
     pub fn get_bios_requirements() -> Result<BiosStatus, EmuBoxError> {
-        let manifest: BiosManifest =
-            serde_json::from_str(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../data/bios/bios-manifest.json")))
-                .map_err(|error| EmuBoxError::InvalidConfiguration(error.to_string()))?;
+        let manifest: BiosManifest = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../data/bios/bios-manifest.json"
+        )))
+        .map_err(|error| EmuBoxError::InvalidConfiguration(error.to_string()))?;
         Self::inspect(manifest, Path::new(&crate::services::paths::bios_dir()))
     }
 
@@ -101,8 +103,11 @@ mod tests {
     use super::*;
     #[test]
     fn shipped_requirements_are_not_empty() {
-        let manifest =
-            serde_json::from_str(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../data/bios/bios-manifest.json"))).unwrap();
+        let manifest = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../data/bios/bios-manifest.json"
+        )))
+        .unwrap();
         let root = std::env::temp_dir().join(format!("emubox-absent-bios-{}", std::process::id()));
         let status = BiosService::inspect(manifest, &root).unwrap();
         assert!(status.total_required > 0);

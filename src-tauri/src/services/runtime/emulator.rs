@@ -1,18 +1,23 @@
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use rusqlite::params;
-use crate::models::Emulator;
 use crate::errors::EmuBoxError;
+use crate::models::Emulator;
 use crate::services::db_service::DatabaseService;
 use crate::services::emulators::{self, EmulatorProfile};
 use crate::services::paths;
+use rusqlite::params;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 pub struct EmulatorService;
 
 impl EmulatorService {
-    fn provision_dedicated_environment(profile: &dyn EmulatorProfile, source_binary: &Path) -> PathBuf {
+    fn provision_dedicated_environment(
+        profile: &dyn EmulatorProfile,
+        source_binary: &Path,
+    ) -> PathBuf {
         let emu_dir = PathBuf::from(paths::emulator_dir(profile.id()));
-        let bin_dir = emu_dir.join("bin").join(crate::models::Architecture::current().as_str());
+        let bin_dir = emu_dir
+            .join("bin")
+            .join(crate::models::Architecture::current().as_str());
         let config_dir = emu_dir.join("config");
         let logs_dir = emu_dir.join("logs");
 
@@ -48,8 +53,11 @@ impl EmulatorService {
     fn find_binary_path(profile: &dyn EmulatorProfile) -> Option<PathBuf> {
         let emu_dir = PathBuf::from(paths::emulators_dir());
         for candidate in profile.binary_candidates() {
-            let native = emu_dir.join(profile.id()).join("bin")
-                .join(crate::models::Architecture::current().as_str()).join(candidate);
+            let native = emu_dir
+                .join(profile.id())
+                .join("bin")
+                .join(crate::models::Architecture::current().as_str())
+                .join(candidate);
             if native.is_file() {
                 return Some(native);
             }
@@ -119,21 +127,45 @@ impl EmulatorService {
         let hardware = crate::services::SystemService::get_hardware_info()?;
 
         for profile in emulators::registry() {
-            let (status, executable, version) = if !crate::services::emulator_capabilities::supports(profile.id(), host) {
-                ("inactive".to_string(), "".to_string(), "Arquitectura no compatible".to_string())
-            } else if let Some(binary_path) = Self::find_binary_path(profile.as_ref()) {
-                if crate::services::binary_service::validate_binary(&binary_path, host, true).is_ok() {
-                let raw_version = Self::probe_official_version(&binary_path, &profile.version_arguments());
-                ("active".to_string(), binary_path.to_string_lossy().to_string(), raw_version)
+            let (status, executable, version) =
+                if !crate::services::emulator_capabilities::supports(profile.id(), host) {
+                    (
+                        "inactive".to_string(),
+                        "".to_string(),
+                        "Arquitectura no compatible".to_string(),
+                    )
+                } else if let Some(binary_path) = Self::find_binary_path(profile.as_ref()) {
+                    if crate::services::binary_service::validate_binary(&binary_path, host, true)
+                        .is_ok()
+                    {
+                        let raw_version = Self::probe_official_version(
+                            &binary_path,
+                            &profile.version_arguments(),
+                        );
+                        (
+                            "active".to_string(),
+                            binary_path.to_string_lossy().to_string(),
+                            raw_version,
+                        )
+                    } else {
+                        (
+                            "inactive".to_string(),
+                            binary_path.to_string_lossy().to_string(),
+                            "Binario incompatible".to_string(),
+                        )
+                    }
                 } else {
-                    ("inactive".to_string(), binary_path.to_string_lossy().to_string(), "Binario incompatible".to_string())
-                }
-            } else {
-                ("inactive".to_string(), "".to_string(), "No instalado".to_string())
-            };
+                    (
+                        "inactive".to_string(),
+                        "".to_string(),
+                        "No instalado".to_string(),
+                    )
+                };
 
-            let platforms_json = serde_json::to_string(&profile.supported_platforms()).unwrap_or_else(|_| "[]".to_string());
-            let args_json = serde_json::to_string(&profile.default_arguments()).unwrap_or_else(|_| "[]".to_string());
+            let platforms_json = serde_json::to_string(&profile.supported_platforms())
+                .unwrap_or_else(|_| "[]".to_string());
+            let args_json = serde_json::to_string(&profile.default_arguments())
+                .unwrap_or_else(|_| "[]".to_string());
 
             conn.execute(
                 "INSERT INTO emulators (id, official_name, version, supported_platforms_json, core_type, status, executable_path, default_arguments_json)
@@ -163,11 +195,19 @@ impl EmulatorService {
                 id: profile.id().to_string(),
                 name: profile.official_name().to_string(),
                 version,
-                supported_platforms: profile.supported_platforms().iter().map(|s| s.to_string()).collect(),
+                supported_platforms: profile
+                    .supported_platforms()
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
                 core_type: profile.core_type().to_string(),
                 status,
                 executable,
-                arguments: profile.default_arguments().iter().map(|s| s.to_string()).collect(),
+                arguments: profile
+                    .default_arguments()
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
                 architectures: Vec::new(),
                 requirements: Default::default(),
                 compatibility: Default::default(),
@@ -184,22 +224,46 @@ impl EmulatorService {
     /// SQLite + configuración nativa si la tiene implementada), sin intervención del
     /// usuario. Debe ejecutarse tras `scan_emulators` y cada vez que cambie el hardware
     /// (hotplug de GPU/monitor).
-    pub fn apply_hardware_profile(hardware: &crate::models::HardwareInfo) -> Result<(), EmuBoxError> {
+    pub fn apply_hardware_profile(
+        hardware: &crate::models::HardwareInfo,
+    ) -> Result<(), EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
         let vulkan_ok = hardware.vulkan_supported;
 
         for profile in emulators::registry() {
-            if !crate::services::emulator_capabilities::supports(profile.id(), crate::models::Architecture::current()) {
+            if !crate::services::emulator_capabilities::supports(
+                profile.id(),
+                crate::models::Architecture::current(),
+            ) {
                 continue;
             }
             let renderer = match profile.core_type() {
-                "libretro" => if vulkan_ok { "vulkan" } else { "gl" },
-                _ => if vulkan_ok { "vulkan" } else { "opengl" },
+                "libretro" => {
+                    if vulkan_ok {
+                        "vulkan"
+                    } else {
+                        "gl"
+                    }
+                }
+                _ => {
+                    if vulkan_ok {
+                        "vulkan"
+                    } else {
+                        "opengl"
+                    }
+                }
             };
             conn.execute(
                 "UPDATE emulator_metadata SET renderer = ?1 WHERE emulator_id = ?2;",
-                params![renderer, profile.id()]
-            ).map_err(|e| EmuBoxError::StorageUnavailable(format!("Error aplicando perfil de hardware a {}: {}", profile.id(), e)))?;
+                params![renderer, profile.id()],
+            )
+            .map_err(|e| {
+                EmuBoxError::StorageUnavailable(format!(
+                    "Error aplicando perfil de hardware a {}: {}",
+                    profile.id(),
+                    e
+                ))
+            })?;
 
             profile.apply_hardware_config(hardware)?;
         }
@@ -214,38 +278,45 @@ impl EmulatorService {
              FROM emulators ORDER BY official_name ASC;"
         ).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
 
-        let rows = stmt.query_map([], |row| {
-            let id: String = row.get(0)?;
-            let name: String = row.get(1)?;
-            let version: String = row.get(2)?;
-            let platforms_str: String = row.get(3)?;
-            let core_type: String = row.get(4)?;
-            let status: String = row.get(5)?;
-            let executable: String = row.get(6)?;
-            let args_str: String = row.get(7)?;
+        let rows = stmt
+            .query_map([], |row| {
+                let id: String = row.get(0)?;
+                let name: String = row.get(1)?;
+                let version: String = row.get(2)?;
+                let platforms_str: String = row.get(3)?;
+                let core_type: String = row.get(4)?;
+                let status: String = row.get(5)?;
+                let executable: String = row.get(6)?;
+                let args_str: String = row.get(7)?;
 
-            let supported_platforms: Vec<String> = serde_json::from_str(&platforms_str).unwrap_or_default();
-            let arguments: Vec<String> = serde_json::from_str(&args_str).unwrap_or_default();
+                let supported_platforms: Vec<String> =
+                    serde_json::from_str(&platforms_str).unwrap_or_default();
+                let arguments: Vec<String> = serde_json::from_str(&args_str).unwrap_or_default();
 
-            Ok(Emulator {
-                id,
-                name,
-                version,
-                supported_platforms,
-                core_type,
-                status,
-                executable,
-                arguments,
-                architectures: Vec::new(),
-                requirements: Default::default(),
-                compatibility: Default::default(),
+                Ok(Emulator {
+                    id,
+                    name,
+                    version,
+                    supported_platforms,
+                    core_type,
+                    status,
+                    executable,
+                    arguments,
+                    architectures: Vec::new(),
+                    requirements: Default::default(),
+                    compatibility: Default::default(),
+                })
             })
-        }).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
+            .map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
 
         let mut list = Vec::new();
         let hardware = crate::services::SystemService::get_hardware_info()?;
         for mut emulator in rows.flatten() {
-            crate::services::emulator_capabilities::refresh(&mut emulator, crate::models::Architecture::current(), &hardware);
+            crate::services::emulator_capabilities::refresh(
+                &mut emulator,
+                crate::models::Architecture::current(),
+                &hardware,
+            );
             list.push(emulator);
         }
 
@@ -263,13 +334,17 @@ impl EmulatorService {
 
     pub fn get_emulator_status(id: String) -> Result<String, EmuBoxError> {
         let emu = Self::get_emulator_by_id(id)?;
-        Ok(emu.map(|e| e.status).unwrap_or_else(|| "not_found".to_string()))
+        Ok(emu
+            .map(|e| e.status)
+            .unwrap_or_else(|| "not_found".to_string()))
     }
 
     pub fn save_emulator(emulator: Emulator) -> Result<(), EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
-        let platforms_json = serde_json::to_string(&emulator.supported_platforms).unwrap_or_else(|_| "[]".to_string());
-        let args_json = serde_json::to_string(&emulator.arguments).unwrap_or_else(|_| "[]".to_string());
+        let platforms_json = serde_json::to_string(&emulator.supported_platforms)
+            .unwrap_or_else(|_| "[]".to_string());
+        let args_json =
+            serde_json::to_string(&emulator.arguments).unwrap_or_else(|_| "[]".to_string());
 
         conn.execute(
             "INSERT INTO emulators (id, official_name, version, supported_platforms_json, core_type, status, executable_path, default_arguments_json)
@@ -300,7 +375,12 @@ impl EmulatorService {
     pub fn delete_emulator(id: String) -> Result<(), EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
         conn.execute("DELETE FROM emulators WHERE id = ?1;", params![id])
-            .map_err(|e| EmuBoxError::StorageUnavailable(format!("Error al eliminar emulador de SQLite: {}", e)))?;
+            .map_err(|e| {
+                EmuBoxError::StorageUnavailable(format!(
+                    "Error al eliminar emulador de SQLite: {}",
+                    e
+                ))
+            })?;
         Ok(())
     }
 }
@@ -311,12 +391,20 @@ mod tests {
 
     #[test]
     fn test_provision_dedicated_environment() {
-        let binary = crate::services::binary_service::resolve_executable("true").expect("coreutils true must exist");
-        let profile = emulators::registry().into_iter().find(|profile| profile.id() == "ppsspp").unwrap();
-        let provisioned = EmulatorService::provision_dedicated_environment(profile.as_ref(), &binary);
+        let binary = crate::services::binary_service::resolve_executable("true")
+            .expect("coreutils true must exist");
+        let profile = emulators::registry()
+            .into_iter()
+            .find(|profile| profile.id() == "ppsspp")
+            .unwrap();
+        let provisioned =
+            EmulatorService::provision_dedicated_environment(profile.as_ref(), &binary);
 
-        assert!(provisioned.starts_with(PathBuf::from(paths::emulator_dir("ppsspp")).join("bin")
-            .join(crate::models::Architecture::current().as_str())));
+        assert!(provisioned.starts_with(
+            PathBuf::from(paths::emulator_dir("ppsspp"))
+                .join("bin")
+                .join(crate::models::Architecture::current().as_str())
+        ));
         assert!(provisioned.is_file());
 
         let _ = std::fs::remove_dir_all(paths::emulator_dir("ppsspp"));

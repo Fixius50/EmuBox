@@ -33,7 +33,11 @@ EmuBox supports two manifest formats:
 `import_download_links`, `import_downloads_from_json`, and `import_downloads_from_url`
 register sources and catalog metadata without creating download jobs. The UI
 invokes `download_game` for the selected source. Transfer completion and game
-preparation are separate: a downloaded PKG/EXE is not automatically installed.
+preparation are separate: Inno Setup EXE extraction and PS3 PKG preparation use
+isolated native tools, and downloaded bytes alone never establish installation.
+The PS3 preparator requires local firmware and validates installation evidence;
+the final launch candidate is selected explicitly. Arbitrary EXE installers are
+not executed.
 
 The manager owns the lifecycle and source snapshots; providers transfer content.
 Validated packages are published to an exclusive directory:
@@ -48,3 +52,9 @@ HTTP and BitTorrent (aria2) are separate providers; remote torrent descriptors
 are obtained over HTTP before BitTorrent transfers their content. Downloads start
 only after explicit source selection. See [download-providers.md](download-providers.md)
 for dependencies, seeding policy, preparation and unsupported host connectors.
+
+The Rust implementation now lives under `services/downloads/`; its manager separates
+queue, transfer and publication. Installer detection, sandbox, firmware, validation
+and launch configuration have dedicated modules. Library scanning and persistence
+live under `services/library/games/`. Existing service names remain public reexports,
+so IPC commands and source/job identities are unchanged by the refactor.

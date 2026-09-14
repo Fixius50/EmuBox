@@ -153,7 +153,24 @@ Las pruebas unitarias y de contratos validan reglas, errores, parsers y aislamie
 
 Quedan pendientes la aceptacion en hardware ARM real, arranque en frio sin SSH, navegacion fisica, audio audible, persistencia tras reinicio y estabilidad grafica en cada equipo. El sondeo SVGA3D positivo no cierra la incidencia visual del hipervisor.
 
-La integracion BitTorrent requiere aria2 instalado y fuentes con peers disponibles. ZIP dispone de preparador; 7z/RAR usan libarchive (7z y RAR5 almacenado/comprimido probados; otras variantes pendientes). El selector permite reintentar preparacion y elegir entre candidatos locales, conservando originales al reprocesar y sin contactar al proveedor. Faltan conectores publicos adicionales, instaladores PKG/EXE y descriptores multidisco. GoFile y la validacion autenticada de 1fichier se excluyen del flujo sin cuentas solicitado. OTA nativa completa, aplicacion de todos los ajustes al sistema y una distribucion reproducible siguen pendientes. No deben declararse terminados por tener un tipo o un boton.
+La integracion BitTorrent requiere aria2 instalado y fuentes con peers disponibles. ZIP dispone de preparador; 7z/RAR usan libarchive (7z y RAR5 almacenado/comprimido probados; otras variantes pendientes). El selector permite reintentar preparacion y elegir entre candidatos locales, conservando originales al reprocesar y sin contactar al proveedor. EXE Inno Setup se extrae sin ejecutar instaladores; Wine tiene perfil PC y prefijo por paquete. PKG PS3 se prepara con RPCS3 headless aislado y firmware local; falta una instalacion de juego PKG valida probada de extremo a extremo. No son instaladores universales. Faltan conectores publicos adicionales y descriptores multidisco. GoFile y la validacion autenticada de 1fichier se excluyen del flujo sin cuentas solicitado. OTA nativa completa, aplicacion de todos los ajustes al sistema y una distribucion reproducible siguen pendientes.
+
+Firmware oficial PS3 4.93 instalado y detectado automaticamente en el entorno RPCS3.
+Azahar 2126.1.1, su core Libretro y shadPS4 0.18.0 estan instalados con hashes
+verificados; no hay partidas reales de aceptacion. Los cores alternativos especifican
+su biblioteca, y la tarjeta permite guardar una preferencia por juego. GameMode y
+MangoHud estan instalados pero no activados automaticamente. UMU/Proton y DXVK/vkd3d
+se investigaron, no se instalaron ni activaron. La limitacion Vulkan de esta VM no
+excluye hardware Intel, AMD o NVIDIA compatible ni certifica su funcionamiento sin
+pruebas. Ver [estado detallado](current-state.md).
+
+La refactorizacion Rust agrupa los servicios en downloads, graphics, infrastructure,
+library, runtime y system, manteniendo perfiles en emulators y reexportaciones publicas.
+Se han separado gestor, instaladores, servicio de descargas, biblioteca y definiciones
+de plataformas. Se corrigio una carrera de inicializacion SQLite detectada por las
+pruebas concurrentes. Queda deuda interna de SQL, heuristicas y manejo de errores;
+la reorganizacion no se presenta como auditoria completa. Ver la
+[estructura y reglas](refactoring-and-architecture-guidelines.md).
 
 ## 11. Reglas de colaboracion
 

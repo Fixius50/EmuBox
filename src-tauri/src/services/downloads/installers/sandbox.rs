@@ -1,6 +1,9 @@
 use super::failure;
 use crate::{errors::EmuBoxError, services::binary_service::resolve_executable};
-use std::{path::Path, process::{Child, Command, Stdio}};
+use std::{
+    path::Path,
+    process::{Child, Command, Stdio},
+};
 
 pub(super) struct Worker(pub(super) Child);
 impl Drop for Worker {
@@ -10,7 +13,12 @@ impl Drop for Worker {
     }
 }
 
-pub(super) fn sandbox(source: &Path, output: &Path, tool: &Path, input: &str) -> Result<Command, EmuBoxError> {
+pub(super) fn sandbox(
+    source: &Path,
+    output: &Path,
+    tool: &Path,
+    input: &str,
+) -> Result<Command, EmuBoxError> {
     let limiter = resolve_executable("prlimit")
         .ok_or_else(|| failure("Falta prlimit (util-linux) para limitar el preparador"))?;
     let bwrap = resolve_executable("bwrap")
@@ -93,4 +101,3 @@ pub(super) fn sandbox(source: &Path, output: &Path, tool: &Path, input: &str) ->
         .stderr(Stdio::null());
     Ok(command)
 }
-

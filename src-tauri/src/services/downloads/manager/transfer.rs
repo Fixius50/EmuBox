@@ -1,9 +1,16 @@
-use crate::{errors::EmuBoxError, models::{DownloadJob, DownloadSource, PublishedDownload, TransferControl}, services::{db_service::DatabaseService, download_providers::io_error}};
+use super::{
+    active,
+    publication::{finish, prepare_published},
+};
+use crate::models::{ProviderId, TransferOutcome, TransferRequest};
+use crate::{
+    errors::EmuBoxError,
+    models::{DownloadJob, DownloadSource, PublishedDownload, TransferControl},
+    services::{db_service::DatabaseService, download_providers::io_error},
+};
 use rusqlite::params;
 use sha2::{Digest, Sha256};
-use std::{fs, os::unix::fs::PermissionsExt, path::{Path, PathBuf}};
-use super::{active, publication::{finish, prepare_published}};
-use crate::models::{ProviderId, TransferOutcome, TransferRequest};
+use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
 pub(super) fn run(
     job: &DownloadJob,
@@ -97,7 +104,12 @@ pub(super) fn run(
             params![job.id],
         )
         .map_err(io_error)?;
-    crate::services::download_preparation::verify(&files, &root, source.checksum.as_deref(), control)?;
+    crate::services::download_preparation::verify(
+        &files,
+        &root,
+        source.checksum.as_deref(),
+        control,
+    )?;
     if control.interrupted() {
         return Ok(());
     }
@@ -111,11 +123,15 @@ pub(super) fn run(
     let (files, preparation_reason) =
         match crate::services::download_preparation::prepare(&files, &root, control) {
             Ok(prepared) => {
-                installation = crate::services::installer_preparation::prepared_metadata(&files, &prepared, &root);
+                installation = crate::services::installer_preparation::prepared_metadata(
+                    &files, &prepared, &root,
+                );
                 let mut prepared = prepared;
-                if installation.is_some() { prepared.extend(files.iter().cloned()); }
+                if installation.is_some() {
+                    prepared.extend(files.iter().cloned());
+                }
                 (prepared, None)
-            },
+            }
             Err(_) if control.interrupted() => return Ok(()),
             Err(error) => (
                 files,
@@ -181,4 +197,3 @@ pub(super) fn run(
     let _ = fs::remove_dir_all(&root);
     Ok(())
 }
-

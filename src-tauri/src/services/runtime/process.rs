@@ -1,11 +1,11 @@
+use crate::errors::EmuBoxError;
+use crate::models::{LaunchGameRequest, LaunchResult, ProcessStatus, RunningGameInfo};
+use crate::services::compatibility_service::CompatibilityService;
+use crate::services::game_service::GameService;
+use std::path::Path;
 use std::process::Command;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::path::Path;
-use crate::models::{LaunchGameRequest, LaunchResult, RunningGameInfo, ProcessStatus};
-use crate::errors::EmuBoxError;
-use crate::services::game_service::GameService;
-use crate::services::compatibility_service::CompatibilityService;
 
 static CURRENT_RUNNING_GAME: Mutex<Option<RunningGameInfo>> = Mutex::new(None);
 
@@ -56,7 +56,10 @@ impl ProcessService {
             if let Some(info) = &*current {
                 return Ok(LaunchResult {
                     success: false,
-                    message: format!("Ya hay un juego en ejecución: {} (PID: {})", info.game_title, info.pid),
+                    message: format!(
+                        "Ya hay un juego en ejecución: {} (PID: {})",
+                        info.game_title, info.pid
+                    ),
                     pid: Some(info.pid),
                     executable: Some(info.executable.clone()),
                     start_time: Some(info.start_time),
@@ -65,19 +68,22 @@ impl ProcessService {
         }
 
         // 2. Obtener metadatos del juego
-        let game = GameService::get_game_by_id(request.game_id.clone())?
-            .ok_or_else(|| EmuBoxError::NotFound(format!("Juego no encontrado: {}", request.game_id)))?;
+        let game = GameService::get_game_by_id(request.game_id.clone())?.ok_or_else(|| {
+            EmuBoxError::NotFound(format!("Juego no encontrado: {}", request.game_id))
+        })?;
 
         // 3. Obtener metadatos del emulador solicitado (o resolver emulador por defecto de la plataforma)
         let requested_id = request.emulator_id.trim();
-        let (emulator, association_args, _association_config) = CompatibilityService::resolve_for_game(
-            &game,
-            (!requested_id.is_empty()).then_some(requested_id),
-        )?;
+        let (emulator, association_args, _association_config) =
+            CompatibilityService::resolve_for_game(
+                &game,
+                (!requested_id.is_empty()).then_some(requested_id),
+            )?;
 
-        let executable_path = crate::services::binary_service::resolve_executable(&emulator.executable)
-            .map(|path| path.to_string_lossy().to_string())
-            .unwrap_or_else(|| emulator.executable.clone());
+        let executable_path =
+            crate::services::binary_service::resolve_executable(&emulator.executable)
+                .map(|path| path.to_string_lossy().to_string())
+                .unwrap_or_else(|| emulator.executable.clone());
 
         if executable_path.is_empty() || Self::resolve_executable_path(&executable_path).is_none() {
             return Err(EmuBoxError::EmulatorNotInstalled(format!(
@@ -85,16 +91,23 @@ impl ProcessService {
                 emulator.name
             )));
         }
-        crate::services::binary_service::validate_binary(Path::new(&executable_path), crate::models::Architecture::current(), true)
-            .map_err(EmuBoxError::GameLaunchFailed)?;
+        crate::services::binary_service::validate_binary(
+            Path::new(&executable_path),
+            crate::models::Architecture::current(),
+            true,
+        )
+        .map_err(EmuBoxError::GameLaunchFailed)?;
 
         // 4. Resolver ruta del archivo ROM
-        let rom_path = request.rom_path
-            .or(game.rom_path.clone())
-            .ok_or_else(|| EmuBoxError::NotFound(format!("No se especificó la ruta ROM para: {}", game.title)))?;
+        let rom_path = request.rom_path.or(game.rom_path.clone()).ok_or_else(|| {
+            EmuBoxError::NotFound(format!("No se especificó la ruta ROM para: {}", game.title))
+        })?;
 
         if !Path::new(&rom_path).exists() {
-            return Err(EmuBoxError::NotFound(format!("El archivo de juego no existe en disco: {}", rom_path)));
+            return Err(EmuBoxError::NotFound(format!(
+                "El archivo de juego no existe en disco: {}",
+                rom_path
+            )));
         }
 
         // 5. Construir argumentos
@@ -105,12 +118,21 @@ impl ProcessService {
         }
         for index in 0..final_args.len() {
             if final_args[index] == "-L" || final_args[index] == "--libretro" {
-                let core_argument = final_args.get(index + 1)
-                    .ok_or_else(|| EmuBoxError::GameLaunchFailed("Falta la ruta del core libretro".into()))?;
+                let core_argument = final_args.get(index + 1).ok_or_else(|| {
+                    EmuBoxError::GameLaunchFailed("Falta la ruta del core libretro".into())
+                })?;
                 let core = crate::services::binary_service::resolve_core(core_argument)
-                    .ok_or_else(|| EmuBoxError::EmulatorNotInstalled(format!("Core no instalado: {core_argument}")))?;
-                crate::services::binary_service::validate_binary(&core, crate::models::Architecture::current(), false)
-                    .map_err(EmuBoxError::GameLaunchFailed)?;
+                    .ok_or_else(|| {
+                        EmuBoxError::EmulatorNotInstalled(format!(
+                            "Core no instalado: {core_argument}"
+                        ))
+                    })?;
+                crate::services::binary_service::validate_binary(
+                    &core,
+                    crate::models::Architecture::current(),
+                    false,
+                )
+                .map_err(EmuBoxError::GameLaunchFailed)?;
                 final_args[index + 1] = core.to_string_lossy().to_string();
             }
         }
@@ -119,19 +141,36 @@ impl ProcessService {
         // 6. Determinar si usar Gamescope para composición nativa
         let use_gamescope = request.use_gamescope.unwrap_or(false);
         let graphics = crate::services::graphics_service::detect();
-        let has_gamescope = crate::services::graphics_service::gamescope_for_selection(&graphics,
-            graphics.drm || std::env::var_os("WAYLAND_DISPLAY").is_some() || std::env::var_os("DISPLAY").is_some());
+        let has_gamescope = crate::services::graphics_service::gamescope_for_selection(
+            &graphics,
+            graphics.drm
+                || std::env::var_os("WAYLAND_DISPLAY").is_some()
+                || std::env::var_os("DISPLAY").is_some(),
+        );
 
         let child = if use_gamescope && has_gamescope {
             let mut cmd = Command::new("gamescope");
-            cmd.arg("-f").arg("--").arg(&executable_path).args(&final_args);
-            crate::services::installer_preparation::configure_launch(&mut cmd, &emulator.id, Path::new(&rom_path))?;
-            cmd.spawn().map_err(|e| EmuBoxError::GameLaunchFailed(e.to_string()))?
+            cmd.arg("-f")
+                .arg("--")
+                .arg(&executable_path)
+                .args(&final_args);
+            crate::services::installer_preparation::configure_launch(
+                &mut cmd,
+                &emulator.id,
+                Path::new(&rom_path),
+            )?;
+            cmd.spawn()
+                .map_err(|e| EmuBoxError::GameLaunchFailed(e.to_string()))?
         } else {
             let mut cmd = Command::new(&executable_path);
             cmd.args(&final_args);
-            crate::services::installer_preparation::configure_launch(&mut cmd, &emulator.id, Path::new(&rom_path))?;
-            cmd.spawn().map_err(|e| EmuBoxError::GameLaunchFailed(e.to_string()))?
+            crate::services::installer_preparation::configure_launch(
+                &mut cmd,
+                &emulator.id,
+                Path::new(&rom_path),
+            )?;
+            cmd.spawn()
+                .map_err(|e| EmuBoxError::GameLaunchFailed(e.to_string()))?
         };
 
         let pid = child.id();
@@ -159,7 +198,10 @@ impl ProcessService {
 
         Ok(LaunchResult {
             success: true,
-            message: format!("{} iniciado correctamente con {}", game.title, emulator.name),
+            message: format!(
+                "{} iniciado correctamente con {}",
+                game.title, emulator.name
+            ),
             pid: Some(pid),
             executable: Some(executable_path),
             start_time: Some(start_time),
@@ -213,7 +255,10 @@ impl ProcessService {
     pub fn get_process_status() -> Result<ProcessStatus, EmuBoxError> {
         let running_game = Self::get_running_game()?;
         let has_active_game = running_game.is_some();
-        let active_child_pids = running_game.as_ref().map(|g| vec![g.pid]).unwrap_or_default();
+        let active_child_pids = running_game
+            .as_ref()
+            .map(|g| vec![g.pid])
+            .unwrap_or_default();
 
         Ok(ProcessStatus {
             has_active_game,

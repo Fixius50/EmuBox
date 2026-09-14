@@ -1,4 +1,4 @@
-pub mod games;
 pub mod compatibility;
-pub mod watcher;
+pub mod games;
 pub mod platforms;
+pub mod watcher;

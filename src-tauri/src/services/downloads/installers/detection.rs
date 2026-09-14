@@ -1,5 +1,8 @@
 use super::InstallerKind;
-use std::{fs, path::{Path, PathBuf}};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 pub fn prepared_metadata(
     original: &[PathBuf],
@@ -128,4 +131,3 @@ pub fn kind(header: &[u8]) -> Option<InstallerKind> {
         None
     }
 }
-

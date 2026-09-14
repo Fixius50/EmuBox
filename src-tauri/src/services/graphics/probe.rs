@@ -1,5 +1,5 @@
-use crate::services::graphics_policy::{is_software_renderer, vendor_from_text};
 use crate::models::graphics::{DetectionState, GraphicsDevice, GraphicsObservation, GraphicsProbe};
+use crate::services::graphics_policy::{is_software_renderer, vendor_from_text};
 use std::{collections::BTreeMap, fs, process::Command};
 
 pub fn inventory() -> Result<Vec<GraphicsDevice>, std::io::Error> {

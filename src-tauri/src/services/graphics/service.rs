@@ -1,9 +1,9 @@
+use crate::models::graphics::{
+    DetectionState, GraphicsCapabilities, GraphicsDevice, GraphicsProbe,
+};
 pub use crate::services::graphics_policy::{
     gamescope_supported, hardware_vulkan, is_software_renderer, opengl_renderer, select_session,
     vendor_from_text,
-};
-use crate::models::graphics::{
-    DetectionState, GraphicsCapabilities, GraphicsDevice, GraphicsProbe,
 };
 use std::{fs, path::Path, process::Command};
 
@@ -91,11 +91,20 @@ pub fn summarize(
     mut opengl: GraphicsProbe,
     mut vulkan: GraphicsProbe,
 ) -> GraphicsCapabilities {
-    crate::services::graphics_probe::correlate(&mut opengl.observations, &devices, inventory_complete);
-    crate::services::graphics_probe::correlate(&mut vulkan.observations, &devices, inventory_complete);
+    crate::services::graphics_probe::correlate(
+        &mut opengl.observations,
+        &devices,
+        inventory_complete,
+    );
+    crate::services::graphics_probe::correlate(
+        &mut vulkan.observations,
+        &devices,
+        inventory_complete,
+    );
     let mut state = crate::services::graphics_policy::detection_state(opengl.state, vulkan.state);
     let mut backend =
-        crate::services::graphics_policy::operational_backend(opengl.state, vulkan.state).to_string();
+        crate::services::graphics_policy::operational_backend(opengl.state, vulkan.state)
+            .to_string();
     if state == DetectionState::Software && (!inventory_complete || devices.len() > 1) {
         state = DetectionState::Indeterminate;
         backend = "auto".into();
@@ -380,8 +389,12 @@ mod tests {
             "OpenGL renderer string: GPU",
             "",
         );
-        let unavailable =
-            crate::services::graphics_probe::classify("vulkan", Some(1), "", "initialization failed");
+        let unavailable = crate::services::graphics_probe::classify(
+            "vulkan",
+            Some(1),
+            "",
+            "initialization failed",
+        );
         let unknown_device = summarize(devices, true, uncorrelated, unavailable);
         assert!(unknown_device.accelerated);
         assert_eq!(unknown_device.backend, "opengl");

@@ -1,11 +1,15 @@
-use serde_json::{Map, Value};
-use scraper::Html;
 pub use crate::models::DownloadSourceOption as SourceOption;
 pub use crate::services::download_resolver::{source_access, source_option};
+use scraper::Html;
+use serde_json::{Map, Value};
 
 pub fn text(value: &Value) -> Option<String> {
     let value = value.as_str()?.trim();
-    if value.is_empty() || ["null", "undefined"].iter().any(|missing| value.eq_ignore_ascii_case(missing)) {
+    if value.is_empty()
+        || ["null", "undefined"]
+            .iter()
+            .any(|missing| value.eq_ignore_ascii_case(missing))
+    {
         None
     } else {
         Some(value.to_string())
@@ -14,49 +18,108 @@ pub fn text(value: &Value) -> Option<String> {
 
 fn plain_html(value: &str) -> String {
     let html = Html::parse_fragment(value);
-    html.root_element().descendants().filter_map(|node| {
-        if node.ancestors().any(|parent| parent.value().as_element()
-            .is_some_and(|element| matches!(element.name(), "script" | "style" | "noscript" | "template"))) {
-            return None;
-        }
-        node.value().as_text().map(|text| text.to_string())
-    }).collect::<Vec<_>>().join(" ").split_whitespace().collect::<Vec<_>>().join(" ")
+    html.root_element()
+        .descendants()
+        .filter_map(|node| {
+            if node.ancestors().any(|parent| {
+                parent.value().as_element().is_some_and(|element| {
+                    matches!(element.name(), "script" | "style" | "noscript" | "template")
+                })
+            }) {
+                return None;
+            }
+            node.value().as_text().map(|text| text.to_string())
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 pub fn normalize(item: &Value) -> Option<Value> {
     let original = item.as_object()?;
     let mut result: Map<String, Value> = original.clone();
     for value in result.values_mut() {
-        if value.is_string() { *value = text(value).map(Value::String).unwrap_or(Value::Null); }
+        if value.is_string() {
+            *value = text(value).map(Value::String).unwrap_or(Value::Null);
+        }
     }
-    let title = result.get("title").and_then(text).or_else(|| result.get("name").and_then(text))?;
+    let title = result
+        .get("title")
+        .and_then(text)
+        .or_else(|| result.get("name").and_then(text))?;
     result.insert("title".into(), title.into());
     let mut uris = Vec::new();
     if let Some(values) = original.get("uris").and_then(Value::as_array) {
         for value in values {
             if let Some(uri) = text(value).filter(|uri| source_access(uri).is_some()) {
-                if !uris.contains(&uri) { uris.push(uri); }
+                if !uris.contains(&uri) {
+                    uris.push(uri);
+                }
             }
         }
-    } else if let Some(uri) = original.get("url").and_then(text).or_else(|| original.get("uri").and_then(text)) {
-        if source_access(&uri).is_some() { uris.push(uri); }
+    } else if let Some(uri) = original
+        .get("url")
+        .and_then(text)
+        .or_else(|| original.get("uri").and_then(text))
+    {
+        if source_access(&uri).is_some() {
+            uris.push(uri);
+        }
     }
-    if uris.is_empty() { return None; }
+    if uris.is_empty() {
+        return None;
+    }
     result.insert("uris".into(), serde_json::json!(uris));
-    let year = ["releaseYear", "year"].iter().filter_map(|key| result.get(*key)).find_map(|value| {
-        value.as_u64().or_else(|| text(value)?.parse::<u64>().ok()).filter(|year| (1900..=2100).contains(year))
-    });
-    result.insert("releaseYear".into(), year.map(Value::from).unwrap_or(Value::Null));
+    let year = ["releaseYear", "year"]
+        .iter()
+        .filter_map(|key| result.get(*key))
+        .find_map(|value| {
+            value
+                .as_u64()
+                .or_else(|| text(value)?.parse::<u64>().ok())
+                .filter(|year| (1900..=2100).contains(year))
+        });
+    result.insert(
+        "releaseYear".into(),
+        year.map(Value::from).unwrap_or(Value::Null),
+    );
     let genre = result.get("genre").and_then(text).or_else(|| {
-        let genres = original.get("genres")?.as_array()?.iter().filter_map(text).collect::<Vec<_>>().join(", ");
+        let genres = original
+            .get("genres")?
+            .as_array()?
+            .iter()
+            .filter_map(text)
+            .collect::<Vec<_>>()
+            .join(", ");
         (!genres.is_empty()).then_some(genres)
     });
-    result.insert("genre".into(), genre.map(Value::String).unwrap_or(Value::Null));
-    let description = result.get("description").and_then(text)
-        .or_else(|| result.get("descriptionHtml").and_then(text).map(|html| plain_html(&html)));
-    result.insert("description".into(), description.filter(|value| !value.is_empty()).map(Value::String).unwrap_or(Value::Null));
-    let cover = result.get("coverImage").and_then(text).or_else(|| result.get("cover").and_then(text));
-    result.insert("coverImage".into(), cover.map(Value::String).unwrap_or(Value::Null));
+    result.insert(
+        "genre".into(),
+        genre.map(Value::String).unwrap_or(Value::Null),
+    );
+    let description = result.get("description").and_then(text).or_else(|| {
+        result
+            .get("descriptionHtml")
+            .and_then(text)
+            .map(|html| plain_html(&html))
+    });
+    result.insert(
+        "description".into(),
+        description
+            .filter(|value| !value.is_empty())
+            .map(Value::String)
+            .unwrap_or(Value::Null),
+    );
+    let cover = result
+        .get("coverImage")
+        .and_then(text)
+        .or_else(|| result.get("cover").and_then(text));
+    result.insert(
+        "coverImage".into(),
+        cover.map(Value::String).unwrap_or(Value::Null),
+    );
     Some(result.into())
 }
 
@@ -85,11 +148,26 @@ mod tests {
 
     #[test]
     fn distinguishes_transport_from_host_pages() {
-        assert_eq!(source_access("https://torrent.example.test/game.zip"), Some("http"));
-        assert_eq!(source_access("https://example.test/game.torrent?token=fixture"), Some("torrent"));
-        assert_eq!(source_access("https://megadb.net/fixture"), Some("host_page"));
-        assert_eq!(source_access("https://pixeldrain.com/api/file/fixture"), Some("http"));
-        assert_eq!(source_access("https://example.test/download/42"), Some("unverified_http"));
+        assert_eq!(
+            source_access("https://torrent.example.test/game.zip"),
+            Some("http")
+        );
+        assert_eq!(
+            source_access("https://example.test/game.torrent?token=fixture"),
+            Some("torrent")
+        );
+        assert_eq!(
+            source_access("https://megadb.net/fixture"),
+            Some("host_page")
+        );
+        assert_eq!(
+            source_access("https://pixeldrain.com/api/file/fixture"),
+            Some("http")
+        );
+        assert_eq!(
+            source_access("https://example.test/download/42"),
+            Some("unverified_http")
+        );
         assert_eq!(source_access("file:///etc/passwd"), None);
     }
 }

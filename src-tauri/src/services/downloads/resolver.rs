@@ -11,7 +11,8 @@ pub fn source_option(source: DownloadSource) -> crate::models::DownloadSourceOpt
         .as_ref()
         .ok()
         .map(|provider| provider.as_str().to_string());
-    let connector = crate::services::download_connectors::connector(&source.uri).map(str::to_string);
+    let connector =
+        crate::services::download_connectors::connector(&source.uri).map(str::to_string);
     let reason = resolution.err().map(|error| error.to_string()).or_else(|| {
         if connector.as_deref() == Some("1fichier_account_api") { Some("Requiere cuenta autorizada; la API comprobara permisos y cuota al iniciar. Puede consumir creditos CDN segun tu oferta".into()) }
         else if provider.as_deref() == Some("bittorrent") { Some("BitTorrent puede subir piezas durante la descarga (limite 64 KiB/s); sin seeding al completar".into()) }

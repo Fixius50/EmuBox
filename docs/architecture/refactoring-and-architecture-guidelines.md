@@ -105,6 +105,58 @@ solid/src/
 
 ## 6. Runtime y Compilación
 
+### Organizacion nativa por dominio
+
+La primera fase de refactorizacion conserva los nombres publicos y comandos IPC.
+`services/mod.rs` reexporta las fachadas anteriores para que los consumidores no
+dependan del traslado fisico. Las implementaciones viven en estas carpetas:
+
+```text
+src-tauri/src/
+  commands/                 Adaptadores IPC existentes
+  models/                   DTO y modelos compartidos, incluido CatalogEntry
+  services/
+    downloads/
+      service/              catalog, platform, repository, orchestration, tests
+      manager/              cola en mod, transfer, publication, tests
+      installers/           detection, firmware, launch, sandbox, validation, tests
+      providers/            HTTP y BitTorrent
+      archive.rs            Extraccion 7z/RAR
+      preparation.rs        Verificacion SHA-256, ZIP y seleccion conservadora
+      manifest.rs           Normalizacion
+      manifest_cache.rs     Cache HTTP de manifiestos
+      resolver.rs           Capacidad y seleccion de proveedor
+      connectors.rs         Resolucion por alojamiento
+    graphics/               policy, probe, service
+    infrastructure/         database, paths, binary, host_command
+    library/
+      games/                scanner, repository, catalog, tests
+      platforms.rs          Definiciones de plataformas
+      compatibility.rs      Asociaciones juego-emulador
+      watcher.rs            Notificaciones del filesystem
+    runtime/                emulator, capabilities, process
+    system/                 audio, display, input, power, config, storage, logs, bios
+    emulators/              Perfiles individuales y alternativas Libretro
+```
+
+- El gestor mantiene un unico propietario de la cola; la publicacion coordina sus
+  cambios con ese propietario. No se han creado colas adicionales por mover archivos.
+- Los bloques `impl DownloadService` y `impl GameService` se distribuyen por
+  responsabilidad. Son una transicion compatible, no una capa de repositorios
+  independiente completa: el importador y el escaner todavia contienen SQL.
+- Los recursos embebidos se localizan desde `CARGO_MANIFEST_DIR`, evitando que un
+  nivel adicional de carpetas cambie el fichero de datos incluido.
+- La apertura SQLite serializa configuracion WAL y esquema dentro del proceso;
+  las consultas y transacciones posteriores no quedan bajo ese bloqueo. Se prueba
+  con ocho conexiones concurrentes y bases temporales, nunca con produccion.
+- `scripts/architecture-check.mjs` comprueba la presencia de los modulos canonicos;
+  Cargo comprueba resolucion, visibilidad e importaciones. La comprobacion de rutas
+  por si sola no demuestra ausencia de ciclos arquitectonicos.
+- Pendientes de otra fase: reducir SQL y mapeos duplicados, retirar el importador
+  legado inalcanzable tras normalizacion, revisar heuristicas de plataforma y errores
+  silenciados, y completar extracciones de runtime/graficos donde aporten claridad.
+  No se cambian esas politicas dentro de un traslado mecanico.
+
 - La aplicación requiere Tauri; no existe un backend alternativo de datos ficticios ni un catálogo de demostración.
 - Las funciones sin implementación nativa deben rechazar la operación o estar deshabilitadas explícitamente.
 - No ejecutar comandos de Git ni pruebas de navegador en el flujo de trabajo actual.

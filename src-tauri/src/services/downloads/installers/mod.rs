@@ -2,18 +2,26 @@ mod detection;
 mod firmware;
 mod launch;
 mod sandbox;
-mod validation;
 #[cfg(test)]
 mod tests;
+mod validation;
 
 pub use crate::models::InstallationKind as InstallerKind;
+use crate::{
+    errors::EmuBoxError,
+    models::TransferControl,
+    services::{binary_service::resolve_executable, download_providers::io_error},
+};
 pub use detection::{candidates, kind, prepared_metadata};
-pub use launch::configure_launch;
 use firmware::firmware_directory;
+pub use launch::configure_launch;
 use sandbox::{sandbox, Worker};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    time::{Duration, Instant},
+};
 use validation::{inventory, pkg_succeeded};
-use crate::{errors::EmuBoxError, models::TransferControl, services::{binary_service::resolve_executable, download_providers::io_error}};
-use std::{fs, path::{Path, PathBuf}, time::{Duration, Instant}};
 
 fn failure(message: &str) -> EmuBoxError {
     EmuBoxError::ProcessFailed(message.into())
@@ -29,7 +37,10 @@ pub fn prepare(
         return Err(failure("Preparacion interrumpida"));
     }
     let firmware = if kind == InstallerKind::Ps3 {
-        Some(firmware_directory(std::env::var_os("EMUBOX_PS3_FIRMWARE_DIR").map(PathBuf::from), Path::new(&crate::services::paths::emulator_config_dir("rpcs3")))?)
+        Some(firmware_directory(
+            std::env::var_os("EMUBOX_PS3_FIRMWARE_DIR").map(PathBuf::from),
+            Path::new(&crate::services::paths::emulator_config_dir("rpcs3")),
+        )?)
     } else {
         None
     };
@@ -125,4 +136,3 @@ pub fn prepare(
     }
     Ok(files)
 }
-

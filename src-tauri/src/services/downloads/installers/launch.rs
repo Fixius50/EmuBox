@@ -1,6 +1,10 @@
 use super::{detection::candidates, failure, InstallerKind};
 use crate::{errors::EmuBoxError, models::TransferControl, services::download_providers::io_error};
-use std::{fs, path::{Path, PathBuf}, process::Command};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 pub fn configure_launch(
     command: &mut Command,
@@ -12,11 +16,19 @@ pub fn configure_launch(
         let data = PathBuf::from(crate::services::paths::emulator_dir(emulator)).join("data");
         fs::create_dir_all(&config).map_err(io_error)?;
         fs::create_dir_all(&data).map_err(io_error)?;
-        command.env("APPIMAGE_EXTRACT_AND_RUN", "1").env("XDG_CONFIG_HOME", &config).env("XDG_DATA_HOME", &data);
+        command
+            .env("APPIMAGE_EXTRACT_AND_RUN", "1")
+            .env("XDG_CONFIG_HOME", &config)
+            .env("XDG_DATA_HOME", &data);
         if emulator == "rpcs3" {
-            command.env("XDG_CACHE_HOME", PathBuf::from(crate::services::paths::emulator_dir(emulator)).join("cache"));
+            command.env(
+                "XDG_CACHE_HOME",
+                PathBuf::from(crate::services::paths::emulator_dir(emulator)).join("cache"),
+            );
         }
-        if emulator == "shadps4" { command.args(["--override-root"]).arg(config); }
+        if emulator == "shadps4" {
+            command.args(["--override-root"]).arg(config);
+        }
     }
     if !matches!(emulator, "wine" | "rpcs3") {
         return Ok(());
@@ -50,7 +62,12 @@ pub fn configure_launch(
         .iter()
         .map(|path| destination.join(path))
         .collect();
-    crate::services::download_preparation::verify(&files, destination, None, &TransferControl::default())?;
+    crate::services::download_preparation::verify(
+        &files,
+        destination,
+        None,
+        &TransferControl::default(),
+    )?;
     let Some(installation) = &package.installation else {
         if emulator == "wine" {
             return Err(failure(
@@ -107,4 +124,3 @@ pub fn configure_launch(
     }
     Ok(())
 }
-
