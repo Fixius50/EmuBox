@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "EmuBox OS",
         "url": "index.html",
         "width": 1920,

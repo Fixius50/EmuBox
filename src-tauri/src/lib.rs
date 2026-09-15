@@ -5,6 +5,7 @@ pub mod state;
 pub mod commands;
 
 use tauri::Emitter;
+use tauri::Manager;
 use state::AppState;
 
 /// Intervalo entre comprobaciones periódicas de los manifiestos de descarga.
@@ -13,16 +14,15 @@ const MANIFEST_POLL_INTERVAL_SECS: u64 = 6 * 60 * 60;
 pub fn run() {
     tauri::Builder::default()
         .manage(AppState::new())
+        .manage(services::runtime::startup::Startup::new())
         .setup(|app| {
-            services::download_manager::recover()?;
             let app_handle = app.handle().clone();
-
-            // 1. Iniciar escaneo inicial en segundo plano sin bloquear arranque de UI
-            std::thread::spawn(move || {
-                let _ = services::EmulatorService::scan_emulators();
-                if let Ok(hardware) = services::SystemService::get_hardware_info() {
-                    let _ = services::EmulatorService::apply_hardware_profile(&hardware);
-                }
+            let notify_handle = app_handle.clone();
+            app.state::<services::runtime::startup::Startup>().start(std::sync::Arc::new(move |report| {
+                eprintln!("[Startup] {:?}: {} ms", report.phase, report.elapsed_ms);
+                let _ = notify_handle.emit("startup-status", report);
+            }), move || {
+                services::GameLibraryWatcher::start_watching(None, Some(app_handle.clone()));
                 match services::GameService::scan_games(None) {
                     Ok(scan) => {
                         if scan.added_count > 0 || scan.updated_count > 0 || scan.removed_count > 0 {
@@ -39,29 +39,20 @@ pub fn run() {
                 }) {
                     eprintln!("[Catalog] {error}");
                 }
-            });
-
-            // 2. Iniciar watcher reactivo del sistema de archivos (inotify / notify)
-            services::GameLibraryWatcher::start_watching(None, Some(app.handle().clone()));
-
-            // 3. Consultar periódicamente los manifiestos de descarga y añadir en
-            // caliente el catálogo nuevo, sin esperar a reiniciar la consola.
-            let poll_handle = app.handle().clone();
-            std::thread::spawn(move || loop {
-                std::thread::sleep(std::time::Duration::from_secs(MANIFEST_POLL_INTERVAL_SECS));
-                if let Ok(sources) = services::DownloadService::import_link_file_with_progress(|| {
-                    let _ = poll_handle.emit("library-updated", serde_json::json!({ "reason": "manifest-import" }));
-                }) {
-                    let _ = poll_handle.emit("library-updated", serde_json::json!({
-                        "reason": "periodic-manifest-check",
-                        "sourceCount": sources.len()
-                    }));
+                loop {
+                    std::thread::sleep(std::time::Duration::from_secs(MANIFEST_POLL_INTERVAL_SECS));
+                    if let Err(error) = services::DownloadService::import_link_file_with_progress(|| {
+                        let _ = app_handle.emit("library-updated", serde_json::json!({ "reason": "manifest-import" }));
+                    }) { eprintln!("[Catalog] {error}"); }
                 }
             });
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::startup::get_startup_status,
+            commands::startup::get_startup_data,
+            commands::startup::startup_frontend_ready,
             // System & Environment
             commands::system::get_system_info,
             commands::system::get_hardware_info,

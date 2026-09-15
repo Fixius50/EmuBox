@@ -282,6 +282,7 @@ pub fn run(api: &str, program: &str, arguments: &[&str]) -> GraphicsProbe {
     }
     let mut command = Command::new("timeout");
     command
+        .arg("--kill-after=1s")
         .arg("10s")
         .arg(program)
         .args(arguments)

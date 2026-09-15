@@ -8,6 +8,7 @@ pub mod diagnostics;
 pub mod bios;
 pub mod compatibility;
 pub mod downloads;
+pub mod startup;
 
 pub(crate) async fn blocking<T, F>(operation: F) -> Result<T, crate::errors::EmuBoxError>
 where

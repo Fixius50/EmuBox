@@ -28,6 +28,7 @@ import type {
 } from '@contracts/backend.types';
 import type { CreateDownloadRequest, DownloadJob, DownloadSource } from '@contracts/download.types';
 import { invoke, isTauri } from '@tauri-apps/api/core';
+import type { StartupData, StartupReport } from '@contracts/startup.types';
 
 /**
  * Tauri IPC Backend Implementation.
@@ -46,6 +47,18 @@ export class TauriBackendService implements IEmuBoxBackend {
   }
 
   // 1. Sistema & Hardware Telemetry
+  public getStartupStatus(): Promise<StartupReport> {
+    return this.invoke('get_startup_status');
+  }
+
+  public getStartupData(): Promise<StartupData> {
+    return this.invoke('get_startup_data');
+  }
+
+  public startupFrontendReady(): Promise<StartupReport> {
+    return this.invoke('startup_frontend_ready');
+  }
+
   public async getSystemInfo(): Promise<SystemInfo> {
     return this.invoke('get_system_info', undefined);
   }

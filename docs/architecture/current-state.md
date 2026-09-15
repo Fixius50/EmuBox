@@ -116,19 +116,25 @@ Ver [detalle y limites](download-providers.md).
 
 ## Arranque con biblioteca persistida
 
-La UI solicita SQLite al montar, antes de esperar sondeos de hardware o emuladores.
-Conserva la pantalla XMB y muestra un indicador indeterminado con el estado de carga;
-no inventa porcentajes ni indica que se esten descargando juegos. Plataformas y
-ajustes se publican en cuanto llegan, sin esperar la lista de emuladores.
+El arranque tiene un coordinador Rust unico con recursos iniciales, dependencias
+y cupos conservadores (uno o dos trabajos, disco serializado). La ventana muestra
+preparacion, no la biblioteca incompleta. Recibe juntos SQLite persistido,
+configuracion, plataformas, emuladores e instantanea de hardware; tras hidratar
+y montar la biblioteca confirma `ready` o `degraded`. No inventa porcentajes ni
+indica que se esten descargando juegos. Errores criticos tienen una salida a consola.
 
 El backend mantiene el unico escaneo inicial de disco y la sincronizacion de
-manifiestos en segundo plano. Los cambios del escaneo se notifican antes de iniciar
+manifiestos en segundo plano, solo despues de la confirmacion de la interfaz.
+Los cambios del escaneo se notifican antes de iniciar
 la importacion remota. No se repite el escaneo desde App.tsx ni se recarga todo el
 catalogo por un escaneo sin cambios. La caché HTTP existente de manifiestos sigue
 en vigor; no se ha sustituido por un plazo que ignore cambios locales.
 
-`get_games`, `scan_games`, `get_emulators` y `get_hardware_info` ejecutan su trabajo
-bloqueante en el pool de Tauri. Las respuestas y errores mantienen el contrato IPC.
+`get_games`, `scan_games`, `get_emulators` y `get_hardware_info` conservan su API
+asíncrona para consultas normales. El arranque usa `get_startup_status`,
+`get_startup_data` y `startup_frontend_ready` en vez de disparar esas consultas
+independientemente. Versiones de emuladores compartidos se sondean una vez por
+binario/argumentos y tienen timeout. Ver [contrato de arranque](console-appliance-boot-architecture.md).
 El store comparte lecturas simultaneas, descarta respuestas superadas, conserva
 datos ante errores y reutiliza objetos/grupos cuando SQLite devuelve datos iguales.
 Los avisos se agrupan en ventanas de un segundo, con otra lectura si llegan cambios
@@ -138,8 +144,9 @@ Limites: sigue transfiriendose el catalogo completo en una lectura necesaria; la
 primera agrupacion y deserializacion tienen coste. No se ha implementado paginacion,
 worker de agrupacion ni una segunda base de datos en localStorage. Las mejoras de
 carga no certifican ni corrigen por si solas la latencia del juego o el scanout de
-VirtualBox. El brillo cambiante y el negro al minuto siguen en diagnostico nativo,
-sin desactivar mitigaciones ni cambiar parametros del emulador sin evidencia.
+VirtualBox. El usuario confirmo solucionado el problema visual tras el fondo
+opaco y la decoracion estatica para GPU virtual; no se extrapola esa confirmacion
+a latencia del juego, todos los drivers o hardware ARM real.
 
 ## Ampliacion del 14 de septiembre de 2026
 

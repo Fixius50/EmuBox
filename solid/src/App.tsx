@@ -1,5 +1,8 @@
-import { Component, onMount, onCleanup, createSignal, Show } from "solid-js";
+import { Component, onMount, onCleanup, createSignal, Show, batch } from "solid-js";
 import { listen } from "@tauri-apps/api/event";
+import { LoaderCircle, LogOut } from 'lucide-solid';
+import { startupErrorMessage, startupMessage, waitForStartup } from '@services/system/startup';
+import type { StartupReport } from '@contracts/startup.types';
 
 // Types
 import type { Game } from "@contracts/game.types";
@@ -45,8 +48,10 @@ const NativeApp: Component = () => {
   const systemStore = createSystemStore(backend);
   const navigationStore = createNavigationStore();
   const modalStore = createModalStore();
-  const [startupStatus, setStartupStatus] = createSignal('Cargando biblioteca guardada...');
+  const [startupStatus, setStartupStatus] = createSignal('Preparando EmuBox...');
   const [startupError, setStartupError] = createSignal('');
+  const [startupReady, setStartupReady] = createSignal(false);
+  const [startupFailed, setStartupFailed] = createSignal(false);
 
   const handleGameActivate = (game: Game) => {
     soundFx.playSelect();
@@ -124,6 +129,7 @@ const NativeApp: Component = () => {
 
   const { inputStatus } = useConsoleInput({
     onAction: (action) => {
+      if (!startupReady()) return;
       if (action === "MAINTENANCE_MENU") {
         modalStore.openMaintenance();
         return;
@@ -155,6 +161,7 @@ const NativeApp: Component = () => {
   const refreshLibrary = async () => {
     libraryRefreshTimer = undefined;
     if (disposed || refreshingLibrary) return;
+    if (!startupReady()) { libraryDirty = true; return; }
     if (libraryStore.isLoading()) {
       libraryRefreshTimer = setTimeout(refreshLibrary, 1000);
       return;
@@ -175,68 +182,88 @@ const NativeApp: Component = () => {
     clearTimeout(libraryRefreshTimer);
     unlistenLibraryUpdated?.();
   });
-  onMount(async () => {
-    const cachedLibrary = libraryStore.loadGames().catch((error) => {
-      console.error('[Library] No se pudo cargar la biblioteca guardada', error);
+  onMount(() => {
+    const controller = new AbortController();
+    let frame: number | undefined;
+    const failed = (error: unknown) => {
+      if (disposed || controller.signal.aborted) return;
+      setStartupError(startupErrorMessage(error));
+      setStartupFailed(true);
+      setStartupReady(false);
+      controller.abort();
+    };
+    const timer = setTimeout(() => failed(new Error('La interfaz no pudo completar el arranque en 90 segundos')), 90000);
+    onCleanup(() => {
+      controller.abort();
+      clearTimeout(timer);
+      if (frame !== undefined) cancelAnimationFrame(frame);
     });
-    // Sonda de diagnóstico: confirma si el puente IPC de Tauri existe en este webview.
-    try {
-      const internals = (window as any).__TAURI_INTERNALS__;
-      const globalTauri = (window as any).__TAURI__;
-      const probeInfo = JSON.stringify({
-        hasInternals: !!internals,
-        hasGlobalTauri: !!globalTauri,
-        invokeType: typeof internals?.invoke,
-        isTauriEnvironment: backend.isTauriEnvironment,
-      });
-      if (internals?.invoke) {
-        await internals.invoke("frontend_probe", { message: probeInfo });
-      } else {
-        console.error("[EmuBox] Puente Tauri no detectado:", probeInfo);
-      }
-    } catch (probeError) {
-      console.error("[EmuBox] Sonda de diagnóstico falló:", probeError);
-    }
-
-    if (backend.isTauriEnvironment) {
-      try {
-        const unlisten = await listen("library-updated", () => {
+    const prepare = async () => {
+      const unlisten = await listen("library-updated", () => {
           libraryDirty = true;
-          if (!refreshingLibrary && libraryRefreshTimer === undefined) {
+          if (startupReady() && !refreshingLibrary && libraryRefreshTimer === undefined) {
             libraryRefreshTimer = setTimeout(refreshLibrary, 1000);
           }
-        });
-        if (disposed) unlisten();
-        else unlistenLibraryUpdated = unlisten;
-      } catch (error) {
-        console.error("[Library] No se pudo suscribir a cambios", error);
-      }
-    }
-
-    await cachedLibrary;
-    if (disposed) return;
-    setStartupStatus('Preparando sistema y emuladores...');
-    await Promise.all([
-      backend.getHardwareInfo()
-        .then((hardware) => { if (!disposed) graphicsDetector.detectFromHardware(hardware); })
-        .catch((error) => console.error('[Graphics] No se pudo consultar el hardware', error)),
-      systemStore.loadSystemData().catch((error) => {
-        console.error('[System]', error);
-        if (!disposed) setStartupError('No se pudo completar la carga del sistema');
-      }),
-    ]);
-    if (disposed) return;
-    if (systemStore.settings()) {
-      soundFx.setEnabled(systemStore.settings()!.audio.uiSoundEffects);
-    }
-    setStartupStatus('');
+      });
+      if (disposed || controller.signal.aborted) { unlisten(); return; }
+      unlistenLibraryUpdated = unlisten;
+      await waitForStartup(() => backend.getStartupStatus(),
+        handler => listen<StartupReport>('startup-status', event => handler(event.payload)),
+        report => setStartupStatus(startupMessage(report)), controller.signal);
+      const data = await backend.getStartupData();
+      if (disposed || controller.signal.aborted) return;
+      setStartupStatus('Organizando biblioteca...');
+      const hydrationStarted = performance.now();
+      batch(() => {
+        systemStore.setSettings(data.settings);
+        systemStore.setPlatforms(data.platforms);
+        systemStore.setEmulators(data.emulators);
+        graphicsDetector.detectFromHardware(data.hardware);
+      });
+      await libraryStore.loadGames(data.games);
+      if (disposed || controller.signal.aborted) return;
+      soundFx.setEnabled(data.settings.audio.uiSoundEffects);
+      await new Promise<void>(resolve => {
+        frame = requestAnimationFrame(() => { frame = requestAnimationFrame(() => resolve()); });
+      });
+      if (disposed || controller.signal.aborted) return;
+      setStartupReady(true);
+      await new Promise<void>(resolve => {
+        frame = requestAnimationFrame(() => { frame = requestAnimationFrame(() => resolve()); });
+      });
+      if (disposed || controller.signal.aborted) return;
+      const report = await backend.startupFrontendReady();
+      if (disposed || controller.signal.aborted) return;
+      setStartupError(report.warnings.length ? `Inicio con avisos: ${report.warnings[0]}` : '');
+      setStartupReady(true);
+      setStartupStatus('');
+      clearTimeout(timer);
+      console.info(`[Startup] biblioteca preparada en ${(performance.now() - hydrationStarted).toFixed(0)} ms de hidratacion`);
+      if (libraryDirty && libraryRefreshTimer === undefined) libraryRefreshTimer = setTimeout(refreshLibrary, 1000);
+    };
+    void prepare().catch(failed);
   });
 
   return (
     <div class="emubox-xmb-root">
+      <Show when={!startupReady()}>
+        <section class="emubox-startup" aria-label="Arranque de EmuBox">
+          <h1>EmuBox</h1>
+          <div role="status" aria-live="polite" aria-atomic="true">
+            <Show when={!startupFailed()}><LoaderCircle class="xmb-loading-spinner" size={24} aria-hidden="true" /></Show>
+            <p>{startupFailed() ? startupError() : startupStatus()}</p>
+          </div>
+          <Show when={startupFailed()}>
+            <button onClick={() => { void backend.exitToLinuxShell(); }}><LogOut size={18} />Salir a consola</button>
+          </Show>
+        </section>
+      </Show>
       <div
         hidden={navigationStore.currentSection() !== "library"}
         class="xmb-library-layer"
+        style={{ visibility: startupReady() ? 'visible' : 'hidden' }}
+        inert={!startupReady()}
+        aria-hidden={!startupReady()}
       >
         <XmbLibrary
           games={libraryStore.catalogGames()}

@@ -50,6 +50,74 @@ desde SSH o TTY2, tras reparar la causa, se puede ejecutar
 
 ## Detección y permisos
 
+### Preparacion coordinada del runtime
+
+`services/runtime/startup.rs` es el propietario unico de la preparacion. El setup
+de Tauri inicia el coordinador una sola vez; App.tsx no inicia otro escaneo ni
+consulta hardware/emuladores por separado. La ventana se crea pronto con una
+pantalla de preparacion; la biblioteca solo se habilita tras recibir el conjunto
+de datos, agruparlo y montar la navegacion. La carga no depende de la red.
+
+```text
+Shell: preflight grafico -> compositor -> Tauri / pantalla de preparacion
+        -> recursos minimos CPU/RAM (incluidos limites cgroup v2 accesibles)
+        -> biblioteca/configuracion       hardware de sesion       servicios
+                                                                        +--------------------+
+                                                                        -> inventario/perfiles de emuladores con ese hardware
+                                                                        -> prepared
+                                                                        -> datos a SolidJS, hidratacion y montaje
+                                                                        -> mostrar biblioteca y confirmar al backend
+                                                                        -> ready / degraded
+                                                                        -> watcher, escaneo de cambios locales y manifiestos
+```
+
+Los tres primeros trabajos son independientes, pero no se lanzan todos sin limite:
+con menos de cuatro CPU utilizables o menos de 2048 MiB disponibles se admite uno;
+con ambos recursos suficientes se admiten como maximo dos. Memoria desconocida
+usa un cupo. Se reserva asi margen para WebKit/compositor sin inferir rendimiento
+a partir de la marca de GPU. El trabajo de disco se serializa; solo hay una tarea
+de sondeo grafico. La disponibilidad de almacenamiento se confirma al preparar
+SQLite. No se clasifica el disco como SSD/rapido sin evidencia.
+
+El presupuesto es de tareas de startup, no una cuota dura sobre todos los hilos
+internos de Mesa, emuladores, kernel o WebKit. Las restricciones cgroup v2 se leen
+cuando estan accesibles; no se promete deteccion completa de cgroup v1 o namespaces
+no visibles. Los umbrales son conservadores, no un benchmark adaptativo. El informe
+expone recursos, backend/estado grafico, entorno VM, tiempos por tarea y avisos.
+
+La instantanea grafica del runtime es unica para este arranque y se pasa al
+inventario/perfiles y a la UI. El preflight de Shell sigue siendo necesario para
+elegir compositor antes de crear la sesion; no se reutiliza como prueba del
+dispositivo activo del WebView. Los sondeos de versiones se deduplican por ruta
+canonica y argumentos para no ejecutar RetroArch una vez por cada core.
+
+Estados: `preparing`, `prepared` (datos nativos listos), `ready`, `degraded`,
+`error`. IPC: `get_startup_status`, `get_startup_data`, `startup_frontend_ready`;
+evento `startup-status`. La UI se suscribe antes de consultar el estado para
+cubrir eventos previos o concurrentes. El payload no se incluye en cada evento.
+La primera entrega mueve la biblioteca preparada fuera del coordinador para no
+retener otra copia completa; una recarga posterior de WebView relee SQLite.
+
+Limites de espera: cada version tiene 3s y terminacion forzada 1s despues; el
+inventario tiene un presupuesto de 25s comprobado entre perfiles. Preparacion
+nativa: 60s; consulta inicial del frontend: 65s; montaje/entrega frontend: 90s;
+confirmacion al backend tras `prepared`: 120s. El timeout no cancela una syscall
+de disco atascada en Rust: no se programan reemplazos ni se aceptan resultados
+tardios; la UI permite salir a consola. Las tareas secundarias no arrancan.
+No hay reinicios automaticos adicionales ni reintentos superpuestos.
+
+Configuracion/SQLite invalidos son errores criticos. Hardware indeterminado,
+servicios de sesion ausentes, versiones no consultables o perfiles incompletos
+generan avisos y pueden acabar degradados, conservando el estado real. No tener
+emuladores instalados no impide navegar. El lanzamiento vuelve a comprobar sus
+requisitos; `ready` no certifica que cualquier juego sea compatible.
+
+El test del frontend cubre eventos, snapshot, cancelacion y timeout; Rust cubre
+dependencias, cupos, errores, degradacion y respuestas tardias. No sustituyen un
+arranque fisico en ARM, la latencia del mando ni la preparacion de todos los cores.
+El primer parseo y la agrupacion completa del catalogo siguen teniendo coste en
+JavaScript; no se ocultan esas operaciones llamandolas trabajo en segundo plano.
+
 `installer/lib/architecture.sh` normaliza CPU y valida ELF. El runtime Rust usa
 `std::env::consts::ARCH` y comunica `uname -m` por separado como `kernelArchitecture`.
 `installer/lib/graphics.sh` consume `bin/emubox --graphics-session`: el mismo

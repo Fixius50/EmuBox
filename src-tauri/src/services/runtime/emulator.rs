@@ -131,28 +131,33 @@ impl EmulatorService {
         if arguments.is_empty() {
             return "Instalado (Oficial)".to_string();
         }
-        if let Ok(output) = Command::new(binary_path).args(arguments).output() {
-            let text = if output.status.success() {
-                String::from_utf8_lossy(&output.stdout).to_string()
-            } else {
-                String::from_utf8_lossy(&output.stderr).to_string()
-            };
-
+        if let Ok(text) = crate::services::host_command::output_with_timeout(
+            &binary_path.to_string_lossy(), arguments, "3s",
+        ) {
             let first_line = text.lines().next().unwrap_or("").trim();
             if !first_line.is_empty() {
                 return first_line.to_string();
             }
         }
-        "Instalado (Oficial)".to_string()
+        "Instalado (version no disponible)".to_string()
     }
 
     pub fn scan_emulators() -> Result<Vec<Emulator>, EmuBoxError> {
+        let hardware = crate::services::SystemService::get_hardware_info()?;
+        Self::scan_with_hardware(&hardware)
+    }
+
+    pub fn scan_with_hardware(hardware: &crate::models::HardwareInfo) -> Result<Vec<Emulator>, EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
         let mut list = Vec::new();
         let host = crate::models::Architecture::current();
-        let hardware = crate::services::SystemService::get_hardware_info()?;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(25);
+        let mut versions = std::collections::HashMap::new();
 
         for profile in emulators::registry() {
+            if std::time::Instant::now() >= deadline {
+                return Err(EmuBoxError::ProcessFailed("Tiempo limite del inventario de emuladores agotado".into()));
+            }
             let (status, executable, version) =
                 if !crate::services::emulator_capabilities::supports(profile.id(), host) {
                     (
@@ -164,10 +169,11 @@ impl EmulatorService {
                     if crate::services::binary_service::validate_binary(&binary_path, host, true)
                         .is_ok()
                     {
-                        let raw_version = Self::probe_official_version(
-                            &binary_path,
-                            &profile.version_arguments(),
-                        );
+                        let arguments = profile.version_arguments();
+                        let key = (std::fs::canonicalize(&binary_path).unwrap_or_else(|_| binary_path.clone()),
+                            arguments.iter().map(|argument| argument.to_string()).collect::<Vec<_>>());
+                        let raw_version = versions.entry(key).or_insert_with(||
+                            Self::probe_official_version(&binary_path, &arguments)).clone();
                         (
                             "active".to_string(),
                             binary_path.to_string_lossy().to_string(),
@@ -238,7 +244,7 @@ impl EmulatorService {
                 requirements: Default::default(),
                 compatibility: Default::default(),
             };
-            crate::services::emulator_capabilities::refresh(&mut emulator, host, &hardware);
+            crate::services::emulator_capabilities::refresh(&mut emulator, host, hardware);
             list.push(emulator);
         }
 
@@ -298,6 +304,13 @@ impl EmulatorService {
     }
 
     pub fn get_emulators() -> Result<Vec<Emulator>, EmuBoxError> {
+        let hardware = crate::services::SystemService::get_hardware_info()?;
+        let list = Self::cached_with_hardware(&hardware)?;
+        if list.is_empty() { return Self::scan_with_hardware(&hardware); }
+        Ok(list)
+    }
+
+    pub fn cached_with_hardware(hardware: &crate::models::HardwareInfo) -> Result<Vec<Emulator>, EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
         let mut stmt = conn.prepare(
             "SELECT id, official_name, version, supported_platforms_json, core_type, status, executable_path, default_arguments_json
@@ -311,17 +324,12 @@ impl EmulatorService {
         let mut list = rows
             .collect::<Result<Vec<_>, _>>()
             .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
-        let hardware = crate::services::SystemService::get_hardware_info()?;
         for emulator in &mut list {
             crate::services::emulator_capabilities::refresh(
                 emulator,
                 crate::models::Architecture::current(),
-                &hardware,
+                hardware,
             );
-        }
-
-        if list.is_empty() {
-            return Self::scan_emulators();
         }
 
         Ok(list)

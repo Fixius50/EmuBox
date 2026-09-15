@@ -5,6 +5,36 @@
 .xmb-library-layer[hidden] {
   display: none;
 }
+.emubox-startup {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1.5rem;
+  padding: 2rem;
+  color: var(--xmb-text);
+  background: var(--xmb-bg);
+  text-align: center;
+}
+.emubox-startup h1 { font-size: 2rem; }
+.emubox-startup [role="status"] {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-inline-size: 32rem;
+  overflow-wrap: anywhere;
+}
+.emubox-startup button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 0.0625rem solid var(--xmb-muted);
+  border-radius: 0.25rem;
+  color: var(--xmb-text);
+  background: var(--xmb-bg);
+}
 .xmb {
   --xmb-column: 7rem;
   --xmb-row: 4.75rem;
