@@ -16,6 +16,11 @@ for (const source of [dependencies, read('installer/modules/package-setup.sh')])
   }
 }
 const launcher = read('scripts/run.sh');
+const gamemodeProfile = read('installer/config/gamemode.ini');
+for (const setting of ['disable_splitlock=0', 'inhibit_screensaver=0', 'softrealtime=off',
+  'renice=0', 'ioprio=off', 'park_cores=no', 'pin_cores=no']) {
+  assert.ok(gamemodeProfile.split('\n').includes(setting));
+}
 const cursorEnvironment = launcher.split('\n').filter(line => line.startsWith('export XCURSOR_')).join('\n');
 assert.ok(cursorEnvironment.includes('XCURSOR_THEME'));
 assert.ok(cursorEnvironment.includes('XCURSOR_SIZE'));
@@ -60,6 +65,24 @@ assert.match(autostart, /^setup_udev_rules$/m);
 
 const directory = mkdtempSync(path.join(tmpdir(), 'emubox-unit-test-'));
 try {
+  const gamemodeStart = autostart.indexOf('GAMEMODE_CONFIG=');
+  assert.ok(gamemodeStart > 0);
+  const gamemodeEnd = autostart.indexOf('\nfi', gamemodeStart) + 3;
+  const configureGamemode = () => spawnSync('bash', ['-s'], {
+    input: `set -euo pipefail\n${autostart.slice(gamemodeStart, gamemodeEnd)}`,
+    env: { ...process.env, EMUBOX_HOME: directory,
+      EMUBOX_USER: String(process.getuid()),
+      SCRIPT_DIR: new URL('../scripts', import.meta.url).pathname },
+    encoding: 'utf8',
+  });
+  const gamemodePath = path.join(directory, '.config/gamemode.ini');
+  const configuredGamemode = configureGamemode();
+  assert.equal(configuredGamemode.status, 0, configuredGamemode.stderr);
+  assert.equal(readFileSync(gamemodePath, 'utf8'), gamemodeProfile);
+  writeFileSync(gamemodePath, '[general]\nrenice=5\n');
+  assert.equal(configureGamemode().status, 0);
+  assert.equal(readFileSync(gamemodePath, 'utf8'), '[general]\nrenice=5\n');
+
   const fstabPath = path.join(directory, 'fstab');
   const rootEntry = 'UUID=root / ext4 rw,relatime 0 1';
   const bootEntry = 'UUID=boot /boot vfat rw,relatime,fmask=0022,dmask=0022,errors=remount-ro 0 2';

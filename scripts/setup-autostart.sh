@@ -93,6 +93,17 @@ if [[ -S "/run/user/$EMUBOX_UID/bus" ]]; then
   "${USER_SYSTEMCTL[@]}" start pipewire.socket pipewire-pulse.socket wireplumber.service
 fi
 
+GAMEMODE_CONFIG="${EMUBOX_HOME}/.config/gamemode.ini"
+if [[ ! -e "$GAMEMODE_CONFIG" && ! -L "$GAMEMODE_CONFIG" ]]; then
+  if [[ ! -d "${EMUBOX_HOME}/.config" ]]; then
+    install -d -o "$EMUBOX_USER" -g "$EMUBOX_USER" -m 0700 "${EMUBOX_HOME}/.config"
+  fi
+  install -o "$EMUBOX_USER" -g "$EMUBOX_USER" -m 0644 \
+    "$SCRIPT_DIR/../installer/config/gamemode.ini" "$GAMEMODE_CONFIG"
+else
+  echo "[INFO] Se conserva la configuracion GameMode existente: $GAMEMODE_CONFIG"
+fi
+
 # Asegurar membresía en grupos para Gamepad (Punto 9) y Video/DRM
 for grp in video render input uinput seat; do
   if getent group "$grp" >/dev/null 2>&1; then

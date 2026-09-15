@@ -27,6 +27,51 @@ la VM apagada ordenadamente cuando corresponda. No se han aplicado desde Linux.
 Referencias: [TDX del kernel](https://docs.kernel.org/arch/x86/tdx.html) y
 [estado de mitigacion SRSO](https://docs.kernel.org/admin-guide/hw-vuln/srso.html).
 
+### Revision del anfitrion y GameMode
+
+Consulta de solo lectura del anfitrion Windows: GPU AMD Radeon RX 6600,
+controlador 32.0.21045.1000, estado informado OK. VirtualBox tiene VMSVGA,
+aceleracion 3D activada, 256 MiB de VRAM, un monitor y cuatro vCPU; la interfaz
+efectiva de paravirtualizacion es KVM. No faltaba activar 3D ni asignar VRAM.
+El registro del anfitrion contiene entradas NEM y un error de GuestPropSvc
+`VERR_HGCM_SERVICE_NOT_FOUND`; no demuestra por si solo la causa de los errores
+DRM del invitado. No se cambiaron Hyper-V/VBS, firmware, mitigaciones, controlador
+de Windows ni opciones de la VM. Los paquetes GameMode/libdrm/wlroots verificados
+no tienen archivos alterados, y las versiones de los repositorios locales
+coinciden con las instaladas. Eso no certifica ausencia de bugs del driver.
+
+El cliente que activo GameMode en el arranque era RetroArch (PID 816).
+La VM no expone gobernadores cpufreq. GameMode 1.8.2 devuelve un estado vacio
+cuando no los encuentra y aun intenta `cpugovctl` mediante pkexec; su configuracion
+no ofrece un interruptor para omitir ese cambio. Conceder permisos no crearia
+un gobernador fisico en el invitado.
+
+El perfil RetroArch desactiva `gamemode_enable` cuando HardwareInfo identifica
+una VM, tanto en la configuracion gestionada como en la ubicacion XDG nativa
+que RetroArch usa por defecto. En hardware fisico no modifica esta preferencia.
+Los archivos de configuracion especificados explicitamente por el usuario con
+`--config`/`--appendconfig` conservan su responsabilidad y pueden cambiar la opcion.
+RPCS3 ya tenia `Enable GameMode: false` en este equipo. No se envuelven los
+sondeos ni juegos automaticamente con gamemoderun.
+
+`installer/config/gamemode.ini` es el perfil conservador para nuevas cuentas
+appliance sin configuracion propia: mantiene split_lock_mitigate, no solicita
+renice/SCHED_ISO, evita pinning/parking automaticos y no pide un salvapantallas
+D-Bus que Cage no ofrece. El instalador conserva archivos existentes; los valores
+de GameMode pueden ser sobreescritos por configuraciones de mayor prioridad.
+El perfil no convierte GameMode en un motor utilizable sin cpufreq.
+
+En esta sesion se instalo el perfil de usuario, se reinicio solo gamemoded sin
+clientes activos y se desactivo GameMode en el archivo nativo de RetroArch.
+`split_lock_mitigate` permanecio en 1. Una prueba nativa con dos frames, video
+null, sin juego y con configuracion temporal termino sin errores GameMode; no
+valida sonido, juegos ni estabilidad de SVGA3D. El primer sondeo fallido habia
+intentado inicializar Qt sin pantalla; se corrigio su configuracion, no la UI.
+La sesion Cage/EmuBox no se reinicio. Los errores de vmwgfx siguen pendientes;
+no se ocultan ni se afirma que este perfil los repare.
+
+Referencia de opciones: [GameMode 1.8.2](https://github.com/FeralInteractive/gamemode/blob/1.8.2/example/gamemode.ini).
+
 ## Politica de seleccion
 
 EmuBox detecta CPU y GPU por separado. La prioridad automatica es usar la GPU

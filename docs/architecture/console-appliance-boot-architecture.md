@@ -82,6 +82,11 @@ La regla tmpfiles recrea `/run/emubox` como `emubox:emubox` en cada arranque.
 La base habilita PipeWire/WirePlumber de usuario y no requiere emuladores;
 los motores se instalan aparte mediante `installer/setup/emulator-packages.sh`.
 El log de sesión se conserva en `/var/log/emubox/session.log`.
+Si no existe configuracion de GameMode del usuario, el setup instala el perfil
+conservador de `installer/config/gamemode.ini`: no cambia mitigaciones del kernel
+ni solicita afinidad automatica de CPU o salvapantallas de escritorio. Las
+preferencias existentes se conservan. RetroArch desactiva GameMode en VM mediante
+su perfil nativo; no se conceden privilegios polkit para aparentar soporte cpufreq.
 `emubox-drm-sync` escucha eventos DRM para ajustar salidas compatibles; su
 funcionamiento requiere comprobación en cada compositor y pantalla.
 
