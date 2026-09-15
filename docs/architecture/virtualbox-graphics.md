@@ -2,6 +2,43 @@
 
 ## Resultado observado
 
+### Captura real y color, sesion de las 22:24
+
+Se obtuvieron capturas nativas de VirtualBox y de Wayland mediante screencopy,
+sin navegador ni entrada sintetica. Ambas muestran la interfaz completa pero
+clara; el cambio de luminosidad ya esta presente antes de la presentacion del
+anfitrion. En la captura Wayland de 1456x817 se midieron, entre otros, los RGB
+(24,42,58) en (10,100) y (36,78,86) en (700,100), superiores al fondo oscuro
+definido en los estilos empaquetados. No se capturo el episodio negro durante
+el juego ni se demostro la causa del cambio temporal de luminosidad.
+
+Las pruebas antiguas con primarios puros no detectaban diferencias de gamma.
+`tests/presentation.test.c` incluye ahora tonos intermedios, mezcla alfa y una
+textura ARGB importada con el color oscuro #0b131b. GLES2/SVGA3D y Pixman
+coinciden con los valores esperados, con tolerancia de un nivel por canal.
+Esto comprueba la escena y la subida de esa textura en wlroots; no reproduce
+la composicion interna de WebKit ni los buffers generados por el emulador.
+
+El fondo XMB se pinta ahora directamente sobre la raiz opaca en lugar de una
+capa con z-index negativo. Se mantienen los colores por categoria. La onda
+decorativa es estatica para `data-gpu-kind=virtual`, conservando renderer
+acelerado; los equipos fisicos mantienen su animacion. El objetivo es evitar
+la composicion separada del fondo y reducir trabajo continuo de WebKit.
+No es una correccion verificada del negro del juego: requiere observar la
+ventana real tras cargar el nuevo binario. No se desactiva la aceleracion global
+ni se compensa el problema cambiando arbitrariamente gamma o brillo.
+
+En reposo se observaron promedios de CPU altos en WebKit (aproximadamente
+85 % de un nucleo), no una medicion de latencia de entrada. La sesion solo
+registro un retraso libinput de 46 ms al arrancar, insuficiente para explicar
+el segundo de retardo referido. No habia mando fisico identificado: js0 era
+VirtualBox mouse integration. Audio UI habilitado en los ajustes por defecto
+y stream PipeWire de EmuBox sin mute; sonido audible no verificado.
+
+Grim se extrajo temporalmente de un paquete oficial cuya firma se verifico con
+el llavero de Arch; no se instalo software adicional en el SO. No se cambiaron
+firmware, driver anfitrion, VSync, gamma ni parametros de latencia del juego.
+
 ### Partida y sintomas posteriores, 15 de septiembre
 
 El usuario pudo ejecutar un RPG antiguo con Libretro y reporto sonido/controles

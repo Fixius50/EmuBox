@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { GraphicsDetectorService } from '../solid/src/services/graphics/graphics-detector.service';
 import type { HardwareInfo } from '../solid/src/types/system.types';
 
@@ -34,4 +35,15 @@ assert.equal(inconclusive.evidence?.activeDeviceId, null);
 assert.equal(detector.detectFromHardware({ ...hardware, graphics: { ...evidence, detectionState: 'software', backend: 'software' } }).pipeline, 'cpu-compatible');
 
 assert.equal(detector.detect().isGpuAccelerated, null);
+const attributes = new Map<string, string>();
+const documentTarget = { documentElement: { setAttribute: (name: string, value: string) => attributes.set(name, value) } } as unknown as Document;
+detector.detectFromHardware({ ...hardware, openglAccelerated: true }, documentTarget);
+assert.equal(attributes.get('data-gpu-kind'), 'virtual');
+assert.equal(attributes.get('data-render-pipeline'), 'accelerated');
+detector.detectFromHardware({ ...hardware, gpuRenderer: 'AMD Radeon', gpuVendor: 'amd', gpuKind: 'physical', isVirtualMachine: false, openglAccelerated: true }, documentTarget);
+assert.equal(attributes.get('data-gpu-kind'), 'physical');
+const xmbCss = readFileSync(new URL('../solid/src/styles/xmb.css', import.meta.url), 'utf8');
+assert.match(xmbCss, /background:\s*var\(--xmb-background\) var\(--xmb-bg\)/);
+assert.match(xmbCss, /html\[data-gpu-kind="virtual"\] \.xmb-wave\s*\{\s*animation: none;/);
+assert.ok(!/\.xmb-atmosphere\s*\{[^}]*z-index:\s*-/.test(xmbCss));
 console.log('Graphics policy: native GPU and accelerated VM preferred, CPU fallback independent of architecture');

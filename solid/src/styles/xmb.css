@@ -10,13 +10,14 @@
   --xmb-row: 4.75rem;
   --xmb-anchor: 26%;
   --xmb-drawer: 23rem;
+  --xmb-background: linear-gradient(125deg, #0b131b, #163133 58%, #11171e);
   position: relative;
   isolation: isolate;
   inline-size: 100%;
   block-size: 100%;
   overflow: hidden;
   color: var(--xmb-text);
-  background: var(--xmb-bg);
+  background: var(--xmb-background) var(--xmb-bg);
 }
 .xmb button {
   color: inherit;
@@ -31,20 +32,19 @@
 .xmb-atmosphere {
   position: absolute;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   overflow: hidden;
   pointer-events: none;
-  background: linear-gradient(125deg, #0b131b, #163133 58%, #11171e);
 }
-.xmb[data-category="settings"] .xmb-atmosphere {
-  background: linear-gradient(125deg, #171b20, #25343b, #101619);
+.xmb[data-category="settings"] {
+  --xmb-background: linear-gradient(125deg, #171b20, #25343b, #101619);
 }
-.xmb[data-category="favorites"] .xmb-atmosphere {
-  background: linear-gradient(125deg, #16151d, #3b2632, #141a20);
+.xmb[data-category="favorites"] {
+  --xmb-background: linear-gradient(125deg, #16151d, #3b2632, #141a20);
 }
-.xmb[data-category="ps2"] .xmb-atmosphere,
-.xmb[data-category="ps3"] .xmb-atmosphere {
-  background: linear-gradient(125deg, #151823, #253b49, #141b21);
+.xmb[data-category="ps2"],
+.xmb[data-category="ps3"] {
+  --xmb-background: linear-gradient(125deg, #151823, #253b49, #141b21);
 }
 .xmb-wave {
   position: absolute;
@@ -730,6 +730,7 @@
   }
 }
 html[data-render-pipeline="cpu-compatible"] .xmb-wave,
-html[data-render-pipeline="indeterminate"] .xmb-wave {
+html[data-render-pipeline="indeterminate"] .xmb-wave,
+html[data-gpu-kind="virtual"] .xmb-wave {
   animation: none;
 }

@@ -8,6 +8,7 @@
 #include <drm_fourcc.h>
 #include <wayland-server-core.h>
 #include <wlr/backend/headless.h>
+#include <wlr/interfaces/wlr_buffer.h>
 #include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/wlr_texture.h>
@@ -25,6 +26,38 @@ struct presentation_test {
     struct timespec started;
     double previous_frame_ms;
     double maximum_gap_ms;
+};
+
+struct sample_buffer {
+    struct wlr_buffer base;
+    uint32_t pixels[16 * 16];
+};
+
+static void destroy_sample(struct wlr_buffer *buffer)
+{
+    free(buffer);
+}
+
+static bool read_sample(struct wlr_buffer *buffer, uint32_t flags,
+    void **data, uint32_t *format, size_t *stride)
+{
+    if (flags & WLR_BUFFER_DATA_PTR_ACCESS_WRITE) return false;
+    struct sample_buffer *sample = (struct sample_buffer *)buffer;
+    *data = sample->pixels;
+    *format = DRM_FORMAT_ARGB8888;
+    *stride = 16 * sizeof(uint32_t);
+    return true;
+}
+
+static void finish_sample_read(struct wlr_buffer *buffer)
+{
+    (void)buffer;
+}
+
+static const struct wlr_buffer_impl sample_impl = {
+    .destroy = destroy_sample,
+    .begin_data_ptr_access = read_sample,
+    .end_data_ptr_access = finish_sample_read,
 };
 
 static void render_frame(struct wl_listener *listener, void *data)
@@ -63,7 +96,19 @@ static void render_frame(struct wl_listener *listener, void *data)
             if (row >= 16 && row < 24 && column >= 16 && column < 24) {
                 expected = test->frames % 2 == 0 ? 0x0000ff00 : 0x000000ff;
             }
-            assert((pixels[row * 96 + column] & 0x00ffffff) == expected);
+            if (column >= 48) expected = 0x00402080;
+            if (row >= 32 && row < 48 && column >= 16 && column < 32) expected = 0x00ff8080;
+            if (column >= 32 && column < 48 && row >= 40 && row < 56) {
+                expected = row < 48 ? 0x000b131b : 0x008f1010;
+            }
+            uint32_t actual = pixels[row * 96 + column] & 0x00ffffff;
+            for (unsigned shift = 0; shift <= 16; shift += 8) {
+                int difference = (int)((actual >> shift) & 255) - (int)((expected >> shift) & 255);
+                if (difference < -1 || difference > 1) {
+                    fprintf(stderr, "frame=%u pixel=%u,%u expected=%06x actual=%06x\n", test->frames, column, row, expected, actual);
+                    abort();
+                }
+            }
         }
     }
     wlr_texture_destroy(texture);
@@ -121,6 +166,24 @@ int main(int argc, char **argv)
     const float red[4] = {1, 0, 0, 1};
     const float green[4] = {0, 1, 0, 1};
     assert(wlr_scene_rect_create(&scene->tree, 96, 64, red) != NULL);
+    const float midtone[4] = {0.25f, 0.125f, 0.5f, 1};
+    struct wlr_scene_rect *color_sample = wlr_scene_rect_create(&scene->tree, 48, 64, midtone);
+    assert(color_sample != NULL);
+    wlr_scene_node_set_position(&color_sample->node, 48, 0);
+    const float translucent[4] = {0.5f, 0.5f, 0.5f, 0.5f};
+    struct wlr_scene_rect *blend_sample = wlr_scene_rect_create(&scene->tree, 16, 16, translucent);
+    assert(blend_sample != NULL);
+    wlr_scene_node_set_position(&blend_sample->node, 16, 32);
+    struct sample_buffer *sample = calloc(1, sizeof(*sample));
+    assert(sample != NULL);
+    wlr_buffer_init(&sample->base, &sample_impl, 16, 16);
+    for (unsigned pixel = 0; pixel < 16 * 16; pixel++) {
+        sample->pixels[pixel] = pixel < 16 * 8 ? 0xff0b131b : 0x80101010;
+    }
+    struct wlr_scene_buffer *imported = wlr_scene_buffer_create(&scene->tree, &sample->base);
+    assert(imported != NULL);
+    wlr_scene_node_set_position(&imported->node, 32, 40);
+    wlr_buffer_drop(&sample->base);
     struct wlr_scene_rect *patch = wlr_scene_rect_create(&scene->tree, 8, 8, green);
     assert(patch != NULL);
     wlr_scene_node_set_position(&patch->node, 16, 16);

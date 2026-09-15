@@ -117,6 +117,7 @@ export class GraphicsDetectorService {
     doc.documentElement.setAttribute('data-render-pipeline', this.capabilities.pipeline);
     doc.documentElement.setAttribute('data-render-backend', this.capabilities.selectedBackend);
     doc.documentElement.setAttribute('data-graphics-detection', this.capabilities.detectionState);
+    doc.documentElement.setAttribute('data-gpu-kind', this.capabilities.gpuKind);
     doc.documentElement.setAttribute('data-operational-backend', this.capabilities.operationalBackend);
     doc.documentElement.setAttribute('data-blur-mode', this.capabilities.recommendedBlur ? 'hardware' : 'software');
   }
