@@ -23,13 +23,22 @@ pub fn run() {
                 if let Ok(hardware) = services::SystemService::get_hardware_info() {
                     let _ = services::EmulatorService::apply_hardware_profile(&hardware);
                 }
-                let _ = services::GameService::scan_games(None);
+                match services::GameService::scan_games(None) {
+                    Ok(scan) => {
+                        if scan.added_count > 0 || scan.updated_count > 0 || scan.removed_count > 0 {
+                            let _ = app_handle.emit("library-updated", serde_json::json!({ "reason": "initial-scan" }));
+                        }
+                        if !scan.errors.is_empty() {
+                            eprintln!("[Library] Escaneo inicial incompleto: {:?}", scan.errors);
+                        }
+                    }
+                    Err(error) => eprintln!("[Library] Escaneo inicial: {error}"),
+                }
                 if let Err(error) = services::DownloadService::import_link_file_with_progress(|| {
                     let _ = app_handle.emit("library-updated", serde_json::json!({ "reason": "manifest-import" }));
                 }) {
                     eprintln!("[Catalog] {error}");
                 }
-                let _ = app_handle.emit("library-updated", serde_json::json!({ "reason": "initial-scan" }));
             });
 
             // 2. Iniciar watcher reactivo del sistema de archivos (inotify / notify)

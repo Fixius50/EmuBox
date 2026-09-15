@@ -1,6 +1,6 @@
 # Estado actual de EmuBox
 
-**Fecha de referencia:** 13 de septiembre de 2026
+**Fecha de referencia:** 15 de septiembre de 2026
 **Estado:** runtime nativo y configuracion de appliance x86_64/aarch64 implementados;
 aceptacion funcional ARM real pendiente. Distribucion reproducible: fase posterior.
 
@@ -84,7 +84,7 @@ La biblioteca ya está lista para operar:
 - El store recarga la biblioteca al terminar una descarga.
 - Las fuentes se importan desde `/etc/emubox/download-links.txt` si tiene URLs; si no, desde `data/download-links.txt`.
 - Importar crea metadatos y fuentes, no trabajos de descarga. Se actualiza al arrancar y cada seis horas.
-- El evento oficial Tauri `library-updated` recarga la biblioteca despues de importar cada manifiesto.
+- El evento oficial Tauri `library-updated` solicita actualizacion; la UI agrupa avisos y evita lecturas simultaneas.
 - El gestor guarda trabajos y snapshot de fuente en SQLite, con proveedores HTTP/BitTorrent y staging por trabajo.
 - Solo una preparacion no ambigua registra el juego como instalado; archivos pendientes quedan `downloaded`, no jugables automaticamente.
 - PS3/RPCS3, asociaciones de compatibilidad y lanzamiento forman parte del flujo de backend.
@@ -113,6 +113,33 @@ prefijo propio por paquete. PKG PS3 usa RPCS3 headless en un entorno aislado, re
 firmware local y comprueba log y estructura de salida. No son instaladores universales:
 EXE de otros formatos, descriptores multidisco y compatibilidad de juegos quedan pendientes.
 Ver [detalle y limites](download-providers.md).
+
+## Arranque con biblioteca persistida
+
+La UI solicita SQLite al montar, antes de esperar sondeos de hardware o emuladores.
+Conserva la pantalla XMB y muestra un indicador indeterminado con el estado de carga;
+no inventa porcentajes ni indica que se esten descargando juegos. Plataformas y
+ajustes se publican en cuanto llegan, sin esperar la lista de emuladores.
+
+El backend mantiene el unico escaneo inicial de disco y la sincronizacion de
+manifiestos en segundo plano. Los cambios del escaneo se notifican antes de iniciar
+la importacion remota. No se repite el escaneo desde App.tsx ni se recarga todo el
+catalogo por un escaneo sin cambios. La caché HTTP existente de manifiestos sigue
+en vigor; no se ha sustituido por un plazo que ignore cambios locales.
+
+`get_games`, `scan_games`, `get_emulators` y `get_hardware_info` ejecutan su trabajo
+bloqueante en el pool de Tauri. Las respuestas y errores mantienen el contrato IPC.
+El store comparte lecturas simultaneas, descarta respuestas superadas, conserva
+datos ante errores y reutiliza objetos/grupos cuando SQLite devuelve datos iguales.
+Los avisos se agrupan en ventanas de un segundo, con otra lectura si llegan cambios
+mientras se actualiza. La navegacion no se deshabilita durante esas actualizaciones.
+
+Limites: sigue transfiriendose el catalogo completo en una lectura necesaria; la
+primera agrupacion y deserializacion tienen coste. No se ha implementado paginacion,
+worker de agrupacion ni una segunda base de datos en localStorage. Las mejoras de
+carga no certifican ni corrigen por si solas la latencia del juego o el scanout de
+VirtualBox. El brillo cambiante y el negro al minuto siguen en diagnostico nativo,
+sin desactivar mitigaciones ni cambiar parametros del emulador sin evidencia.
 
 ## Ampliacion del 14 de septiembre de 2026
 

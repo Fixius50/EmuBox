@@ -2,6 +2,39 @@
 
 ## Resultado observado
 
+### Partida y sintomas posteriores, 15 de septiembre
+
+El usuario pudo ejecutar un RPG antiguo con Libretro y reporto sonido/controles
+funcionales, pero aproximadamente un segundo de retardo con teclado, cambios de
+luminosidad azul al hover y negro o imagen muy tenue tras cerca de un minuto.
+Escape abre el mensaje de salida del juego y recupera al menos parte de la imagen.
+El mando fisico y la continuidad del sonido durante el negro no estan confirmados.
+
+La sesion de las 21:57 registra biblioteca cargada, rerender y scanout directo
+desactivado, sin errores GPU nuevos. `consoleblank=0`, no se encontro daemon de
+inactividad, y RetroArch tiene menu_screensaver_timeout=0, HDR desactivado, shader
+de video desactivado e insercion de frames negros=0. No hay una regla CSS de hover
+que ajuste la luminosidad de toda la pantalla. Esas comprobaciones NO descartan
+problemas de presentacion, foco, core o hipervisor. No se cambiaron gamma, VSync,
+latencia, shaders ni politicas de energia para aparentar una solucion.
+
+Las reglas de teclado/mando de la UI se revisan independientemente de la entrada
+nativa del emulador. No hay una espera programada de un segundo en la primera
+accion de la UI; las pruebas unitarias no miden latencia extremo a extremo.
+
+La prueba de presentacion admite como argumento una duracion de 1 a 120 segundos:
+anadir `70` al comando de `/tmp/emubox-presentation-test` mantiene la escena mas
+alla del minuto, verifica todos los pixels y registra el mayor intervalo entre
+frames. Sigue siendo una salida headless de 96x64, no una prueba del juego, WebKit,
+KMS fisico ni del mando. Su resultado no permite declarar resuelto el negro.
+
+Resultado de la ejecucion prolongada: 3008 cuadros y 18481152 pixels correctos
+en 70033 ms; mayor separacion entre frames de 62,60 ms. La lectura de pixels
+forma parte del coste del test, por lo que no es un benchmark del juego ni una
+medicion de latencia de teclado/mando. No se reprodujo el negro en esta escena
+aislada. DRM informaba DPMS On en la consulta realizada; no se midio durante
+el episodio del juego. Brillo, negro y latencia real siguen pendientes.
+
 ### Imagen parcial tras cargar la biblioteca
 
 En la sesion de las 21:17 del 15 de septiembre, el adaptador PRIME y

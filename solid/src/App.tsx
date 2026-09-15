@@ -45,6 +45,8 @@ const NativeApp: Component = () => {
   const systemStore = createSystemStore(backend);
   const navigationStore = createNavigationStore();
   const modalStore = createModalStore();
+  const [startupStatus, setStartupStatus] = createSignal('Cargando biblioteca guardada...');
+  const [startupError, setStartupError] = createSignal('');
 
   const handleGameActivate = (game: Game) => {
     soundFx.playSelect();
@@ -146,12 +148,37 @@ const NativeApp: Component = () => {
 
   // 5. Initial Dataset Bootstrap
   let unlistenLibraryUpdated: (() => void) | undefined;
+  let libraryRefreshTimer: ReturnType<typeof setTimeout> | undefined;
+  let refreshingLibrary = false;
+  let libraryDirty = false;
   let disposed = false;
+  const refreshLibrary = async () => {
+    libraryRefreshTimer = undefined;
+    if (disposed || refreshingLibrary) return;
+    if (libraryStore.isLoading()) {
+      libraryRefreshTimer = setTimeout(refreshLibrary, 1000);
+      return;
+    }
+    libraryDirty = false;
+    refreshingLibrary = true;
+    try {
+      await libraryStore.loadGames();
+    } catch (error) {
+      console.error('[Library]', error);
+    } finally {
+      refreshingLibrary = false;
+      if (libraryDirty && !disposed) libraryRefreshTimer = setTimeout(refreshLibrary, 1000);
+    }
+  };
   onCleanup(() => {
     disposed = true;
+    clearTimeout(libraryRefreshTimer);
     unlistenLibraryUpdated?.();
   });
   onMount(async () => {
+    const cachedLibrary = libraryStore.loadGames().catch((error) => {
+      console.error('[Library] No se pudo cargar la biblioteca guardada', error);
+    });
     // Sonda de diagnóstico: confirma si el puente IPC de Tauri existe en este webview.
     try {
       const internals = (window as any).__TAURI_INTERNALS__;
@@ -174,9 +201,10 @@ const NativeApp: Component = () => {
     if (backend.isTauriEnvironment) {
       try {
         const unlisten = await listen("library-updated", () => {
-          void libraryStore
-            .loadGames()
-            .catch((error) => console.error("[Library]", error));
+          libraryDirty = true;
+          if (!refreshingLibrary && libraryRefreshTimer === undefined) {
+            libraryRefreshTimer = setTimeout(refreshLibrary, 1000);
+          }
         });
         if (disposed) unlisten();
         else unlistenLibraryUpdated = unlisten;
@@ -185,33 +213,23 @@ const NativeApp: Component = () => {
       }
     }
 
-    if (backend.isTauriEnvironment) {
-      await backend
-        .getHardwareInfo()
-        .then((hardware) => graphicsDetector.detectFromHardware(hardware))
-        .catch((error) =>
-          console.error("[Graphics] No se pudo consultar el hardware", error),
-        );
-    }
-    await systemStore
-      .loadSystemData()
-      .catch((error) => console.error("[System]", error));
-    try {
-      if (backend.isTauriEnvironment) {
-        // Escanear y cargar juegos reales del sistema Linux (/var/lib/emubox/games)
-        await backend.scanGames();
-        await libraryStore.loadGames();
-      } else {
-        // Entorno de desarrollo en navegador web sin runtime Tauri
-        await libraryStore.loadGames();
-      }
-    } catch {
-      await libraryStore.loadGames();
-    }
-
+    await cachedLibrary;
+    if (disposed) return;
+    setStartupStatus('Preparando sistema y emuladores...');
+    await Promise.all([
+      backend.getHardwareInfo()
+        .then((hardware) => { if (!disposed) graphicsDetector.detectFromHardware(hardware); })
+        .catch((error) => console.error('[Graphics] No se pudo consultar el hardware', error)),
+      systemStore.loadSystemData().catch((error) => {
+        console.error('[System]', error);
+        if (!disposed) setStartupError('No se pudo completar la carga del sistema');
+      }),
+    ]);
+    if (disposed) return;
     if (systemStore.settings()) {
       soundFx.setEnabled(systemStore.settings()!.audio.uiSoundEffects);
     }
+    setStartupStatus('');
   });
 
   return (
@@ -224,7 +242,9 @@ const NativeApp: Component = () => {
           games={libraryStore.catalogGames()}
           platforms={systemStore.platforms()}
           downloadingIds={libraryStore.catalogDownloadingIds()}
-          loading={libraryStore.isLoading()}
+          loading={Boolean(startupStatus()) || libraryStore.isLoading()}
+          loadingMessage={startupStatus() || 'Actualizando biblioteca...'}
+          loadError={libraryStore.loadError() || startupError()}
           inputStatus={inputStatus()}
           error={libraryStore.downloadError()}
           onOpenGame={handleGameActivate}

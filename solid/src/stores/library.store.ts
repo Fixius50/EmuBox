@@ -57,15 +57,42 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
     }
   };
 
-  const loadGames = async (preloadedGames?: Game[]) => {
+  let gamesRequest = 0;
+  let pendingGames: Promise<void> | undefined;
+  const [loadError, setLoadError] = createSignal('');
+  const loadGames = (preloadedGames?: Game[]): Promise<void> => {
+    if (preloadedGames === undefined && pendingGames) return pendingGames;
+    const request = ++gamesRequest;
     setIsLoading(true);
-    try {
-      const fetched = preloadedGames ?? await backend.getGames();
-      const merged = new Map(fetched.map(game => [game.id, game]));
-      setGames([...merged.values()]);
-    } finally {
-      setIsLoading(false);
-    }
+    setLoadError('');
+    const operation = Promise.resolve().then(() => preloadedGames ?? backend.getGames())
+      .then(fetched => {
+        if (request !== gamesRequest) return;
+        const previous = games();
+        const byId = new Map(previous.map(game => [game.id, game]));
+        const merged = new Map<string, Game>();
+        for (const game of fetched) {
+          const existing = byId.get(game.id);
+          const keys = Object.keys(game) as (keyof Game)[];
+          const unchanged = existing && Object.keys(existing).length === keys.length
+            && keys.every(key => Object.is(existing[key], game[key]));
+          merged.set(game.id, unchanged ? existing : game);
+        }
+        const next = [...merged.values()];
+        if (next.length !== previous.length || next.some((game, index) => game !== previous[index])) {
+          setGames(next);
+        }
+      }).catch(error => {
+        if (request === gamesRequest) setLoadError(error instanceof Error ? error.message : 'No se pudo actualizar la biblioteca');
+        throw error;
+      }).finally(() => {
+        if (request === gamesRequest) {
+          pendingGames = undefined;
+          setIsLoading(false);
+        }
+      });
+    pendingGames = operation;
+    return operation;
   };
 
   const filteredGames = createMemo(() => {
@@ -206,6 +233,7 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
     datasetLimit,
     setDatasetLimit,
     isLoading,
+    loadError,
     loadGames,
     filteredGames,
     toggleFavorite,

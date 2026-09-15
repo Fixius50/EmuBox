@@ -11,8 +11,8 @@ pub fn get_system_info() -> Result<SystemInfo, EmuBoxError> {
 }
 
 #[tauri::command]
-pub fn get_hardware_info() -> Result<HardwareInfo, EmuBoxError> {
-    SystemService::get_hardware_info()
+pub async fn get_hardware_info() -> Result<HardwareInfo, EmuBoxError> {
+    super::blocking(SystemService::get_hardware_info).await
 }
 
 #[tauri::command]

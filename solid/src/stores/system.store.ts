@@ -11,14 +11,11 @@ export function createSystemStore(backend: IEmuBoxBackend) {
   const loadSystemData = async () => {
     setIsLoading(true);
     try {
-      const [plats, emus, sett] = await Promise.all([
-        backend.getPlatforms(),
-        backend.getEmulators(),
-        backend.getSettings()
+      await Promise.all([
+        backend.getPlatforms().then(setPlatforms),
+        backend.getEmulators().then(setEmulators),
+        backend.getSettings().then(setSettings)
       ]);
-      setPlatforms(plats);
-      setEmulators(emus);
-      setSettings(sett);
     } finally {
       setIsLoading(false);
     }

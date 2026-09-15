@@ -10,6 +10,7 @@ import {
   Gamepad2,
   Heart,
   Layers,
+  LoaderCircle,
   Monitor,
   Search,
   Settings2,
@@ -70,6 +71,12 @@ export function XmbLibrary(props: XmbLibraryProps) {
           <strong>EMUBOX</strong>
           <span>/</span>
           <span>{category().title}</span>
+        </div>
+        <div class="xmb-load-status" role="status" aria-live="polite" aria-atomic="true">
+          <Show when={props.loading} fallback={props.loadError}>
+            <LoaderCircle class="xmb-loading-spinner" size={16} aria-hidden="true" />
+            <span>{props.loadingMessage || 'Cargando biblioteca...'}</span>
+          </Show>
         </div>
         <div class="xmb-top-actions">
           <label class="xmb-search">

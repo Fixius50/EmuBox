@@ -26,6 +26,8 @@ export interface XmbLibraryProps {
   games: CatalogGroup[];
   platforms: Platform[];
   loading: boolean;
+  loadingMessage?: string;
+  loadError?: string;
   downloadingIds: Set<string>;
   inputStatus: InputDeviceStatus;
   error?: { gameId: string; message: string } | null;

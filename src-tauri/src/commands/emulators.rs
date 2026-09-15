@@ -3,8 +3,8 @@ use crate::services::EmulatorService;
 use crate::errors::EmuBoxError;
 
 #[tauri::command]
-pub fn get_emulators() -> Result<Vec<Emulator>, EmuBoxError> {
-    EmulatorService::get_emulators()
+pub async fn get_emulators() -> Result<Vec<Emulator>, EmuBoxError> {
+    super::blocking(EmulatorService::get_emulators).await
 }
 
 #[tauri::command]
