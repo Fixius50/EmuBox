@@ -9,6 +9,12 @@ const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'
 const setup = read('scripts/setup-arch.sh');
 const autostart = read('scripts/setup-autostart.sh');
 const installer = read('installer/install.sh');
+const dependencies = read('installer/setup/dependencies.sh');
+for (const source of [dependencies, read('installer/modules/package-setup.sh')]) {
+  for (const dependency of ['dosfstools', 'e2fsprogs', 'rtkit']) {
+    assert.ok(source.includes(`"${dependency}"`));
+  }
+}
 const launcher = read('scripts/run.sh');
 const cursorEnvironment = launcher.split('\n').filter(line => line.startsWith('export XCURSOR_')).join('\n');
 assert.ok(cursorEnvironment.includes('XCURSOR_THEME'));
@@ -46,12 +52,36 @@ assert.ok(autostart.includes('systemctl --global enable pipewire.socket pipewire
 assert.ok(autostart.includes('systemctl disable "$SERVICE_NAME"'));
 const getty = heredoc(autostart, 'cat << EOF > "${GETTY_OVERRIDE_DIR}/emubox-autologin.conf"\n');
 assert.ok(getty.includes('--autologin ${EMUBOX_USER}'));
+assert.match(getty, /\[Unit\]\nStartLimitIntervalSec=60s\nStartLimitBurst=3/);
+assert.match(getty, /^RestartSec=5s$/m);
 assert.ok(autostart.includes('EMUBOX_USER="emubox"'));
 assert.ok(autostart.includes('source "$SCRIPT_DIR/../installer/lib/permissions.sh"'));
 assert.match(autostart, /^setup_udev_rules$/m);
 
 const directory = mkdtempSync(path.join(tmpdir(), 'emubox-unit-test-'));
 try {
+  const fstabPath = path.join(directory, 'fstab');
+  const rootEntry = 'UUID=root / ext4 rw,relatime 0 1';
+  const bootEntry = 'UUID=boot /boot vfat rw,relatime,fmask=0022,dmask=0022,errors=remount-ro 0 2';
+  const secureFstab = contents => {
+    writeFileSync(fstabPath, contents);
+    return spawnSync('bash', ['-c', 'source "$1"; secure_boot_fstab "$2"', '--',
+      new URL('../scripts/repair-boot.sh', import.meta.url).pathname, fstabPath], { encoding: 'utf8' });
+  };
+  const secured = secureFstab(`# retained\n${rootEntry}\n${bootEntry}\n`);
+  assert.equal(secured.status, 0, secured.stderr);
+  assert.ok(secured.stdout.includes(rootEntry));
+  assert.ok(secured.stdout.includes('# retained'));
+  assert.match(secured.stdout, /rw,relatime,errors=remount-ro,fmask=0077,dmask=0077/);
+  assert.equal(secureFstab(secured.stdout).stdout, secured.stdout);
+  assert.equal(secureFstab(`${rootEntry}\n`).status, 1);
+  assert.equal(secureFstab(`${bootEntry}\n${bootEntry}\n`).status, 1);
+  assert.equal(secureFstab(bootEntry.replace('vfat', 'ext4')).status, 1);
+  const legacyMask = secureFstab(bootEntry.replace('fmask=0022,dmask=0022', 'umask=0000').replace('0 2', '0 0'));
+  assert.equal(legacyMask.status, 0);
+  assert.ok(!legacyMask.stdout.includes('umask='));
+  assert.match(legacyMask.stdout, /\t0\t2\n$/);
+
   const preflightStart = autostart.indexOf('AUDIO_UNIT_DIR=');
   const preflightEnd = autostart.indexOf('EMUBOX_UID=');
   assert.ok(preflightStart > 0 && preflightEnd > preflightStart);

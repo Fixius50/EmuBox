@@ -153,9 +153,14 @@ mkdir -p "${GETTY_OVERRIDE_DIR}"
 rm -f "${GETTY_OVERRIDE_DIR}/autologin.conf"
 
 cat << EOF > "${GETTY_OVERRIDE_DIR}/emubox-autologin.conf"
+[Unit]
+StartLimitIntervalSec=60s
+StartLimitBurst=3
+
 [Service]
 ExecStart=
 ExecStart=-/usr/bin/agetty --autologin ${EMUBOX_USER} --noclear %I \$TERM
+RestartSec=5s
 Type=idle
 TTYPath=/dev/tty1
 TTYReset=yes

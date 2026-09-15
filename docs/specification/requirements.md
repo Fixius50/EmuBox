@@ -37,14 +37,34 @@
 
 ## 4. Estado de la fase de juegos
 
-La fase de catálogo e integración de juegos está completada:
+La fase de catálogo e integración tiene implementados los siguientes componentes;
+no equivale a cobertura universal de fuentes, formatos o juegos:
 
 - SQLite y el escaneo alimentan el catalogo; una biblioteca vacia no se sustituye por datos de demostracion;
-- las tarjetas exponen plataforma, año, valoración, género y desarrollador;
-- la navegación usa virtualización para 10.000 entradas;
+- las tarjetas exponen los metadatos disponibles, sin inventar año o valoración;
+- la navegación XMB monta las filas próximas a la selección sobre el catálogo real;
 - `DESCARGAR` y `JUGAR` dependen del estado instalado;
-- `DownloadService` procesa fuentes autorizadas importadas desde manifiestos;
+- `downloads/service/` conserva catálogo, plataforma, repositorio y orquestación;
+- el resolver clasifica cada URI y comprueba proveedor y conector antes de ofrecerla;
+- `downloads/connectors.rs` implementa Pixeldrain público y 1fichier con cuenta opt-in;
+- `downloads/providers/` implementa HTTP y BitTorrent mediante aria2;
+- `downloads/manager/` gestiona cola, controles, transferencia, verificación y publicación;
+- preparación e instaladores locales distinguen `downloaded` de `completed`;
 - el watcher y el escaneo actualizan SQLite cuando aparece una ROM;
 - el selector de emulador y `CompatibilityService` resuelven el lanzamiento.
 
-El JSON de catálogo no es una fuente de distribución. Una descarga solo está disponible cuando existe una fuente autorizada para su `gameId`. La arquitectura vigente está en `docs/architecture/current-state.md`.
+El JSON de catálogo aporta metadatos y localizadores, no certifica permisos,
+seguridad ni disponibilidad remota. `DownloadService` permanece como fachada
+compatible, no como implementación monolítica. `downloadable` indica una ruta
+de proveedor compatible para la fuente seleccionada; HTTP puede fallar por
+403/404, HTML, límites o red, y BitTorrent necesita metadata y peers/seeds.
+Abrir una ficha o importar un manifiesto no inicia una transferencia.
+
+El flujo público no requiere cuentas de EmuBox ni suscripciones. Los conectores
+con cuenta están desactivados por defecto. No se evaden restricciones de terceros.
+Quedan pendientes otros hostings, instaladores distintos de Inno, validación
+completa de PKG PS3, descriptores multidisco y compatibilidad real por juego.
+La preparación correcta no sustituye esa validación funcional.
+
+Referencias vigentes: [estado actual](../architecture/current-state.md) y
+[cobertura de proveedores](../architecture/download-providers.md).

@@ -4,6 +4,54 @@ Este documento registra la cronología de diagnósticos, pruebas de compilación
 
 ## Estado consolidado actual
 
+### Arranque y cobertura de fuentes, 15 de septiembre de 2026
+
+Diagnostico del boot `bebcb5a32b6a426a82ea94a8fef50b50`: systemd informa
+12,689 segundos, sin unidades fallidas ni volcados de procesos. La raiz ext4
+recupero journal y tres inodos huerfanos antes de declararse limpia. FAT `/boot`
+avisa de desmontaje incorrecto, falta `dosfstools` y las mascaras 0022 exponen
+la semilla del bootloader. El journal previo no registra una secuencia completa
+de apagado; evidencia compatible con interrupcion, sin demostrar su causa.
+
+Cambios preparados en el proyecto:
+
+- limites de recuperacion en getty@tty1, no solo en el servicio deshabilitado;
+- herramientas FAT/ext4 y RTKit declaradas en ambas rutas del instalador;
+- mantenimiento FAT explicito, respaldado y sin fsck sobre volumen montado;
+- diagnostico ampliado para no omitir esos riesgos de configuracion;
+- README/requisitos sincronizados con HTTP, aria2, conectores y preparacion;
+- retirada de la credencial de desarrollo publica; no equivale a rotacion local;
+- auditoria de cobertura basada en resolver/conectores y SQLite de solo lectura.
+
+La comprobacion inicial tenia 28 PASS y seis comprobaciones funcionales pendientes,
+pero no cubria los riesgos nuevos de FAT y getty. No utilizar ese resultado para
+certificar el SO. Los sockets activaron PipeWire/WirePlumber al consultar wpctl;
+la salida analogica aparece al 40 %, sin prueba de sonido audible. RTKit ausente.
+La recuperacion automatica de la UI aun instalada es 5/10s sin pausa; el script
+corregido requiere aplicacion administrativa para establecer 3/60s y pausa de 5s.
+
+Aplicacion al SO pendiente: `sudo -n -l` permitio listar reglas, pero la primera
+operacion administrativa (`fuser`) exigio contraseña. No se reintento la elevacion,
+no se repararon particiones ni se cambiaron unidades activas, credenciales, kernel,
+firmware o parametros del hipervisor. No se ejecutaron Git, navegador, juegos ni
+descargas publicas de contenido. Al cierre pasaron la compilacion frontend y
+Tauri nativa x86_64, npm verify, arquitectura/appliance, sintaxis Shell y 78 pruebas
+Rust (ocho opcionales omitidas en la suite general). La prueba opcional aria2
+se ejecuto aparte y paso con cuatro bytes privados sobre localhost. Editor sin
+errores. Las pruebas locales del reparador no sustituyen una reparacion real
+desmontada ni ensayan todos sus fallos de recuperacion.
+
+El diagnostico real ampliado devuelve tres FAIL esperados hasta aplicar el
+mantenimiento: `tty-recovery`, `boot-private`, `boot-fsck-tool`. RTKit y la
+aceptacion funcional siguen pendientes. El binario compilado esta instalado,
+pero la sesion fisica no se reinicio. No se declara reparado ni validado el SO.
+
+Ver [procedimiento de mantenimiento](architecture/console-appliance-boot-architecture.md),
+[limites de VirtualBox y microcodigo](architecture/virtualbox-graphics.md) y
+[auditoria de fuentes](architecture/download-providers.md). Esta ultima recoge
+666865 fuentes persistidas (476651 marcadas disponibles), no juegos descargables
+certificados ni cobertura universal.
+
 ### Appliance y reinicio de la VM, 5 de septiembre de 2026
 
 Las pruebas de appliance cubren paquetes base sin emuladores, configuracion

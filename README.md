@@ -65,10 +65,17 @@ emulador compatible con la CPU, su binario nativo y sus requisitos de hardware.
 Los manifiestos se leen desde `/etc/emubox/download-links.txt` si contiene enlaces
 activos; en caso contrario, desde `data/download-links.txt`. Se importan solo
 metadatos y fuentes, nunca juegos automaticamente. `bin/emubox --import-catalog`
-permite sincronizar sin abrir la UI. La descarga empieza al pulsar una tarjeta.
-Actualmente se admiten archivos HTTP directos; magnet/torrent necesitan un motor
-BitTorrent aun no implementado. Una fuente publicada no garantiza su seguridad
-ni disponibilidad. Ver [conexion del catalogo](docs/architecture/catalog-sources.md).
+ permite sincronizar sin abrir la UI. Abrir una ficha no descarga: se debe elegir
+una fuente y confirmar la accion. HTTP/HTTPS usa el proveedor nativo; magnet btih
+y enlaces torrent directos usan BitTorrent mediante `aria2c`, si esta instalado.
+Pixeldrain publico tiene conector HTTP; 1fichier es opcional, requiere cuenta
+propia y permanece desactivado salvo opt-in explicito. Otros hostings necesitan
+conectores compatibles; no se eluden login, CAPTCHA ni limites del servidor.
+`downloadable` indica una ruta compatible, no una URL comprobada ni segura.
+`downloaded` conserva contenido pendiente de preparacion o seleccion;
+`completed` indica un candidato preparado, no compatibilidad garantizada del juego.
+Ver [conexion del catalogo](docs/architecture/catalog-sources.md) y
+[cobertura de fuentes y limites](docs/architecture/download-providers.md).
 La arquitectura vigente está en
 [Estado actual de EmuBox](docs/architecture/current-state.md).
 
@@ -192,8 +199,12 @@ Si la máquina o consola está conectada a tu red local (o adaptador puente):
 ssh emubox@<IP_DE_LA_CONSOLA>
 ```
 * Obtener IP en la máquina: `hostname -I` o `ip addr`
-* **Usuario por defecto**: `emubox`
-* **Contraseña interna**: `1234`
+* **Usuario de la appliance**: `emubox`
+* Configura una contraseña propia durante el aprovisionamiento o utiliza una clave
+   SSH dedicada. No existe una contraseña pública recomendada para EmuBox.
+* Si se utilizó una credencial de desarrollo publicada, cámbiala localmente con
+   `passwd`. Retirarla de esta documentación no la revoca ni elimina copias antiguas.
+   No envíes contraseñas ni claves privadas por chat.
 
 > 📌 **Aislamiento Garantizado**: La sesión SSH se abre en un pseudo-terminal (`pts/*`), por lo que puedes conectarte, compilar, administrar y cerrar la sesión SSH sin interrumpir la interfaz gráfica que sigue ejecutándose en la pantalla.
 
@@ -202,7 +213,7 @@ Para permitir que un agente (Copilot, scripts CI, etc.) opere sobre la VM sin de
 
 1. **En tu equipo anfitrión**, genera un par de claves dedicado (si no existe):
    ```bash
-   ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_emubox -N "" -C "agente-emubox-vm"
+   ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_emubox -C "agente-emubox-vm"
    ```
 2. **Desde una sesión ya autenticada por contraseña en la VM**, autoriza la clave pública generada:
    ```bash
@@ -214,6 +225,10 @@ Para permitir que un agente (Copilot, scripts CI, etc.) opere sobre la VM sin de
    ```bash
    ssh -p 2222 -i ~/.ssh/id_ed25519_emubox -o BatchMode=yes emubox@127.0.0.1
    ```
+
+Protege la clave con una frase de paso introducida directamente en tu terminal
+y cárgala en el agente SSH local antes de usar `BatchMode=yes`. Verifica una
+segunda conexión con clave antes de desactivar cualquier método de acceso existente.
 
 > ⚠️ **Nota de seguridad**: Si tras varios intentos fallidos de contraseña aparece `Permission denied` de forma persistente, revisa `pam_faillock` (bloqueo temporal por intentos fallidos) con `sudo journalctl -u sshd -n 50`, no necesariamente es una contraseña incorrecta.
 

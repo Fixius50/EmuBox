@@ -42,6 +42,12 @@ SSH sirve para mantenimiento. Conectar o cerrar SSH no debe iniciar ni terminar
 la sesión física. El servicio auxiliar `emubox.service` queda deshabilitado para
 evitar un segundo arranque junto a getty. TTY2/TTY3 permiten recuperación local.
 
+La proteccion contra bucles se configura en el propio `getty@tty1`: tres inicios
+en 60 segundos y cinco segundos entre reinicios. Los limites del servicio auxiliar
+deshabilitado no protegen la sesion fisica. Alcanzar el limite detiene los reintentos;
+desde SSH o TTY2, tras reparar la causa, se puede ejecutar
+`sudo systemctl reset-failed getty@tty1` y reiniciarlo deliberadamente.
+
 ## Detección y permisos
 
 `installer/lib/architecture.sh` normaliza CPU y valida ELF. El runtime Rust usa
@@ -108,6 +114,44 @@ sudo systemctl restart getty@tty1
 El reinicio interrumpe la sesión gráfica y cualquier juego activo. Estos comandos
 no se han ejecutado durante la integración ARM64. Modificar los scripts del
 repositorio no cambia automáticamente el autologin previamente instalado.
+
+### Mantenimiento de FAT y permisos de arranque
+
+Solo para una particion FAT separada montada en `/boot`, con copia de seguridad
+externa de los datos importantes y sin actualizaciones de kernel/bootloader en
+curso. No ejecutar mientras otro administrador modifica montajes o el arranque.
+El mantenimiento no instala kernels, cambia particiones ni toca la raiz ext4.
+
+```bash
+sudo pacman -S --needed dosfstools rtkit
+sudo bash scripts/repair-boot.sh --apply
+sudo bash scripts/setup-autostart.sh
+```
+
+Ejecutar cada paso solo si el anterior termina correctamente. El reparador valida
+que fstab y el montaje coincidan, rechaza submontajes/dispositivos compartidos,
+guarda fstab y una imagen de la FAT desmontada en un directorio privado bajo
+`/var/backups/emubox`, ejecuta `fsck.fat -a` y verifica con `fsck.fat -n` antes
+de remontar. Conserva UUID y opciones ajenas a las mascaras, aplica
+`fmask=0077,dmask=0077` y mantiene passno=2 para fsck en futuros arranques.
+Un volumen ocupado no se desmonta a la fuerza. Si la reparacion falla, intenta
+montarlo de solo lectura; ante fallo posterior de montaje recupera el fstab previo.
+Revisar siempre el resultado antes de reiniciar o actualizar el kernel.
+
+La imagen local no sustituye un respaldo fuera de la VM ni verifica el disco del
+anfitrion. Un corte durante el mantenimiento sigue requiriendo recuperacion manual.
+Si `/boot` no se puede remontar, utilizar consola/rescate y el respaldo; no reiniciar
+el sistema a ciegas. Para otros esquemas de arranque hace falta otro procedimiento.
+
+Tras aplicar: `node scripts/check-appliance.mjs` comprueba herramientas, privacidad
+de `/boot` y limites de getty. RTKit instalado no certifica sonido audible. Los
+avisos historicos del journal no desaparecen al reparar; comprobar el siguiente
+arranque ordenado. No desactivar fsck ni reducir el loglevel para ocultarlos.
+
+Cuando termine todo el mantenimiento, `sudo systemctl restart getty@tty1` carga
+la sesion actualizada sin reiniciar el SO. Para validar un arranque completo hace
+falta un reinicio ordenado posterior, decidido por el usuario. Nunca usar reset o
+corte de corriente virtual como sustituto de `systemctl poweroff` desde el invitado.
 
 Verificar en cada CPU admitida:
 

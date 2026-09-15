@@ -25,6 +25,86 @@ No existe garantia de obtener cualquier juego por aparecer en un manifiesto.
 `available` es disponibilidad declarada; `downloadable` significa que hay una
 ruta de proveedor compatible, no que la fuente remota ya haya sido comprobada.
 
+## Auditoria de cobertura, 15 de septiembre de 2026
+
+Contrastada contra `services/downloads/resolver.rs`, `connectors.rs`,
+`providers/http.rs`, `providers/bittorrent.rs` y las fuentes persistidas.
+No se consultaron servidores remotos, cuentas, juegos ni torrents publicos.
+`DownloadService` sigue existiendo como fachada; la implementacion ya esta
+separada. El README y los requisitos que negaban BitTorrent o daban la fase
+por completada se han sincronizado con este contrato.
+
+| Tipo de fuente | Deteccion actual | Conector / proveedor | Cuenta | Resultado o fallo |
+| --- | --- | --- | --- | --- |
+| Fuente `available=false` | Primera guarda del resolver | Ninguno | No se consulta | No descargable, aunque la URI tenga transporte compatible |
+| HTTP(S) con extension reconocida | Path termina en zip, 7z, rar, iso, chd, pkg, exe, bin, gz, xz, rvz, gba o sfc; fuera de hosts bloqueados | HTTP nativo | No exige cuenta local | 403/404, timeout, TLS, HTML o identidad incorrecta fallan; no prueban falta de proveedor |
+| HTTP(S) dinamico/desconocido | HTTP(S) restante, `unverified_http` | HTTP nativo, sin conector | No exige cuenta local | No descubre enlaces dentro de paginas; HTML se rechaza. Un dominio desconocido NO se anuncia como hosting integrado |
+| `.torrent` directo | Path termina en `.torrent`, despues de comprobar hosts conocidos | HTTP descriptor (16 MiB) + aria2 | No en cliente; tracker puede exigir permisos | Sin aria2, descriptor valido, metadata o peers no termina; se informa el error |
+| Magnet btih | `magnet:` con `xt=urn:btih:` valido (40 hex o 32 base32) | aria2 | No en cliente; restricciones del tracker se conservan | Magnet invalido, solo btmh/v2 o motor ausente no descargable |
+| Pixeldrain `/u/ID` | Dominio exacto, ID alfanumerico, sin credenciales/puerto no estandar | `pixeldrain_public_file` -> HTTP `/api/file/ID` | No exigida por EmuBox | Cuota, CAPTCHA, 403/404 o red fallan sin eludir limites |
+| Pixeldrain `/api/file/ID` | Path API en dominio exacto | HTTP directo | No exigida por EmuBox | Respuesta real decide; no se valida existencia al listar |
+| Pixeldrain listas/carpetas/otras rutas | `host_page`, sin conector para esas formas | Ninguno | No se consulta | No descargable; no se convierte una lista en un archivo |
+| 1fichier `/?ID` | Dominio exacto y query alfanumerica | `1fichier_account_api` -> HTTP | Si, opt-in y credencial privada | Desactivado por defecto; cuenta/cuota/API pueden fallar aun con token local valido |
+| Otras rutas 1fichier | `host_page` sin conector reconocido | Ninguno | No se consulta | No descarga automatica ni scraping |
+| GoFile, MediaFire, Mega, MegaDB, Datanodes, Buzzheavier/bzzhr, Vikingfile, files.fm, akirabox, filekeeper | Dominio o subdominio reconocido como `host_page` | Sin conector implementado | Desconocida, no se consulta | Motivo explicito con dominio; no se inicia transferencia |
+| 1337x, rutor, tapochek, t.me | Dominio o subdominio reconocido como `host_page` | Sin conector implementado | Desconocida, no se consulta | No se extraen magnets, torrents ni enlaces de las paginas |
+| Otros protocolos | URI valida fuera de HTTP(S)/magnet | Sin proveedor | No se consulta | Conservados como no compatibles; motivo por protocolo |
+| file, data, javascript, blob o URI invalida | Rechazados por normalizador/clasificador | Ninguno | No | No se importan como fuente remota ejecutable |
+
+La deteccion se basa en la URI, no solo en `source_type` persistido. Los hosts
+conocidos se comprueban antes del sufijo `.torrent`: una pagina de hosting con
+ese sufijo no se convierte en torrent directo. Una URL dinamica que devuelve
+un descriptor sin sufijo `.torrent` no se redirige automaticamente a aria2.
+El soporte de transporte no implica soporte de todos los formatos recibidos.
+`Content-Disposition` admite `filename=`, no un parser completo de `filename*`.
+La deteccion de HTML usa Content-Type y el prefijo del primer bloque; no es una
+inspeccion universal ni una certificacion de seguridad del contenido.
+
+### Inventario local reproducido
+
+Lectura de `download_sources` mediante SQLite en modo solo lectura, sin modificar
+la biblioteca. Los dominios se agruparon con un parser URL sin publicar rutas,
+parametros ni credenciales. Es una fotografia local, no una lista fija del producto.
+
+| Tipo persistido | `available=1` | `available=0` |
+| --- | ---: | ---: |
+| HTTP | 262883 | 181807 |
+| Magnet | 213756 | 8407 |
+| Torrent | 12 | 0 |
+| Total fuentes | 476651 | 190214 |
+
+Son 666865 fuentes, no juegos unicos. Variantes y mirrors pueden corresponder
+al mismo juego. Ni los totales ni el flag certifican disponibilidad remota.
+
+Principales dominios, contando solo fuentes marcadas disponibles:
+
+| Dominio | Fuentes | Interpretacion de cobertura |
+| --- | ---: | --- |
+| pixeldrain.com | 54834 | Hay conector para archivos; el recuento de dominio no garantiza que todas las rutas sean `/u/ID` |
+| gofile.io | 38186 | Sin conector |
+| www.mediafire.com | 35924 | Sin conector |
+| datanodes.to | 27609 | Sin conector |
+| 1fichier.com | 27261 | Conector restringido a formato valido y cuenta opt-in, desactivado |
+| archive.org | 19866 | HTTP segun URI/respuesta; no conector de login ni resolucion de paginas |
+| buzzheavier.com | 6232 | Sin conector |
+| pastefg.hermietkreeft.site | 5995 | Dominio no reconocido: HTTP sin verificacion, no resolucion de pagina |
+| 1337x.to (HTTP y HTTPS) | 5866 | Sin conector |
+| tapochek.net (HTTP y HTTPS) | 6110 | Sin conector |
+| vikingfile.com | 4899 | Sin conector |
+| akirabox.com | 4785 | Sin conector |
+| qiwi.gg | 3460 | Dominio no reconocido: HTTP sin verificacion |
+| rutor.info (HTTP y HTTPS) | 3290 | Sin conector |
+| megadb.net | 3037 | Sin conector |
+| files.fm | 2802 | Sin conector |
+| filekeeper.net | 1627 | Sin conector |
+
+No se deduce un porcentaje de juegos descargables sumando estos grupos.
+La siguiente ampliacion debe priorizar formatos de URL realmente presentes y
+APIs publicas compatibles, con prueba de contrato y errores explicitos; no
+activar cuentas ni integrar hostings a ciegas. Los errores de importacion de
+manifiestos (403/404/451, red, limite 32 MiB) son otra etapa: no equivalen a un
+fallo de descarga del juego ni autorizan borrar el catalogo previo.
+
 ## Configuracion sin registro
 
 EmuBox no exige registro, inicio de sesion ni suscripcion para las descargas

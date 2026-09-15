@@ -55,6 +55,19 @@ export function collectApplianceFacts() {
   }
   const autologin = command('systemctl', ['show', 'getty@tty1.service', '--property=ExecStart', '--value']).text;
   const auxiliary = command('systemctl', ['is-enabled', 'emubox.service']).text;
+  const recovery = command('systemctl', ['show', 'getty@tty1.service',
+    '--property=RestartUSec,StartLimitBurst,StartLimitIntervalUSec']).text;
+  let bootFilesystem;
+  let bootPrivate;
+  try {
+    const mount = JSON.parse(command('findmnt', ['--json', '--mountpoint', '/boot',
+      '--output', 'FSTYPE']).text).filesystems?.[0];
+    bootFilesystem = mount?.fstype ?? null;
+    bootPrivate = (statSync('/boot').mode & 0o077) === 0;
+  } catch {
+    bootFilesystem = null;
+    bootPrivate = false;
+  }
   return {
     architecture: command('bash', [architectureScript, '--host']).text || 'unsupported',
     distributionSupported: command('bash', [architectureScript, '--distribution']).ok,
@@ -70,6 +83,11 @@ export function collectApplianceFacts() {
     autologin: /--autologin\s+emubox(?:\s|;|$)/.test(autologin),
     singleStartup: ['disabled', 'masked', 'not-found'].includes(auxiliary),
     ttyActive: command('systemctl', ['is-active', '--quiet', 'getty@tty1']).ok,
+    ttyRecovery: /^RestartUSec=5s$/m.test(recovery)
+      && /^StartLimitBurst=3$/m.test(recovery) && /^StartLimitIntervalUSec=1min$/m.test(recovery),
+    bootFilesystem,
+    bootPrivate,
+    bootFsckAvailable: accessible('/usr/bin/fsck.fat', constants.X_OK),
     launcherInstalled: readable('/usr/local/bin/emubox-session').includes('/opt/emubox/scripts/run.sh'),
     profileConfigured: readable(path.join(account[5] || '/nonexistent', '.bash_profile')).includes('/dev/tty1')
       && readable(path.join(account[5] || '/nonexistent', '.bash_profile')).includes('emubox-session'),
@@ -82,6 +100,7 @@ export function collectApplianceFacts() {
     audioUnitsAvailable: ['pipewire.socket', 'pipewire-pulse.socket', 'wireplumber.service']
       .every(unit => existsSync(path.join('/usr/lib/systemd/user', unit))),
     audioRunning: running('pipewire') && running('wireplumber'),
+    audioRealtimeAvailable: existsSync('/usr/lib/systemd/system/rtkit-daemon.service'),
     databaseHeader,
   };
 }
@@ -105,6 +124,13 @@ export function evaluateAppliance(facts) {
   check('single-startup', facts.singleStartup, 'No auxiliary system emubox.service enabled');
   check('session-launcher', facts.launcherInstalled && facts.profileConfigured, 'TTY1 profile delegates to the common launcher');
   check('tty-active', facts.ttyActive, 'TTY1 active', 'pending');
+  check('tty-recovery', facts.ttyRecovery, 'Active getty policy: 3 starts/60s with 5s restart delay');
+  if (facts.bootFilesystem === 'vfat') {
+    check('boot-private', facts.bootPrivate, 'FAT /boot excludes group/other access, including boot-loader seed');
+    check('boot-fsck-tool', facts.bootFsckAvailable, 'fsck.fat installed; filesystem integrity requires an unmounted check');
+  } else if (facts.bootFilesystem === null) {
+    check('boot-inspection', false, 'No separate /boot mount observed; inspect the actual boot layout', 'pending');
+  }
   check('drm-access', correctInspector && facts.drmAccessible, 'DRI device permissions', 'pending');
   check('input-access', correctInspector && facts.inputAccessible, 'Input device readable; controller behavior untested', 'pending');
   check('wayland', facts.waylandSocket && facts.compositorRunning, 'Wayland socket and compositor owned by emubox', 'pending');
@@ -112,6 +138,7 @@ export function evaluateAppliance(facts) {
   check('runtime-process', facts.runtimeRunning, 'EmuBox process owned by emubox; UI behavior untested', 'pending');
   check('audio-units', facts.audioUnitsAvailable, 'PipeWire sockets and WirePlumber user unit installed');
   check('audio-processes', facts.audioRunning, 'PipeWire and WirePlumber owned by emubox; sound untested', 'pending');
+  check('audio-realtime', facts.audioRealtimeAvailable, 'RTKit installed; realtime scheduling and audible output untested', 'pending');
   check('sqlite-file', facts.databaseHeader, 'SQLite header present; no database opened or modified', 'pending');
   for (const [id, detail] of [
     ['cold-boot', 'Boot independently of SSH; verify one session'],

@@ -2,6 +2,31 @@
 
 ## Resultado observado
 
+### Arranque del 15 de septiembre de 2026
+
+VirtualBox anfitrion y Guest Additions informan 7.2.16r174877. La sesion usa Cage,
+Mesa 26.2.2 y SVGA3D/OpenGL, pero registra `drmCloseBufferHandle failed` y el kernel
+`vmwgfx: Failed to open channel` y `unsupported hypervisor`. Las versiones coinciden;
+no se ha demostrado que reinstalar Guest Additions solucione el problema. Se mantienen
+los ajustes existentes de DRM legacy, cursor compuesto y compatibilidad DMA-BUF,
+sin forzar Vulkan, desactivar vmwgfx ni ocultar errores del kernel.
+
+La interfaz de paravirtualizacion KVM expuesta por VirtualBox explica el mensaje
+`Hypervisor detected: KVM`; no prueba que la VM este ejecutandose en otro producto.
+TDX es una capacidad de virtualizacion confidencial Intel no requerida por EmuBox.
+Su ausencia en esta VM con CPU AMD no impide iniciar Cage ni la UI.
+
+SRSO informa `Vulnerable: Safe RET, no microcode`, y TSA informa ausencia de
+microcodigo. Deben contrastarse BIOS/UEFI, actualizaciones de seguridad del anfitrion
+y capacidades expuestas por VirtualBox. Instalar `amd-ucode` en el invitado no
+certifica la mitigacion del anfitrion. No se desactivan mitigaciones ni se fuerzan
+flags de CPU para hacer desaparecer avisos. La actualizacion de firmware y los
+cambios de VirtualBox requieren una intervencion separada en el anfitrion, con
+la VM apagada ordenadamente cuando corresponda. No se han aplicado desde Linux.
+
+Referencias: [TDX del kernel](https://docs.kernel.org/arch/x86/tdx.html) y
+[estado de mitigacion SRSO](https://docs.kernel.org/admin-guide/hw-vuln/srso.html).
+
 ## Politica de seleccion
 
 EmuBox detecta CPU y GPU por separado. La prioridad automatica es usar la GPU
