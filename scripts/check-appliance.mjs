@@ -26,12 +26,23 @@ function devices(directory, pattern) {
   } catch { return []; }
 }
 
+export function isCompositorCommand(args) {
+  if (['/usr/bin/cage', '/usr/bin/gamescope'].includes(args[0])) return true;
+  return ['/lib64/ld-linux-x86-64.so.2', '/lib/ld-linux-aarch64.so.1'].includes(args[0])
+    && args[1] === '--preload' && args[2] === path.join(project, 'bin/libemubox-vmwgfx.so')
+    && args[3] === '/usr/bin/cage' && args[4] === '--';
+}
+
 export function collectApplianceFacts() {
   const architectureScript = path.join(project, 'installer/lib/architecture.sh');
   const account = command('getent', ['passwd', 'emubox']).text.split(':');
   const uid = account.length >= 7 ? Number(account[2]) : null;
   const runtimeDirectory = uid === null ? '' : `/run/user/${uid}`;
   const running = name => uid !== null && command('pgrep', ['-u', String(uid), '-x', name]).ok;
+  const compositorRunning = running('cage') || running('gamescope') || (uid !== null
+    && command('pgrep', ['-u', String(uid)]).text.split('\n')
+      .filter(pid => /^\d+$/.test(pid))
+      .some(pid => isCompositorCommand(readable(`/proc/${pid}/cmdline`).split('\0'))));
   const directories = ['/etc/emubox', '/var/lib/emubox', '/var/lib/emubox/games',
     '/var/lib/emubox/saves', '/var/lib/emubox/states', '/var/cache/emubox', '/var/log/emubox', '/run/emubox'];
   const directoryAccess = directories.map(directory => ({
@@ -95,7 +106,7 @@ export function collectApplianceFacts() {
     inputAccessible: input.some(file => accessible(file, constants.R_OK)),
     waylandSocket,
     sessionBus: runtimeDirectory !== '' && existsSync(path.join(runtimeDirectory, 'bus')),
-    compositorRunning: running('cage') || running('gamescope'),
+    compositorRunning,
     runtimeRunning: running('emubox'),
     audioUnitsAvailable: ['pipewire.socket', 'pipewire-pulse.socket', 'wireplumber.service']
       .every(unit => existsSync(path.join('/usr/lib/systemd/user', unit))),

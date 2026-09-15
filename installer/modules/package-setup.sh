@@ -22,6 +22,7 @@ REQUIRED_PACKAGES=(
   "dosfstools"
   "e2fsprogs"
   "mesa"
+  "libdrm"
   "mesa-utils"
   "xdg-user-dirs"
   "libevdev"

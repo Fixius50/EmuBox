@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/installer/lib/graphics.sh"
+( unset SVGA_NO_LOGGING; configure_emubox_host_logging oracle; [[ "$SVGA_NO_LOGGING" == 1 ]] )
+( unset SVGA_NO_LOGGING; configure_emubox_host_logging vmware; [[ ! -v SVGA_NO_LOGGING ]] )
+( unset SVGA_NO_LOGGING; configure_emubox_host_logging none; [[ ! -v SVGA_NO_LOGGING ]] )
+( export SVGA_NO_LOGGING=0; configure_emubox_host_logging oracle; [[ "$SVGA_NO_LOGGING" == 0 ]] )
+( configure_emubox_cage_command amdgpu /nonexistent x86_64; [[ "${CAGE_COMMAND[*]}" == cage ]] )
+( export EMUBOX_VMWGFX_COMPAT=0; configure_emubox_cage_command vmwgfx /nonexistent x86_64; [[ "${CAGE_COMMAND[*]}" == cage ]] )
+( configure_emubox_cage_command vmwgfx /nonexistent x86_64; [[ "${CAGE_COMMAND[*]}" == cage ]] )
+if [[ -f bin/libemubox-vmwgfx.so && -x /lib64/ld-linux-x86-64.so.2 ]] && command -v cage >/dev/null; then
+  ( unset LD_PRELOAD EMUBOX_VMWGFX_COMPAT;
+    configure_emubox_cage_command vmwgfx "$PWD" x86_64;
+    [[ "${CAGE_COMMAND[1]}" == --preload && "${CAGE_COMMAND[2]}" == "$PWD/bin/libemubox-vmwgfx.so" && ! -v LD_PRELOAD ]] )
+fi
+echo 'VirtualBox host logging and isolated vmwgfx compatibility selection: OK'
 for backend in opengl vulkan software; do
   for drm in 0 1; do
     for gamescope in 0 1; do
@@ -29,6 +42,16 @@ echo 'vmwgfx cursor fallback and explicit preferences: OK'
 ( unset WLR_DRM_NO_ATOMIC; configure_emubox_cursor amdgpu; [[ ! -v WLR_DRM_NO_ATOMIC ]] )
 ( export WLR_DRM_NO_ATOMIC=0; configure_emubox_cursor vmwgfx; [[ "$WLR_DRM_NO_ATOMIC" == 0 ]] )
 echo 'vmwgfx legacy DRM and explicit preferences: OK'
+( unset WLR_SCENE_DEBUG_DAMAGE WLR_SCENE_DISABLE_DIRECT_SCANOUT;
+  configure_emubox_presentation vmwgfx;
+  [[ "$WLR_SCENE_DEBUG_DAMAGE" == rerender && "$WLR_SCENE_DISABLE_DIRECT_SCANOUT" == 1 ]] )
+( unset WLR_SCENE_DEBUG_DAMAGE WLR_SCENE_DISABLE_DIRECT_SCANOUT;
+  configure_emubox_presentation amdgpu;
+  [[ ! -v WLR_SCENE_DEBUG_DAMAGE && ! -v WLR_SCENE_DISABLE_DIRECT_SCANOUT ]] )
+( export WLR_SCENE_DEBUG_DAMAGE=none WLR_SCENE_DISABLE_DIRECT_SCANOUT=0;
+  configure_emubox_presentation vmwgfx;
+  [[ "$WLR_SCENE_DEBUG_DAMAGE" == none && "$WLR_SCENE_DISABLE_DIRECT_SCANOUT" == 0 ]] )
+echo 'vmwgfx full composition and preserved explicit presentation settings: OK'
 ( unset LIBGL_ALWAYS_SOFTWARE WLR_RENDERER WEBKIT_DISABLE_COMPOSITING_MODE; configure_emubox_render_mode auto; [[ ! -v LIBGL_ALWAYS_SOFTWARE && ! -v WLR_RENDERER && ! -v WEBKIT_DISABLE_COMPOSITING_MODE ]] )
 ( configure_emubox_render_mode software; [[ "$LIBGL_ALWAYS_SOFTWARE" == 1 && "$WLR_RENDERER" == pixman && "$WEBKIT_DISABLE_COMPOSITING_MODE" == 1 ]] )
 ( ! configure_emubox_render_mode invalid )

@@ -24,6 +24,7 @@ source "$ROOT_DIR/installer/lib/graphics.sh"
 export GDK_BACKEND="${GDK_BACKEND:-wayland}"
 export XCURSOR_THEME="${XCURSOR_THEME:-Adwaita}"
 export XCURSOR_SIZE="${XCURSOR_SIZE:-32}"
+configure_emubox_host_logging "$(systemd-detect-virt --vm 2>/dev/null || true)"
 
 # Asegurar XDG_RUNTIME_DIR válido para compositores Wayland (Cage / Gamescope)
 if [[ -z "${XDG_RUNTIME_DIR:-}" ]]; then
@@ -108,12 +109,16 @@ if [[ "$EMUBOX_COMPOSITOR" == gamescope ]]; then
 elif [[ "$EMUBOX_COMPOSITOR" == cage ]]; then
   if [[ "$GRAPHICS_OPERATIONAL_BACKEND" == opengl ]]; then export WLR_RENDERER=gles2; fi
   configure_emubox_cursor "$GPU_DRIVER"
+  configure_emubox_presentation "$GPU_DRIVER"
+  configure_emubox_cage_command "$GPU_DRIVER" "$ROOT_DIR" "$(get_emubox_architecture)"
   echo "[EmuBox] WLR_NO_HARDWARE_CURSORS=${WLR_NO_HARDWARE_CURSORS:-0} WLR_DRM_NO_ATOMIC=${WLR_DRM_NO_ATOMIC:-0} driver=$GPU_DRIVER"
+  echo "[EmuBox] vmwgfxCompat=$([[ ${#CAGE_COMMAND[@]} -gt 1 ]] && echo 1 || echo 0) SVGA_NO_LOGGING=${SVGA_NO_LOGGING:-0}"
+  echo "[EmuBox] presentation: renderer=${WLR_RENDERER:-auto} damage=${WLR_SCENE_DEBUG_DAMAGE:-partial} disableDirectScanout=${WLR_SCENE_DISABLE_DIRECT_SCANOUT:-0} webkitDmabufDisabled=${WEBKIT_DISABLE_DMABUF_RENDERER:-0}"
   echo "[EmuBox] Iniciando con Cage (backend=$GRAPHICS_BACKEND)..."
   if [[ -n "${DBUS_RUN}" ]]; then
-    exec dbus-run-session cage -- "${EMUBOX_BIN}" "$@"
+    exec dbus-run-session "${CAGE_COMMAND[@]}" -- "${EMUBOX_BIN}" "$@"
   else
-    exec cage -- "${EMUBOX_BIN}" "$@"
+    exec "${CAGE_COMMAND[@]}" -- "${EMUBOX_BIN}" "$@"
   fi
 
 # 3. FALLBACK DIRECTO

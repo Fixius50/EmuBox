@@ -119,6 +119,14 @@ if [[ ! -f "${EMUBOX_DIR}/solid/dist/index.html" ]]; then
 fi
 
 mkdir -p "${EMUBOX_DIR}/bin"
+log_step "Compilando adaptador de superficies vmwgfx para Cage..."
+DRM_BUILD_FLAGS=()
+read -r -a DRM_BUILD_FLAGS <<< "$(pkg-config --cflags --libs libdrm)"
+"${CC:-cc}" -std=c11 -O2 -Wall -Wextra -Werror -fPIC -shared \
+  -Wl,-z,relro,-z,now -Wl,--no-undefined \
+  "${SCRIPT_DIR}/vmwgfx-compat.c" "${DRM_BUILD_FLAGS[@]}" \
+  -o "${EMUBOX_DIR}/bin/libemubox-vmwgfx.so.next"
+mv -f "${EMUBOX_DIR}/bin/libemubox-vmwgfx.so.next" "${EMUBOX_DIR}/bin/libemubox-vmwgfx.so"
 TARGET_DIR=$(cargo metadata --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" --no-deps --format-version 1 | node -e 'let data="";process.stdin.on("data",chunk=>data+=chunk);process.stdin.on("end",()=>console.log(JSON.parse(data).target_directory))')
 TAURI_BINARY="${TARGET_DIR}/${TARGET}/release/emubox"
 BUILD_CARGO_LOG="${LOG_DIR}/cargo-build.log"

@@ -2,6 +2,108 @@
 
 ## Resultado observado
 
+### Imagen parcial tras cargar la biblioteca
+
+En la sesion de las 21:17 del 15 de septiembre, el adaptador PRIME y
+SVGA_NO_LOGGING ya estaban activos: cero errores del compositor y biblioteca
+cargada por IPC. Aun asi, el usuario observo pantalla negra parcial que se
+actualizaba al mover el raton. Por tanto, eliminar los errores de handles no
+resuelve ni certifica la presentacion visual.
+
+El recorrido efectivo tiene responsabilidades distintas:
+
+```text
+SQLite / IPC -> SolidJS / WebKit -> buffer de la aplicacion
+   -> importacion en Cage -> composicion GLES2 / regiones de actualizacion
+   -> buffer de salida -> DRM legacy / vmwgfx -> VMSVGA / GPU del anfitrion
+```
+
+Se han comprobado carga de datos, capacidades OpenGL y liberacion de referencias
+PRIME. Queda por confirmar en la pantalla fisica que los cuadros se presentan
+completos y siguen actualizandose sin depender del movimiento del raton.
+El problema observado es compatible con regiones de actualizacion incompletas;
+esa es una hipotesis, no una causa demostrada en todas las capas.
+
+`configure_emubox_presentation` configura solo Cage con vmwgfx:
+`WLR_SCENE_DEBUG_DAMAGE=rerender` fuerza redibujar todo el cuadro en cada
+actualizacion, y `WLR_SCENE_DISABLE_DIRECT_SCANOUT=1` mantiene la composicion
+en Cage en lugar de presentar directamente el buffer del cliente. No fuerza
+renderizado por CPU, no activa bucles JavaScript ni genera eventos de raton.
+Puede aumentar el trabajo de GPU y ancho de banda. Se respetan variables ya
+definidas; `WLR_SCENE_DEBUG_DAMAGE=none` y
+`WLR_SCENE_DISABLE_DIRECT_SCANOUT=0` recuperan el comportamiento anterior.
+Otras GPU y la seleccion de Gamescope no reciben esta politica.
+
+El log `presentation:` registra renderer, modo de regiones, scanout directo y
+la compatibilidad DMA-BUF de WebKit, junto con la seleccion del adaptador.
+El diagnostico de appliance reconoce tambien Cage ejecutado mediante el cargador
+glibc; encontrar un proceso y un socket Wayland no convierte `graphics-functional`
+en PASS ni certifica que el contenido sea visible.
+
+Prueba de presentacion nativa sobre wlroots 0.20 (requiere sus cabeceras):
+
+```bash
+cc -std=c11 -Wall -Wextra -Werror tests/presentation.test.c $(pkg-config --cflags --libs wlroots-0.20 pixman-1 wayland-server) -o /tmp/emubox-presentation-test
+SVGA_NO_LOGGING=1 WLR_RENDERER=gles2 WLR_RENDER_DRM_DEVICE=/dev/dri/renderD128 /lib64/ld-linux-x86-64.so.2 --preload "$PWD/bin/libemubox-vmwgfx.so" /tmp/emubox-presentation-test
+```
+
+La prueba usa una salida headless de 96x64, ocho cuadros y un rectangulo de
+8x8 que cambia de color sin raton. Comprueba los pixels de todos los cuadros y
+la region presentada, no solo que EGL inicialice. No inicia navegador, juegos,
+otra instancia de EmuBox ni modifica la pantalla real. Este comando es para el
+equipo x86_64 observado; el nodo y cargador dependen de la arquitectura.
+No valida el contenido producido por WebKit ni el scanout KMS de la pantalla.
+Estos limites deben mantenerse explicitos incluso cuando la prueba pase.
+
+### Correccion PRIME de Cage y trazas de VMware, 15 de septiembre
+
+La prueba nativa con GBM sobre un descriptor privado de render reprodujo
+`drmCloseBufferHandle: EINVAL` fuera de Cage y EmuBox. PRIME devolvia un handle
+de superficie TTM de vmwgfx, no un handle de buffer GEM. El cierre generico
+`DRM_IOCTL_GEM_CLOSE` y `DRM_VMW_HANDLE_CLOSE` fallaban; la operacion oficial
+`DRM_VMW_UNREF_SURFACE` libera esa referencia. Se verificaron 64 ciclos de
+liberacion, rechazo del doble cierre y reimportacion manteniendo al exportador.
+
+`scripts/vmwgfx-compat.c` implementa un adaptador local: intenta primero GEM_CLOSE;
+solo tras EINVAL y un driver exactamente `vmwgfx` usa UNREF_SURFACE. No simula
+exito ni descarta errores. El build genera `bin/libemubox-vmwgfx.so`, sin sustituir
+paquetes del sistema. Cage la carga con `ld.so --preload`, no con LD_PRELOAD:
+el adaptador no se hereda al ejecutar EmuBox, WebKit ni emuladores. Afecta solo
+al proceso Cage, y queda desactivado con `EMUBOX_VMWGFX_COMPAT=0`. Sin biblioteca
+o cargador compatible se avisa y se usa Cage normal. Otras GPU conservan su ruta.
+La prueba C del adaptador compilado paso 128 ciclos con pixels conservados,
+reimportacion y doble cierre rechazado. Los fallos iniciales del sondeo C se
+debieron a reutilizar el descriptor de mapeo despues de unmap; se corrigio
+inicializandolo en cada mapeo, manteniendo las comprobaciones de integridad.
+Cage con salida headless y EGL/Wayland tambien mantiene SVGA3D. Se verifico
+que `ld.so --preload` no hereda la biblioteca al siguiente exec. El adaptador
+queda habilitado solo para Cage/vmwgfx; la comprobacion de salida fisica y
+estabilidad prolongada sigue pendiente de reiniciar TTY1 y observar la sesion.
+No es una reparacion del kernel ni una certificacion general de estabilidad.
+
+El sondeo strace de EGL tambien aislo `Failed to open channel`: Mesa enviaba
+trazas al canal de VMware, ausente en VirtualBox. Con la opcion oficial
+`SVGA_NO_LOGGING=1`, las llamadas DRM_VMW_MSG pasaron de dos a cero manteniendo
+SVGA3D en OpenGL core, compatibilidad y ES. El lanzador configura esa opcion
+antes de los sondeos solo cuando systemd-detect-virt identifica `oracle` y el
+usuario no la ha definido. No cambia loglevel del kernel ni filtra mensajes
+de Cage: evita la operacion no soportada de envio de trazas al anfitrion VMware.
+
+Prueba reproducible del adaptador, tras compilarlo:
+
+```bash
+cc -std=c11 -Wall -Wextra -Werror tests/vmwgfx.test.c $(pkg-config --cflags --libs gbm libdrm) -ldl -o /tmp/emubox-vmwgfx-test
+SVGA_NO_LOGGING=1 /tmp/emubox-vmwgfx-test /opt/emubox/bin/libemubox-vmwgfx.so /dev/dri/renderD128
+```
+
+El nodo de render debe corresponder a vmwgfx; no se usa DRM master ni se cambia
+la salida fisica. Sin el ultimo argumento solo se prueban errores de descriptores.
+La prueba de hardware comprueba 128 ciclos, doble cierre y pixels conservados.
+El aviso inicial del kernel sobre hipervisor no soportado puede permanecer;
+TDX, microcodigo y reloj del anfitrion son independientes de estos dos fallos.
+No se desactivan protecciones para quitarlos. La sesion existente requiere un
+reinicio de TTY1 elegido por el usuario para cargar los cambios del lanzador.
+
 ### Arranque del 15 de septiembre de 2026
 
 VirtualBox anfitrion y Guest Additions informan 7.2.16r174877. La sesion usa Cage,

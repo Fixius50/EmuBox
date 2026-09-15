@@ -1,5 +1,16 @@
 import assert from 'node:assert/strict';
-import { evaluateAppliance } from '../scripts/check-appliance.mjs';
+import { evaluateAppliance, isCompositorCommand } from '../scripts/check-appliance.mjs';
+import { fileURLToPath } from 'node:url';
+
+const adapter = fileURLToPath(new URL('../bin/libemubox-vmwgfx.so', import.meta.url));
+const cageCommand = ['/lib64/ld-linux-x86-64.so.2', '--preload', adapter, '/usr/bin/cage', '--', '/opt/emubox/bin/emubox'];
+assert.equal(isCompositorCommand(cageCommand), true);
+assert.equal(isCompositorCommand(['/usr/bin/cage', '--', 'app']), true);
+assert.equal(isCompositorCommand(['/usr/bin/gamescope']), true);
+assert.equal(isCompositorCommand([]), false);
+assert.equal(isCompositorCommand(['/usr/bin/echo', ...cageCommand]), false);
+assert.equal(isCompositorCommand(cageCommand.map(value => value === '/usr/bin/cage' ? '/usr/bin/other' : value)), false);
+assert.equal(isCompositorCommand(cageCommand.map(value => value === adapter ? '/tmp/other.so' : value)), false);
 
 const ready = {
   architecture: 'x86_64', distributionSupported: true, systemd: true, uid: 1000, inspectorUid: 1000,

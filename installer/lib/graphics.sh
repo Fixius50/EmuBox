@@ -1,5 +1,26 @@
 #!/usr/bin/env bash
 
+configure_emubox_host_logging() {
+  if [[ "$1" == oracle && ! -v SVGA_NO_LOGGING ]]; then
+    export SVGA_NO_LOGGING=1
+  fi
+}
+
+configure_emubox_cage_command() {
+  CAGE_COMMAND=(cage)
+  [[ "$1" == vmwgfx && "${EMUBOX_VMWGFX_COMPAT:-1}" == 1 ]] || return 0
+  local library="$2/bin/libemubox-vmwgfx.so" loader=''
+  case "$3" in
+    x86_64) loader=/lib64/ld-linux-x86-64.so.2 ;;
+    aarch64) loader=/lib/ld-linux-aarch64.so.1 ;;
+  esac
+  if [[ -r "$library" && -x "$loader" ]]; then
+    CAGE_COMMAND=("$loader" --preload "$library" "$(command -v cage)")
+  else
+    printf '[AVISO] Adaptador vmwgfx no disponible; Cage usara libdrm del sistema.\n' >&2
+  fi
+}
+
 select_emubox_compositor() {
   local preference="$1" backend="$2" drm="$3" cage="$4" gamescope_ready="$5"
   if [[ "$drm" != 1 ]]; then echo unavailable
@@ -15,6 +36,16 @@ configure_emubox_cursor() {
   fi
   if [[ "$1" == vmwgfx && ! -v WLR_DRM_NO_ATOMIC ]]; then
     export WLR_DRM_NO_ATOMIC=1
+  fi
+}
+
+configure_emubox_presentation() {
+  [[ "$1" == vmwgfx ]] || return 0
+  if [[ ! -v WLR_SCENE_DEBUG_DAMAGE ]]; then
+    export WLR_SCENE_DEBUG_DAMAGE=rerender
+  fi
+  if [[ ! -v WLR_SCENE_DISABLE_DIRECT_SCANOUT ]]; then
+    export WLR_SCENE_DISABLE_DIRECT_SCANOUT=1
   fi
 }
 
