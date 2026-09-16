@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "level": "info",
+  "sources": {
+    "ui.input": "info",
+    "system.resources": "info",
+    "hyper": "warn",
+    "reqwest": "warn",
+    "rustls": "warn"
+  },
+  "maxFileBytes": 8388608,
+  "retainedFiles": 4,
+  "collectSession": true,
+  "collectJournal": true,
+  "journalPriority": "warning",
+  "processIntervalSeconds": 5,
+  "eventsPerSecond": 200
+}

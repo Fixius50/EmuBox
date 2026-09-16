@@ -68,7 +68,7 @@ Shell: preflight grafico -> compositor -> Tauri / pantalla de preparacion
                                                                         -> datos a SolidJS, hidratacion y montaje
                                                                         -> mostrar biblioteca y confirmar al backend
                                                                         -> ready / degraded
-                                                                        -> watcher, escaneo de cambios locales y manifiestos
+                                                                        -> watcher, escaneo local, indice canonico y manifiestos
 ```
 
 Los tres primeros trabajos son independientes, pero no se lanzan todos sin limite:
@@ -97,6 +97,21 @@ evento `startup-status`. La UI se suscribe antes de consultar el estado para
 cubrir eventos previos o concurrentes. El payload no se incluye en cada evento.
 La primera entrega mueve la biblioteca preparada fuera del coordinador para no
 retener otra copia completa; una recarga posterior de WebView relee SQLite.
+
+La tarea Library lee configuracion, recupera estados de descarga y entrega la
+biblioteca persistida; no ejecuta `game_database::ensure_local_index` ni sincroniza
+la base maestra. La reindexacion se realiza despues del reconocimiento de la UI,
+incluso si el escaneo no encontro archivos nuevos, y notifica `library-updated`
+cuando crea enlaces. Hasta entonces la UI utiliza los enlaces ya persistidos o su
+agrupacion local existente. No se borran instalaciones ni identidades para reintentar.
+
+El 16 de septiembre de 2026 se observo un timeout con 261.742 juegos: las marcas
+de tiempo del indice mostraron 68s de reindexacion y una lectura posterior de
+solo lectura tardo aproximadamente 6,7s. Incluir ese enriquecimiento en Library
+excedia por si solo los 60s; se retiro de la fase critica sin aumentar el plazo.
+Son medidas de esa sesion, no una garantia temporal para otros catalogos.
+Los logs ahora registran inicio/fin y duracion de cada tarea, incluidos resultados
+tardios, y el mensaje de fallo identifica las tareas que seguian ejecutandose.
 
 Limites de espera: cada version tiene 3s y terminacion forzada 1s despues; el
 inventario tiene un presupuesto de 25s comprobado entre perfiles. Preparacion

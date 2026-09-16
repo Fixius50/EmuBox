@@ -4,6 +4,7 @@ pub mod models;
 pub mod services;
 pub mod state;
 
+use services::infrastructure::telemetry;
 use state::AppState;
 use tauri::Emitter;
 use tauri::Manager;
@@ -12,6 +13,7 @@ use tauri::Manager;
 const MANIFEST_POLL_INTERVAL_SECS: u64 = 6 * 60 * 60;
 
 pub fn run() {
+    services::infrastructure::telemetry::init();
     tauri::Builder::default()
         .manage(AppState::new())
         .manage(services::runtime::startup::Startup::new())
@@ -21,19 +23,29 @@ pub fn run() {
             app.state::<services::runtime::startup::Startup>().start(
                 std::sync::Arc::new(move |report| {
                     eprintln!("[Startup] {:?}: {} ms", report.phase, report.elapsed_ms);
+                    telemetry::event(
+                        if report.error.is_some() {
+                            log::Level::Error
+                        } else {
+                            log::Level::Info
+                        },
+                        "startup",
+                        "startup.status",
+                        "Estado del coordinador",
+                        serde_json::to_value(&report).unwrap_or_default(),
+                    );
                     let _ = notify_handle.emit("startup-status", report);
                 }),
                 move || {
                     services::GameLibraryWatcher::start_watching(None, Some(app_handle.clone()));
-                    match services::GameService::scan_games(None) {
+                    match telemetry::operation("library.scan", "initial-scan", || {
+                        services::GameService::scan_games(None)
+                    }) {
                         Ok(scan) => {
                             if scan.added_count > 0
                                 || scan.updated_count > 0
                                 || scan.removed_count > 0
                             {
-                                if let Err(error) = services::game_database::ensure_local_index() {
-                                    eprintln!("[Game Database] Indice local tras escaneo: {error}");
-                                }
                                 let _ = app_handle.emit(
                                     "library-updated",
                                     serde_json::json!({ "reason": "initial-scan" }),
@@ -48,10 +60,30 @@ pub fn run() {
                         }
                         Err(error) => eprintln!("[Library] Escaneo inicial: {error}"),
                     }
-                    match services::game_database::sync_all(|platform, count| {
-                        let _ = app_handle.emit("library-updated", serde_json::json!({
+                    match telemetry::operation(
+                        "catalog.index",
+                        "local-index",
+                        services::game_database::ensure_local_index,
+                    ) {
+                        Ok(count) if count > 0 => {
+                            let _ = app_handle.emit(
+                                "library-updated",
+                                serde_json::json!({
+                                    "reason": "local-game-index", "matchedCount": count
+                                }),
+                            );
+                        }
+                        Ok(_) => (),
+                        Err(error) => {
+                            eprintln!("[Game Database] Indice local tras preparar UI: {error}")
+                        }
+                    }
+                    match telemetry::operation("catalog.database", "master-sync", || {
+                        services::game_database::sync_all(|platform, count| {
+                            let _ = app_handle.emit("library-updated", serde_json::json!({
                         "reason": "game-database", "platform": platform, "canonicalCount": count
                     }));
+                        })
                     }) {
                         Ok(count) => {
                             eprintln!("[Game Database] {count} juegos canonicos actualizados")
@@ -59,11 +91,13 @@ pub fn run() {
                         Err(error) => eprintln!("[Game Database] {error}"),
                     }
                     if let Err(error) =
-                        services::DownloadService::import_link_file_with_progress(|| {
-                            let _ = app_handle.emit(
-                                "library-updated",
-                                serde_json::json!({ "reason": "manifest-import" }),
-                            );
+                        telemetry::operation("catalog.manifests", "initial-sync", || {
+                            services::DownloadService::import_link_file_with_progress(|| {
+                                let _ = app_handle.emit(
+                                    "library-updated",
+                                    serde_json::json!({ "reason": "manifest-import" }),
+                                );
+                            })
                         })
                     {
                         eprintln!("[Catalog] {error}");
@@ -73,11 +107,13 @@ pub fn run() {
                             MANIFEST_POLL_INTERVAL_SECS,
                         ));
                         if let Err(error) =
-                            services::DownloadService::import_link_file_with_progress(|| {
-                                let _ = app_handle.emit(
-                                    "library-updated",
-                                    serde_json::json!({ "reason": "manifest-import" }),
-                                );
+                            telemetry::operation("catalog.manifests", "periodic-sync", || {
+                                services::DownloadService::import_link_file_with_progress(|| {
+                                    let _ = app_handle.emit(
+                                        "library-updated",
+                                        serde_json::json!({ "reason": "manifest-import" }),
+                                    );
+                                })
                             })
                         {
                             eprintln!("[Catalog] {error}");
@@ -140,6 +176,7 @@ pub fn run() {
             commands::diagnostics::get_system_logs,
             commands::diagnostics::get_emubox_logs,
             commands::diagnostics::get_diagnostics,
+            commands::diagnostics::record_frontend_events,
             commands::diagnostics::frontend_probe,
             // BIOS
             commands::bios::get_bios_requirements,

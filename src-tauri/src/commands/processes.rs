@@ -4,7 +4,12 @@ use crate::services::ProcessService;
 
 #[tauri::command]
 pub async fn launch_game(request: LaunchGameRequest) -> Result<LaunchResult, EmuBoxError> {
-    super::blocking(move || ProcessService::launch_game(request)).await
+    super::blocking(move || {
+        crate::services::infrastructure::telemetry::operation("game.launch", "launch", || {
+            ProcessService::launch_game(request)
+        })
+    })
+    .await
 }
 
 #[tauri::command]

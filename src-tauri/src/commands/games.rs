@@ -4,7 +4,12 @@ use crate::services::GameService;
 
 #[tauri::command]
 pub async fn get_games(filter: Option<GameFilter>) -> Result<Vec<Game>, EmuBoxError> {
-    let result = super::blocking(move || GameService::get_games(filter)).await;
+    let result = super::blocking(move || {
+        crate::services::infrastructure::telemetry::operation("library.read", "get-games", || {
+            GameService::get_games(filter)
+        })
+    })
+    .await;
     match &result {
         Ok(games) => eprintln!("[IPC] get_games -> {} juegos", games.len()),
         Err(e) => eprintln!("[IPC] get_games FALLÓ: {}", e),
@@ -26,7 +31,14 @@ pub fn get_canonical_game_options(
 
 #[tauri::command]
 pub async fn scan_games(request: Option<ScanGamesRequest>) -> Result<ScanGamesResult, EmuBoxError> {
-    let result = super::blocking(move || GameService::scan_games(request)).await;
+    let result = super::blocking(move || {
+        crate::services::infrastructure::telemetry::operation(
+            "library.scan",
+            "requested-scan",
+            || GameService::scan_games(request),
+        )
+    })
+    .await;
     match &result {
         Ok(r) => eprintln!(
             "[IPC] scan_games -> total={} añadidos={} actualizados={} eliminados={} errores={:?}",

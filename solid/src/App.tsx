@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { LoaderCircle, LogOut } from 'lucide-solid';
 import { startupErrorMessage, startupMessage, waitForStartup } from '@services/system/startup';
 import type { StartupReport } from '@contracts/startup.types';
+import { startFrontendTelemetry, recordUiEvent } from '@services/system/telemetry';
 
 // Types
 import type { Game } from "@contracts/game.types";
@@ -42,6 +43,7 @@ const NativeApp: Component = () => {
   const graphicsDetector = new GraphicsDetectorService();
 
   const backend = new TauriBackendService();
+  onMount(() => { onCleanup(startFrontendTelemetry(entries => backend.recordFrontendEvents(entries))); });
   const soundFx = new SoundFxService();
 
   const libraryStore = createLibraryStore(backend);
@@ -129,6 +131,7 @@ const NativeApp: Component = () => {
 
   const { inputStatus } = useConsoleInput({
     onAction: (action) => {
+      recordUiEvent('input.action', { action });
       if (!startupReady()) return;
       if (action === "MAINTENANCE_MENU") {
         modalStore.openMaintenance();

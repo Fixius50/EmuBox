@@ -4,6 +4,7 @@ import ts from 'typescript';
 import { TauriBackendService } from '../solid/src/services/backend/tauri-backend.service';
 import { startupErrorMessage, startupMessage, waitForStartup } from '../solid/src/services/system/startup';
 import type { StartupReport } from '../solid/src/types/startup.types';
+import { createTelemetryBuffer, type FrontendLogEvent } from '../solid/src/services/system/telemetry';
 
 const tauriConfig = JSON.parse(readFileSync(new URL('../src-tauri/tauri.conf.json', import.meta.url), 'utf8'));
 const eventCapability = JSON.parse(readFileSync(new URL('../src-tauri/capabilities/main-events.json', import.meta.url), 'utf8'));
@@ -31,6 +32,7 @@ for (const operation of [
   () => backend.getDownloadCandidates('unavailable'),
   () => backend.selectDownloadCandidate('unavailable', 'disc.iso'),
   () => backend.launchGame('unavailable'),
+  () => backend.recordFrontendEvents([]),
 ]) {
   await assert.rejects(operation, /runtime nativo Tauri/);
 }
@@ -38,6 +40,9 @@ console.log('Native IPC: absent runtime rejects operations without fabricated re
 const source = ts.createSourceFile('backend.ts', readFileSync(new URL('../solid/src/services/backend/tauri-backend.service.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 const registered = new Set([...readFileSync(new URL('../src-tauri/src/lib.rs', import.meta.url), 'utf8').matchAll(/commands::\w+::(\w+)/g)].map(match => match[1]));
 assert.equal(registered.has('execute_command'), false, 'Generic shell execution must not be exposed over IPC');
+const nativeStartup = readFileSync(new URL('../src-tauri/src/services/runtime/startup.rs', import.meta.url), 'utf8');
+assert.doesNotMatch(nativeStartup, /game_database::(?:ensure_local_index|sync_all)/,
+  'Canonical catalog reconciliation must not block cached library startup');
 let checked = 0;
 function visit(node: ts.Node) {
   if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.expression.kind === ts.SyntaxKind.ThisKeyword
@@ -51,6 +56,26 @@ visit(source);
 assert.ok(checked > 40);
 await assert.rejects(() => backend.checkForUpdates(), /no disponible/);
 console.log(`IPC registration: ${checked} actual adapter commands verified against Rust.`);
+
+const logBatches: FrontendLogEvent[][] = [];
+let finishBatch!: () => void;
+const telemetry = createTelemetryBuffer(async entries => {
+  logBatches.push(entries);
+  await new Promise<void>(resolve => { finishBatch = resolve; });
+});
+const logEntry: FrontendLogEvent = { event: 'input.click', level: 'info', message: '', timestampMs: 100, elapsedMs: 1, data: {} };
+for (let index = 0; index < 70; index++) telemetry.push(logEntry);
+const sending = telemetry.flush();
+await telemetry.flush();
+assert.equal(logBatches.length, 1);
+assert.equal(logBatches[0].length, 32);
+assert.equal(logBatches[0][0].data.droppedEvents, 6);
+finishBatch();
+await sending;
+telemetry.close();
+await telemetry.flush();
+assert.equal(logBatches.length, 1);
+console.log('Telemetry: bounded batches, dropped-event accounting, no concurrent IPC and cleanup verified.');
 
 const prepared: StartupReport = {
   phase: 'prepared', elapsedMs: 10, warnings: [], error: null, tasks: [],

@@ -288,7 +288,18 @@ impl Startup {
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         inner.report.phase = Phase::Error;
-        inner.report.error = Some(message);
+        let running = inner
+            .report
+            .tasks
+            .iter()
+            .filter(|task| task.state == "running")
+            .map(|task| format!("{:?}", task.id))
+            .collect::<Vec<_>>();
+        inner.report.error = Some(if running.is_empty() {
+            message
+        } else {
+            format!("{message}. Tareas pendientes: {}", running.join(", "))
+        });
         for task in &mut inner.report.tasks {
             if task.state == "running" {
                 task.state = "error".into();
@@ -369,6 +380,16 @@ impl Startup {
                 let execute_task = execute_task.clone();
                 std::thread::spawn(move || {
                     let started = Instant::now();
+                    let _span = crate::services::infrastructure::telemetry::span(
+                        "startup.task",
+                        match task {
+                            Task::Library => "library",
+                            Task::Hardware => "hardware",
+                            Task::Services => "services",
+                            Task::Emulators => "emulators",
+                        },
+                    );
+                    eprintln!("[Startup] task={task:?} running");
                     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         execute_task(task, hardware)
                     }))
@@ -377,7 +398,12 @@ impl Startup {
                             "Tarea de arranque interrumpida".into(),
                         ))
                     });
-                    let _ = sender.send((task, started.elapsed().as_millis() as u64, result));
+                    let elapsed = started.elapsed().as_millis() as u64;
+                    eprintln!(
+                        "[Startup] task={task:?} finished elapsedMs={elapsed} success={}",
+                        result.is_ok()
+                    );
+                    let _ = sender.send((task, elapsed, result));
                 });
             }
             let remaining = timeout.saturating_sub(self.started.elapsed());
@@ -537,7 +563,6 @@ fn execute(
             SystemService::get_config()?;
             let settings = SystemService::get_settings()?;
             download_manager::recover()?;
-            crate::services::game_database::ensure_local_index()?;
             Output::Library(
                 settings,
                 GameService::get_platforms()?,
@@ -754,6 +779,12 @@ mod tests {
             }),
         );
         assert_eq!(startup.report().phase, Phase::Error);
+        assert!(startup
+            .report()
+            .error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Library"));
         release.send(()).unwrap();
         completion.recv_timeout(Duration::from_secs(2)).unwrap();
         assert_eq!(startup.report().phase, Phase::Error);

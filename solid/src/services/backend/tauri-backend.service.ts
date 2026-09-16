@@ -29,6 +29,7 @@ import type {
 import type { CreateDownloadRequest, DownloadJob, DownloadSource } from '@contracts/download.types';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { StartupData, StartupReport } from '@contracts/startup.types';
+import { recordUiEvent, type FrontendLogEvent } from '@services/system/telemetry';
 
 /**
  * Tauri IPC Backend Implementation.
@@ -43,7 +44,20 @@ export class TauriBackendService implements IEmuBoxBackend {
     if (!this.isTauriEnvironment) {
       throw new Error('EmuBox requiere el runtime nativo Tauri. Inicia la aplicacion nativa.');
     }
-    return invoke<T>(cmd, args);
+    const started = performance.now();
+    try {
+      const result = await invoke<T>(cmd, args);
+      const durationMs = Math.round(performance.now() - started);
+      if (cmd !== 'record_frontend_events') recordUiEvent('ipc.complete', { command: cmd, durationMs, success: true }, durationMs >= 500 ? 'warn' : 'debug');
+      return result;
+    } catch (error) {
+      if (cmd !== 'record_frontend_events') recordUiEvent('ipc.complete', { command: cmd, durationMs: Math.round(performance.now() - started), success: false }, 'error');
+      throw error;
+    }
+  }
+
+  public recordFrontendEvents(entries: FrontendLogEvent[]): Promise<void> {
+    return this.invoke('record_frontend_events', { entries });
   }
 
   // 1. Sistema & Hardware Telemetry

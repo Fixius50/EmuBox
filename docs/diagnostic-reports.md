@@ -4,6 +4,17 @@ Este documento registra la cronología de diagnósticos, pruebas de compilación
 
 ## Estado consolidado actual
 
+### Captura correlacionada del negro intermitente, 16 de septiembre de 2026
+
+La pantalla negra no se considera resuelta. Se ha incorporado un controlador de
+registros con timestamps UTC/monotonos, origen, nivel, PID/hilo y duracion de
+operaciones. Recoge Rust, UI, session.log, journal accesible y muestras limitadas
+de procesos. F8 marca el instante del incidente; no captura pixeles ni prueba
+que una tarea concurrente sea su causa.
+
+Archivo activo: `/var/log/emubox/events.jsonl`. Configuracion y comandos de filtrado
+en [controlador de registros](architecture/diagnostic-logging.md).
+
 ### Arranque y cobertura de fuentes, 15 de septiembre de 2026
 
 Diagnostico del boot `bebcb5a32b6a426a82ea94a8fef50b50`: systemd informa
