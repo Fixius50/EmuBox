@@ -50,8 +50,10 @@ presentacion real en pantalla. Los IPC de >=500ms se registran como avisos;
 los rapidos son debug. No se guardan argumentos ni resultados IPC.
 
 F8 genera `incident.mark`: pulsarlo al observar el negro ayuda a buscar la ventana
-temporal. No intercepta ni guarda otras teclas, valores de formularios, nombres
-de juegos ni movimientos individuales del raton. Si la UI se bloquea por completo,
+temporal. La captura de input no guarda otras teclas, valores de formularios, nombres
+de juegos ni movimientos individuales del raton. Los mensajes legados de consola,
+stderr o journal pueden contener titulos o rutas: se aplica ocultacion conservadora,
+pero deben revisarse antes de compartirlos. Si la UI se bloquea por completo,
 la marca puede llegar tarde o no llegar; los recolectores nativos continuan.
 
 ## Configuracion
