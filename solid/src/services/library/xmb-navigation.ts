@@ -17,8 +17,13 @@ export function xmbFolders(games: CatalogGroup[]): XmbFolder[] {
   for (const game of games) {
     const id = game.canonicalId || game.title.normalize("NFKC").toLowerCase();
     const folder = folders.get(id);
-    if (folder) folder.games.push(game);
-    else folders.set(id, { id, title: game.title, games: [game] });
+    let versions: CatalogGroup[] | undefined;
+    const entries = () => versions ??= game.canonicalId
+      ? game.variants.map(variant => ({ ...game, ...variant,
+        title: variant.releaseTitle || variant.title, favorite: game.favorite, variants: [variant],
+      })) : [game];
+    if (folder) folder.games.push(...entries());
+    else folders.set(id, { id, title: game.canonicalTitle || game.title, get games() { return entries(); } });
   }
   return [...folders.values()];
 }

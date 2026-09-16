@@ -51,6 +51,10 @@ assert.equal(canonical[0].id, 'mario-package-b');
 assert.equal(canonical[0].title, 'Mario Bros.');
 assert.equal(canonical[0].variants.length, 2);
 assert.equal(groupCatalog([
+  { ...game, canonicalId: 'same-canonical', title: 'Fixture (1993)', releaseYear: 1993 },
+  { ...game, id: 'second-release', canonicalId: 'same-canonical', title: 'Fixture (1994)', releaseYear: 1994 },
+]).length, 1, 'A canonical identity must not split by package year');
+assert.equal(groupCatalog([
   { ...game, id: 'same-a', title: 'Same title', canonicalId: 'canonical-a' },
   { ...game, id: 'same-b', title: 'Same title', canonicalId: 'canonical-b' },
 ]).length, 2);

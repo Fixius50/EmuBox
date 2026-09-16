@@ -28,7 +28,7 @@ export function groupCatalog(games: Game[]): CatalogGroup[] {
   const variants: Game[][] = [];
   for (const entries of titles.values()) {
     const knownYears = new Set(entries.flatMap(entry => entry.year ? [entry.year] : []));
-    if (knownYears.size <= 1) {
+    if (entries[0].game.canonicalId || knownYears.size <= 1) {
       variants.push(entries.map(entry => entry.game));
     } else {
       const byYear = new Map<string, Game[]>();

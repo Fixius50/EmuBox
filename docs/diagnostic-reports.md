@@ -15,6 +15,17 @@ que una tarea concurrente sea su causa.
 Archivo activo: `/var/log/emubox/events.jsonl`. Configuracion y comandos de filtrado
 en [controlador de registros](architecture/diagnostic-logging.md).
 
+La marca F8 de las 19:13:10 UTC coincide con descarga aria2 y avisos libinput de
+21-38ms, pero no con la sincronizacion del catalogo (terminada dos minutos antes).
+Habia unos 9 GiB disponibles y no habia swap en uso; no demuestra falta de memoria
+ni que la descarga cause corrupcion de pixeles. Se redujo trabajo evitable:
+RPC de progreso pequeno, conexion SQLite reutilizada, prioridad relativa de aria2,
+sondas UI de dos frames y muestreo de procesos sin duplicar hilos. No se suprimen
+los avisos libinput ni se declara resuelto el negro sin evidencia visual nueva.
+La validacion reprodujo ademas `database is locked` durante importacion concurrente;
+se corrigio la transaccion diferida del indice local para reservar escritor antes
+de leer. No se oculta el fallo serializando toda la suite de pruebas.
+
 ### Arranque y cobertura de fuentes, 15 de septiembre de 2026
 
 Diagnostico del boot `bebcb5a32b6a426a82ea94a8fef50b50`: systemd informa

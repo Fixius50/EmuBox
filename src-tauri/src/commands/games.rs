@@ -23,10 +23,17 @@ pub fn get_game_by_id(id: String) -> Result<Option<Game>, EmuBoxError> {
 }
 
 #[tauri::command]
-pub fn get_canonical_game_options(
+pub async fn get_canonical_game_options(
     id: String,
 ) -> Result<crate::models::CanonicalGameOptions, EmuBoxError> {
-    crate::services::game_database::options(&id)
+    super::blocking(move || {
+        crate::services::infrastructure::telemetry::operation(
+            "library.options",
+            "canonical-options",
+            || crate::services::game_database::options(&id),
+        )
+    })
+    .await
 }
 
 #[tauri::command]

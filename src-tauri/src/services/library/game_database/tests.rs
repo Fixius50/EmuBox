@@ -27,6 +27,46 @@ fn title_matching_is_conservative_and_strips_only_known_markers() {
     assert_eq!(normalize_title("  #Mario: Bros.  "), "mario bros");
 }
 #[test]
+fn concurrent_local_indexers_preserve_one_match_per_variant() {
+    crate::services::GameService::get_platforms().unwrap();
+    let connection = DatabaseService::get_connection().unwrap();
+    for index in 0..16 {
+        connection.execute("INSERT INTO games(id,title,platform_id,platform_name) VALUES(?1,'Concurrent Index Fixture','nes','NES')",
+            [format!("concurrent-index-fixture-{index}")]).unwrap();
+    }
+    let barrier = std::sync::Barrier::new(6);
+    std::thread::scope(|scope| {
+        let workers: Vec<_> = (0..6)
+            .map(|_| {
+                scope.spawn(|| {
+                    barrier.wait();
+                    ensure_local_index()
+                })
+            })
+            .collect();
+        for worker in workers {
+            worker.join().unwrap().unwrap();
+        }
+    });
+    let (variants, identities): (usize, usize) = connection.query_row(
+        "SELECT COUNT(*),COUNT(DISTINCT canonical_game_id) FROM catalog_game_matches WHERE catalog_game_id LIKE 'concurrent-index-fixture-%'",
+        [], |row| Ok((row.get(0)?, row.get(1)?))).unwrap();
+    assert_eq!((variants, identities), (16, 1));
+    connection
+        .execute(
+            "DELETE FROM games WHERE id LIKE 'concurrent-index-fixture-%'",
+            [],
+        )
+        .unwrap();
+    connection
+        .execute(
+            "DELETE FROM canonical_games WHERE normalized_title='concurrent index fixture'",
+            [],
+        )
+        .unwrap();
+}
+
+#[test]
 fn local_variants_upgrade_to_authoritative_identity_without_changing_catalog_ids() {
     use crate::{models::game::CatalogEntry, services::GameService};
     GameService::get_platforms().unwrap();

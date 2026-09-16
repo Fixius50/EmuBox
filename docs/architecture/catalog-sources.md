@@ -13,6 +13,28 @@ Descargar siempre usa el `gameId` de la version elegida. El favorito pertenece a
 la identidad canonica, mientras que el emulador sigue perteneciendo a la variante
 instalada porque dos versiones pueden requerir motores o argumentos distintos.
 
+Abrir la carpeta canonica presenta directamente sus variantes, con contador de
+version y estado instalado/descargando. Ya no hay una tarjeta intermedia duplicada
+que se llame "version de plataforma". Las tarjetas se materializan al acceder a
+la carpeta, no para todas las variantes del catalogo al arrancar. La ficha muestra
+el titulo canonico y la version seleccionada por separado; identifica si procede
+de Libretro Database o del catalogo local. No se fusionan identidades diferentes
+por parecido ni se divide una identidad canonica por anos del paquete.
+
+`Fuentes de esta version` abre el selector en el `catalogGameId` elegido, incluso
+si el backend ordena primero otra variante instalada. Se conservan los nombres
+originales de las fuentes, sin sustituirlos por el nombre del juego. Con varias
+versiones, LB/RB cambia version en el panel de fuentes aunque exista historial;
+los controles de descarga siguen disponibles en sus botones. La consulta IPC
+de opciones se ejecuta en un worker bloqueante, no en el hilo de la interfaz.
+
+En la comprobacion de solo lectura del 16 de septiembre habia 8.078 variantes
+enlazadas a Libretro y 253.664 a identidades locales; 10.966 carpetas tenian varias
+variantes. Estos datos explican por que muchos titulos siguen conservando nombres
+de manifiesto: disponer de la capa canonica no equivale a haber identificado
+oficialmente todo el catalogo. No se ocultan las variantes locales ni se anuncian
+como coincidencias maestras.
+
 Para NES, SNES, GBA, N64, Mega Drive, 3DS, NDS, PSP, PS1, PS2, PS3, GameCube y
 Dreamcast, el proveedor maestro es [Libretro Database](https://github.com/libretro/libretro-database),
 publicado bajo CC BY-SA 4.0. Se importan sus DAT No-Intro/Redump sin credenciales.
@@ -43,6 +65,10 @@ Una mejora de confianza conserva el favorito de la identidad anterior en la
 misma transaccion que cambia el enlace. Un juego todavia sin indice canonico
 puede alternar su favorito local. Las pruebas de matching en memoria comprueban
 prioridad de release, rechazo de ambiguedades y aislamiento por plataforma.
+El indice local usa transaccion SQLite inmediata: reserva el escritor antes de
+leer filas pendientes, evitando fallos de promocion de lectura a escritura cuando
+coinciden importadores. Se cubre con seis indexadores concurrentes y variantes
+compartidas en la base aislada de pruebas; el timeout del SO no se modifica.
 
 ## Archivo activo
 
@@ -122,7 +148,7 @@ por titulo/plataforma, con todos sus paquetes y fuentes accesibles. No se elimin
 filas de SQLite ni se vuelven a descargar manifiestos para aplicar esta correccion.
 
 SQLite conserva cada registro y fuente original. La UI muestra titulos agrupados,
-paquetes e instalados por separado. `Fuentes y paquetes` permite consultar las
+versiones e instalados por separado. `Fuentes de esta version` permite consultar las
 alternativas incluso cuando una variante ya esta instalada. El selector conserva
 los titulos originales y confirma con `gameId` y `sourceId` de la variante elegida,
 no con el ID de la tarjeta representativa. No descarga todos los paquetes juntos.

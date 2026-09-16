@@ -229,9 +229,26 @@ fn record_journal(entry: &Value) {
 fn processes(interval: u64) {
     let mut system = sysinfo::System::new();
     loop {
-        system.refresh_processes();
+        let started = std::time::Instant::now();
+        let pids: Vec<_> = fs::read_dir("/proc")
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter_map(|entry| {
+                entry
+                    .file_name()
+                    .to_str()?
+                    .parse::<u32>()
+                    .ok()
+                    .map(sysinfo::Pid::from_u32)
+            })
+            .collect();
+        system.refresh_pids_specifics(
+            &pids,
+            sysinfo::ProcessRefreshKind::new().with_cpu().with_memory(),
+        );
         system.refresh_memory();
-        let mut entries: Vec<_> = system.processes().values().collect();
+        let mut entries: Vec<_> = pids.iter().filter_map(|pid| system.process(*pid)).collect();
         entries.sort_by(|left, right| right.cpu_usage().total_cmp(&left.cpu_usage()));
         let samples: Vec<_> = entries.iter().enumerate().filter(|(index, process)| *index < 6 ||
 			["emubox", "WebKit", "cage", "gamescope", "ld-linux", "pipewire", "wireplumber", "Xwayland"].iter().any(|name| process.name().contains(name)))
@@ -250,7 +267,8 @@ fn processes(interval: u64) {
             "Muestra de procesos y recursos",
             json!({
                 "intervalSeconds": interval, "memoryAvailableBytes": system.available_memory(), "swapUsedBytes": system.used_swap(),
-                "processes": samples, "pressure": pressure
+                "processes": samples, "pressure": pressure, "sampleDurationMs": started.elapsed().as_millis() as u64,
+                "processScope": "process-leaders"
             }),
         );
         std::thread::sleep(Duration::from_secs(interval));
@@ -261,6 +279,18 @@ fn processes(interval: u64) {
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn resource_refresh_excludes_thread_rows() {
+        let pid = sysinfo::Pid::from_u32(std::process::id());
+        let mut system = sysinfo::System::new();
+        system.refresh_pids_specifics(
+            &[pid],
+            sysinfo::ProcessRefreshKind::new().with_cpu().with_memory(),
+        );
+        assert!(system.process(pid).is_some());
+        assert_eq!(system.processes().len(), 1);
+    }
 
     #[test]
     fn session_reader_reads_only_new_complete_lines_and_recovers_rotation() {

@@ -13,7 +13,7 @@ fn hash_id(prefix: &str, parts: &[&str]) -> String {
 pub fn ensure_local_index() -> Result<usize, EmuBoxError> {
     let mut connection = DatabaseService::get_connection()?;
     let transaction = connection
-        .transaction()
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
         .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
     let rows = {
         let mut statement = transaction.prepare("SELECT game.id, game.title, game.platform_id FROM games AS game LEFT JOIN catalog_game_matches AS match ON match.catalog_game_id=game.id WHERE match.catalog_game_id IS NULL")

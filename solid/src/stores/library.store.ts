@@ -36,7 +36,7 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
   };
   const catalogGames = createMemo(() => groupCatalog(games()));
   const groupByVariant = createMemo(() => new Map(catalogGames().flatMap(group => group.variants.map(variant => [variant.id, group] as const))));
-  const catalogDownloadingIds = createMemo(() => new Set([...downloadingIds()].map(id => groupByVariant().get(id)?.id || id)));
+  const catalogDownloadingIds = createMemo(() => new Set([...downloadingIds()].flatMap(id => [id, groupByVariant().get(id)?.id || id])));
   let sourceRequest = 0;
   const closeSources = () => {
     sourceRequest++;
@@ -60,15 +60,15 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
         const options = await backend.getCanonicalGameOptions(canonicalId);
         if (request === sourceRequest) {
           setReleaseOptions(options.releases);
-          setAllSourceOptions(options.sources.map(source => ({ ...source,
-            name: options.releases.find(release => release.catalogGameId === source.gameId)?.title || source.name })));
+          setAllSourceOptions(options.sources);
+          selectRelease(Math.max(0, options.releases.findIndex(release => release.catalogGameId === game.id)));
         }
       } else {
         const variants = groupByVariant().get(game.id)?.variants || [game];
         const sources: DownloadSourceOption[] = [];
         for (let offset = 0; offset < variants.length && request === sourceRequest; offset += 4) {
           const batch = await Promise.all(variants.slice(offset, offset + 4).map(async variant =>
-            (await backend.getDownloadSources(variant.id)).map(source => ({ ...source, name: variant.title }))));
+            backend.getDownloadSources(variant.id)));
           sources.push(...batch.flat());
         }
         if (request === sourceRequest) {
@@ -77,6 +77,7 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
             sourceCount: sources.filter(source => source.gameId === variant.id).length,
             downloadableSourceCount: sources.filter(source => source.gameId === variant.id && source.downloadable).length })));
           setAllSourceOptions(sources);
+          selectRelease(Math.max(0, variants.findIndex(variant => variant.id === game.id)));
         }
       }
     } catch (error) {

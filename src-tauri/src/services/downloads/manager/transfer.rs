@@ -90,11 +90,14 @@ pub(super) fn run(
         })
         .unwrap_or_else(|| "content.bin".into());
     let resolved_uri = crate::services::download_connectors::resolve_uri(&source.uri)?;
+    let progress_connection = DatabaseService::get_connection()?;
     let transfer = crate::services::download_providers::provider(provider).transfer(&TransferRequest { uri:&resolved_uri,directory:&root,filename:&filename,control,max_bytes:None }, &mut |progress| {
         let ratio = progress.total.map(|total| (progress.downloaded as f64 / total.max(1) as f64).min(0.99)).unwrap_or(0.0);
-        DatabaseService::get_connection()?.execute("UPDATE download_jobs SET progress=?1,downloaded_bytes=?2,total_bytes=?3,speed_bytes_per_second=?4 WHERE id=?5 AND status='downloading'",params![ratio,progress.downloaded,progress.total,progress.speed,job.id]).map_err(io_error)?;
+        progress_connection.prepare_cached("UPDATE download_jobs SET progress=?1,downloaded_bytes=?2,total_bytes=?3,speed_bytes_per_second=?4 WHERE id=?5 AND status='downloading'").map_err(io_error)?
+            .execute(params![ratio,progress.downloaded,progress.total,progress.speed,job.id]).map_err(io_error)?;
         Ok(())
     })?;
+    drop(progress_connection);
     let TransferOutcome::Complete(files) = transfer else {
         return Ok(());
     };

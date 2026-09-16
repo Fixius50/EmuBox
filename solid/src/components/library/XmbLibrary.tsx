@@ -32,6 +32,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
     folders,
     settingItems,
     rows,
+    folder,
     selectedGame,
     rowWindow,
     gameWindow,
@@ -71,6 +72,10 @@ export function XmbLibrary(props: XmbLibraryProps) {
           <strong>EMUBOX</strong>
           <span>/</span>
           <span>{category().title}</span>
+          <Show when={position().expanded && folder()}>
+            <span>/</span>
+            <span>{folder()?.title}</span>
+          </Show>
         </div>
         <div class="xmb-load-status" role="status" aria-live="polite" aria-atomic="true">
           <Show when={props.loading} fallback={props.loadError}>
@@ -149,7 +154,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
           <p>
             {category().kind === "settings"
               ? `${rows()} secciones`
-              : `${folders().length.toLocaleString("es-ES")} titulos · ${packages().toLocaleString("es-ES")} paquetes`}
+              : `${folders().length.toLocaleString("es-ES")} juegos · ${packages().toLocaleString("es-ES")} versiones`}
           </p>
           <Show when={rows() === 0}>
             <p role="status">
@@ -213,7 +218,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                     <p>
                       {category().kind === "settings"
                         ? settingItems[row - 1]?.detail
-                        : `${folders()[row - 1]?.games.length || 0} versiones de plataforma`}
+                        : `${folders()[row - 1]?.games.length || 0} versiones disponibles`}
                     </p>
                   </div>
                 </Show>
@@ -227,8 +232,13 @@ export function XmbLibrary(props: XmbLibraryProps) {
           <>
             <section
               class="xmb-game-shelf"
-              aria-label="Versiones de plataforma"
+              aria-label="Versiones del juego"
             >
+              <header class="xmb-version-heading">
+                <strong>Versiones</strong>
+                <span>{position().game + 1} / {folder()?.games.length || 0}</span>
+              </header>
+              <div class="xmb-version-track">
               <For each={gameWindow()}>
                 {(entry) => (
                   <button
@@ -261,11 +271,12 @@ export function XmbLibrary(props: XmbLibraryProps) {
                     <span>
                       <strong>{entry.game.title}</strong>
                       <small>{entry.game.platformName}</small>
-                      <small>{entry.game.variants.length} paquetes</small>
+                      <small>{props.downloadingIds.has(entry.game.id) ? 'Descargando' : entry.game.installed ? 'Instalada' : 'Sin instalar'}</small>
                     </span>
                   </button>
                 )}
               </For>
+              </div>
             </section>
             <aside class="xmb-detail-drawer" aria-label="Ficha del juego">
               <header>
@@ -316,7 +327,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                   </Show>
                 </div>
                 <div class="xmb-title-line">
-                  <h2>{game().title}</h2>
+                  <h2>{game().canonicalTitle || game().title}</h2>
                   <button
                     class="xmb-icon-button"
                     title="Alternar favorito"
@@ -347,8 +358,12 @@ export function XmbLibrary(props: XmbLibraryProps) {
                     <dd>{game().developer || "No disponible"}</dd>
                   </div>
                   <div>
-                    <dt>Paquetes</dt>
-                    <dd>{game().variants.length}</dd>
+                    <dt>Version seleccionada</dt>
+                    <dd>{game().releaseTitle || game().title}</dd>
+                  </div>
+                  <div>
+                    <dt>Identificacion</dt>
+                    <dd>{game().matchMethod?.startsWith('libretro-') ? 'Libretro Database' : 'Catalogo local'}</dd>
                   </div>
                   <div>
                     <dt>Estado</dt>
@@ -372,7 +387,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                   onClick={() => props.onOpenGame(game())}
                 >
                   <Download size={18} />
-                  Fuentes y paquetes
+                  Fuentes de esta version
                 </button>
               </footer>
             </aside>

@@ -66,6 +66,27 @@ assert.deepEqual(
 assert.equal(folders[1].title, "Example 2");
 assert.deepEqual(xmbFolders([]), []);
 
+const canonicalFolders = xmbFolders(groupCatalog([
+  { ...fixtures[0], id: 'edition-us', canonicalId: 'canonical-example', canonicalTitle: 'Example', releaseTitle: 'Example (USA)' },
+  { ...fixtures[0], id: 'edition-eu', canonicalId: 'canonical-example', canonicalTitle: 'Example', releaseTitle: 'Example (Europe)', installed: true },
+]));
+assert.equal(canonicalFolders.length, 1);
+assert.equal(canonicalFolders[0].title, 'Example');
+assert.equal(canonicalFolders[0].games.length, 2);
+assert.deepEqual(canonicalFolders[0].games.map(game => game.title), ['Example (Europe)', 'Example (USA)']);
+assert.deepEqual(canonicalFolders[0].games.map(game => game.id), ['edition-eu', 'edition-us']);
+assert.equal(canonicalFolders[0].games[0].installed, true);
+let versionReads = 0;
+const lazyFolder = xmbFolders([{
+  ...groupCatalog(fixtures)[0], canonicalId: 'lazy-canonical',
+  get variants() { versionReads++; return [fixtures[0]]; },
+}]);
+assert.equal(versionReads, 0, 'Creating folders must not build every version card');
+const lazyVersions = lazyFolder[0].games;
+const afterFirstAccess = versionReads;
+assert.equal(lazyFolder[0].games, lazyVersions);
+assert.equal(versionReads, afterFirstAccess, 'Opening the same folder reuses version cards');
+
 let controller: ((action: InputAction) => void) | null = null;
 const opened: string[] = [];
 const runtime = createRoot((dispose) => {

@@ -43,9 +43,13 @@ estructurado. No se modifica ni rota el session.log legado.
 
 La UI registra clics (boton/tipo de elemento, sin texto), acciones de mando,
 foco, visibilidad, redimensionado, errores JavaScript/promesas, console y perdida
-de contexto WebGL observable. Cada cinco segundos emite una muestra de callbacks
-requestAnimationFrame; no provoca repintados CSS ni registra cada frame. Una
-pausa >1s en una pagina visible se marca como aviso. Esto mide callbacks, no
+de contexto WebGL observable. Cada cinco segundos solicita dos callbacks
+requestAnimationFrame y mide su espera; no mantiene un bucle de animacion continuo
+ni provoca repintados CSS. `sampling=two-frames` distingue estas muestras de las
+antiguas: `frames=2` no significa dos FPS. `probeLatencyMs` mide la espera completa
+y `maxGapMs` la mayor espera de la sonda. Si sigue pendiente en el siguiente
+intervalo, informa `frames=0` sin superponer otra sonda. Una pausa >1s en una
+pagina visible se marca como aviso. Esto mide callbacks, no
 presentacion real en pantalla. Los IPC de >=500ms se registran como avisos;
 los rapidos son debug. No se guardan argumentos ni resultados IPC.
 
@@ -98,7 +102,12 @@ session.log se sigue desde el final al arrancar, comprobando nuevas lineas cada
 500ms y leyendo como maximo 256 KiB por pasada. Las muestras de procesos registran
 nombre, PID/padre, CPU, RSS, estado, memoria disponible y presion CPU/memoria/E/S.
 Incluyen los seis procesos de mayor CPU y procesos graficos/audio conocidos hasta
-30 filas. No recogen command lines ni variables de entorno.
+30 filas. Se refrescan solo PIDs principales enumerados en /proc, pidiendo CPU y
+memoria; no se leen estadisticas de los hilos como procesos adicionales.
+`processScope=process-leaders` identifica el muestreo corregido y
+`sampleDurationMs` muestra su coste. Las capturas antiguas incluian filas de hilos
+con el mismo RSS: no deben sumarse para estimar RAM total. No se recogen command
+lines ni variables de entorno.
 
 Los recolectores tambien consumen recursos. Los limites reducen su impacto pero
 pueden cambiar el timing del fallo; para comparar puede desactivarse captura o

@@ -4,7 +4,7 @@ import ts from 'typescript';
 import { TauriBackendService } from '../solid/src/services/backend/tauri-backend.service';
 import { startupErrorMessage, startupMessage, waitForStartup } from '../solid/src/services/system/startup';
 import type { StartupReport } from '../solid/src/types/startup.types';
-import { createTelemetryBuffer, type FrontendLogEvent } from '../solid/src/services/system/telemetry';
+import { createTelemetryBuffer, createFrameProbe, type FrontendLogEvent } from '../solid/src/services/system/telemetry';
 
 const tauriConfig = JSON.parse(readFileSync(new URL('../src-tauri/tauri.conf.json', import.meta.url), 'utf8'));
 const eventCapability = JSON.parse(readFileSync(new URL('../src-tauri/capabilities/main-events.json', import.meta.url), 'utf8'));
@@ -76,6 +76,33 @@ telemetry.close();
 await telemetry.flush();
 assert.equal(logBatches.length, 1);
 console.log('Telemetry: bounded batches, dropped-event accounting, no concurrent IPC and cleanup verified.');
+
+let frameId = 0;
+let frameTime = 100;
+const queuedFrames = new Map<number, FrameRequestCallback>();
+const frameSamples: { frames: number; maxGapMs: number; probeLatencyMs: number }[] = [];
+const probe = createFrameProbe(callback => { queuedFrames.set(++frameId, callback); return frameId; },
+  id => { queuedFrames.delete(id); }, () => frameTime, sample => frameSamples.push(sample));
+const deliverFrame = (time: number) => {
+  const [id, callback] = [...queuedFrames][0];
+  queuedFrames.delete(id);
+  frameTime = time;
+  callback(time);
+};
+assert.equal(queuedFrames.size, 0);
+probe.sample();
+deliverFrame(116);
+deliverFrame(132);
+assert.equal(queuedFrames.size, 0, 'A probe must not keep a permanent animation loop');
+assert.deepEqual(frameSamples[0], { frames: 2, maxGapMs: 16, probeLatencyMs: 32 });
+probe.sample();
+frameTime = 5132;
+probe.sample();
+assert.equal(queuedFrames.size, 1, 'Stalled probes must not overlap');
+assert.equal(frameSamples[1].frames, 0);
+assert.equal(frameSamples[1].maxGapMs, 5000);
+probe.cancel();
+assert.equal(queuedFrames.size, 0);
 
 const prepared: StartupReport = {
   phase: 'prepared', elapsedMs: 10, warnings: [], error: null, tasks: [],

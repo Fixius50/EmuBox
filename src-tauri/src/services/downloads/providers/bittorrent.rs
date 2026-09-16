@@ -20,6 +20,31 @@ pub struct BitTorrentProvider {
     pub discovery: bool,
 }
 
+const TRANSFER_OPTIONS: &str =
+    "max-overall-download-limit=0\nmax-download-limit=0\nauto-save-interval=10";
+
+fn progress_parameters(gid: &str) -> Vec<Value> {
+    vec![
+        json!(gid),
+        json!([
+            "status",
+            "followedBy",
+            "completedLength",
+            "totalLength",
+            "downloadSpeed",
+            "errorCode"
+        ]),
+    ]
+}
+
+fn engine_command(executable: &std::path::Path) -> Command {
+    let mut command = Command::new("/usr/bin/nice");
+    command
+        .args(["-n", "5", "/usr/bin/ionice", "-c", "2", "-n", "7", "--"])
+        .arg(executable);
+    command
+}
+
 impl Default for BitTorrentProvider {
     fn default() -> Self {
         Self { discovery: true }
@@ -133,7 +158,7 @@ impl DownloadProvider for BitTorrentProvider {
             .mode(0o600)
             .open(&config)
             .map_err(io_error)?;
-        writeln!(file, "enable-rpc=true\nrpc-listen-all=false\nrpc-listen-port={port}\nrpc-secret={token}\nno-netrc=true\nseed-time=0\nbt-hash-check-seed=false\ncheck-integrity=true\nauto-save-interval=1\nfile-allocation=none\nallow-overwrite=false\nauto-file-renaming=false\nfollow-metalink=false\nmax-concurrent-downloads=1\nmax-overall-upload-limit=64K\nbt-stop-timeout=300\nconsole-log-level=error\nquiet=true\nstop-with-process={}", std::process::id()).map_err(io_error)?;
+        writeln!(file, "enable-rpc=true\nrpc-listen-all=false\nrpc-listen-port={port}\nrpc-secret={token}\nno-netrc=true\nseed-time=0\nbt-hash-check-seed=false\ncheck-integrity=true\n{TRANSFER_OPTIONS}\nfile-allocation=none\nallow-overwrite=false\nauto-file-renaming=false\nfollow-metalink=false\nmax-concurrent-downloads=1\nmax-overall-upload-limit=64K\nbt-stop-timeout=300\nconsole-log-level=error\nquiet=true\nstop-with-process={}", std::process::id()).map_err(io_error)?;
         writeln!(
             file,
             "enable-dht={}\nenable-dht6={}\nenable-peer-exchange={}\nbt-enable-lpd=false",
@@ -147,7 +172,7 @@ impl DownloadProvider for BitTorrentProvider {
             .timeout(Duration::from_secs(2))
             .build()
             .map_err(io_error)?;
-        let child = Command::new(executable)
+        let child = engine_command(&executable)
             .arg(format!("--conf-path={}", config.display()))
             .arg(format!("--dir={}", payload.display()))
             .arg(format!(
@@ -204,7 +229,7 @@ impl DownloadProvider for BitTorrentProvider {
                 engine.shutdown();
                 return Ok(TransferOutcome::Interrupted);
             }
-            let status = engine.call("aria2.tellStatus", vec![json!(gid)])?;
+            let status = engine.call("aria2.tellStatus", progress_parameters(&gid))?;
             if let Some(next) = status["followedBy"]
                 .as_array()
                 .and_then(|items| items.first())
@@ -227,7 +252,8 @@ impl DownloadProvider for BitTorrentProvider {
             match status["status"].as_str() {
                 Some("complete") => {
                     let root = fs::canonicalize(&payload).map_err(io_error)?;
-                    let files = status["files"].as_array().ok_or_else(|| {
+                    let files = engine.call("aria2.getFiles", vec![json!(gid)])?;
+                    let files = files.as_array().ok_or_else(|| {
                         EmuBoxError::ProcessFailed("BitTorrent no devolvio archivos".into())
                     })?;
                     let mut artifacts = Vec::new();
@@ -273,6 +299,39 @@ impl DownloadProvider for BitTorrentProvider {
 mod tests {
     use super::*;
     use crate::models::TransferControl;
+
+    #[test]
+    fn progress_is_small_and_download_bandwidth_is_unlimited() {
+        assert!(TRANSFER_OPTIONS
+            .lines()
+            .any(|line| line == "max-overall-download-limit=0"));
+        assert!(TRANSFER_OPTIONS
+            .lines()
+            .any(|line| line == "max-download-limit=0"));
+        let parameters = progress_parameters("fixture");
+        assert_eq!(parameters[0], "fixture");
+        let fields = parameters[1].as_array().unwrap();
+        assert_eq!(fields.len(), 6);
+        assert!(!fields.contains(&json!("files")));
+        assert!(fields.contains(&json!("status")));
+        assert!(fields.contains(&json!("followedBy")));
+        let command = engine_command(std::path::Path::new("/usr/bin/aria2c"));
+        assert_eq!(command.get_program(), "/usr/bin/nice");
+        assert_eq!(
+            command.get_args().collect::<Vec<_>>(),
+            [
+                "-n",
+                "5",
+                "/usr/bin/ionice",
+                "-c",
+                "2",
+                "-n",
+                "7",
+                "--",
+                "/usr/bin/aria2c"
+            ]
+        );
+    }
 
     #[test]
     #[ignore = "Requires real aria2c; transfers four private test bytes over localhost only"]

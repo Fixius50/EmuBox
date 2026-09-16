@@ -10,6 +10,32 @@ export interface FrontendLogEvent {
 type Send = (entries: FrontendLogEvent[]) => Promise<void>;
 let report: ((entry: FrontendLogEvent) => void) | undefined;
 
+export function createFrameProbe(
+  request: (callback: FrameRequestCallback) => number,
+  cancel: (id: number) => void,
+  now: () => number,
+  accept: (sample: { frames: number; maxGapMs: number; probeLatencyMs: number }) => void,
+) {
+  let pending: number | undefined;
+  let started = 0;
+  return {
+    sample() {
+      if (pending !== undefined) {
+        accept({ frames: 0, maxGapMs: Math.round(now() - started), probeLatencyMs: Math.round(now() - started) });
+        return;
+      }
+      started = now();
+      pending = request(first => {
+        pending = request(second => {
+          pending = undefined;
+          accept({ frames: 2, maxGapMs: Math.round(Math.max(first - started, second - first)), probeLatencyMs: Math.round(second - started) });
+        });
+      });
+    },
+    cancel() { if (pending !== undefined) cancel(pending); pending = undefined; },
+  };
+}
+
 export function recordUiEvent(event: string, data: FrontendLogEvent['data'] = {}, level: FrontendLogEvent['level'] = 'info', message = ''): void {
   report?.({ event, level, timestampMs: Date.now(), elapsedMs: performance.now(), message: message.slice(0, 2048), data });
 }
@@ -76,22 +102,15 @@ export function startFrontendTelemetry(send: Send): () => void {
   window.addEventListener('error', failure);
   window.addEventListener('unhandledrejection', rejection);
   window.addEventListener('keydown', mark);
-  let frame = 0;
-  let lastFrame = performance.now();
-  let maxGapMs = 0;
-  let frames = 0;
-  const tick = (now: number) => {
-    maxGapMs = Math.max(maxGapMs, now - lastFrame);
-    lastFrame = now;
-    frames++;
-    frame = requestAnimationFrame(tick);
-  };
-  frame = requestAnimationFrame(tick);
+  const frameProbe = createFrameProbe(requestAnimationFrame, cancelAnimationFrame, () => performance.now(), sample => {
+    recordUiEvent('render.sample', { ...state(), ...sample, sampling: 'two-frames' },
+      !document.hidden && sample.maxGapMs > 1000 ? 'warn' : 'info');
+  });
   const heartbeat = setInterval(() => {
-    recordUiEvent('render.sample', { ...state(), frames, maxGapMs: Math.round(maxGapMs), sinceFrameMs: Math.round(performance.now() - lastFrame) },
-      !document.hidden && (maxGapMs > 1000 || performance.now() - lastFrame > 1000) ? 'warn' : 'info');
-    frames = 0;
-    maxGapMs = 0;
+    if (document.hidden) {
+      frameProbe.cancel();
+      recordUiEvent('render.sample', { ...state(), frames: 0, sampling: 'hidden' });
+    } else frameProbe.sample();
   }, 5000);
   const flush = setInterval(() => { void buffer.flush(); }, 1000);
   recordUiEvent('session.start', state());
@@ -99,7 +118,7 @@ export function startFrontendTelemetry(send: Send): () => void {
     report = undefined;
     clearInterval(flush);
     clearInterval(heartbeat);
-    cancelAnimationFrame(frame);
+    frameProbe.cancel();
     document.removeEventListener('click', click, true);
     document.removeEventListener('visibilitychange', visibility);
     document.removeEventListener('webglcontextlost', contextLost, true);

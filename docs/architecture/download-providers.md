@@ -168,6 +168,25 @@ y respuestas completas del motor no se imprimen en logs. Se apaga el proceso al
 completar/interrumpir y se conservan controles para reanudar.
 
 BitTorrent puede subir piezas durante la descarga (limite configurado: 64 KiB/s).
+
+La bajada no tiene un techo fijo de velocidad: aria2 recibe
+`max-overall-download-limit=0` y `max-download-limit=0`; HTTP no aplica throttling.
+El rendimiento depende de la conexion, servidores/peers, CPU y almacenamiento.
+El limite de subida anterior es independiente y se mantiene.
+
+Los nuevos procesos aria2 se lanzan con nice=5 e ionice best-effort prioridad 7:
+ceden prioridad relativa a UI/compositor bajo contencion, sin cuota CPU ni limite
+de bytes por segundo. Requiere coreutils y util-linux, ya usados por la appliance;
+la efectividad de ionice depende del planificador del disco. No se ajustan ni se
+interrumpen motores que ya estaban descargando.
+
+El sondeo RPC pide solo seis campos de progreso/estado, no listas de archivos o
+peers cada 500ms. Los archivos se consultan al completar. La informacion de
+reanudacion de aria2 se guarda cada diez segundos en lugar de uno; un cierre
+brusco puede necesitar revalidar mas progreso, mientras pausa/cancelacion mantienen
+el cierre del motor. La actualizacion de progreso reutiliza una conexion SQLite
+y una sentencia preparada durante la transferencia, sin transaccion larga ni
+repetir la inicializacion del esquema en cada muestra.
 No hace seeding despues de completar. No se alteran puertos del router/firewall.
 Los torrents privados mantienen las restricciones propias del motor. Magnet v2
 sin btih no se anuncia como soportado por esta integracion.

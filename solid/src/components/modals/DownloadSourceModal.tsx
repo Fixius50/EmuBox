@@ -90,6 +90,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
       .find((entry) => entry.variants.some((item) => item.id === game()?.id))
       ?.favorite ?? game()?.favorite;
   let list: HTMLDivElement | undefined;
+  let releaseList: HTMLDivElement | undefined;
   let details: HTMLDivElement | undefined;
   let dialogContent: HTMLDivElement | undefined;
   let closeButton: HTMLButtonElement | undefined;
@@ -160,6 +161,10 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
   const moveRelease = (step: number) => {
     props.store.selectRelease(props.store.releaseIndex() + step);
   };
+  createEffect(() => {
+    const index = props.store.releaseIndex();
+    releaseList?.querySelector(`[data-release-index="${index}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
   const focusPanel = (target: "sources" | "details" | "files") => {
     setPanel(target);
     if (target === "files") {
@@ -183,8 +188,8 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
     else if (action === "NAV_UP" || action === "NAV_DOWN")
       move(action === "NAV_DOWN" ? 1 : -1);
     else if (action === "BUTTON_X") void toggleFavorite();
-    else if (action === 'BUTTON_LB' && panel() === 'sources' && !currentJob() && props.store.releaseOptions().length > 1) moveRelease(-1);
-    else if (action === 'BUTTON_RB' && panel() === 'sources' && !currentJob() && props.store.releaseOptions().length > 1) moveRelease(1);
+    else if (action === 'BUTTON_LB' && panel() === 'sources' && props.store.releaseOptions().length > 1) moveRelease(-1);
+    else if (action === 'BUTTON_RB' && panel() === 'sources' && props.store.releaseOptions().length > 1) moveRelease(1);
     else if (action === 'BUTTON_LB' && localFiles().length) focusPanel('files');
     else if (action === 'BUTTON_LB' && currentJob()) void props.store.controlDownload(currentJob()!, 'pause');
     else if (action === 'BUTTON_A' && panel() === 'files') void chooseLocal();
@@ -289,7 +294,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                 </div>
                 <div class="game-case-heading">
                   <span class="game-case-platform">{game()?.platformName}</span>
-                  <Dialog.Title>{game()?.title}</Dialog.Title>
+                  <Dialog.Title>{game()?.canonicalTitle || game()?.title}</Dialog.Title>
                   <Dialog.Description>
                     {detailsGame()?.installed ? "Instalado" : "No instalado"}
                   </Dialog.Description>
@@ -315,17 +320,18 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                     <h3>Versiones</h3>
                     <span>{props.store.releaseOptions().length}</span>
                   </div>
-                  <div class="game-release-track" role="tablist" aria-label="Versiones del juego">
+                  <div class="game-release-track" role="group" aria-label="Versiones del juego" ref={releaseList}>
                     <For each={props.store.releaseOptions()}>
                       {(release, index) => (
                         <button
-                          role="tab"
-                          aria-selected={props.store.releaseIndex() === index()}
+                          aria-pressed={props.store.releaseIndex() === index()}
+                          data-release-index={index()}
                           classList={{ selected: props.store.releaseIndex() === index() }}
                           onClick={() => props.store.selectRelease(index())}
                           onKeyDown={(event) => {
                             if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
                               event.preventDefault();
+                              event.stopPropagation();
                               moveRelease(event.key === "ArrowRight" ? 1 : -1);
                             }
                           }}
@@ -341,12 +347,12 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                 </div>
               </Show>
               <div class="game-case-section-label">
-                <h3>Distribuidores y paquetes</h3>
+                <h3>Fuentes de la version</h3>
                 <span>{props.store.sourceOptions().length} fuentes</span>
               </div>
               <Show when={props.store.sourcesLoading()}>
                 <p class="game-case-state" role="status">
-                  Consultando distribuidores...
+                  Consultando versiones y fuentes...
                 </p>
               </Show>
               <Show when={props.store.sourcesError()}>
@@ -368,7 +374,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
               <div
                 class="download-source-list"
                 role="radiogroup"
-                aria-label="Distribuidores y paquetes"
+                aria-label="Fuentes de la version"
                 ref={list}
               >
                 <For each={props.store.sourceOptions()}>

@@ -254,6 +254,7 @@ export function useXmbLibrary(props: XmbLibraryProps) {
     folders,
     settingItems,
     rows,
+    folder,
     selectedGame,
     rowWindow,
     gameWindow,

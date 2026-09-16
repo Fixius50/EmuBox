@@ -366,10 +366,22 @@
   top: calc(12rem + (100% - 16.5rem) * 0.34 - 0.75rem);
   left: calc(var(--xmb-anchor) + 3rem);
   right: calc(var(--xmb-drawer) + 1rem);
-  block-size: 7.5rem;
+  block-size: 9.5rem;
   z-index: 6;
   overflow: hidden;
 }
+.xmb-version-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  block-size: 1.75rem;
+  padding-inline: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--xmb-muted);
+}
+.xmb-version-heading span { font-variant-numeric: tabular-nums; }
+.xmb-version-track { position: relative; block-size: 7.5rem; }
 .xmb-game-tile {
   --tile-width: 13rem;
   position: absolute;
@@ -718,10 +730,12 @@
     visibility: hidden;
   }
   .xmb-game-shelf {
-    top: 6rem;
+    top: 5.5rem;
     left: 6rem;
     right: 1rem;
+    block-size: 8.25rem;
   }
+  .xmb-version-track { block-size: 6.5rem; }
   .xmb-game-tile {
     --tile-width: 12rem;
   }

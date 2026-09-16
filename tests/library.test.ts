@@ -88,6 +88,11 @@ await canonicalStore.loadGames([canonicalGame, { ...canonicalGame, id: 'variant-
 await canonicalStore.openSources(canonicalGame);
 assert.equal(canonicalRequests, 1);
 assert.deepEqual(canonicalStore.sourceOptions().map(source => source.id), ['source-one']);
+assert.equal(canonicalStore.sourceOptions()[0].name, 'Original one');
+await canonicalStore.openSources({ ...canonicalGame, id: 'variant-two' });
+assert.equal(canonicalStore.releaseIndex(), 1);
+assert.deepEqual(canonicalStore.sourceOptions().map(source => source.id), ['source-two']);
+canonicalStore.selectRelease(0);
 canonicalStore.selectRelease(1);
 assert.deepEqual(canonicalStore.sourceOptions().map(source => source.id), ['source-two']);
 await canonicalStore.confirmSource();
