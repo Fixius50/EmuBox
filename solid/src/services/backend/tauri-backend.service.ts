@@ -331,9 +331,6 @@ export class TauriBackendService implements IEmuBoxBackend {
     throw new Error('Restauracion OTA no disponible en este runtime.');
   }
 
-  public async executeCommand(cmd: string): Promise<string> {
-    return this.invoke('execute_command', { command: cmd });
-  }
 }
 
 export { TauriBackendService as TauriBackend };

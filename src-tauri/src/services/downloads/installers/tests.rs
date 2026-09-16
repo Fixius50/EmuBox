@@ -1,6 +1,6 @@
 use super::*;
 use super::{detection::windows_executable, sandbox::sandbox};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 #[test]
 fn discovers_firmware_in_managed_environment_and_honors_override() {
@@ -33,7 +33,7 @@ fn prepared_windows_requires_pe_and_explicit_selection() {
     fs::write(root.join("extracted/app/game.exe"), &pe).unwrap();
     fs::write(root.join("extracted/app/setup.exe"), &pe).unwrap();
     fs::write(root.join("extracted/app/fake.exe"), b"not PE").unwrap();
-    let mut package = crate::models::PublishedDownload {
+    let package = crate::models::PublishedDownload {
         job_id: "test".into(),
         source_digest: "test".into(),
         files: vec![
@@ -53,29 +53,6 @@ fn prepared_windows_requires_pe_and_explicit_selection() {
         ["extracted/app/game.exe"]
     );
     assert!(candidates("ps2", &root, &package).is_empty());
-    fs::write(
-        root.join(".emubox-managed"),
-        serde_json::to_vec(&package).unwrap(),
-    )
-    .unwrap();
-    assert!(configure_launch(
-        &mut Command::new("wine"),
-        "wine",
-        &root.join("extracted/app/game.exe")
-    )
-    .is_err());
-    package.launch = Some("extracted/app/game.exe".into());
-    fs::write(
-        root.join(".emubox-managed"),
-        serde_json::to_vec(&package).unwrap(),
-    )
-    .unwrap();
-    let mut command = Command::new("wine");
-    configure_launch(&mut command, "wine", &root.join("extracted/app/game.exe")).unwrap();
-    assert!(command
-        .get_envs()
-        .any(|(key, value)| key == "WINEDLLOVERRIDES"
-            && value == Some(std::ffi::OsStr::new("mscoree,mshtml="))));
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -118,17 +95,6 @@ fn pkg_confirmation_and_candidates_require_installation_evidence() {
     assert!(!pkg_succeeded(&root.join("extracted"), &[log.clone()]));
     fs::write(&log, "S GUI: Successfully installed /input/package.pkg (title_id=TEST00001, title=Test, version=1).").unwrap();
     assert!(pkg_succeeded(&root.join("extracted"), &[log]));
-    fs::write(
-        root.join(".emubox-managed"),
-        serde_json::to_vec(&package).unwrap(),
-    )
-    .unwrap();
-    assert!(
-        configure_launch(&mut Command::new("rpcs3"), "rpcs3", &root.join(&boot))
-            .unwrap_err()
-            .to_string()
-            .contains("firmware")
-    );
     fs::write(root.join(&sfo), b"bad SFO").unwrap();
     assert!(candidates("ps3", &root, &package).is_empty());
     fs::remove_dir_all(root).unwrap();

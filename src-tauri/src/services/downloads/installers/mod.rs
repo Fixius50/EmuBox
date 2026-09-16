@@ -1,6 +1,5 @@
 mod detection;
 mod firmware;
-mod launch;
 mod sandbox;
 #[cfg(test)]
 mod tests;
@@ -14,7 +13,6 @@ use crate::{
 };
 pub use detection::{candidates, kind, prepared_metadata};
 use firmware::firmware_directory;
-pub use launch::configure_launch;
 use sandbox::{sandbox, Worker};
 use std::{
     fs,

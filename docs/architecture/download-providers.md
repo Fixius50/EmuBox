@@ -235,7 +235,8 @@ un trabajo cuyo contenido publicado ha desaparecido falla sin volver a descargar
 ## Preparadores de instalacion
 
 `downloads/installers` divide deteccion y candidatos, descubrimiento de firmware,
-configuracion de lanzamiento, sandbox, validacion y orquestacion. El marcador
+sandbox de preparacion, validacion y orquestacion. La ejecucion pertenece solo a
+`runtime/game_sandbox`, no al preparador. El marcador
 `PublishedDownload.installation` es opcional para leer paquetes anteriores y registra
 tipo Inno/PS3 y raiz relativa. La publicacion conserva los originales y exige
 seleccion explicita del ejecutable preparado.
@@ -243,8 +244,10 @@ seleccion explicita del ejecutable preparado.
 EXE con firma MZ se envia a innoextract, que solo admite sus versiones soportadas de
 Inno Setup. No ejecuta el instalador ni sus acciones de registro o prerrequisitos.
 Los candidatos Windows son archivos PE x86/x64 bajo app, excluyendo setup/unins y DLL.
-Wine usa un prefijo por paquete y desactiva la descarga automatica de Mono/Gecko.
-No es una promesa de compatibilidad de todos los EXE ni aislamiento de juegos.
+Wine usa un prefijo privado por juego/emulador dentro del sandbox y desactiva la
+descarga automatica de Mono/Gecko. No se crea un prefijo junto al paquete ni se
+reutiliza el home del usuario. No es una promesa de compatibilidad de todos los EXE.
+Ver [aislamiento de ejecucion](execution-sandbox.md).
 
 PKG con firma PS3 se envia a RPCS3 `--headless --installpkg` en un entorno por trabajo.
 El firmware se obtiene de `EMUBOX_PS3_FIRMWARE_DIR` o del dev_flash administrado por

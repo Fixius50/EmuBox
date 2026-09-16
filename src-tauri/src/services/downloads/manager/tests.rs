@@ -184,7 +184,7 @@ fn ambiguous_archive_requires_explicit_local_selection() {
 
 #[test]
 #[ignore = "Requires EMUBOX_INNO_FIXTURE official innosetup-6.0.5.exe, innoextract and bubblewrap; never executes extracted code"]
-fn inno_package_is_prepared_selected_and_configured_locally() {
+fn inno_package_is_prepared_and_selected_without_host_prefix() {
     let _test = QUEUE_TEST.lock().unwrap();
     let fixture =
         PathBuf::from(std::env::var_os("EMUBOX_INNO_FIXTURE").expect("Inno fixture required"));
@@ -225,14 +225,10 @@ fn inno_package_is_prepared_selected_and_configured_locally() {
         fs::read(fixture).unwrap()
     );
     select_candidate(&job.id, selected).unwrap();
-    let mut command = std::process::Command::new("wine");
-    crate::services::installer_preparation::configure_launch(
-        &mut command,
-        "wine",
-        &destination.join(selected),
-    )
-    .unwrap();
-    assert!(destination.join(".wine-prefix").is_dir());
+    let package: PublishedDownload =
+        serde_json::from_slice(&fs::read(destination.join(".emubox-managed")).unwrap()).unwrap();
+    assert_eq!(package.launch.as_deref(), Some(Path::new(selected)));
+    assert!(!destination.join(".wine-prefix").exists());
     fs::remove_dir_all(destination).unwrap();
 }
 

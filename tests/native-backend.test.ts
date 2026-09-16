@@ -31,13 +31,13 @@ for (const operation of [
   () => backend.getDownloadCandidates('unavailable'),
   () => backend.selectDownloadCandidate('unavailable', 'disc.iso'),
   () => backend.launchGame('unavailable'),
-  () => backend.executeCommand('true'),
 ]) {
   await assert.rejects(operation, /runtime nativo Tauri/);
 }
 console.log('Native IPC: absent runtime rejects operations without fabricated results.');
 const source = ts.createSourceFile('backend.ts', readFileSync(new URL('../solid/src/services/backend/tauri-backend.service.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 const registered = new Set([...readFileSync(new URL('../src-tauri/src/lib.rs', import.meta.url), 'utf8').matchAll(/commands::\w+::(\w+)/g)].map(match => match[1]));
+assert.equal(registered.has('execute_command'), false, 'Generic shell execution must not be exposed over IPC');
 let checked = 0;
 function visit(node: ts.Node) {
   if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.expression.kind === ts.SyntaxKind.ThisKeyword

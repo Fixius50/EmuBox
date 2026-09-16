@@ -1,13 +1,28 @@
+use super::{game_sandbox, launch_policy};
 use crate::errors::EmuBoxError;
 use crate::models::{LaunchGameRequest, LaunchResult, ProcessStatus, RunningGameInfo};
 use crate::services::compatibility_service::CompatibilityService;
 use crate::services::game_service::GameService;
-use std::path::Path;
-use std::process::Command;
+use std::process::Child;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-static CURRENT_RUNNING_GAME: Mutex<Option<RunningGameInfo>> = Mutex::new(None);
+struct RunningGame {
+    info: RunningGameInfo,
+    child: Child,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unrelated_process_cannot_be_stopped_over_ipc() {
+        assert!(ProcessService::kill_process(std::process::id()).is_err());
+    }
+}
+
+static CURRENT_RUNNING_GAME: Mutex<Option<RunningGame>> = Mutex::new(None);
 
 pub struct ProcessService;
 
@@ -19,41 +34,18 @@ impl ProcessService {
             .unwrap_or(0)
     }
 
-    fn resolve_executable_path(executable: &str) -> Option<std::path::PathBuf> {
-        let trimmed = executable.trim();
-        if trimmed.is_empty() {
-            return None;
-        }
-
-        let direct = std::path::Path::new(trimmed);
-        if direct.is_absolute() && direct.exists() {
-            return Some(direct.to_path_buf());
-        }
-
-        if direct.exists() {
-            return Some(direct.to_path_buf());
-        }
-
-        if let Ok(output) = Command::new("which").arg(trimmed).output() {
-            if output.status.success() {
-                let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                if !path.is_empty() {
-                    let resolved = std::path::PathBuf::from(path);
-                    if resolved.exists() {
-                        return Some(resolved);
-                    }
-                }
-            }
-        }
-
-        None
-    }
-
     pub fn launch_game(request: LaunchGameRequest) -> Result<LaunchResult, EmuBoxError> {
-        // 1. Validar si ya hay un juego en ejecución
-        {
-            let current = CURRENT_RUNNING_GAME.lock().unwrap();
-            if let Some(info) = &*current {
+        let mut current = CURRENT_RUNNING_GAME
+            .lock()
+            .map_err(|error| launch_policy::failure(error.to_string()))?;
+        if let Some(running) = current.as_mut() {
+            if running
+                .child
+                .try_wait()
+                .map_err(|error| launch_policy::failure(error.to_string()))?
+                .is_none()
+            {
+                let info = &running.info;
                 return Ok(LaunchResult {
                     success: false,
                     message: format!(
@@ -65,6 +57,7 @@ impl ProcessService {
                     start_time: Some(info.start_time),
                 });
             }
+            *current = None;
         }
 
         // 2. Obtener metadatos del juego
@@ -74,104 +67,30 @@ impl ProcessService {
 
         // 3. Obtener metadatos del emulador solicitado (o resolver emulador por defecto de la plataforma)
         let requested_id = request.emulator_id.trim();
-        let (emulator, association_args, _association_config) =
+        let (emulator, association_args, association_config) =
             CompatibilityService::resolve_for_game(
                 &game,
                 (!requested_id.is_empty()).then_some(requested_id),
             )?;
 
-        let executable_path =
-            crate::services::binary_service::resolve_executable(&emulator.executable)
-                .map(|path| path.to_string_lossy().to_string())
-                .unwrap_or_else(|| emulator.executable.clone());
-
-        if executable_path.is_empty() || Self::resolve_executable_path(&executable_path).is_none() {
-            return Err(EmuBoxError::EmulatorNotInstalled(format!(
-                "El emulador '{}' no está instalado o no se encuentra en PATH",
-                emulator.name
-            )));
-        }
-        crate::services::binary_service::validate_binary(
-            Path::new(&executable_path),
-            crate::models::Architecture::current(),
-            true,
-        )
-        .map_err(EmuBoxError::GameLaunchFailed)?;
-
-        // 4. Resolver ruta del archivo ROM
-        let rom_path = request.rom_path.or(game.rom_path.clone()).ok_or_else(|| {
-            EmuBoxError::NotFound(format!("No se especificó la ruta ROM para: {}", game.title))
-        })?;
-
-        if !Path::new(&rom_path).exists() {
-            return Err(EmuBoxError::NotFound(format!(
-                "El archivo de juego no existe en disco: {}",
-                rom_path
-            )));
-        }
-
-        // 5. Construir argumentos
-        let mut final_args = emulator.arguments.clone();
-        final_args.extend(association_args);
-        if let Some(custom) = request.custom_args {
-            final_args.extend(custom);
-        }
-        for index in 0..final_args.len() {
-            if final_args[index] == "-L" || final_args[index] == "--libretro" {
-                let core_argument = final_args.get(index + 1).ok_or_else(|| {
-                    EmuBoxError::GameLaunchFailed("Falta la ruta del core libretro".into())
-                })?;
-                let core = crate::services::binary_service::resolve_core(core_argument)
-                    .ok_or_else(|| {
-                        EmuBoxError::EmulatorNotInstalled(format!(
-                            "Core no instalado: {core_argument}"
-                        ))
-                    })?;
-                crate::services::binary_service::validate_binary(
-                    &core,
-                    crate::models::Architecture::current(),
-                    false,
-                )
-                .map_err(EmuBoxError::GameLaunchFailed)?;
-                final_args[index + 1] = core.to_string_lossy().to_string();
-            }
-        }
-        final_args.push(rom_path.clone());
-
-        // 6. Determinar si usar Gamescope para composición nativa
-        let use_gamescope = request.use_gamescope.unwrap_or(false);
-        let graphics = crate::services::graphics_service::detect();
-        let has_gamescope = crate::services::graphics_service::gamescope_for_selection(
-            &graphics,
-            graphics.drm
-                || std::env::var_os("WAYLAND_DISPLAY").is_some()
-                || std::env::var_os("DISPLAY").is_some(),
-        );
-
-        let child = if use_gamescope && has_gamescope {
-            let mut cmd = Command::new("gamescope");
-            cmd.arg("-f")
-                .arg("--")
-                .arg(&executable_path)
-                .args(&final_args);
-            crate::services::installer_preparation::configure_launch(
-                &mut cmd,
-                &emulator.id,
-                Path::new(&rom_path),
-            )?;
-            cmd.spawn()
-                .map_err(|e| EmuBoxError::GameLaunchFailed(e.to_string()))?
-        } else {
-            let mut cmd = Command::new(&executable_path);
-            cmd.args(&final_args);
-            crate::services::installer_preparation::configure_launch(
-                &mut cmd,
-                &emulator.id,
-                Path::new(&rom_path),
-            )?;
-            cmd.spawn()
-                .map_err(|e| EmuBoxError::GameLaunchFailed(e.to_string()))?
-        };
+        launch_policy::validate_request(
+            &request,
+            &association_args,
+            association_config.as_deref(),
+        )?;
+        let policy = launch_policy::resolve(&emulator.id, &game.platform)?;
+        let executable_path = policy.executable.to_string_lossy().into_owned();
+        let mut command = game_sandbox::command(
+            &game,
+            &emulator.id,
+            &policy,
+            request.use_gamescope.unwrap_or(false),
+        )?;
+        let final_args = command
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect();
+        let child = game_sandbox::spawn(&mut command)?;
 
         let pid = child.id();
         let start_time = Self::now_epoch_secs();
@@ -191,10 +110,10 @@ impl ProcessService {
             status: "running".to_string(),
         };
 
-        {
-            let mut current = CURRENT_RUNNING_GAME.lock().unwrap();
-            *current = Some(running_info);
-        }
+        *current = Some(RunningGame {
+            info: running_info,
+            child,
+        });
 
         Ok(LaunchResult {
             success: true,
@@ -209,47 +128,36 @@ impl ProcessService {
     }
 
     pub fn stop_game() -> Result<(), EmuBoxError> {
-        let pid = {
-            let current = CURRENT_RUNNING_GAME.lock().unwrap();
-            current.as_ref().map(|info| info.pid)
-        };
-
-        if let Some(pid) = pid {
-            Self::kill_process(pid)?;
-            let mut current = CURRENT_RUNNING_GAME.lock().unwrap();
-            *current = None;
+        let mut current = CURRENT_RUNNING_GAME
+            .lock()
+            .map_err(|error| launch_policy::failure(error.to_string()))?;
+        if let Some(running) = current.as_mut() {
+            Self::terminate(running)?;
         }
-
+        *current = None;
         Ok(())
     }
 
     pub fn is_game_running() -> Result<bool, EmuBoxError> {
-        let mut current = CURRENT_RUNNING_GAME.lock().unwrap();
-        if let Some(info) = &*current {
-            // Comprobar si el PID sigue vivo mediante kill(pid, 0)
-            let is_alive = Command::new("kill")
-                .arg("-0")
-                .arg(info.pid.to_string())
-                .output()
-                .map(|o| o.status.success())
-                .unwrap_or(false);
-
-            if !is_alive {
-                *current = None;
-                return Ok(false);
-            }
-            return Ok(true);
-        }
-        Ok(false)
+        Ok(Self::get_running_game()?.is_some())
     }
 
     pub fn get_running_game() -> Result<Option<RunningGameInfo>, EmuBoxError> {
-        let is_running = Self::is_game_running()?;
-        if !is_running {
-            return Ok(None);
+        let mut current = CURRENT_RUNNING_GAME
+            .lock()
+            .map_err(|error| launch_policy::failure(error.to_string()))?;
+        if let Some(running) = current.as_mut() {
+            if running
+                .child
+                .try_wait()
+                .map_err(|error| launch_policy::failure(error.to_string()))?
+                .is_none()
+            {
+                return Ok(Some(running.info.clone()));
+            }
         }
-        let current = CURRENT_RUNNING_GAME.lock().unwrap();
-        Ok(current.clone())
+        *current = None;
+        Ok(None)
     }
 
     pub fn get_process_status() -> Result<ProcessStatus, EmuBoxError> {
@@ -268,13 +176,36 @@ impl ProcessService {
     }
 
     pub fn kill_process(pid: u32) -> Result<bool, EmuBoxError> {
-        let status = Command::new("kill")
-            .arg("-15") // SIGTERM
-            .arg(pid.to_string())
-            .status()
-            .map(|s| s.success())
-            .unwrap_or(false);
+        let mut current = CURRENT_RUNNING_GAME
+            .lock()
+            .map_err(|error| launch_policy::failure(error.to_string()))?;
+        let running = current
+            .as_mut()
+            .filter(|running| running.child.id() == pid)
+            .ok_or_else(|| {
+                launch_policy::failure("Solo se puede detener el sandbox de juego activo")
+            })?;
+        Self::terminate(running)?;
+        *current = None;
+        Ok(true)
+    }
 
-        Ok(status)
+    fn terminate(running: &mut RunningGame) -> Result<(), EmuBoxError> {
+        if running
+            .child
+            .try_wait()
+            .map_err(|error| launch_policy::failure(error.to_string()))?
+            .is_none()
+        {
+            running
+                .child
+                .kill()
+                .map_err(|error| launch_policy::failure(error.to_string()))?;
+        }
+        running
+            .child
+            .wait()
+            .map_err(|error| launch_policy::failure(error.to_string()))?;
+        Ok(())
     }
 }

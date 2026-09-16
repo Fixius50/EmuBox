@@ -154,3 +154,12 @@ libretro core checks. The UI uses this result to disable launch with a reason;
 catalog IDs, platforms, downloads and game storage remain architecture-independent.
 RPCS3 remains visible even when unavailable. Matrix support is not evidence that
 a compatible binary is installed or that a particular game will perform well.
+
+## Confined Launch
+
+`launch_game` runs blocking validation off the IPC thread and always enters the
+native Bubblewrap policy. Stored executable/argument overrides are not launch
+authority; only compiled emulator profiles and protected system tools are accepted.
+Legacy `romPath`, nonempty `customArgs` and custom association configs are rejected.
+`execute_command` is removed. `kill_process` can stop only the active sandbox Child.
+See [execution profiles and limitations](execution-sandbox.md).

@@ -3,8 +3,8 @@ use crate::models::{LaunchGameRequest, LaunchResult, ProcessStatus, RunningGameI
 use crate::services::ProcessService;
 
 #[tauri::command]
-pub fn launch_game(request: LaunchGameRequest) -> Result<LaunchResult, EmuBoxError> {
-    ProcessService::launch_game(request)
+pub async fn launch_game(request: LaunchGameRequest) -> Result<LaunchResult, EmuBoxError> {
+    super::blocking(move || ProcessService::launch_game(request)).await
 }
 
 #[tauri::command]

@@ -60,32 +60,4 @@ impl DiagnosticsService {
             ),
         })
     }
-
-    pub fn execute_command(cmd: &str) -> Result<String, EmuBoxError> {
-        let output = Command::new("bash")
-            .arg("-c")
-            .arg(cmd)
-            .output()
-            .map_err(|e| EmuBoxError::ProcessFailed(e.to_string()))?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-        if output.status.success() {
-            if stdout.is_empty() && !stderr.is_empty() {
-                Ok(stderr)
-            } else if stdout.is_empty() {
-                Ok("(Comando ejecutado con éxito sin salida de texto)".to_string())
-            } else {
-                Ok(stdout)
-            }
-        } else {
-            Ok(format!(
-                "[ERROR - CÓDIGO: {}]\n{}\n{}",
-                output.status.code().unwrap_or(-1),
-                stdout,
-                stderr
-            ))
-        }
-    }
 }
