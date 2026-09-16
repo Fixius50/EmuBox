@@ -163,3 +163,11 @@ authority; only compiled emulator profiles and protected system tools are accept
 Legacy `romPath`, nonempty `customArgs` and custom association configs are rejected.
 `execute_command` is removed. `kill_process` can stop only the active sandbox Child.
 See [execution profiles and limitations](execution-sandbox.md).
+
+## Explicit Source Search
+
+`search_jackett(gameId)` queries only the managed local instance and returns
+bounded candidates without API keys or private download links. `select_jackett_result`
+accepts a cached result ID belonging to that version and adds a source, not a job.
+The frontend must still explicitly request `download_game`. qBittorrent replaces
+aria2 behind the persisted `bittorrent` provider ID; no source/job migration is needed.

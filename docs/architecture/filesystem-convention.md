@@ -24,6 +24,8 @@ EmuBox is an Arch Linux appliance and uses a canonical system-wide layout under 
 ├── saves/<platform>/
 ├── states/<platform>/
 ├── screenshots/
+├── sandbox/<hash-game-emulator>/
+├── jackett/Jackett/
 └── templates/
 
 /var/cache/emubox/
@@ -34,7 +36,9 @@ EmuBox is an Arch Linux appliance and uses a canonical system-wide layout under 
 └── temp/
 
 /var/log/emubox/
-└── emubox.log
+├── session.log
+├── events.jsonl
+└── events.jsonl.1 ... events.jsonl.4
 
 /run/emubox/
 ├── pid/
@@ -56,10 +60,11 @@ EmuBox is an Arch Linux appliance and uses a canonical system-wide layout under 
 - Build/update logs use a temporary directory if system logs are not writable.
 - ROMs and game files live in `/var/lib/emubox/games/<platform>/`.
 - The optional compatibility symlink `/var/lib/emubox/roms` may exist only as a pointer to `/var/lib/emubox/games` and must not be treated as the canonical source of truth.
-- Saves live in `/var/lib/emubox/saves`, states in `/var/lib/emubox/states`, screenshots in `/var/lib/emubox/screenshots`, and BIOS in `/var/lib/emubox/bios`.
-- Regenerable content such as shaders, metadata, covers, and temporary `.part` downloads live under `/var/cache/emubox/`.
+- Traditional saves/states/screenshots paths remain for existing data. Confined launches use private state under `/var/lib/emubox/sandbox/<hash-game-emulator>`; they do not automatically import old saves or personal configs. BIOS remain under `/var/lib/emubox/bios`.
+- Regenerable caches use `/var/cache/emubox/`. Download staging lives under `/var/lib/emubox/games/<platform>/.emubox-staging/<job-id>` so publication can rename on the same filesystem. qBittorrent profiles and payloads are isolated under that job's `qbittorrent/` directory.
 - Logs belong in `/var/log/emubox`; transient runtime state belongs in `/run/emubox`.
 - System configuration lives in `/etc/emubox` and is versioned by the appliance.
+- Jackett is installed separately under root-owned `/opt/jackett`; service state and API key live in `/var/lib/emubox/jackett/Jackett`. It is not part of the game sandbox or personal home.
 
 ## 3. Legacy migration behavior
 

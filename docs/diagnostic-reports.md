@@ -4,6 +4,10 @@ Este documento registra la cronología de diagnósticos, pruebas de compilación
 
 ## Estado consolidado actual
 
+Nota de lectura (2026-09-16): las secciones siguientes son evidencia historica,
+no configuracion vigente. Las menciones a aria2 describen ejecuciones anteriores
+a la migracion qBittorrent/Jackett. Referencia actual: [indice documental](README.md).
+
 ### Captura correlacionada del negro intermitente, 16 de septiembre de 2026
 
 La pantalla negra no se considera resuelta. Se ha incorporado un controlador de
@@ -147,7 +151,7 @@ identificada como GPU virtual genérica.
 
 ---
 
-## 📑 Reporte 1: Auditoría de Arquitectura NPM y Frontend SolidJS
+## Reporte 1: Auditoría de Arquitectura NPM y Frontend SolidJS
 
 * **Fecha**: 28 de Agosto, 2026
 * **Objetivo**: Determinar la estructura de empaquetado de dependencias y el origen de errores de compilación anteriores.
@@ -163,7 +167,7 @@ identificada como GPU virtual genérica.
 
 ---
 
-## 📑 Reporte 2: Prueba de Entorno y Compilación Nativa (VM Arch Linux)
+## Reporte 2: Prueba de Entorno y Compilación Nativa (VM Arch Linux)
 
 * **Fecha**: 28 de Agosto, 2026
 * **Entorno Evaluado**: Arch Linux x86_64 (VMware SVGA3D / Direct DRM-KMS)
@@ -189,7 +193,7 @@ El pipeline de construcción y empaquetado nativo (`scripts/build.sh`) funciona 
 
 ---
 
-## 📑 Reporte 3: Diagnóstico del Sistema Gráfico y Renderizado Autónomo (GPU vs CPU)
+## Reporte 3: Diagnóstico del Sistema Gráfico y Renderizado Autónomo (GPU vs CPU)
 
 * **Fecha**: 28 de Agosto, 2026
 * **Problema Abordado**: Rendimiento en VMs (VMware SVGA3D, VirtualBox) o drivers por software (`llvmpipe`) sin aceleración 3D directa (`Accelerated: no`).
@@ -204,7 +208,7 @@ El pipeline de construcción y empaquetado nativo (`scripts/build.sh`) funciona 
 
 ---
 
-## 📑 Reporte 4: Diagnóstico de Ejecución en Tiempo Real (Systemd & SIGABRT)
+## Reporte 4: Diagnóstico de Ejecución en Tiempo Real (Systemd & SIGABRT)
 
 * **Fecha**: 28 de Agosto, 2026
 * **Síntoma**: `emubox.service` termina inmediatamente con `status=6/ABRT` (`SIGABRT`, código de salida `134`).
@@ -215,7 +219,7 @@ El pipeline de construcción y empaquetado nativo (`scripts/build.sh`) funciona 
 
 ---
 
-## 📑 Reporte 5: Decisión Arquitectónica del Stack Gráfico (Pure Wayland)
+## Reporte 5: Decisión Arquitectónica del Stack Gráfico (Pure Wayland)
 
 * **Fecha**: 28 de Agosto, 2026
 * **Stack Gráfico Objetivo**: **Wayland puro** (Direct DRM/KMS + Gamescope / Cage).
@@ -227,7 +231,7 @@ El pipeline de construcción y empaquetado nativo (`scripts/build.sh`) funciona 
 
 ---
 
-## 📑 Reporte 6: Validación Exitosa de Cage en DRM Directo & Arranque en Frío
+## Reporte 6: Validación Exitosa de Cage en DRM Directo & Arranque en Frío
 
 * **Fecha**: 29 de Agosto, 2026
 * **Hito Alcanzado**: **EmuBox desplegado con éxito en pantalla física a 1080p**.
@@ -248,7 +252,7 @@ Validación del ciclo completo de arranque en frío (`sudo reboot`) comprobando 
 
 ---
 
-## 📑 Reporte 7: Validación Definitiva de Arranque Autónomo en Frío (Appliance Ready)
+## Reporte 7: Validación Definitiva de Arranque Autónomo en Frío (Appliance Ready)
 
 * **Fecha**: 29 de Agosto, 2026
 * **Estado**: **VALIDADO Y CONSOLIDADO (100% OPERATIVO)**.
@@ -267,11 +271,11 @@ Validación del ciclo completo de arranque en frío (`sudo reboot`) comprobando 
 [✓] Repositorio Git vinculado a Fixius50/EmuBox con flujo de desarrollo pull/build
 ```
 
-> 🔒 **Directriz Inmutable**: La fase de ciclo de vida y arranque autónomo queda cerrada con éxito. Los próximos desarrollos se enfocarán exclusivamente en la aplicación EmuBox, la navegación 10-Foot UI y la integración de emuladores.
+>  **Directriz Inmutable**: La fase de ciclo de vida y arranque autónomo queda cerrada con éxito. Los próximos desarrollos se enfocarán exclusivamente en la aplicación EmuBox, la navegación 10-Foot UI y la integración de emuladores.
 
 ---
 
-## 📑 Reporte 8: Persistencia N:M de Compatibilidad en SQLite (Paso 1)
+## Reporte 8: Persistencia N:M de Compatibilidad en SQLite (Paso 1)
 
 * **Fecha**: 30 de Agosto, 2026
 * **Componente**: SQLite (`rusqlite`) & `CompatibilityService`
@@ -286,7 +290,7 @@ Validación del ciclo completo de arranque en frío (`sudo reboot`) comprobando 
 
 ---
 
-## 📑 Reporte 9: Validación Integral del GameLibraryWatcher en VM Real (Paso 2)
+## Reporte 9: Validación Integral del GameLibraryWatcher en VM Real (Paso 2)
 
 * **Fecha**: 30 de Agosto, 2026
 * **Estado**: **VALIDADO AL 100% EN HARDWARE / ARCH LINUX VM**.

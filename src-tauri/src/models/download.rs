@@ -43,6 +43,16 @@ pub struct TransferRequest<'a> {
     pub max_bytes: Option<u64>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JackettResult {
+    pub id: String,
+    pub title: String,
+    pub tracker: String,
+    pub size_bytes: Option<u64>,
+    pub seeders: Option<u64>,
+}
+
 pub struct TransferProgress {
     pub downloaded: u64,
     pub total: Option<u64>,

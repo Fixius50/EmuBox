@@ -1,6 +1,7 @@
 pub mod archive;
 pub mod connectors;
 pub mod installers;
+pub mod jackett;
 pub mod manager;
 pub mod manifest;
 pub mod manifest_cache;

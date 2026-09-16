@@ -201,6 +201,8 @@ pub fn run() {
             commands::downloads::import_and_start_downloads,
             commands::downloads::download_game,
             commands::downloads::get_download_sources,
+            commands::downloads::search_jackett,
+            commands::downloads::select_jackett_result,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Resized(size) = event {

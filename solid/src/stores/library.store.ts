@@ -218,6 +218,8 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
   };
 
   return {
+    searchJackett: (gameId: string) => backend.searchJackett(gameId),
+    selectJackettResult: (gameId: string, resultId: string) => backend.selectJackettResult(gameId, resultId),
     downloadJobs, refreshJobs,
     getDownloadCandidates: (id: string) => backend.getDownloadCandidates(id),
     selectDownloadCandidate: async (id: string, path: string) => {

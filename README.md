@@ -1,4 +1,4 @@
-# 🎮 EmuBox: Frontend de Consola Dedicada para Arch Linux
+# EmuBox: Frontend de Consola Dedicada para Arch Linux
 
 EmuBox es una interfaz de usuario de 10 pies (10-Foot UI) para consolas de emulación dedicadas bajo **Arch Linux (DRM/KMS + compositor Wayland compatible)**.
 
@@ -67,7 +67,10 @@ activos; en caso contrario, desde `data/download-links.txt`. Se importan solo
 metadatos y fuentes, nunca juegos automaticamente. `bin/emubox --import-catalog`
  permite sincronizar sin abrir la UI. Abrir una ficha no descarga: se debe elegir
 una fuente y confirmar la accion. HTTP/HTTPS usa el proveedor nativo; magnet btih
-y enlaces torrent directos usan BitTorrent mediante `aria2c`, si esta instalado.
+y enlaces torrent directos usan qBittorrent-nox >= 5.0, si esta instalado.
+Jackett local permite buscar candidatos desde la ficha y anadir una fuente
+explicitamente; buscar no crea descargas ni juegos. Configuracion local en la
+[guia de descargas](docs/architecture/download-providers.md#qbittorrent-y-jackett-locales).
 Pixeldrain publico tiene conector HTTP; 1fichier es opcional, requiere cuenta
 propia y permanece desactivado salvo opt-in explicito. Otros hostings necesitan
 conectores compatibles; no se eluden login, CAPTCHA ni limites del servidor.
@@ -81,12 +84,12 @@ La arquitectura vigente está en
 
 ---
 
-## 🏛️ El Cuarteto Arquitectónico Inmutable
+## El Cuarteto Arquitectónico Inmutable
 
-> 🧠 **SolidJS 1.9** = **Cerebro** (Reactividad nativa de granularidad fina, stores y ciclo de vida).  
-> 🕹️ **Kobalte** = **Comportamiento** (Primitivas headless, accesibilidad de consola y focus traps).  
-> 🎨 **CSS Propio** = **Apariencia** (100% Unidades relativas `rem`/`em`/`clamp()`, Obsidian & Neon glow, 60/120 FPS).  
-> ✨ **Anime.js** = **Movimiento** (Coreografía compleja, entradas escalonadas *stagger*, transiciones entre vistas).
+>  **SolidJS 1.9** = **Cerebro** (Reactividad nativa de granularidad fina, stores y ciclo de vida).  
+>  **Kobalte** = **Comportamiento** (Primitivas headless, accesibilidad de consola y focus traps).  
+> **CSS Propio** = **Apariencia** (unidades relativas `rem`/`em`, tokens y estilos por componente; rendimiento sujeto a medicion).  
+>  **Anime.js** = **Movimiento** (Coreografía compleja, entradas escalonadas *stagger*, transiciones entre vistas).
 
 ```
    ┌─────────────────────────────────────────────────────────────┐
@@ -112,7 +115,7 @@ La arquitectura vigente está en
 
 ---
 
-## 🚀 Arquitectura en Capas Limpia
+## Arquitectura en Capas Limpia
 
 ```text
 solid/src/
@@ -140,7 +143,7 @@ El CSS se organiza por componente, con medidas relativas, propiedades lógicas y
 
 ---
 
-## 🖥️ Pipeline Gráfico y Sincronización de Resolución Dinámica
+## Pipeline Gráfico y Sincronización de Resolución Dinámica
 
 EmuBox implementa una arquitectura gráfica desacoplada y adaptativa:
 
@@ -164,26 +167,18 @@ EmuBox implementa una arquitectura gráfica desacoplada y adaptativa:
 * **Gamescope**: sus requisitos propios incluyen Vulkan acelerado, ejecutable y salida compatible. Se elige mediante `EMUBOX_COMPOSITOR_PREFERENCE=gamescope` si es compatible, o como alternativa cuando Cage no soporta el backend disponible. Detectar Vulkan no fuerza Gamescope. Sin compositor compatible se informa del error, no se oculta pasando a CPU.
 * **GPU virtual**: SVGA3D/virgl con OpenGL y sin Vulkan permanece acelerada. CPU `aarch64` y GPU Mali/AMD/Intel/NVIDIA son datos independientes.
 * **MultiGPU**: inventario y observaciones se correlacionan por identidad DRM. Sin correspondencia se informa `unknown`; monoGPU permite inferencia declarada. `selectedDeviceId` no es evidencia de `activeDeviceId`.
-* **Sincronización Event-Driven (`emubox-drm-sync`)**: Escucha eventos nativos del kernel Linux (`SUBSYSTEM=drm`, `HOTPLUG=1`) mediante `udevadm` (0% CPU, sin polling). Al redimensionar la ventana o cambiar de monitor, adapta la superficie Wayland y la UI SolidJS en caliente sin resoluciones fijas ni reinicios.
+* **Sincronización Event-Driven (`emubox-drm-sync`)**: escucha eventos DRM mediante `udevadm`, sin polling continuo. La aplicacion de cambios depende de los protocolos y salidas del compositor; no garantiza coste cero ni compatibilidad universal de hotplug.
 
-## Documentación y Guías de Arquitectura
+## Documentacion
 
-- [Informe técnico extenso para el equipo de IA: arquitectura, operación y límites](docs/architecture/ai-team-brief.md).
-- [Propuesta de especificación de EmuBox OS y niveles de soporte](docs/architecture/emubox-os-specification.md).
-
-- [Requisitos](docs/specification/requirements.md), [diseño](docs/specification/design.md) y [matriz de primitivas](docs/specification/headless_primitives_matrix.md).
-- [Aceleración 3D en VirtualBox](docs/architecture/virtualbox-graphics.md).
-- [Arquitectura de Arranque Autónomo y Sesión Wayland](docs/architecture/console-appliance-boot-architecture.md)
-- [Guía de Arquitectura, Refactorización y Estilo de Código](docs/architecture/refactoring-and-architecture-guidelines.md)
-- [Contratos de Backend y Servicios de Dominio](docs/architecture/backend-contracts.md)
-- [Convención de Archivos y Rutas XDG](docs/architecture/filesystem-convention.md)
-- [Especificación IPC Tauri/Rust](docs/architecture/tauri-rust-ipc-spec.md)
-- [Reportes de Diagnóstico de Entorno](docs/diagnostic-reports.md)
-- [Estado actual de EmuBox](docs/architecture/current-state.md)
+El [indice documental](docs/README.md) distingue referencias vigentes, requisitos
+y evidencia historica. No hay especificaciones IPC, PS3 o diseno duplicadas.
+El [estado actual](docs/architecture/current-state.md) resume funciones y limites;
+los informes de diagnostico conservan observaciones fechadas, no promesas de soporte.
 
 ---
 
-## 🛠️ Administración Remota por SSH
+## Administración Remota por SSH
 
 EmuBox opera como una consola autónoma en pantalla física local (`tty1`). Para tareas de mantenimiento, desarrollo o diagnóstico desde tu PC anfitrión u otro equipo:
 
@@ -206,7 +201,7 @@ ssh emubox@<IP_DE_LA_CONSOLA>
    `passwd`. Retirarla de esta documentación no la revoca ni elimina copias antiguas.
    No envíes contraseñas ni claves privadas por chat.
 
-> 📌 **Aislamiento Garantizado**: La sesión SSH se abre en un pseudo-terminal (`pts/*`), por lo que puedes conectarte, compilar, administrar y cerrar la sesión SSH sin interrumpir la interfaz gráfica que sigue ejecutándose en la pantalla.
+> **Sesion independiente**: SSH usa un pseudo-terminal (`pts/*`) distinto de TTY1. Cerrar SSH no cierra por si solo la UI, pero comandos administrativos o cargas intensas pueden afectar a la sesion grafica.
 
 ### 3. Acceso sin Contraseña para Agentes/Automatización (Clave Pública)
 Para permitir que un agente (Copilot, scripts CI, etc.) opere sobre la VM sin depender de contraseñas interactivas ni exponerlas, autoriza una clave pública dedicada:
@@ -230,41 +225,25 @@ Protege la clave con una frase de paso introducida directamente en tu terminal
 y cárgala en el agente SSH local antes de usar `BatchMode=yes`. Verifica una
 segunda conexión con clave antes de desactivar cualquier método de acceso existente.
 
-> ⚠️ **Nota de seguridad**: Si tras varios intentos fallidos de contraseña aparece `Permission denied` de forma persistente, revisa `pam_faillock` (bloqueo temporal por intentos fallidos) con `sudo journalctl -u sshd -n 50`, no necesariamente es una contraseña incorrecta.
+>  **Nota de seguridad**: Si tras varios intentos fallidos de contraseña aparece `Permission denied` de forma persistente, revisa `pam_faillock` (bloqueo temporal por intentos fallidos) con `sudo journalctl -u sshd -n 50`, no necesariamente es una contraseña incorrecta.
 
 ---
 
-## 🐙 Configuración de Git y Flujo de Trabajo
+## Despliegue local
 
-Para trabajar sobre el código fuente directamente en la máquina o enviar contribuciones:
-
-### 1. Configurar Identidad de Git
-```bash
-git config --global user.name "Tu Nombre o Usuario"
-git config --global user.email "tu-email@ejemplo.com"
-```
-
-### 2. Configurar Autenticación SSH con GitHub
-Comprobar si existe clave SSH y verificar acceso:
-```bash
-ssh -T git@github.com
-```
-Asegurar que el repositorio remoto apunta a la URL SSH oficial:
+El flujo de trabajo actual no ejecuta Git ni pruebas de navegador. Con los cambios
+locales preparados, validar y compilar como usuario sin privilegios:
 ```bash
 cd /opt/emubox
-git remote set-url origin git@github.com:Fixius50/EmuBox.git
-```
-
-### 3. Ciclo Típico de Actualización y Despliegue
-```bash
-cd /opt/emubox
-git pull
+npm run verify
 bash scripts/build.sh
 ```
 
+El usuario reinicia `getty@tty1` al terminar, no durante una descarga o partida.
+
 ---
 
-## 🧭 Centro de Control Interactivo (`script.sh`)
+## Centro de Control Interactivo (`script.sh`)
 
 Para evitar tener que recordar y escribir comandos largos, dispones de un menú interactivo en la raíz del proyecto:
 
@@ -283,10 +262,10 @@ El menú te permite seleccionar con un solo número:
 
 ---
 
-## 🧪 Pruebas y Compilación Manual
+## Pruebas y Compilación Manual
 
 ```bash
-# Ejecutar suite de pruebas de arquitectura y contratos (42 pruebas automatizadas)
+# Ejecutar la suite actual de contratos y comportamiento
 npm test
 
 # Compilar bundle de producción para SolidJS

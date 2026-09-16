@@ -70,7 +70,7 @@ solid/src/
 │   ├── modals/         # Modales desacoplados de selección y rescate
 │   └── settings/       # Ajustes modularizados por pestañas (tabs/) y modales (modals/)
 ├── hooks/              # Custom hooks con la lógica pura desacoplada
-├── services/           # Servicios de dominio, backend IPC, audio WebAudio, input Gilrs
+├── services/           # Servicios de dominio, backend IPC, audio WebAudio, Gamepad API
 ├── stores/             # Stores reactivos de SolidJS
 ├── styles/             # CSS Vanilla puro con variables de diseño
 └── types/              # Definiciones e interfaces TypeScript centralizadas
@@ -119,8 +119,9 @@ src-tauri/src/
     downloads/
       service/              catalog, platform, repository, orchestration, tests
       manager/              cola en mod, transfer, publication, tests
-      installers/           detection, firmware, launch, sandbox, validation, tests
-      providers/            HTTP y BitTorrent
+      installers/           detection, firmware, sandbox, validation, tests
+      providers/            HTTP y qBittorrent-nox
+      jackett.rs            Busqueda local de candidatos y seleccion explicita
       archive.rs            Extraccion 7z/RAR
       preparation.rs        Verificacion SHA-256, ZIP y seleccion conservadora
       manifest.rs           Normalizacion
@@ -128,13 +129,13 @@ src-tauri/src/
       resolver.rs           Capacidad y seleccion de proveedor
       connectors.rs         Resolucion por alojamiento
     graphics/               policy, probe, service
-    infrastructure/         database, paths, binary, host_command
+    infrastructure/         database, paths, binary, host_command, telemetry
     library/
       games/                scanner, repository, catalog, tests
       platforms.rs          Definiciones de plataformas
       compatibility.rs      Asociaciones juego-emulador
       watcher.rs            Notificaciones del filesystem
-    runtime/                emulator, capabilities, process
+    runtime/                emulator, capabilities, process, startup, launch_policy, game_sandbox
     system/                 audio, display, input, power, config, storage, logs, bios
     emulators/              Perfiles individuales y alternativas Libretro
 ```

@@ -184,7 +184,7 @@ alojamientos conocidos y BitTorrent. Esta clasificacion es heuristica, no una
 comprobacion de disponibilidad ni de seguridad. Las paginas de alojamiento conocidas
 se bloquean hasta tener un conector. Un candidato HTTP aun puede fallar, redirigir
 o devolver HTML; el descargador mantiene sus comprobaciones HTTP y TLS.
-Magnet/torrent disponen de proveedor BitTorrent con aria2. Si falta el ejecutable,
+Magnet/torrent disponen de proveedor qBittorrent-nox. Si falta el ejecutable,
 se indica el paquete necesario sin anunciar descarga disponible. Pixeldrain tiene
 conector publico de archivo; 1fichier dispone de conector API opcional, desactivado
 por defecto para mantener el uso sin registro. Solo se activa mediante opt-in

@@ -1,5 +1,13 @@
 export type DownloadSourceType = 'http' | 'torrent' | 'magnet' | 'other';
 
+export interface JackettResult {
+  id: string;
+  title: string;
+  tracker: string;
+  sizeBytes?: number | null;
+  seeders?: number | null;
+}
+
 export type DownloadStatus =
   | 'queued'
   | 'downloading'

@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { TauriBackendService } from '../solid/src/services/backend/tauri-backend.service';
 import { createLibraryStore } from '../solid/src/stores/library.store';
 import type { Game } from '../solid/src/types/game.types';
+import { createRoot } from 'solid-js';
+import { useJackettSearch } from '../solid/src/hooks/useJackettSearch';
 
 const game: Game = {
   id: 'catalog-one', title: 'Catalog one', platform: 'ps2', platformName: 'PS2',
@@ -97,4 +99,34 @@ canonicalStore.selectRelease(1);
 assert.deepEqual(canonicalStore.sourceOptions().map(source => source.id), ['source-two']);
 await canonicalStore.confirmSource();
 assert.deepEqual(requestedDownload, ['variant-two', 'source-two']);
+
+await canonicalStore.openSources(canonicalGame);
+let searchedVersion = '';
+let selectedResult: string[] = [];
+canonicalBackend.searchJackett = async id => {
+  searchedVersion = id;
+  return [{ id: 'result-one', title: 'Fixture', tracker: 'Local', sizeBytes: 4, seeders: 1 }];
+};
+canonicalBackend.selectJackettResult = async (gameId, resultId) => {
+  selectedResult = [gameId, resultId];
+  return { id: 'source-one', gameId, name: 'Fixture', sourceType: 'magnet', uri: 'magnet:?xt=fixture', available: true };
+};
+const jackett = createRoot(dispose => ({ model: useJackettSearch(canonicalStore), dispose }));
+try {
+  await jackett.model.search();
+  assert.equal(searchedVersion, 'variant-one');
+  assert.equal(jackett.model.results().length, 1);
+  assert.equal(jackett.model.open(), true);
+  await jackett.model.select();
+  assert.deepEqual(selectedResult, ['variant-one', 'result-one']);
+  assert.equal(jackett.model.open(), false);
+  assert.deepEqual(requestedDownload, ['variant-two', 'source-two'], 'Adding a search result must not start downloading');
+  let complete!: (results: import('../solid/src/types/download.types').JackettResult[]) => void;
+  canonicalBackend.searchJackett = () => new Promise(resolve => { complete = resolve; });
+  const pending = jackett.model.search();
+  canonicalStore.selectRelease(1);
+  complete([{ id: 'stale', title: 'Stale', tracker: 'Local' }]);
+  await pending;
+  assert.deepEqual(jackett.model.results(), []);
+} finally { jackett.dispose(); }
 console.log('Library: real grouping and native errors, no fabricated downloads or sources.');

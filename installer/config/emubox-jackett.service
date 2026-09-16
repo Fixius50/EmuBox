@@ -1,0 +1,31 @@
+[Unit]
+Description=EmuBox local Jackett indexer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=emubox-jackett
+Group=emubox
+UMask=0027
+WorkingDirectory=/var/lib/emubox/jackett
+Environment=HOME=/var/lib/emubox/jackett
+Environment=XDG_CONFIG_HOME=/var/lib/emubox/jackett
+ExecStart=/opt/jackett/jackett --DataFolder=/var/lib/emubox/jackett/Jackett --ListenPrivate --Port=9117 --NoUpdates
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+CapabilityBoundingSet=
+ReadWritePaths=/var/lib/emubox/jackett
+
+[Install]
+WantedBy=multi-user.target

@@ -16,6 +16,8 @@ const requiredPaths = [
   'src-tauri/src/services/downloads/service/repository.rs',
   'src-tauri/src/services/downloads/manager/transfer.rs',
   'src-tauri/src/services/downloads/manager/publication.rs',
+  'src-tauri/src/services/downloads/providers/qbittorrent.rs',
+  'src-tauri/src/services/downloads/jackett.rs',
   'src-tauri/src/services/downloads/installers/sandbox.rs',
   'src-tauri/src/services/runtime/game_sandbox.rs',
   'src-tauri/src/services/runtime/launch_policy.rs',

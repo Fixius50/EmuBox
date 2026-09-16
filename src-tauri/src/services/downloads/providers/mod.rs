@@ -1,5 +1,5 @@
-pub mod bittorrent;
 pub mod http;
+pub mod qbittorrent;
 
 use crate::{
     errors::EmuBoxError,
@@ -18,7 +18,7 @@ pub fn provider(id: crate::models::ProviderId) -> Box<dyn DownloadProvider> {
     match id {
         crate::models::ProviderId::Http => Box::new(http::HttpProvider),
         crate::models::ProviderId::BitTorrent => {
-            Box::new(bittorrent::BitTorrentProvider::default())
+            Box::new(qbittorrent::QbittorrentProvider::default())
         }
     }
 }

@@ -14,7 +14,7 @@
 | Fuente | Proveedor | Limites |
 | --- | --- | --- |
 | HTTP/HTTPS | HTTP nativo | Sujeto a respuesta real; HTML no se acepta como juego |
-| Magnet btih | BitTorrent con aria2 | Necesita motor instalado, metadata y peers/seeds |
+| Magnet btih | qBittorrent-nox | Necesita motor instalado, metadata y peers/seeds |
 | URL torrent directa | HTTP para descriptor, BitTorrent para contenido | Descriptor limitado a 16 MiB; no basta con obtener el torrent |
 | Pixeldrain archivo publico | Conector documentado + HTTP | Respeta limites, autorizacion y CAPTCHA; no resuelve listas ni carpetas |
 | 1fichier archivo | API de cuenta + HTTP, desactivada por defecto | Solo opt-in explicito, credencial privada y oferta con permiso de descarga API |
@@ -28,7 +28,7 @@ ruta de proveedor compatible, no que la fuente remota ya haya sido comprobada.
 ## Auditoria de cobertura, 15 de septiembre de 2026
 
 Contrastada contra `services/downloads/resolver.rs`, `connectors.rs`,
-`providers/http.rs`, `providers/bittorrent.rs` y las fuentes persistidas.
+`providers/http.rs`, `providers/qbittorrent.rs` y las fuentes persistidas.
 No se consultaron servidores remotos, cuentas, juegos ni torrents publicos.
 `DownloadService` sigue existiendo como fachada; la implementacion ya esta
 separada. El README y los requisitos que negaban BitTorrent o daban la fase
@@ -39,8 +39,8 @@ por completada se han sincronizado con este contrato.
 | Fuente `available=false` | Primera guarda del resolver | Ninguno | No se consulta | No descargable, aunque la URI tenga transporte compatible |
 | HTTP(S) con extension reconocida | Path termina en zip, 7z, rar, iso, chd, pkg, exe, bin, gz, xz, rvz, gba o sfc; fuera de hosts bloqueados | HTTP nativo | No exige cuenta local | 403/404, timeout, TLS, HTML o identidad incorrecta fallan; no prueban falta de proveedor |
 | HTTP(S) dinamico/desconocido | HTTP(S) restante, `unverified_http` | HTTP nativo, sin conector | No exige cuenta local | No descubre enlaces dentro de paginas; HTML se rechaza. Un dominio desconocido NO se anuncia como hosting integrado |
-| `.torrent` directo | Path termina en `.torrent`, despues de comprobar hosts conocidos | HTTP descriptor (16 MiB) + aria2 | No en cliente; tracker puede exigir permisos | Sin aria2, descriptor valido, metadata o peers no termina; se informa el error |
-| Magnet btih | `magnet:` con `xt=urn:btih:` valido (40 hex o 32 base32) | aria2 | No en cliente; restricciones del tracker se conservan | Magnet invalido, solo btmh/v2 o motor ausente no descargable |
+| `.torrent` directo | Path termina en `.torrent`, despues de comprobar hosts conocidos | HTTP descriptor (16 MiB) + qBittorrent | Solo API local; tracker puede exigir permisos | Sin motor, descriptor valido, metadata o peers no termina |
+| Magnet btih | `magnet:` con `xt=urn:btih:` valido (40 hex o 32 base32) | qBittorrent | Solo API local; restricciones del tracker se conservan | Magnet invalido, solo btmh/v2 o motor ausente no descargable |
 | Pixeldrain `/u/ID` | Dominio exacto, ID alfanumerico, sin credenciales/puerto no estandar | `pixeldrain_public_file` -> HTTP `/api/file/ID` | No exigida por EmuBox | Cuota, CAPTCHA, 403/404 o red fallan sin eludir limites |
 | Pixeldrain `/api/file/ID` | Path API en dominio exacto | HTTP directo | No exigida por EmuBox | Respuesta real decide; no se valida existencia al listar |
 | Pixeldrain listas/carpetas/otras rutas | `host_page`, sin conector para esas formas | Ninguno | No se consulta | No descargable; no se convierte una lista en un archivo |
@@ -54,7 +54,7 @@ por completada se han sincronizado con este contrato.
 La deteccion se basa en la URI, no solo en `source_type` persistido. Los hosts
 conocidos se comprueban antes del sufijo `.torrent`: una pagina de hosting con
 ese sufijo no se convierte en torrent directo. Una URL dinamica que devuelve
-un descriptor sin sufijo `.torrent` no se redirige automaticamente a aria2.
+un descriptor sin sufijo `.torrent` no se redirige automaticamente al motor torrent.
 El soporte de transporte no implica soporte de todos los formatos recibidos.
 `Content-Disposition` admite `filename=`, no un parser completo de `filename*`.
 La deteccion de HTML usa Content-Type y el prefijo del primer bloque; no es una
@@ -108,7 +108,7 @@ fallo de descarga del juego ni autorizan borrar el catalogo previo.
 ## Configuracion sin registro
 
 EmuBox no exige registro, inicio de sesion ni suscripcion para las descargas
-publicas o la preparacion local. HTTP nativo, aria2 (GPL-2.0-or-later) y libarchive
+publicas o la preparacion local. HTTP nativo, qBittorrent (GPL) y libarchive
 (BSD) son componentes abiertos. No hay que crear cuentas en ellos ni en EmuBox.
 Pixeldrain es un servicio de terceros, no se presenta como infraestructura abierta:
 su API publica de lectura puede imponer limites o CAPTCHA. BitTorrent publico no
@@ -117,15 +117,15 @@ requiere cuenta en el cliente; un tracker privado puede exigir autorizacion.
 Los conectores con cuenta estan desactivados salvo `EMUBOX_ALLOW_ACCOUNT_DOWNLOADS=1`.
 Sin esa activacion no se lee la credencial de 1fichier ni se consulta su API,
 aunque exista un token antiguo. La configuracion recomendada es dejar la variable
-sin definir (o en 0). En este equipo aria2 1.37.0 y libarchive 3.8.9 estan instalados;
-no hace falta provisionar claves ni instalar un servicio de descargas adicional.
+sin definir (o en 0). qBittorrent y Jackett usan credenciales locales generadas;
+no son cuentas externas ni deben copiarse a la UI o al chat.
 
 Un cliente abierto no puede garantizar disponibilidad ni quitar requisitos de un
 hosting. GoFile y 1fichier no son requisitos de EmuBox: se puede seleccionar otra
 fuente publica del mismo juego cuando exista; nunca se cambia de fuente sin permiso.
 Los archivos locales tampoco requieren red ni cuenta. No se crean cuentas invitadas,
 se compran creditos ni se instalan gestores propietarios como sustituto automatico.
-Referencias: [aria2](https://aria2.github.io/), [libarchive](https://www.libarchive.org/),
+Referencias: [qBittorrent](https://www.qbittorrent.org/), [libarchive](https://www.libarchive.org/),
 [API Pixeldrain](https://pixeldrain.com/api).
 
 ## API autenticada 1fichier (opcional)
@@ -154,42 +154,75 @@ No se crean cuentas invitadas ni se intenta sustituir permisos mediante scraping
 Referencias: [1fichier API](https://1fichier.com/api.html),
 [GoFile API](https://gofile.io/api), [libarchive](https://www.libarchive.org/).
 
-## Motor BitTorrent
+## qBittorrent y Jackett locales
 
-La dependencia de ejecucion es el paquete `aria2`, opcional en el instalador:
+qBittorrent-nox >=5.0 sustituye a aria2. Magnet sigue usando BitTorrent: se cambia
+el cliente, no el protocolo. El valor SQLite `bittorrent` y los IDs de trabajo
+siguen siendo validos. HTTP no cambia. Para instalar el motor en Arch:
 
 ```bash
-sudo pacman -S --needed aria2
+sudo pacman -S --needed qbittorrent-nox
 ```
 
-Se usa una instancia por trabajo, RPC exclusivamente loopback y secreto aleatorio
-en archivo privado. No se carga configuracion del usuario ni netrc. Los secretos
-y respuestas completas del motor no se imprimen en logs. Se apaga el proceso al
-completar/interrumpir y se conservan controles para reanudar.
+Cada trabajo tiene su perfil en `.emubox-staging/<job-id>/qbittorrent/profile` y
+payload separado. API v2 en puerto efimero 127.0.0.1, credencial aleatoria PBKDF2
+SHA512, autenticacion local, validacion de Host y CSRF activas. No se usa la
+instancia personal. Se admiten cookies SID (5.0/5.1) y QBT_SID_* (5.2).
+El proceso termina con su supervisor; pausa/cancelacion solicitan parada y cierre.
+Un cierre forzado conserva datos para revalidacion, no promete reanudacion exacta.
 
-BitTorrent puede subir piezas durante la descarga (limite configurado: 64 KiB/s).
+La bajada tiene `dl_limit=0`: sin tope fijo. La subida mantiene 64 KiB/s y se
+solicita parada al completar (puede haber intercambio de piezas mientras se detecta
+la finalizacion). Prioridad nice=5 e ionice best-effort 7, sin cuota de CPU.
+No se alteran puertos del router ni firewall. Estado cada 500ms; lista de archivos
+solo al terminar. Progreso reutiliza conexion SQLite/sentencia preparada.
+Los archivos se validan antes de publicarlos: rutas relativas, regulares, completas
+y confinadas. Las comprobaciones posteriores de checksum/preparacion se conservan.
 
-La bajada no tiene un techo fijo de velocidad: aria2 recibe
-`max-overall-download-limit=0` y `max-download-limit=0`; HTTP no aplica throttling.
-El rendimiento depende de la conexion, servidores/peers, CPU y almacenamiento.
-El limite de subida anterior es independiente y se mantiene.
+Parciales de aria2: no se borran, renombran ni anexan. Una reanudacion posterior
+usara el subdirectorio qBittorrent y puede volver a descargar contenido; comprueba
+espacio libre antes. Instalaciones ya publicadas no necesitan transferirse de nuevo.
+No se desinstala el paquete aria2 del SO automaticamente. Pausa los trabajos antes
+de reiniciar la sesion para aplicar la migracion.
 
-Los nuevos procesos aria2 se lanzan con nice=5 e ionice best-effort prioridad 7:
-ceden prioridad relativa a UI/compositor bajo contencion, sin cuota CPU ni limite
-de bytes por segundo. Requiere coreutils y util-linux, ya usados por la appliance;
-la efectividad de ionice depende del planificador del disco. No se ajustan ni se
-interrumpen motores que ya estaban descargando.
+### Jackett
 
-El sondeo RPC pide solo seis campos de progreso/estado, no listas de archivos o
-peers cada 500ms. Los archivos se consultan al completar. La informacion de
-reanudacion de aria2 se guarda cada diez segundos en lugar de uno; un cierre
-brusco puede necesitar revalidar mas progreso, mientras pausa/cancelacion mantienen
-el cierre del motor. La actualizacion de progreso reutiliza una conexion SQLite
-y una sentencia preparada durante la transferencia, sin transaccion larga ni
-repetir la inicializacion del esquema en cada muestra.
-No hace seeding despues de completar. No se alteran puertos del router/firewall.
-Los torrents privados mantienen las restricciones propias del motor. Magnet v2
-sin btih no se anuncia como soportado por esta integracion.
+Jackett no es un motor de descarga. La ficha ofrece busqueda explicita para el
+juego/version y categorias consola/PC; devuelve hasta 50 candidatos magnet de los
+indexadores configurados. Se revisa y anade una fuente antes de pulsar Descargar.
+No se importan automaticamente resultados, ni se confunde busqueda textual con
+identificacion canonica. Resultados caducan a diez minutos y pertenecen a una version.
+Los enlaces privados sin magnet no se exponen como una via de descarga alternativa.
+
+Para instalar el servicio gestionado:
+
+1. Ejecuta `sudo bash scripts/setup-search-services.sh`. Instala qBittorrent si
+	falta y obtiene la distribucion oficial de [Jackett](https://github.com/Jackett/Jackett/releases)
+	x86_64/ARM64, exigiendo el digest SHA-256 de la publicacion GitHub por HTTPS.
+	Sin digest no instala; comprueba rutas y rechaza enlaces antes de publicar.
+	La huella verifica integridad del artefacto publicado, no una firma independiente.
+	Un HTTP 403 de GitHub detiene la instalacion, sin pedir tokens. Alternativa:
+	proporcionar `JACKETT_ARCHIVE` y `JACKETT_SHA256` verificado al instalador mediante
+	`sudo env JACKETT_ARCHIVE=/ruta/archivo.tar.gz JACKETT_SHA256=<digest> bash scripts/setup-search-services.sh`.
+2. Jackett queda en `/opt/jackett`, propiedad root, sin escritura de grupo/otros.
+	Una instalacion existente no se sobrescribe. No se ejecutan scripts remotos.
+3. Se configura `emubox-jackett.service`, sin reiniciar TTY1.
+4. Accede localmente a `http://127.0.0.1:9117` y configura indexadores autorizados.
+	Desde otra maquina usa un tunel SSH local, no expongas 9117 en la LAN/Internet.
+
+El instalador guarda la contraseña administrativa en
+`/var/lib/emubox/jackett/admin-password` y la clave API en
+`/var/lib/emubox/jackett/Jackett/ServerConfig.json`. Consulta la contraseña
+directamente en tu terminal; no la pegues en el chat. EmuBox solo lee el archivo
+local privado. No acepta endpoints remotos ni claves por IPC. Jackett se ejecuta
+con usuario dedicado, sin home personal, filesystem protegido y escritura solo en
+su directorio. Las actualizaciones automaticas y acceso externo quedan desactivados.
+
+No se configuran trackers, FlareSolverr, proxies ni servicios de pago de forma
+automatica. No tener indexadores devuelve lista vacia; errores de servicio o API
+se muestran como errores, no como resultados vacios fabricados. API timeout 30s,
+respuesta 2 MiB; una consulta simultanea como maximo. Configurar Jackett requiere
+el servicio instalado: la presencia del boton no demuestra disponibilidad.
 
 ## Integridad, staging e instalacion
 
@@ -304,7 +337,7 @@ RAR4 y otras variantes (solid, multivolumen, cifrados) no se han validado integr
 La prueba del gestor verifica reanudacion sin fuente disponible, checksum fallido,
 cancelacion, conservacion de originales y recuperacion del marcador. 1fichier
 tiene pruebas locales de contrato, destinos y permisos, no prueba autenticada real. La
-prueba opcional BitTorrent usa aria2 real, un torrent privado de cuatro bytes y
+prueba opcional qBittorrent usa el motor real, un torrent privado de cuatro bytes y
 webseed localhost, con DHT y descubrimiento desactivados; no consulta juegos reales.
 
 Pendientes: conectores adicionales compatibles con acceso publico, instaladores EXE

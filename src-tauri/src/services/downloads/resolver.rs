@@ -15,7 +15,7 @@ pub fn source_option(source: DownloadSource) -> crate::models::DownloadSourceOpt
         crate::services::download_connectors::connector(&source.uri).map(str::to_string);
     let reason = resolution.err().map(|error| error.to_string()).or_else(|| {
         if connector.as_deref() == Some("1fichier_account_api") { Some("Requiere cuenta autorizada; la API comprobara permisos y cuota al iniciar. Puede consumir creditos CDN segun tu oferta".into()) }
-        else if provider.as_deref() == Some("bittorrent") { Some("BitTorrent puede subir piezas durante la descarga (limite 64 KiB/s); sin seeding al completar".into()) }
+        else if provider.as_deref() == Some("bittorrent") { Some("qBittorrent puede subir piezas durante la descarga (limite 64 KiB/s); se detiene al completar".into()) }
         else if access == "unverified_http" || connector.is_some() { Some("Acceso sujeto a disponibilidad y limites del servidor; no se eluden restricciones".into()) }
         else { None }
     });
@@ -47,9 +47,9 @@ pub fn resolve(source: &DownloadSource) -> Result<ProviderId, EmuBoxError> {
                     "El proveedor BitTorrent requiere un magnet con infohash btih valido".into(),
                 ));
             }
-            if crate::services::binary_service::resolve_executable("aria2c").is_none() {
+            if !std::path::Path::new("/usr/bin/qbittorrent-nox").is_file() {
                 Err(EmuBoxError::ExecutableMissing(
-                    "Proveedor BitTorrent: instala el paquete aria2 (aria2c)".into(),
+                    "Proveedor qBittorrent: instala qbittorrent-nox >= 5.0".into(),
                 ))
             } else {
                 Ok(ProviderId::BitTorrent)
@@ -131,7 +131,7 @@ pub fn source_access(uri: &str) -> Option<&'static str> {
     }
 }
 
-fn valid_magnet(uri: &str) -> bool {
+pub(super) fn valid_magnet(uri: &str) -> bool {
     reqwest::Url::parse(uri).ok().is_some_and(|url| {
         url.query_pairs().any(|(key, value)| {
             key == "xt"

@@ -3,6 +3,21 @@ use crate::models::{CreateDownloadRequest, DownloadJob, DownloadSource};
 use crate::services::DownloadService;
 
 #[tauri::command]
+pub async fn search_jackett(
+    game_id: String,
+) -> Result<Vec<crate::models::JackettResult>, EmuBoxError> {
+    super::blocking(move || crate::services::downloads::jackett::search(&game_id)).await
+}
+
+#[tauri::command]
+pub async fn select_jackett_result(
+    game_id: String,
+    result_id: String,
+) -> Result<DownloadSource, EmuBoxError> {
+    super::blocking(move || crate::services::downloads::jackett::select(&game_id, &result_id)).await
+}
+
+#[tauri::command]
 pub fn import_download_links() -> Result<Vec<DownloadSource>, EmuBoxError> {
     DownloadService::import_link_file()
 }

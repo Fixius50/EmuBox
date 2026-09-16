@@ -9,7 +9,8 @@ import {
   onCleanup,
 } from "solid-js";
 import { Dialog } from "@kobalte/core/dialog";
-import { Download, Heart, Play, Pause, X, Square, RotateCw, Check } from "lucide-solid";
+import { Download, Heart, Play, Pause, X, Square, RotateCw, Check, Search, Plus } from "lucide-solid";
+import { useJackettSearch } from '@hooks/useJackettSearch';
 import type { LibraryStore } from "@stores/library.store";
 import type { Game } from "@contracts/game.types";
 import type { InputAction } from "@contracts/input.types";
@@ -20,7 +21,7 @@ const labels = {
   unverified_http: "HTTP sin verificar",
   host_page: "Pagina de alojamiento",
   magnet: "Magnet",
-  torrent: "BitTorrent",
+  torrent: "Torrent (qBittorrent)",
   unsupported: "No compatible",
 };
 
@@ -38,6 +39,7 @@ interface DownloadSourceModalProps {
 }
 
 export function DownloadSourceModal(props: DownloadSourceModalProps) {
+    const jackett = useJackettSearch(props.store);
   const selected = () => props.store.sourceOptions()[props.store.sourceIndex()];
   const selectedRelease = () => props.store.releaseOptions()[props.store.releaseIndex()];
   const game = () => props.store.sourceGame();
@@ -182,6 +184,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
   };
   const controller = (action: InputAction) => {
     if (!game()) return;
+    if (jackett.handleInput(action)) return;
     if (action === "BUTTON_B") props.store.closeSources();
     else if (action === "NAV_RIGHT") focusPanel("details");
     else if (action === "NAV_LEFT") focusPanel("sources");
@@ -240,6 +243,11 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
             }}
             onKeyDown={(event) => {
               event.stopPropagation();
+              if (jackett.open() && ['Escape', 'ArrowDown', 'ArrowUp'].includes(event.key)) {
+                event.preventDefault();
+                jackett.handleInput(event.key === 'Escape' ? 'BUTTON_B' : event.key === 'ArrowDown' ? 'NAV_DOWN' : 'NAV_UP');
+                return;
+              }
               if (event.target instanceof HTMLSelectElement && event.key !== "Escape") return;
               if (event.key === "Escape") {
                 event.preventDefault();
@@ -350,6 +358,29 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                 <h3>Fuentes de la version</h3>
                 <span>{props.store.sourceOptions().length} fuentes</span>
               </div>
+              <div class="download-source-actions">
+                <button disabled={jackett.busy() || props.store.sourcesLoading()} title="Buscar fuentes en Jackett" onClick={() => void jackett.search()}>
+                  <Search size={18} /> Jackett
+                </button>
+              </div>
+              <Show when={jackett.open()}>
+                <section aria-label="Resultados de Jackett" class="jackett-results">
+                  <div class="game-case-section-label">
+                    <h3>Jackett</h3>
+                    <button title="Cerrar resultados" aria-label="Cerrar resultados" onClick={jackett.close}><X size={18} /></button>
+                  </div>
+                  <Show when={jackett.busy()}><p role="status">Consultando Jackett...</p></Show>
+                  <Show when={jackett.error()}><p role="alert">{jackett.error()}</p></Show>
+                  <Show when={!jackett.busy() && !jackett.error() && !jackett.results().length}><p role="status">Sin resultados magnet en los indexadores configurados.</p></Show>
+                  <div class="jackett-result-list" role="radiogroup" aria-label="Fuentes encontradas" ref={jackett.bindResults}>
+                    <For each={jackett.results()}>{(result, index) => <label class="download-source-option" classList={{ selected: jackett.index() === index() }} data-jackett-index={index()}>
+                      <input type="radio" name="jackett-result" checked={jackett.index() === index()} onChange={() => jackett.setIndex(index())} />
+                      <span><strong>{result.title}</strong><span class="game-case-source-meta">{result.tracker} · {result.seeders ?? '?'} seeds</span></span>
+                    </label>}</For>
+                  </div>
+                  <div class="download-source-actions"><button disabled={jackett.busy() || !jackett.results().length} onClick={() => void jackett.select()}><Plus size={18} /> Anadir fuente seleccionada</button></div>
+                </section>
+              </Show>
               <Show when={props.store.sourcesLoading()}>
                 <p class="game-case-state" role="status">
                   Consultando versiones y fuentes...

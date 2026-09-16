@@ -23,7 +23,7 @@
     "verify": "node scripts/verify.mjs",
     "mojibake:check": "node scripts/mojibake-check.mjs",
     "quality:text": "npm run mojibake:check",
-    "arch:check": "node scripts/architecture-check.mjs"
+    "arch:check": "node scripts/architecture-check.mjs && node scripts/docs-check.mjs"
   },
   "dependencies": {
     "@kobalte/core": "^0.13.8",

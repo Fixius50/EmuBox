@@ -1,3 +1,7 @@
+.jackett-results { border-block: 0.0625rem solid var(--xmb-border); padding-block: 0.75rem; min-inline-size: 0; }
+.jackett-results p { overflow-wrap: anywhere; }
+.jackett-result-list { max-block-size: 15rem; overflow-y: auto; }
+.jackett-results .game-case-section-label button { display: grid; place-items: center; inline-size: 2rem; block-size: 2rem; background: transparent; color: inherit; border: 0; }
 .download-source-dialog.game-case {
   --case-accent: var(--xmb-accent);
   position: relative;
