@@ -52,6 +52,24 @@ echo 'vmwgfx legacy DRM and explicit preferences: OK'
   configure_emubox_presentation vmwgfx;
   [[ "$WLR_SCENE_DEBUG_DAMAGE" == none && "$WLR_SCENE_DISABLE_DIRECT_SCANOUT" == 0 ]] )
 echo 'vmwgfx full composition and preserved explicit presentation settings: OK'
+( unset WEBKIT_DISABLE_DMABUF_RENDERER WEBKIT_DMABUF_RENDERER_FORCE_SHM LIBGL_ALWAYS_SOFTWARE WLR_RENDERER WEBKIT_DISABLE_COMPOSITING_MODE;
+  configure_emubox_render_mode auto;
+  configure_emubox_webkit vmwgfx;
+  [[ "$WEBKIT_DISABLE_DMABUF_RENDERER" == 0 && "$WEBKIT_DMABUF_RENDERER_FORCE_SHM" == 1 ]]
+  [[ ! -v LIBGL_ALWAYS_SOFTWARE && ! -v WLR_RENDERER && ! -v WEBKIT_DISABLE_COMPOSITING_MODE ]] )
+( unset WEBKIT_DISABLE_DMABUF_RENDERER WEBKIT_DMABUF_RENDERER_FORCE_SHM;
+  configure_emubox_webkit amdgpu;
+  [[ ! -v WEBKIT_DISABLE_DMABUF_RENDERER && ! -v WEBKIT_DMABUF_RENDERER_FORCE_SHM ]] )
+( export WEBKIT_DISABLE_DMABUF_RENDERER=1; unset WEBKIT_DMABUF_RENDERER_FORCE_SHM;
+  configure_emubox_webkit vmwgfx;
+  [[ "$WEBKIT_DISABLE_DMABUF_RENDERER" == 1 && ! -v WEBKIT_DMABUF_RENDERER_FORCE_SHM ]] )
+( export WEBKIT_DISABLE_DMABUF_RENDERER=0 WEBKIT_DMABUF_RENDERER_FORCE_SHM=0;
+  configure_emubox_webkit vmwgfx;
+  [[ "$WEBKIT_DISABLE_DMABUF_RENDERER" == 0 && "$WEBKIT_DMABUF_RENDERER_FORCE_SHM" == 0 ]] )
+( configure_emubox_render_mode software; unset WEBKIT_DISABLE_DMABUF_RENDERER WEBKIT_DMABUF_RENDERER_FORCE_SHM;
+  configure_emubox_webkit vmwgfx;
+  [[ "$LIBGL_ALWAYS_SOFTWARE" == 1 && "$WLR_RENDERER" == pixman && "$WEBKIT_DISABLE_COMPOSITING_MODE" == 1 ]] )
+echo 'vmwgfx WebKit shared-memory frames, GPU policy and explicit overrides: OK'
 ( unset LIBGL_ALWAYS_SOFTWARE WLR_RENDERER WEBKIT_DISABLE_COMPOSITING_MODE; configure_emubox_render_mode auto; [[ ! -v LIBGL_ALWAYS_SOFTWARE && ! -v WLR_RENDERER && ! -v WEBKIT_DISABLE_COMPOSITING_MODE ]] )
 ( configure_emubox_render_mode software; [[ "$LIBGL_ALWAYS_SOFTWARE" == 1 && "$WLR_RENDERER" == pixman && "$WEBKIT_DISABLE_COMPOSITING_MODE" == 1 ]] )
 ( ! configure_emubox_render_mode invalid )

@@ -49,6 +49,16 @@ configure_emubox_presentation() {
   fi
 }
 
+configure_emubox_webkit() {
+  [[ "$1" == vmwgfx ]] || return 0
+  if [[ ! -v WEBKIT_DISABLE_DMABUF_RENDERER ]]; then
+    export WEBKIT_DISABLE_DMABUF_RENDERER=0
+  fi
+  if [[ "$WEBKIT_DISABLE_DMABUF_RENDERER" == 0 && ! -v WEBKIT_DMABUF_RENDERER_FORCE_SHM ]]; then
+    export WEBKIT_DMABUF_RENDERER_FORCE_SHM=1
+  fi
+}
+
 configure_emubox_render_mode() {
   case "$1" in
     auto)

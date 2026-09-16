@@ -66,18 +66,17 @@ RENDER_MODE="${RENDER_MODE:-auto}"
 export EMUBOX_RENDER_MODE="$RENDER_MODE"
 configure_emubox_render_mode auto
 detect_emubox_graphics
-if [[ "$GPU_DRIVER" == vmwgfx ]]; then
-  export WEBKIT_DISABLE_DMABUF_RENDERER="${WEBKIT_DISABLE_DMABUF_RENDERER:-1}"
-fi
 REQUESTED_RENDER_MODE="$RENDER_MODE"
 RENDER_MODE=$(select_emubox_render_mode "$RENDER_MODE" "$HAS_HW_VULKAN" "$HAS_HW_OPENGL" "$GRAPHICS_DETECTION_STATE")
 configure_emubox_render_mode "$RENDER_MODE"
+configure_emubox_webkit "$GPU_DRIVER"
 export EMUBOX_GRAPHICS_BACKEND="$GRAPHICS_BACKEND"
 export EMUBOX_OPERATIONAL_BACKEND="$GRAPHICS_OPERATIONAL_BACKEND"
 echo "[EmuBox] detection=$GRAPHICS_DETECTION_STATE probes=$GRAPHICS_PROBE_REASONS selectedDevice=$GPU_DEVICE activeDevice=$GPU_ACTIVE_DEVICE operationalBackend=$GRAPHICS_OPERATIONAL_BACKEND fallback=$GRAPHICS_FALLBACK_REASON"
 CPU_MODEL=$(awk -F ': ' '/model name|Hardware|Model/ {print $2; exit}' /proc/cpuinfo)
 echo "[EmuBox] cpu=${CPU_MODEL:-$(uname -m)} cores=$(getconf _NPROCESSORS_ONLN)"
 echo "[EmuBox] requestedRenderMode=$REQUESTED_RENDER_MODE renderMode=$RENDER_MODE WLR_RENDERER=${WLR_RENDERER:-auto} LIBGL_ALWAYS_SOFTWARE=${LIBGL_ALWAYS_SOFTWARE:-0}"
+echo "[EmuBox] webkit: dmabufRendererDisabled=${WEBKIT_DISABLE_DMABUF_RENDERER:-0} forceShm=${WEBKIT_DMABUF_RENDERER_FORCE_SHM:-0} compositingDisabled=${WEBKIT_DISABLE_COMPOSITING_MODE:-0}"
 echo "[EmuBox] architecture=$(get_emubox_architecture) gpu=$GPU_VENDOR gpuKind=$GPU_KIND vm=$IS_VIRTUAL_MACHINE accelerated=$HAS_ACCELERATION backend=$GRAPHICS_BACKEND renderer=$RENDERER_DESC drm=$HAS_DRM vulkan=$HAS_HW_VULKAN opengl=$HAS_OPENGL openglAccelerated=$HAS_HW_OPENGL gamescopeReady=$GAMESCOPE_READY compositor=$EMUBOX_COMPOSITOR device=$DEVICE_MODEL"
 if [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
   exec "${EMUBOX_BIN}" "$@"

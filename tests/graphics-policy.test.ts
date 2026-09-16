@@ -20,6 +20,7 @@ for (const cpuArchitecture of ['x86_64', 'aarch64']) {
     const capabilities = detector.detectFromHardware({ ...hardware, cpuArchitecture, gpuRenderer, openglAccelerated: true });
     assert.equal(capabilities.selectedBackend, 'opengl');
     assert.equal(capabilities.gpuKind, 'virtual');
+    assert.equal(capabilities.recommendedBlur, false);
   }
 }
 assert.equal(detector.detectFromHardware({ ...hardware, vulkanSupported: false, openglAccelerated: false }).pipeline, 'indeterminate');
@@ -40,8 +41,12 @@ const documentTarget = { documentElement: { setAttribute: (name: string, value: 
 detector.detectFromHardware({ ...hardware, openglAccelerated: true }, documentTarget);
 assert.equal(attributes.get('data-gpu-kind'), 'virtual');
 assert.equal(attributes.get('data-render-pipeline'), 'accelerated');
+assert.equal(attributes.get('data-blur-mode'), 'software');
 detector.detectFromHardware({ ...hardware, gpuRenderer: 'AMD Radeon', gpuVendor: 'amd', gpuKind: 'physical', isVirtualMachine: false, openglAccelerated: true }, documentTarget);
 assert.equal(attributes.get('data-gpu-kind'), 'physical');
+assert.equal(attributes.get('data-blur-mode'), 'hardware');
+const variablesCss = readFileSync(new URL('../solid/src/styles/variables.css', import.meta.url), 'utf8');
+assert.match(variablesCss, /\[data-blur-mode="software"\]\s*\{[^}]*--glass-blur-sm:\s*none;/);
 const xmbCss = readFileSync(new URL('../solid/src/styles/xmb.css', import.meta.url), 'utf8');
 assert.match(xmbCss, /background:\s*var\(--xmb-background\) var\(--xmb-bg\)/);
 assert.match(xmbCss, /html\[data-gpu-kind="virtual"\] \.xmb-wave\s*\{\s*animation: none;/);

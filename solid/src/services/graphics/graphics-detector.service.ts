@@ -35,7 +35,7 @@ export class GraphicsDetectorService {
       renderer: hardware.gpuRenderer,
       vendor: hardware.gpuVendor,
       isVirtualMachine: hardware.isVirtualMachine ?? virtualGpu,
-      recommendedBlur: accelerated,
+      recommendedBlur: accelerated && !virtualGpu && hardware.gpuKind !== 'virtual' && hardware.isVirtualMachine !== true,
       probeTimeMs: 0,
     };
     this.applyToDocument(customDocument);
@@ -96,7 +96,7 @@ export class GraphicsDetectorService {
       renderer,
       vendor,
       isVirtualMachine: isVm,
-      recommendedBlur: isAccelerated,
+      recommendedBlur: isAccelerated && !isVm,
       probeTimeMs: Math.round((performance.now() - startTime) * 100) / 100
     };
 

@@ -336,6 +336,42 @@ no selecciona la tarjeta bajo un raton inmovil; se exige movimiento real del rat
 
 ### Si la corrupcion persiste
 
+El 16 de septiembre el usuario concreto un caso recurrente: navegar parece normal,
+pero hacer clic cambia el brillo y, pasado un tiempo, las zonas bajo el movimiento
+del raton se repintan oscuras. La correccion anterior de fondo opaco/onda no resuelve
+ese caso. No se considera cerrada la incidencia por tener logs o tests limpios.
+
+La sesion afectada tenia Cage/GLES2, `damage=rerender`, direct scanout desactivado,
+cursor software y `WEBKIT_DISABLE_DMABUF_RENDERER=1`; los procesos EmuBox y WebKit
+habian heredado esas variables. Repintar toda la salida de Cage no garantiza que
+el cuadro recibido desde WebKit sea correcto. No se encontro un filtro CSS
+`brightness()` que explicase el cambio global al hacer clic.
+
+La politica actual de vmwgfx usa `WEBKIT_DISABLE_DMABUF_RENDERER=0` junto a
+`WEBKIT_DMABUF_RENDERER_FORCE_SHM=1`: conserva disponible la composicion GL de
+WebKit pero entrega sus cuadros mediante memoria compartida, sin importar buffers
+DMA-BUF en GTK. La copia/readback tiene coste de CPU y ancho de banda; no significa
+forzar llvmpipe, Pixman ni desactivar OpenGL para Cage o los emuladores.
+Los overrides explicitos de ambas variables se respetan, incluidas las opciones
+antiguas; el log de arranque muestra los valores solicitados para poder comprobarlo.
+
+Se corrigio tambien la politica de filtros: una GPU virtual acelerada ya no
+recomienda blur, y `data-blur-mode="software"` ahora controla las variables CSS.
+Antes el atributo no tenia consumidor y los filtros seguian activos salvo en
+pipeline CPU/indeterminado. Este ajuste no cambia la deteccion de aceleracion.
+
+Referencia de implementacion: WebKit
+[AcceleratedBackingStore](https://github.com/WebKit/WebKit/blob/main/Source/WebKit/UIProcess/gtk/AcceleratedBackingStore.cpp)
+y [AcceleratedSurface](https://github.com/WebKit/WebKit/blob/main/Source/WebKit/WebProcess/WebPage/CoordinatedGraphics/AcceleratedSurface.cpp).
+Se comprobaron las opciones disponibles en la biblioteca instalada 2.52.6; la
+consulta de codigo upstream no equivale a una prueba visual de esa compilacion.
+
+Pendiente tras reiniciar TTY1: repetir clics y navegacion, esperar al menos el
+tiempo que antes disparaba el oscurecimiento y mover el raton por zonas quietas.
+La validacion automatica cubre seleccion de transporte, CSS, sintaxis y overrides;
+no reproduce el WebView ni certifica la desaparicion del defecto. No se han hecho
+pruebas de navegador ni se ha reiniciado la sesion automaticamente.
+
 DRM legacy y cursor software no garantizan estabilidad de SVGA3D. En la VM se
 observo recurrencia junto a errores de kernel `vmwgfx: Failed to open channel`.
 La politica actual elimina el override CPU cuando hay aceleracion: los valores
@@ -344,8 +380,8 @@ detectada. El arranque limpia variables heredadas que forzaban Mesa/software,
 Pixman o desactivaban composicion WebKit antes de sondear. Software confirmado o
 fallback explicito con diagnostico indeterminado permite Cage/Pixman,
 `LIBGL_ALWAYS_SOFTWARE=1` y `WEBKIT_DISABLE_COMPOSITING_MODE=1`.
-El workaround `WEBKIT_DISABLE_DMABUF_RENDERER=1` se limita a `vmwgfx`; no es
-equivalente a desactivar OpenGL. Revisar VirtualBox, Guest Additions y driver del
+El antiguo workaround `WEBKIT_DISABLE_DMABUF_RENDERER=1` se sustituye por el
+transporte SHM descrito arriba para `vmwgfx`. Revisar VirtualBox, Guest Additions y driver del
 anfitrion si persiste la corrupcion; detectar capacidad no certifica estabilidad.
 
 ```bash

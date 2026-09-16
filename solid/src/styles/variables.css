@@ -43,7 +43,8 @@
   --border-radius-xl: 1rem;
 }
 [data-render-pipeline="cpu-compatible"],
-[data-render-pipeline="indeterminate"] {
+[data-render-pipeline="indeterminate"],
+[data-blur-mode="software"] {
   --glass-blur-sm: none;
   --glass-blur-md: none;
   --glass-blur-lg: none;
