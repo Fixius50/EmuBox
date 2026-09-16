@@ -13,6 +13,18 @@ pub struct PlatformSpec {
 
 pub const PLATFORM_SPECS: &[PlatformSpec] = &[
     PlatformSpec {
+        id: "nes",
+        name: "Nintendo Entertainment System",
+        short_name: "NES",
+        manufacturer: "Nintendo",
+        generation: 3,
+        release_year: 1983,
+        color: "#d72b2b",
+        icon: "nes",
+        default_emulator_id: "retroarch",
+        extensions: &["nes", "fds", "zip", "7z"],
+    },
+    PlatformSpec {
         id: "3ds",
         name: "Nintendo 3DS",
         short_name: "3DS",

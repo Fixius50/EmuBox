@@ -3,7 +3,17 @@ use crate::models::{Game, GameFilter};
 use crate::{errors::EmuBoxError, services::db_service::DatabaseService};
 use rusqlite::{params, OptionalExtension};
 
-const GAME_SELECT: &str = "SELECT id, title, platform_id, platform_name, release_year, genre, developer, publisher, rating, play_time_minutes, favorite, cover_image, backdrop_image, description, rom_path FROM games";
+const GAME_SELECT: &str = "SELECT game.id, game.title, game.platform_id, game.platform_name,
+    COALESCE(canonical.release_year, game.release_year), COALESCE(canonical.genre, game.genre),
+    COALESCE(canonical.developer, game.developer), COALESCE(canonical.publisher, game.publisher),
+    game.rating, game.play_time_minutes, CASE WHEN canonical.favorite=1 OR game.favorite=1 THEN 1 ELSE 0 END,
+    COALESCE(canonical.cover_image, game.cover_image), game.backdrop_image,
+    COALESCE(canonical.description, game.description), game.rom_path,
+    canonical.id, canonical.title, release.id, release.title, match.method
+    FROM games AS game
+    LEFT JOIN catalog_game_matches AS match ON match.catalog_game_id=game.id
+    LEFT JOIN canonical_games AS canonical ON canonical.id=match.canonical_game_id
+    LEFT JOIN game_releases AS release ON release.id=match.release_id";
 
 fn row_to_game(row: &rusqlite::Row<'_>) -> rusqlite::Result<Game> {
     let rom_path: Option<String> = row.get(14)?;
@@ -27,6 +37,11 @@ fn row_to_game(row: &rusqlite::Row<'_>) -> rusqlite::Result<Game> {
         file_size_mb: None,
         last_played: None,
         emulator_id: None,
+        canonical_id: row.get(15)?,
+        canonical_title: row.get(16)?,
+        release_id: row.get(17)?,
+        release_title: row.get(18)?,
+        match_method: row.get(19)?,
     })
 }
 
@@ -39,24 +54,24 @@ impl GameService {
         if let Some(f) = filter {
             if let Some(target_plat) = f.platform {
                 if target_plat != "all" {
-                    query.push_str(" AND platform_id = ?");
+                    query.push_str(" AND game.platform_id = ?");
                     param_values.push(Box::new(target_plat));
                 }
             }
             if let Some(q) = f.search {
                 if !q.trim().is_empty() {
-                    query.push_str(" AND title LIKE ?");
+                    query.push_str(" AND game.title LIKE ?");
                     param_values.push(Box::new(format!("%{}%", q.trim())));
                 }
             }
             if let Some(fav_only) = f.favorite {
                 if fav_only {
-                    query.push_str(" AND favorite = 1");
+                    query.push_str(" AND (game.favorite = 1 OR canonical.favorite = 1)");
                 }
             }
         }
 
-        query.push_str(" ORDER BY title ASC;");
+        query.push_str(" ORDER BY COALESCE(canonical.title, game.title) ASC, game.title ASC;");
 
         let mut stmt = conn
             .prepare(&query)
@@ -75,7 +90,7 @@ impl GameService {
     pub fn get_game_by_id(id: String) -> Result<Option<Game>, EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
         conn.query_row(
-            &format!("{GAME_SELECT} WHERE id = ?1"),
+            &format!("{GAME_SELECT} WHERE game.id = ?1"),
             params![id],
             row_to_game,
         )
@@ -84,31 +99,59 @@ impl GameService {
     }
 
     pub fn toggle_favorite(game_id: String) -> Result<bool, EmuBoxError> {
-        let conn = DatabaseService::get_connection()?;
-
-        let favorite: Option<i32> = conn
+        let mut conn = DatabaseService::get_connection()?;
+        let transaction = conn
+            .transaction()
+            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+        let canonical_id: Option<String> = transaction
             .query_row(
-                "UPDATE games SET favorite = CASE WHEN favorite = 1 THEN 0 ELSE 1 END WHERE id = ?1 RETURNING favorite",
-                params![game_id],
+                "SELECT match.canonical_game_id FROM games AS game LEFT JOIN catalog_game_matches AS match ON match.catalog_game_id=game.id WHERE game.id=?1",
+                params![&game_id],
                 |row| row.get(0),
             )
             .optional()
             .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
-        favorite
-            .map(|value| value == 1)
-            .ok_or_else(|| EmuBoxError::NotFound(format!("Juego inexistente: {game_id}")))
+        let favorite = if let Some(canonical_id) = canonical_id {
+            let current: i32 = transaction.query_row(
+                "SELECT CASE WHEN canonical.favorite=1 OR EXISTS(SELECT 1 FROM games AS game JOIN catalog_game_matches AS match ON match.catalog_game_id=game.id WHERE match.canonical_game_id=canonical.id AND game.favorite=1) THEN 1 ELSE 0 END FROM canonical_games AS canonical WHERE canonical.id=?1",
+                params![&canonical_id], |row| row.get(0))
+                .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+            let next = if current == 1 { 0 } else { 1 };
+            transaction
+                .execute(
+                    "UPDATE canonical_games SET favorite=?1 WHERE id=?2",
+                    params![next, &canonical_id],
+                )
+                .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+            transaction.execute("UPDATE games SET favorite=0 WHERE id IN (SELECT catalog_game_id FROM catalog_game_matches WHERE canonical_game_id=?1)", params![canonical_id])
+                .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+            next == 1
+        } else {
+            transaction.query_row(
+                "UPDATE games SET favorite = CASE WHEN favorite = 1 THEN 0 ELSE 1 END WHERE id = ?1 RETURNING favorite",
+                params![&game_id], |row| row.get::<_, i32>(0))
+                .optional()
+                .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?
+                .map(|value| value == 1)
+                .ok_or_else(|| EmuBoxError::NotFound(format!("Juego inexistente: {game_id}")))?
+        };
+        transaction
+            .commit()
+            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+        Ok(favorite)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{models::CatalogEntry, services::game_database};
 
     #[test]
     fn row_mapping_preserves_nulls_but_rejects_invalid_types() {
         let connection = rusqlite::Connection::open_in_memory().unwrap();
         let query =
-            "SELECT 'id','title','ps2','PS2',?1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL";
+            "SELECT 'id','title','ps2','PS2',?1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL";
         let game = connection
             .query_row(query, [None::<u32>], row_to_game)
             .unwrap();
@@ -128,5 +171,58 @@ mod tests {
         assert!(GameService::get_game_by_id("missing-favorite-test".into())
             .unwrap()
             .is_none());
+    }
+
+    #[test]
+    fn favorite_is_shared_by_variants_of_a_canonical_game() {
+        GameService::get_platforms().unwrap();
+        let ids = [
+            "favorite-canonical-fixture-a",
+            "favorite-canonical-fixture-b",
+        ];
+        for id in ids {
+            GameService::upsert_catalog_entry(CatalogEntry {
+                id: id.into(),
+                title: "Favorite Canonical Fixture".into(),
+                platform_id: "nes".into(),
+                platform_name: "Nintendo Entertainment System".into(),
+                release_year: None,
+                genre: None,
+                developer: None,
+                publisher: None,
+                rating: None,
+                cover_image: None,
+                backdrop_image: None,
+                description: None,
+            })
+            .unwrap();
+        }
+        game_database::ensure_local_index().unwrap();
+        assert!(GameService::toggle_favorite(ids[0].into()).unwrap());
+        assert!(ids
+            .iter()
+            .all(|id| GameService::get_game_by_id((*id).into())
+                .unwrap()
+                .unwrap()
+                .favorite));
+        assert!(!GameService::toggle_favorite(ids[1].into()).unwrap());
+        assert!(ids
+            .iter()
+            .all(|id| !GameService::get_game_by_id((*id).into())
+                .unwrap()
+                .unwrap()
+                .favorite));
+        let connection = DatabaseService::get_connection().unwrap();
+        for id in ids {
+            connection
+                .execute("DELETE FROM games WHERE id=?1", [id])
+                .unwrap();
+        }
+        connection
+            .execute(
+                "DELETE FROM canonical_games WHERE normalized_title='favorite canonical fixture'",
+                [],
+            )
+            .unwrap();
     }
 }

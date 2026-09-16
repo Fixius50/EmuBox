@@ -1,12 +1,14 @@
-use std::fs;
-use std::path::{Path, PathBuf};
 use crate::errors::EmuBoxError;
 use crate::models::HardwareInfo;
+use std::fs;
+use std::path::{Path, PathBuf};
 
+mod azahar;
 mod cemu;
 mod dolphin;
 mod duckstation;
 mod flycast;
+mod libretro;
 mod melonds;
 mod mgba;
 mod pcsx2;
@@ -14,10 +16,8 @@ mod ppsspp;
 mod retroarch;
 mod rpcs3;
 mod ryujinx;
-mod wine;
-mod azahar;
 mod shadps4;
-mod libretro;
+mod wine;
 
 /// Un emulador = un archivo = un mantenedor. Cada implementación posee sus propios
 /// binarios candidatos, plataformas soportadas y (si está verificada) su lógica de
@@ -33,7 +33,11 @@ pub trait EmulatorProfile: Sync + Send {
     fn version_flag(&self) -> &'static str;
     fn version_arguments(&self) -> Vec<&'static str> {
         let flag = self.version_flag();
-        if flag.trim().is_empty() { Vec::new() } else { vec![flag] }
+        if flag.trim().is_empty() {
+            Vec::new()
+        } else {
+            vec![flag]
+        }
     }
 
     /// Escribe/actualiza la configuración nativa real del emulador según el hardware
@@ -74,35 +78,48 @@ pub(crate) fn config_home() -> PathBuf {
 /// secciones (formato de `retroarch.cfg`), preservando el resto del contenido.
 pub(crate) fn upsert_flat_key(path: &Path, key: &str, value: &str) -> Result<(), EmuBoxError> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| EmuBoxError::StorageUnavailable(format!("No se pudo crear {}: {}", parent.display(), e)))?;
+        fs::create_dir_all(parent).map_err(|e| {
+            EmuBoxError::StorageUnavailable(format!("No se pudo crear {}: {}", parent.display(), e))
+        })?;
     }
 
     let existing = fs::read_to_string(path).unwrap_or_default();
     let mut found = false;
-    let mut lines: Vec<String> = existing.lines().map(|l| {
-        if l.trim_start().starts_with(&format!("{key} ")) || l.trim_start().starts_with(&format!("{key}=")) {
-            found = true;
-            format!("{key} = \"{value}\"")
-        } else {
-            l.to_string()
-        }
-    }).collect();
+    let mut lines: Vec<String> = existing
+        .lines()
+        .map(|l| {
+            if l.trim_start().starts_with(&format!("{key} "))
+                || l.trim_start().starts_with(&format!("{key}="))
+            {
+                found = true;
+                format!("{key} = \"{value}\"")
+            } else {
+                l.to_string()
+            }
+        })
+        .collect();
 
     if !found {
         lines.push(format!("{key} = \"{value}\""));
     }
 
-    fs::write(path, lines.join("\n") + "\n")
-        .map_err(|e| EmuBoxError::StorageUnavailable(format!("No se pudo escribir {}: {}", path.display(), e)))
+    fs::write(path, lines.join("\n") + "\n").map_err(|e| {
+        EmuBoxError::StorageUnavailable(format!("No se pudo escribir {}: {}", path.display(), e))
+    })
 }
 
 /// Inserta o reemplaza `key = value` dentro de la sección `[section]` de un INI,
 /// preservando el resto de secciones y claves ya presentes.
-pub(crate) fn upsert_ini_key(path: &Path, section: &str, key: &str, value: &str) -> Result<(), EmuBoxError> {
+pub(crate) fn upsert_ini_key(
+    path: &Path,
+    section: &str,
+    key: &str,
+    value: &str,
+) -> Result<(), EmuBoxError> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| EmuBoxError::StorageUnavailable(format!("No se pudo crear {}: {}", parent.display(), e)))?;
+        fs::create_dir_all(parent).map_err(|e| {
+            EmuBoxError::StorageUnavailable(format!("No se pudo crear {}: {}", parent.display(), e))
+        })?;
     }
 
     let existing = fs::read_to_string(path).unwrap_or_default();
@@ -120,14 +137,22 @@ pub(crate) fn upsert_ini_key(path: &Path, section: &str, key: &str, value: &str)
             lines.push(format!("{key} = {value}"));
         }
         Some(start) => {
-            let end = lines.iter().skip(start + 1)
+            let end = lines
+                .iter()
+                .skip(start + 1)
                 .position(|l| l.trim_start().starts_with('['))
                 .map(|i| start + 1 + i)
                 .unwrap_or(lines.len());
 
-            let key_idx = lines[start + 1..end].iter().position(|l| {
-                l.split('=').next().map(|k| k.trim() == key).unwrap_or(false)
-            }).map(|i| start + 1 + i);
+            let key_idx = lines[start + 1..end]
+                .iter()
+                .position(|l| {
+                    l.split('=')
+                        .next()
+                        .map(|k| k.trim() == key)
+                        .unwrap_or(false)
+                })
+                .map(|i| start + 1 + i);
 
             match key_idx {
                 Some(idx) => lines[idx] = format!("{key} = {value}"),
@@ -136,8 +161,9 @@ pub(crate) fn upsert_ini_key(path: &Path, section: &str, key: &str, value: &str)
         }
     }
 
-    fs::write(path, lines.join("\n") + "\n")
-        .map_err(|e| EmuBoxError::StorageUnavailable(format!("No se pudo escribir {}: {}", path.display(), e)))
+    fs::write(path, lines.join("\n") + "\n").map_err(|e| {
+        EmuBoxError::StorageUnavailable(format!("No se pudo escribir {}: {}", path.display(), e))
+    })
 }
 
 /// Vulkan usable por este perfil, incluidas las GPU virtuales aceleradas.
@@ -164,7 +190,11 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("emubox-test-{}", std::process::id() + 1));
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join("retroarch.cfg");
-        fs::write(&path, "input_max_users = \"4\"\nvideo_driver = \"gl\"\nvideo_fullscreen = \"true\"\n").unwrap();
+        fs::write(
+            &path,
+            "input_max_users = \"4\"\nvideo_driver = \"gl\"\nvideo_fullscreen = \"true\"\n",
+        )
+        .unwrap();
         upsert_flat_key(&path, "video_driver", "vulkan").unwrap();
         let content = fs::read_to_string(&path).unwrap();
         assert!(content.contains("video_driver = \"vulkan\""));

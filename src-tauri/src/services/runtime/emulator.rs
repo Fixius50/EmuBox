@@ -132,7 +132,9 @@ impl EmulatorService {
             return "Instalado (Oficial)".to_string();
         }
         if let Ok(text) = crate::services::host_command::output_with_timeout(
-            &binary_path.to_string_lossy(), arguments, "3s",
+            &binary_path.to_string_lossy(),
+            arguments,
+            "3s",
         ) {
             let first_line = text.lines().next().unwrap_or("").trim();
             if !first_line.is_empty() {
@@ -147,7 +149,9 @@ impl EmulatorService {
         Self::scan_with_hardware(&hardware)
     }
 
-    pub fn scan_with_hardware(hardware: &crate::models::HardwareInfo) -> Result<Vec<Emulator>, EmuBoxError> {
+    pub fn scan_with_hardware(
+        hardware: &crate::models::HardwareInfo,
+    ) -> Result<Vec<Emulator>, EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
         let mut list = Vec::new();
         let host = crate::models::Architecture::current();
@@ -156,7 +160,9 @@ impl EmulatorService {
 
         for profile in emulators::registry() {
             if std::time::Instant::now() >= deadline {
-                return Err(EmuBoxError::ProcessFailed("Tiempo limite del inventario de emuladores agotado".into()));
+                return Err(EmuBoxError::ProcessFailed(
+                    "Tiempo limite del inventario de emuladores agotado".into(),
+                ));
             }
             let (status, executable, version) =
                 if !crate::services::emulator_capabilities::supports(profile.id(), host) {
@@ -170,10 +176,20 @@ impl EmulatorService {
                         .is_ok()
                     {
                         let arguments = profile.version_arguments();
-                        let key = (std::fs::canonicalize(&binary_path).unwrap_or_else(|_| binary_path.clone()),
-                            arguments.iter().map(|argument| argument.to_string()).collect::<Vec<_>>());
-                        let raw_version = versions.entry(key).or_insert_with(||
-                            Self::probe_official_version(&binary_path, &arguments)).clone();
+                        let key = (
+                            std::fs::canonicalize(&binary_path)
+                                .unwrap_or_else(|_| binary_path.clone()),
+                            arguments
+                                .iter()
+                                .map(|argument| argument.to_string())
+                                .collect::<Vec<_>>(),
+                        );
+                        let raw_version = versions
+                            .entry(key)
+                            .or_insert_with(|| {
+                                Self::probe_official_version(&binary_path, &arguments)
+                            })
+                            .clone();
                         (
                             "active".to_string(),
                             binary_path.to_string_lossy().to_string(),
@@ -306,11 +322,15 @@ impl EmulatorService {
     pub fn get_emulators() -> Result<Vec<Emulator>, EmuBoxError> {
         let hardware = crate::services::SystemService::get_hardware_info()?;
         let list = Self::cached_with_hardware(&hardware)?;
-        if list.is_empty() { return Self::scan_with_hardware(&hardware); }
+        if list.is_empty() {
+            return Self::scan_with_hardware(&hardware);
+        }
         Ok(list)
     }
 
-    pub fn cached_with_hardware(hardware: &crate::models::HardwareInfo) -> Result<Vec<Emulator>, EmuBoxError> {
+    pub fn cached_with_hardware(
+        hardware: &crate::models::HardwareInfo,
+    ) -> Result<Vec<Emulator>, EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
         let mut stmt = conn.prepare(
             "SELECT id, official_name, version, supported_platforms_json, core_type, status, executable_path, default_arguments_json

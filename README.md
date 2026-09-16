@@ -131,8 +131,8 @@ solid/src/
 ## Navegación XMB
 
 1. **Categorías**: ajustes, todos los juegos, favoritos, instalados y plataformas del catálogo real.
-2. **Carpetas y versiones**: navegación vertical entre títulos y horizontal entre plataformas del mismo título. Solo se montan las filas cercanas a la selección, sin TanStack Virtual.
-3. **Ficha y acciones**: metadatos desplazables, favoritos, selección explícita de paquetes y emulador para los juegos instalados. Abrir una ficha no inicia descargas.
+2. **Carpetas y versiones**: la identidad canónica decide cada título; sus variantes de catálogo aparecen como versiones y solo se montan las filas cercanas a la selección.
+3. **Ficha y acciones**: metadatos desplazables, favorito canónico, fuente de la versión elegida y emulador de la variante instalada. Abrir una ficha no inicia descargas.
 
 Flechas y D-pad navegan; Enter/A abre; Escape/B retrocede. LB/RB cambia categoría, X alterna favorito y Y enfoca búsqueda. En la ficha, LT/RT desplaza los detalles; en fuentes, Y permite jugar si el título instalado es compatible.
 

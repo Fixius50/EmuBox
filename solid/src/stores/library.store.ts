@@ -1,5 +1,5 @@
 import { createSignal, createMemo } from 'solid-js';
-import type { Game, PlatformId } from '@contracts/game.types';
+import type { Game, GameReleaseOption, PlatformId } from '@contracts/game.types';
 import type { IEmuBoxBackend } from '@contracts/backend.types';
 import type { DownloadJob, DownloadSourceOption } from '@contracts/download.types';
 import { groupCatalog } from '@services/library/catalog-groups';
@@ -14,7 +14,17 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
   const [downloadingIds, setDownloadingIds] = createSignal<Set<string>>(new Set());
   const [downloadError, setDownloadError] = createSignal<{ gameId: string; message: string } | null>(null);
   const [sourceGame, setSourceGame] = createSignal<Game | null>(null);
-  const [sourceOptions, setSourceOptions] = createSignal<DownloadSourceOption[]>([]);
+  const [allSourceOptions, setAllSourceOptions] = createSignal<DownloadSourceOption[]>([]);
+  const [releaseOptions, setReleaseOptions] = createSignal<GameReleaseOption[]>([]);
+  const [releaseIndex, setReleaseIndex] = createSignal(0);
+  const sourceOptions = createMemo(() => {
+    const release = releaseOptions()[releaseIndex()];
+    return release ? allSourceOptions().filter(source => source.gameId === release.catalogGameId) : allSourceOptions();
+  });
+  const selectRelease = (index: number) => {
+    setReleaseIndex(Math.max(0, Math.min(releaseOptions().length - 1, index)));
+    setSourceIndex(0);
+  };
   const [sourcesLoading, setSourcesLoading] = createSignal(false);
   const [sourcesError, setSourcesError] = createSignal('');
   const [sourceIndex, setSourceIndex] = createSignal(0);
@@ -36,20 +46,39 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
   const openSources = async (game: Game) => {
     const request = ++sourceRequest;
     setSourceGame(game);
-    setSourceOptions([]);
+    setAllSourceOptions([]);
+    setReleaseOptions([]);
     setSourcesError('');
     setSourceIndex(0);
+    setReleaseIndex(0);
     setSourcesLoading(true);
     try {
-      const variants = groupByVariant().get(game.id)?.variants || [game];
       await refreshJobs();
-      const sources: DownloadSourceOption[] = [];
-      for (let offset = 0; offset < variants.length && request === sourceRequest; offset += 4) {
-        const batch = await Promise.all(variants.slice(offset, offset + 4).map(async variant =>
-          (await backend.getDownloadSources(variant.id)).map(source => ({ ...source, name: variant.title }))));
-        sources.push(...batch.flat());
+      const group = groupByVariant().get(game.id);
+      const canonicalId = game.canonicalId || group?.canonicalId || group?.variants.find(variant => variant.canonicalId)?.canonicalId;
+      if (canonicalId) {
+        const options = await backend.getCanonicalGameOptions(canonicalId);
+        if (request === sourceRequest) {
+          setReleaseOptions(options.releases);
+          setAllSourceOptions(options.sources.map(source => ({ ...source,
+            name: options.releases.find(release => release.catalogGameId === source.gameId)?.title || source.name })));
+        }
+      } else {
+        const variants = groupByVariant().get(game.id)?.variants || [game];
+        const sources: DownloadSourceOption[] = [];
+        for (let offset = 0; offset < variants.length && request === sourceRequest; offset += 4) {
+          const batch = await Promise.all(variants.slice(offset, offset + 4).map(async variant =>
+            (await backend.getDownloadSources(variant.id)).map(source => ({ ...source, name: variant.title }))));
+          sources.push(...batch.flat());
+        }
+        if (request === sourceRequest) {
+          setReleaseOptions(variants.map(variant => ({ id: variant.releaseId || variant.id,
+            catalogGameId: variant.id, title: variant.releaseTitle || variant.title, installed: variant.installed,
+            sourceCount: sources.filter(source => source.gameId === variant.id).length,
+            downloadableSourceCount: sources.filter(source => source.gameId === variant.id && source.downloadable).length })));
+          setAllSourceOptions(sources);
+        }
       }
-      if (request === sourceRequest) setSourceOptions(sources);
     } catch (error) {
       if (request === sourceRequest) setSourcesError(error instanceof Error ? error.message : 'No se pudieron consultar las fuentes');
     } finally {
@@ -127,17 +156,9 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
 
   const toggleFavorite = async (gameId: string) => {
     const group = groupByVariant().get(gameId);
-    if (group?.favorite) {
-      for (const variant of group.variants.filter(entry => entry.favorite)) {
-        const favorite = await backend.toggleFavorite(variant.id);
-        setGames(previous => previous.map(game => game.id === variant.id ? { ...game, favorite } : game));
-      }
-      return;
-    }
     const newStatus = await backend.toggleFavorite(gameId);
-    setGames(prev =>
-      prev.map(g => (g.id === gameId ? { ...g, favorite: newStatus } : g))
-    );
+    const variantIds = new Set(group?.variants.map(variant => variant.id) || [gameId]);
+    setGames(previous => previous.map(game => variantIds.has(game.id) ? { ...game, favorite: newStatus } : game));
   };
 
   const downloadGame = async (gameId: string, sourceId?: string, resumeId?: string) => {
@@ -221,7 +242,8 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
       closeSources();
       await downloadGame(source.gameId, source.id);
     },
-    sourceGame, sourceOptions, sourcesLoading, sourcesError, sourceIndex, setSourceIndex, openSources, closeSources,
+    sourceGame, sourceOptions, releaseOptions, releaseIndex, selectRelease,
+    sourcesLoading, sourcesError, sourceIndex, setSourceIndex, openSources, closeSources,
     games,
     setGames,
     selectedPlatform,

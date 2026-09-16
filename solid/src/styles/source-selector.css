@@ -109,6 +109,48 @@
   border-block-end: 0.0625rem solid #394950;
   padding-block-end: 0.7rem;
 }
+.game-release-selector {
+  min-inline-size: 0;
+}
+.game-release-track {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-block: 0.25rem 0.75rem;
+  scroll-snap-type: inline mandatory;
+}
+.game-release-track button {
+  position: relative;
+  display: grid;
+  gap: 0.2rem;
+  flex: 0 0 min(18rem, 72%);
+  min-block-size: 4.5rem;
+  padding: 0.65rem 0.75rem;
+  border: 0.0625rem solid var(--xmb-border);
+  border-radius: 0.25rem;
+  color: var(--xmb-muted);
+  background: #10181d;
+  text-align: start;
+  scroll-snap-align: start;
+}
+.game-release-track button.selected {
+  border-color: var(--xmb-accent);
+  color: var(--xmb-text);
+  background: #173039;
+}
+.game-release-track strong,
+.game-release-track small {
+  overflow-wrap: anywhere;
+}
+.game-release-track small {
+  font-size: 0.68rem;
+}
+.game-release-track svg {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  color: var(--xmb-accent);
+}
 .game-case-section-label h3 {
   font-size: 0.95rem;
 }

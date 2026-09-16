@@ -5,7 +5,8 @@ import type {
   Emulator,
   SystemSettings,
   EmuBoxConfig,
-  CompatibilityAssociation
+  CompatibilityAssociation,
+  CanonicalGameOptions
 } from './game.types';
 
 import type {
@@ -132,6 +133,7 @@ export interface IEmuBoxBackend {
   getGames(filter?: GameFilter): Promise<Game[]>;
   getGame(id: string): Promise<Game | null>;
   getGameById(id: string): Promise<Game | null>;
+  getCanonicalGameOptions(id: string): Promise<CanonicalGameOptions>;
   scanGames(request?: ScanGamesRequest): Promise<ScanGamesResult>;
   getPlatforms(): Promise<Platform[]>;
   toggleFavorite(gameId: string): Promise<boolean>;

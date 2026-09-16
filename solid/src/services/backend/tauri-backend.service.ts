@@ -1,4 +1,4 @@
-import type { Game, Platform, Emulator, SystemSettings, EmuBoxConfig, CompatibilityAssociation } from '@contracts/game.types';
+import type { Game, Platform, Emulator, SystemSettings, EmuBoxConfig, CompatibilityAssociation, CanonicalGameOptions } from '@contracts/game.types';
 import type {
   IEmuBoxBackend,
   LaunchResult,
@@ -107,6 +107,10 @@ export class TauriBackendService implements IEmuBoxBackend {
 
   public async getGameById(id: string): Promise<Game | null> {
     return this.getGame(id);
+  }
+
+  public async getCanonicalGameOptions(id: string): Promise<CanonicalGameOptions> {
+    return this.invoke('get_canonical_game_options', { id });
   }
 
   public async scanGames(request?: ScanGamesRequest): Promise<ScanGamesResult> {

@@ -21,6 +21,7 @@ pub use graphics::probe as graphics_probe;
 pub use graphics::service as graphics_service;
 pub mod library;
 pub use library::compatibility as compatibility_service;
+pub use library::game_database;
 pub use library::games as game_service;
 pub use library::watcher as game_library_watcher;
 pub mod runtime;

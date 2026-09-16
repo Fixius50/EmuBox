@@ -1,6 +1,6 @@
-use crate::models::{Game, Platform, GameFilter, ScanGamesRequest, ScanGamesResult};
-use crate::services::GameService;
 use crate::errors::EmuBoxError;
+use crate::models::{Game, GameFilter, Platform, ScanGamesRequest, ScanGamesResult};
+use crate::services::GameService;
 
 #[tauri::command]
 pub async fn get_games(filter: Option<GameFilter>) -> Result<Vec<Game>, EmuBoxError> {
@@ -15,6 +15,13 @@ pub async fn get_games(filter: Option<GameFilter>) -> Result<Vec<Game>, EmuBoxEr
 #[tauri::command]
 pub fn get_game_by_id(id: String) -> Result<Option<Game>, EmuBoxError> {
     GameService::get_game_by_id(id)
+}
+
+#[tauri::command]
+pub fn get_canonical_game_options(
+    id: String,
+) -> Result<crate::models::CanonicalGameOptions, EmuBoxError> {
+    crate::services::game_database::options(&id)
 }
 
 #[tauri::command]

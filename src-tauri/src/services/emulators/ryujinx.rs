@@ -7,11 +7,25 @@ use super::EmulatorProfile;
 pub struct Ryujinx;
 
 impl EmulatorProfile for Ryujinx {
-    fn id(&self) -> &'static str { "ryujinx" }
-    fn official_name(&self) -> &'static str { "Ryujinx" }
-    fn binary_candidates(&self) -> &'static [&'static str] { &["ryujinx", "Ryujinx.AppImage"] }
-    fn supported_platforms(&self) -> &'static [&'static str] { &["switch"] }
-    fn core_type(&self) -> &'static str { "standalone" }
-    fn default_arguments(&self) -> &'static [&'static str] { &["--fullscreen"] }
-    fn version_flag(&self) -> &'static str { "--version" }
+    fn id(&self) -> &'static str {
+        "ryujinx"
+    }
+    fn official_name(&self) -> &'static str {
+        "Ryujinx"
+    }
+    fn binary_candidates(&self) -> &'static [&'static str] {
+        &["ryujinx", "Ryujinx.AppImage"]
+    }
+    fn supported_platforms(&self) -> &'static [&'static str] {
+        &["switch"]
+    }
+    fn core_type(&self) -> &'static str {
+        "standalone"
+    }
+    fn default_arguments(&self) -> &'static [&'static str] {
+        &["--fullscreen"]
+    }
+    fn version_flag(&self) -> &'static str {
+        "--version"
+    }
 }

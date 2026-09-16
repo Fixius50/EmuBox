@@ -1,17 +1,31 @@
+use super::{config_home, upsert_ini_key, vulkan_ok, EmulatorProfile};
 use crate::errors::EmuBoxError;
 use crate::models::HardwareInfo;
-use super::{config_home, upsert_ini_key, vulkan_ok, EmulatorProfile};
 
 pub struct Ppsspp;
 
 impl EmulatorProfile for Ppsspp {
-    fn id(&self) -> &'static str { "ppsspp" }
-    fn official_name(&self) -> &'static str { "PPSSPP" }
-    fn binary_candidates(&self) -> &'static [&'static str] { &["ppsspp", "PPSSPPQt", "PPSSPPSDL"] }
-    fn supported_platforms(&self) -> &'static [&'static str] { &["psp"] }
-    fn core_type(&self) -> &'static str { "standalone" }
-    fn default_arguments(&self) -> &'static [&'static str] { &["--fullscreen"] }
-    fn version_flag(&self) -> &'static str { "--version" }
+    fn id(&self) -> &'static str {
+        "ppsspp"
+    }
+    fn official_name(&self) -> &'static str {
+        "PPSSPP"
+    }
+    fn binary_candidates(&self) -> &'static [&'static str] {
+        &["ppsspp", "PPSSPPQt", "PPSSPPSDL"]
+    }
+    fn supported_platforms(&self) -> &'static [&'static str] {
+        &["psp"]
+    }
+    fn core_type(&self) -> &'static str {
+        "standalone"
+    }
+    fn default_arguments(&self) -> &'static [&'static str] {
+        &["--fullscreen"]
+    }
+    fn version_flag(&self) -> &'static str {
+        "--version"
+    }
 
     /// Verificado contra Core/ConfigValues.h (`enum class GPUBackend { OPENGL = 0,
     /// DIRECT3D11 = 2, VULKAN = 3 }`) y Core/Config.cpp

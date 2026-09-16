@@ -48,6 +48,11 @@ export interface Game {
   description: string;
   romPath?: string;
   installed: boolean;
+  canonicalId?: string;
+  canonicalTitle?: string;
+  releaseId?: string;
+  releaseTitle?: string;
+  matchMethod?: string;
 }
 
 export interface Emulator {
@@ -72,6 +77,22 @@ export interface Emulator {
 export interface SystemDefinition extends Platform {
   extensions: string[];
   gamesDirectory: string;
+}
+
+export interface GameReleaseOption {
+  id: string;
+  catalogGameId: string;
+  title: string;
+  region?: string | null;
+  installed: boolean;
+  sourceCount: number;
+  downloadableSourceCount: number;
+}
+
+export interface CanonicalGameOptions {
+  game: Game;
+  releases: GameReleaseOption[];
+  sources: import('./download.types').DownloadSourceOption[];
 }
 
 export interface CompatibilityAssociation {

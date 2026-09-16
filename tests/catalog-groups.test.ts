@@ -42,5 +42,17 @@ assert.equal(catalogTitle('Fixture Claws for Alarm'), 'Fixture Claws for Alarm')
 assert.equal(groupCatalog(variants).length, 4);
 assert.equal(groupCatalog([...variants].reverse()).find(entry => entry.title === 'Fixture' && entry.platform === 'ps2')?.id, 'one');
 assert.equal(groupCatalog([game, { ...variants[1], installed: true, romPath: '/fixture/two.iso' }])[0].id, 'two');
+const canonical = groupCatalog([
+  { ...game, id: 'mario-package-a', title: '#Mario Bros. (USA)', canonicalId: 'libretro-mario', canonicalTitle: 'Mario Bros.' },
+  { ...game, id: 'mario-package-b', title: '^^Mario Bros. [Rev A]', canonicalId: 'libretro-mario', canonicalTitle: 'Mario Bros.', installed: true, romPath: '/fixture/mario.nes' },
+]);
+assert.equal(canonical.length, 1);
+assert.equal(canonical[0].id, 'mario-package-b');
+assert.equal(canonical[0].title, 'Mario Bros.');
+assert.equal(canonical[0].variants.length, 2);
+assert.equal(groupCatalog([
+  { ...game, id: 'same-a', title: 'Same title', canonicalId: 'canonical-a' },
+  { ...game, id: 'same-b', title: 'Same title', canonicalId: 'canonical-b' },
+]).length, 2);
 
 console.log('Catalog groups: packages combined, platforms/editions preserved, original download IDs retained');

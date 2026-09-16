@@ -1,6 +1,6 @@
+use crate::errors::EmuBoxError;
 use crate::models::Emulator;
 use crate::services::EmulatorService;
-use crate::errors::EmuBoxError;
 
 #[tauri::command]
 pub async fn get_emulators() -> Result<Vec<Emulator>, EmuBoxError> {

@@ -39,10 +39,11 @@ interface DownloadSourceModalProps {
 
 export function DownloadSourceModal(props: DownloadSourceModalProps) {
   const selected = () => props.store.sourceOptions()[props.store.sourceIndex()];
+  const selectedRelease = () => props.store.releaseOptions()[props.store.releaseIndex()];
   const game = () => props.store.sourceGame();
   const currentJob = () => props.store.downloadJobs().find(job => job.sourceId === selected()?.id);
   const variant = createMemo(() =>
-    props.store.games().find((entry) => entry.id === selected()?.gameId),
+    props.store.games().find((entry) => entry.id === (selected()?.gameId || selectedRelease()?.catalogGameId)),
   );
   const detailsGame = () => variant() || game();
   const [panel, setPanel] = createSignal<"sources" | "details" | "files">("sources");
@@ -156,6 +157,9 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
       )
       ?.focus({ preventScroll: true });
   };
+  const moveRelease = (step: number) => {
+    props.store.selectRelease(props.store.releaseIndex() + step);
+  };
   const focusPanel = (target: "sources" | "details" | "files") => {
     setPanel(target);
     if (target === "files") {
@@ -179,6 +183,8 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
     else if (action === "NAV_UP" || action === "NAV_DOWN")
       move(action === "NAV_DOWN" ? 1 : -1);
     else if (action === "BUTTON_X") void toggleFavorite();
+    else if (action === 'BUTTON_LB' && panel() === 'sources' && !currentJob() && props.store.releaseOptions().length > 1) moveRelease(-1);
+    else if (action === 'BUTTON_RB' && panel() === 'sources' && !currentJob() && props.store.releaseOptions().length > 1) moveRelease(1);
     else if (action === 'BUTTON_LB' && localFiles().length) focusPanel('files');
     else if (action === 'BUTTON_LB' && currentJob()) void props.store.controlDownload(currentJob()!, 'pause');
     else if (action === 'BUTTON_A' && panel() === 'files') void chooseLocal();
@@ -303,6 +309,37 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                   </button>
                 </div>
               </header>
+              <Show when={props.store.releaseOptions().length > 0}>
+                <div class="game-release-selector" aria-label="Versiones disponibles">
+                  <div class="game-case-section-label">
+                    <h3>Versiones</h3>
+                    <span>{props.store.releaseOptions().length}</span>
+                  </div>
+                  <div class="game-release-track" role="tablist" aria-label="Versiones del juego">
+                    <For each={props.store.releaseOptions()}>
+                      {(release, index) => (
+                        <button
+                          role="tab"
+                          aria-selected={props.store.releaseIndex() === index()}
+                          classList={{ selected: props.store.releaseIndex() === index() }}
+                          onClick={() => props.store.selectRelease(index())}
+                          onKeyDown={(event) => {
+                            if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+                              event.preventDefault();
+                              moveRelease(event.key === "ArrowRight" ? 1 : -1);
+                            }
+                          }}
+                        >
+                          <strong>{release.title}</strong>
+                          <small>{release.region || "Region no indicada"}</small>
+                          <small>{release.downloadableSourceCount}/{release.sourceCount} fuentes compatibles</small>
+                          <Show when={release.installed}><Check size={15} aria-label="Instalada" /></Show>
+                        </button>
+                      )}
+                    </For>
+                  </div>
+                </div>
+              </Show>
               <div class="game-case-section-label">
                 <h3>Distribuidores y paquetes</h3>
                 <span>{props.store.sourceOptions().length} fuentes</span>

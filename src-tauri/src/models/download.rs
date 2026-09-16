@@ -56,7 +56,10 @@ pub enum TransferOutcome {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum InstallationKind { Inno, Ps3 }
+pub enum InstallationKind {
+    Inno,
+    Ps3,
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct PreparedInstallation {

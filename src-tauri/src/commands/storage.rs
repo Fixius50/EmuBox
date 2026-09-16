@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use crate::errors::EmuBoxError;
 use crate::models::{StorageInfo, StorageLocation};
 use crate::services::StorageService;
-use crate::errors::EmuBoxError;
+use std::collections::HashMap;
 
 #[tauri::command]
 pub fn get_storage_info() -> Result<StorageInfo, EmuBoxError> {

@@ -1,12 +1,12 @@
+pub mod commands;
 pub mod errors;
 pub mod models;
 pub mod services;
 pub mod state;
-pub mod commands;
 
+use state::AppState;
 use tauri::Emitter;
 use tauri::Manager;
-use state::AppState;
 
 /// Intervalo entre comprobaciones periódicas de los manifiestos de descarga.
 const MANIFEST_POLL_INTERVAL_SECS: u64 = 6 * 60 * 60;
@@ -18,34 +18,73 @@ pub fn run() {
         .setup(|app| {
             let app_handle = app.handle().clone();
             let notify_handle = app_handle.clone();
-            app.state::<services::runtime::startup::Startup>().start(std::sync::Arc::new(move |report| {
-                eprintln!("[Startup] {:?}: {} ms", report.phase, report.elapsed_ms);
-                let _ = notify_handle.emit("startup-status", report);
-            }), move || {
-                services::GameLibraryWatcher::start_watching(None, Some(app_handle.clone()));
-                match services::GameService::scan_games(None) {
-                    Ok(scan) => {
-                        if scan.added_count > 0 || scan.updated_count > 0 || scan.removed_count > 0 {
-                            let _ = app_handle.emit("library-updated", serde_json::json!({ "reason": "initial-scan" }));
+            app.state::<services::runtime::startup::Startup>().start(
+                std::sync::Arc::new(move |report| {
+                    eprintln!("[Startup] {:?}: {} ms", report.phase, report.elapsed_ms);
+                    let _ = notify_handle.emit("startup-status", report);
+                }),
+                move || {
+                    services::GameLibraryWatcher::start_watching(None, Some(app_handle.clone()));
+                    match services::GameService::scan_games(None) {
+                        Ok(scan) => {
+                            if scan.added_count > 0
+                                || scan.updated_count > 0
+                                || scan.removed_count > 0
+                            {
+                                if let Err(error) = services::game_database::ensure_local_index() {
+                                    eprintln!("[Game Database] Indice local tras escaneo: {error}");
+                                }
+                                let _ = app_handle.emit(
+                                    "library-updated",
+                                    serde_json::json!({ "reason": "initial-scan" }),
+                                );
+                            }
+                            if !scan.errors.is_empty() {
+                                eprintln!(
+                                    "[Library] Escaneo inicial incompleto: {:?}",
+                                    scan.errors
+                                );
+                            }
                         }
-                        if !scan.errors.is_empty() {
-                            eprintln!("[Library] Escaneo inicial incompleto: {:?}", scan.errors);
+                        Err(error) => eprintln!("[Library] Escaneo inicial: {error}"),
+                    }
+                    match services::game_database::sync_all(|platform, count| {
+                        let _ = app_handle.emit("library-updated", serde_json::json!({
+                        "reason": "game-database", "platform": platform, "canonicalCount": count
+                    }));
+                    }) {
+                        Ok(count) => {
+                            eprintln!("[Game Database] {count} juegos canonicos actualizados")
+                        }
+                        Err(error) => eprintln!("[Game Database] {error}"),
+                    }
+                    if let Err(error) =
+                        services::DownloadService::import_link_file_with_progress(|| {
+                            let _ = app_handle.emit(
+                                "library-updated",
+                                serde_json::json!({ "reason": "manifest-import" }),
+                            );
+                        })
+                    {
+                        eprintln!("[Catalog] {error}");
+                    }
+                    loop {
+                        std::thread::sleep(std::time::Duration::from_secs(
+                            MANIFEST_POLL_INTERVAL_SECS,
+                        ));
+                        if let Err(error) =
+                            services::DownloadService::import_link_file_with_progress(|| {
+                                let _ = app_handle.emit(
+                                    "library-updated",
+                                    serde_json::json!({ "reason": "manifest-import" }),
+                                );
+                            })
+                        {
+                            eprintln!("[Catalog] {error}");
                         }
                     }
-                    Err(error) => eprintln!("[Library] Escaneo inicial: {error}"),
-                }
-                if let Err(error) = services::DownloadService::import_link_file_with_progress(|| {
-                    let _ = app_handle.emit("library-updated", serde_json::json!({ "reason": "manifest-import" }));
-                }) {
-                    eprintln!("[Catalog] {error}");
-                }
-                loop {
-                    std::thread::sleep(std::time::Duration::from_secs(MANIFEST_POLL_INTERVAL_SECS));
-                    if let Err(error) = services::DownloadService::import_link_file_with_progress(|| {
-                        let _ = app_handle.emit("library-updated", serde_json::json!({ "reason": "manifest-import" }));
-                    }) { eprintln!("[Catalog] {error}"); }
-                }
-            });
+                },
+            );
 
             Ok(())
         })
@@ -69,14 +108,13 @@ pub fn run() {
             commands::system::system_logout,
             commands::system::restart_app_session,
             commands::system::exit_to_linux_shell,
-
             // Games
             commands::games::get_games,
             commands::games::get_game_by_id,
+            commands::games::get_canonical_game_options,
             commands::games::scan_games,
             commands::games::get_platforms,
             commands::games::toggle_favorite,
-
             // Emulators
             commands::emulators::get_emulators,
             commands::emulators::get_emulator_by_id,
@@ -85,7 +123,6 @@ pub fn run() {
             commands::emulators::get_emulator_status,
             commands::emulators::save_emulator,
             commands::emulators::delete_emulator,
-
             // Processes
             commands::processes::launch_game,
             commands::processes::stop_game,
@@ -93,31 +130,25 @@ pub fn run() {
             commands::processes::get_running_game,
             commands::processes::get_process_status,
             commands::processes::kill_process,
-
             // Storage
             commands::storage::get_storage_info,
             commands::storage::get_storage_locations,
-
             // Input
             commands::input::get_gamepads,
             commands::input::get_gamepad_status,
-
             // Diagnostics
             commands::diagnostics::get_system_logs,
             commands::diagnostics::get_emubox_logs,
             commands::diagnostics::get_diagnostics,
             commands::diagnostics::execute_command,
             commands::diagnostics::frontend_probe,
-
             // BIOS
             commands::bios::get_bios_requirements,
             commands::bios::scan_bios,
-
             // Compatibility (Game <-> Emulator Associations)
             commands::compatibility::get_game_associations,
             commands::compatibility::set_game_association,
             commands::compatibility::remove_game_association,
-
             // Downloads (solo fuentes autorizadas proporcionadas por el usuario)
             commands::downloads::create_download_source,
             commands::downloads::create_download_job,
@@ -140,7 +171,7 @@ pub fn run() {
                 use tauri::Emitter;
                 let _ = window.emit(
                     "emubox://window-resized",
-                    serde_json::json!({ "width": size.width, "height": size.height })
+                    serde_json::json!({ "width": size.width, "height": size.height }),
                 );
             }
         })

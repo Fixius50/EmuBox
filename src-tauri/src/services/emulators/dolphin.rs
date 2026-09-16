@@ -1,17 +1,31 @@
+use super::{config_home, upsert_ini_key, vulkan_ok, EmulatorProfile};
 use crate::errors::EmuBoxError;
 use crate::models::HardwareInfo;
-use super::{config_home, upsert_ini_key, vulkan_ok, EmulatorProfile};
 
 pub struct Dolphin;
 
 impl EmulatorProfile for Dolphin {
-    fn id(&self) -> &'static str { "dolphin" }
-    fn official_name(&self) -> &'static str { "Dolphin Emulator" }
-    fn binary_candidates(&self) -> &'static [&'static str] { &["dolphin-emu", "Dolphin.AppImage"] }
-    fn supported_platforms(&self) -> &'static [&'static str] { &["gamecube", "wii"] }
-    fn core_type(&self) -> &'static str { "standalone" }
-    fn default_arguments(&self) -> &'static [&'static str] { &["-b", "-e"] }
-    fn version_flag(&self) -> &'static str { "--version" }
+    fn id(&self) -> &'static str {
+        "dolphin"
+    }
+    fn official_name(&self) -> &'static str {
+        "Dolphin Emulator"
+    }
+    fn binary_candidates(&self) -> &'static [&'static str] {
+        &["dolphin-emu", "Dolphin.AppImage"]
+    }
+    fn supported_platforms(&self) -> &'static [&'static str] {
+        &["gamecube", "wii"]
+    }
+    fn core_type(&self) -> &'static str {
+        "standalone"
+    }
+    fn default_arguments(&self) -> &'static [&'static str] {
+        &["-b", "-e"]
+    }
+    fn version_flag(&self) -> &'static str {
+        "--version"
+    }
 
     /// Verificado contra Source/Core/Core/Config/MainSettings.cpp:
     /// `MAIN_GFX_BACKEND{{System::Main, "Core", "GFXBackend"}, ...}` y

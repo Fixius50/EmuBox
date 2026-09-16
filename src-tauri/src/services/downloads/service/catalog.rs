@@ -402,6 +402,7 @@ impl DownloadService {
         transaction
             .commit()
             .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+        crate::services::game_database::ensure_local_index()?;
         Ok(sources)
     }
 }

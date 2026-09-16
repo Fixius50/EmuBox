@@ -1,6 +1,6 @@
+use crate::errors::EmuBoxError;
 use crate::models::{DiagnosticReport, LogEntry};
 use crate::services::DiagnosticsService;
-use crate::errors::EmuBoxError;
 
 /// Sonda de un solo uso: confirma que el puente IPC del webview llega a Rust,
 /// para descartar fallos de detección de entorno Tauri en el frontend.

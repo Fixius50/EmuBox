@@ -58,4 +58,38 @@ assert.equal(sourceStore.sourcesLoading(), false);
 assert.match(sourceStore.sourcesError(), /runtime nativo Tauri/);
 sourceStore.closeSources();
 assert.equal(sourceStore.sourceGame(), null);
+
+const canonicalBackend = new TauriBackendService();
+let canonicalRequests = 0;
+let requestedDownload: [string, string | undefined] | undefined;
+canonicalBackend.getDownloadJobs = async () => [];
+canonicalBackend.getCanonicalGameOptions = async canonicalId => {
+  canonicalRequests++;
+  assert.equal(canonicalId, 'canonical-one');
+  return {
+    game: { ...game, canonicalId, canonicalTitle: 'Canonical one' },
+    releases: [
+      { id: 'release-one', catalogGameId: 'variant-one', title: 'USA', installed: false, sourceCount: 1, downloadableSourceCount: 1 },
+      { id: 'release-two', catalogGameId: 'variant-two', title: 'Europe', installed: false, sourceCount: 1, downloadableSourceCount: 1 },
+    ],
+    sources: [
+      { id: 'source-one', gameId: 'variant-one', name: 'Original one', sourceType: 'http', uri: 'https://example.invalid/one', available: true, access: 'http', downloadable: true },
+      { id: 'source-two', gameId: 'variant-two', name: 'Original two', sourceType: 'http', uri: 'https://example.invalid/two', available: true, access: 'http', downloadable: true },
+    ],
+  };
+};
+canonicalBackend.downloadGame = async (gameId, sourceId) => {
+  requestedDownload = [gameId, sourceId];
+  throw new Error('download fixture');
+};
+const canonicalStore = createLibraryStore(canonicalBackend);
+const canonicalGame = { ...game, id: 'variant-one', canonicalId: 'canonical-one', canonicalTitle: 'Canonical one' };
+await canonicalStore.loadGames([canonicalGame, { ...canonicalGame, id: 'variant-two' }]);
+await canonicalStore.openSources(canonicalGame);
+assert.equal(canonicalRequests, 1);
+assert.deepEqual(canonicalStore.sourceOptions().map(source => source.id), ['source-one']);
+canonicalStore.selectRelease(1);
+assert.deepEqual(canonicalStore.sourceOptions().map(source => source.id), ['source-two']);
+await canonicalStore.confirmSource();
+assert.deepEqual(requestedDownload, ['variant-two', 'source-two']);
 console.log('Library: real grouping and native errors, no fabricated downloads or sources.');

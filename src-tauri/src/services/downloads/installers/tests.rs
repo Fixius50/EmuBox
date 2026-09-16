@@ -1,4 +1,3 @@
-
 use super::*;
 use super::{detection::windows_executable, sandbox::sandbox};
 use std::process::{Command, Stdio};

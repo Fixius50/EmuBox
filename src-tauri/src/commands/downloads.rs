@@ -8,7 +8,9 @@ pub fn import_download_links() -> Result<Vec<DownloadSource>, EmuBoxError> {
 }
 
 #[tauri::command]
-pub fn import_downloads_from_json(json_content: String) -> Result<Vec<DownloadSource>, EmuBoxError> {
+pub fn import_downloads_from_json(
+    json_content: String,
+) -> Result<Vec<DownloadSource>, EmuBoxError> {
     DownloadService::import_from_json(&json_content)
 }
 
@@ -68,11 +70,16 @@ pub fn select_download_candidate(id: String, path: String) -> Result<DownloadJob
 }
 
 #[tauri::command]
-pub fn get_download_sources(game_id: String) -> Result<Vec<crate::services::manifest_service::SourceOption>, EmuBoxError> {
+pub fn get_download_sources(
+    game_id: String,
+) -> Result<Vec<crate::services::manifest_service::SourceOption>, EmuBoxError> {
     DownloadService::list_sources(&game_id)
 }
 
 #[tauri::command]
-pub fn download_game(game_id: String, source_id: Option<String>) -> Result<DownloadJob, EmuBoxError> {
+pub fn download_game(
+    game_id: String,
+    source_id: Option<String>,
+) -> Result<DownloadJob, EmuBoxError> {
     DownloadService::download_game_from_source(game_id, source_id)
 }

@@ -537,6 +537,7 @@ fn execute(
             SystemService::get_config()?;
             let settings = SystemService::get_settings()?;
             download_manager::recover()?;
+            crate::services::game_database::ensure_local_index()?;
             Output::Library(
                 settings,
                 GameService::get_platforms()?,

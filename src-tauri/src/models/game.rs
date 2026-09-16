@@ -22,6 +22,16 @@ pub struct Game {
     pub last_played: Option<String>,
     pub emulator_id: Option<String>,
     pub installed: bool,
+    #[serde(default)]
+    pub canonical_id: Option<String>,
+    #[serde(default)]
+    pub canonical_title: Option<String>,
+    #[serde(default)]
+    pub release_id: Option<String>,
+    #[serde(default)]
+    pub release_title: Option<String>,
+    #[serde(default)]
+    pub match_method: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -110,4 +120,24 @@ pub struct CatalogEntry {
     pub cover_image: Option<String>,
     pub backdrop_image: Option<String>,
     pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GameReleaseOption {
+    pub id: String,
+    pub catalog_game_id: String,
+    pub title: String,
+    pub region: Option<String>,
+    pub installed: bool,
+    pub source_count: usize,
+    pub downloadable_source_count: usize,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CanonicalGameOptions {
+    pub game: Game,
+    pub releases: Vec<GameReleaseOption>,
+    pub sources: Vec<crate::models::DownloadSourceOption>,
 }

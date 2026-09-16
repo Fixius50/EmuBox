@@ -169,6 +169,88 @@ impl DatabaseService {
             CREATE INDEX IF NOT EXISTS idx_games_favorite ON games(favorite);
             CREATE INDEX IF NOT EXISTS idx_assocs_game ON game_emulator_associations(game_id);
 
+            CREATE TABLE IF NOT EXISTS canonical_games (
+                id TEXT PRIMARY KEY,
+                authority TEXT NOT NULL,
+                authority_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                normalized_title TEXT NOT NULL,
+                platform_id TEXT NOT NULL,
+                release_year INTEGER,
+                genre TEXT,
+                developer TEXT,
+                publisher TEXT,
+                cover_image TEXT,
+                description TEXT,
+                favorite INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL,
+                UNIQUE(authority, authority_id),
+                FOREIGN KEY(platform_id) REFERENCES systems(id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_canonical_games_platform_title
+                ON canonical_games(platform_id, normalized_title);
+
+            CREATE TABLE IF NOT EXISTS game_releases (
+                id TEXT PRIMARY KEY,
+                canonical_game_id TEXT NOT NULL,
+                authority TEXT NOT NULL,
+                authority_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                normalized_title TEXT NOT NULL,
+                region TEXT,
+                serial TEXT,
+                crc TEXT,
+                md5 TEXT,
+                sha1 TEXT,
+                UNIQUE(authority, authority_id),
+                FOREIGN KEY(canonical_game_id) REFERENCES canonical_games(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_game_releases_canonical
+                ON game_releases(canonical_game_id);
+            CREATE INDEX IF NOT EXISTS idx_game_releases_title
+                ON game_releases(normalized_title);
+
+            CREATE TABLE IF NOT EXISTS canonical_aliases (
+                canonical_game_id TEXT NOT NULL,
+                platform_id TEXT NOT NULL,
+                normalized_alias TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                PRIMARY KEY(canonical_game_id, normalized_alias, kind),
+                FOREIGN KEY(canonical_game_id) REFERENCES canonical_games(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_canonical_alias_lookup
+                ON canonical_aliases(platform_id, normalized_alias);
+
+            CREATE TABLE IF NOT EXISTS catalog_game_matches (
+                catalog_game_id TEXT PRIMARY KEY,
+                canonical_game_id TEXT NOT NULL,
+                release_id TEXT,
+                method TEXT NOT NULL,
+                confidence INTEGER NOT NULL CHECK(confidence BETWEEN 0 AND 100),
+                matched_at INTEGER NOT NULL,
+                FOREIGN KEY(catalog_game_id) REFERENCES games(id) ON DELETE CASCADE,
+                FOREIGN KEY(canonical_game_id) REFERENCES canonical_games(id) ON DELETE CASCADE,
+                FOREIGN KEY(release_id) REFERENCES game_releases(id) ON DELETE SET NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_catalog_matches_canonical
+                ON catalog_game_matches(canonical_game_id);
+
+            CREATE TABLE IF NOT EXISTS game_database_sources (
+                platform_id TEXT PRIMARY KEY,
+                authority TEXT NOT NULL,
+                url TEXT NOT NULL,
+                etag TEXT,
+                modified TEXT,
+                checked_at INTEGER,
+                imported_at INTEGER,
+                entry_count INTEGER NOT NULL DEFAULT 0,
+                error TEXT
+            );
+
             CREATE TABLE IF NOT EXISTS download_sources (
                 id TEXT PRIMARY KEY,
                 game_id TEXT NOT NULL,

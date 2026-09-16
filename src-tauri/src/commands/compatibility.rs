@@ -1,6 +1,6 @@
+use crate::errors::EmuBoxError;
 use crate::models::GameEmulatorAssociation;
 use crate::services::CompatibilityService;
-use crate::errors::EmuBoxError;
 
 #[tauri::command]
 pub fn get_game_associations(game_id: String) -> Result<Vec<GameEmulatorAssociation>, EmuBoxError> {

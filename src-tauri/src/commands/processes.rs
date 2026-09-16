@@ -1,6 +1,6 @@
-use crate::models::{LaunchGameRequest, LaunchResult, RunningGameInfo, ProcessStatus};
-use crate::services::ProcessService;
 use crate::errors::EmuBoxError;
+use crate::models::{LaunchGameRequest, LaunchResult, ProcessStatus, RunningGameInfo};
+use crate::services::ProcessService;
 
 #[tauri::command]
 pub fn launch_game(request: LaunchGameRequest) -> Result<LaunchResult, EmuBoxError> {

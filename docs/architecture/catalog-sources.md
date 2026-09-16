@@ -1,8 +1,31 @@
-# Catalogo desde manifiestos
+# Catalogo y base de juegos
 
+equivale a tener un juego instalado.
 La biblioteca utiliza juegos escaneados o importados en SQLite. No se mezclan
 datasets sinteticos, no hay un total fijo de 10.000 y estar en el catalogo no
 equivale a tener un juego instalado.
+
+## Identidad canonica
+
+La tarjeta y carpeta de la UI representan `canonical_games`. Sus versiones son
+filas concretas de `games` enlazadas mediante `catalog_game_matches`; cada version
+conserva sus propias `download_sources`, instalacion y asociaciones de emulador.
+Descargar siempre usa el `gameId` de la version elegida. El favorito pertenece a
+la identidad canonica, mientras que el emulador sigue perteneciendo a la variante
+instalada porque dos versiones pueden requerir motores o argumentos distintos.
+
+Para NES, SNES, GBA, N64, Mega Drive, 3DS, NDS, PSP, PS1, PS2, PS3, GameCube y
+Dreamcast, el proveedor maestro es [Libretro Database](https://github.com/libretro/libretro-database),
+publicado bajo CC BY-SA 4.0. Se importan sus DAT No-Intro/Redump sin credenciales.
+Solo se enlazan coincidencias exactas y unicas de titulo de release (confianza 100)
+o titulo canonico (90); nunca se hace fuzzy matching automatico. Plataformas no
+cubiertas y nombres sin coincidencia reciben una identidad local derivada (60).
+
+La sincronizacion se ejecuta despues de que la UI quede lista. Una fuente correcta
+se comprueba como maximo una vez al dia y usa ETag/Last-Modified; un fallo se
+reintenta tras una hora. Un error parcial conserva las plataformas importadas y
+la biblioteca local. Los 13 cuerpos admitidos tienen un limite individual de
+16 MiB. La base canonica no crea descargas ni reescribe IDs de catalogo existentes.
 
 ## Archivo activo
 
@@ -60,8 +83,8 @@ plazos y devuelve solo fuentes modificadas, no el tamano total de la biblioteca.
 
 ## Titulos y paquetes
 
-Una tarjeta puede reunir distintas distribuciones o versiones de paquete del
-mismo titulo y plataforma. La agrupacion visual elimina marcas reconocibles
+Cuando aun no existe una identidad canonica, una tarjeta puede reunir distintas
+distribuciones o versiones de paquete del mismo titulo y plataforma. La agrupacion visual elimina marcas reconocibles
 como Repack/Scene/License, su distribuidor, Build, Free Download, tiendas
 (`GOG`, `Steam`, `Epic`) y etiquetas de idioma como `Ru/Multi`. Un sufijo explicito
 de paquete `+ DLC` o `- Build <numero> + <nombre> DLC` se conserva en el nombre
@@ -72,8 +95,9 @@ plataforma, en vez de crear un duplicado. Si existen varios anos conocidos
 distintos, permanecen separados y las variantes sin año no se asignan a ninguno
 arbitrariamente. Se conservan secuelas, regiones, ediciones y expansiones con
 subtitulo propio; nunca se mezclan plataformas.
-La identidad se infiere de titulos, no de un identificador universal: algunas
-variantes seguiran separadas para evitar mezclar juegos por parecido.
+La inferencia visual es solo el fallback previo al indice persistente; una vez
+asignado `canonicalId`, ese identificador decide la tarjeta aunque los titulos
+difieran. Identidades canonicas distintas nunca se fusionan solo por compartir titulo.
 
 Regresion comprobada con los titulos de la captura del 6 de septiembre de 2026:
 las ocho variantes `#DRIVE Rally` y las ocho variantes `#BLUD` forman una tarjeta

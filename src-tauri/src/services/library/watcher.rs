@@ -54,6 +54,18 @@ impl GameLibraryWatcher {
                             while rx.try_recv().is_ok() {}
 
                             if let Ok(result) = GameService::scan_games(None) {
+                                if result.added_count > 0
+                                    || result.updated_count > 0
+                                    || result.removed_count > 0
+                                {
+                                    if let Err(error) =
+                                        crate::services::game_database::ensure_local_index()
+                                    {
+                                        eprintln!(
+                                            "[Game Database] Indice local tras watcher: {error}"
+                                        );
+                                    }
+                                }
                                 if let Some(handle) = &app_handle {
                                     let _ = handle.emit(
                                         "library-updated",

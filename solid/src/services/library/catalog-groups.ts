@@ -20,7 +20,7 @@ export function groupCatalog(games: Game[]): CatalogGroup[] {
   const titles = new Map<string, { game: Game; year: string | null }[]>();
   for (const game of games) {
     const year = game.title.match(/\((19\d{2}|20\d{2})\)/)?.[1] || (game.releaseYear > 0 ? String(game.releaseYear) : null);
-    const key = JSON.stringify([game.platform, catalogTitle(game.title).toLowerCase()]);
+    const key = game.canonicalId || JSON.stringify([game.platform, catalogTitle(game.title).toLowerCase()]);
     const existing = titles.get(key);
     if (existing) existing.push({ game, year });
     else titles.set(key, [{ game, year }]);
@@ -47,7 +47,8 @@ export function groupCatalog(games: Game[]): CatalogGroup[] {
     const metadata = [...sorted].sort((left, right) =>
       Number(Boolean(right.coverImage)) + Number(Boolean(right.description)) -
       Number(Boolean(left.coverImage)) - Number(Boolean(left.description)))[0];
-    return { ...metadata, ...representative, title: catalogTitle(representative.title),
+    return { ...metadata, ...representative,
+      title: representative.canonicalTitle || catalogTitle(representative.title),
       coverImage: representative.coverImage || metadata.coverImage,
       description: representative.description || metadata.description,
       favorite: sorted.some(game => game.favorite), variants: sorted };

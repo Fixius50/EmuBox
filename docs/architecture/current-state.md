@@ -69,15 +69,17 @@ getty@tty1 -> autologin de appliance -> emubox-session
 - CSS propio define la interfaz 10-Foot UI.
 - XMB renderiza una ventana acotada de carpetas y versiones; `useXmbLibrary` controla entradas y estado, sin TanStack Virtual.
 - Tauri conecta la UI con servicios Rust mediante IPC.
-- SQLite y `/var/lib/emubox/games` son la fuente de verdad de juegos instalados.
+- SQLite decide la identidad canonica visible; `/var/lib/emubox/games` decide que variantes estan instaladas.
 - `GameLibraryWatcher` actualiza la biblioteca cuando aparece una ROM.
-- `CompatibilityService` resuelve el emulador antes del lanzamiento.
+- `CompatibilityService` resuelve el emulador de la variante instalada antes del lanzamiento.
 
 ## Catalogo conectado
 
 La biblioteca ya está lista para operar:
 
 - La UI muestra SQLite; no se distribuyen datasets generados ni biblioteca de demostracion.
+- Libretro Database aporta identidades y releases maestras para 13 plataformas; el enlace automatico exige coincidencia exacta y unica.
+- Cada tarjeta canonica abre sus versiones y las fuentes de la version seleccionada sin perder los IDs originales del catalogo.
 - Las tarjetas muestran portada, título, plataforma, año, valoración, género y desarrollador.
 - `DESCARGAR` se muestra para juegos no instalados.
 - `JUGAR` requiere una ROM instalada y un emulador compatible; el bloqueo muestra su motivo.

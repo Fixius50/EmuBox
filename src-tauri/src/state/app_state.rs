@@ -1,6 +1,6 @@
-use std::sync::Mutex;
-use std::process::Child;
 use crate::models::{EmuBoxConfig, RunningGameInfo};
+use std::process::Child;
+use std::sync::Mutex;
 
 pub struct AppState {
     pub config: Mutex<Option<EmuBoxConfig>>,

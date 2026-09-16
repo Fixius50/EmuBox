@@ -15,7 +15,7 @@ export type {
 export function xmbFolders(games: CatalogGroup[]): XmbFolder[] {
   const folders = new Map<string, XmbFolder>();
   for (const game of games) {
-    const id = game.title.normalize("NFKC").toLowerCase();
+    const id = game.canonicalId || game.title.normalize("NFKC").toLowerCase();
     const folder = folders.get(id);
     if (folder) folder.games.push(game);
     else folders.set(id, { id, title: game.title, games: [game] });
