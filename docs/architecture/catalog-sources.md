@@ -1,6 +1,5 @@
 # Catalogo y base de juegos
 
-equivale a tener un juego instalado.
 La biblioteca utiliza juegos escaneados o importados en SQLite. No se mezclan
 datasets sinteticos, no hay un total fijo de 10.000 y estar en el catalogo no
 equivale a tener un juego instalado.
@@ -26,6 +25,24 @@ se comprueba como maximo una vez al dia y usa ETag/Last-Modified; un fallo se
 reintenta tras una hora. Un error parcial conserva las plataformas importadas y
 la biblioteca local. Los 13 cuerpos admitidos tienen un limite individual de
 16 MiB. La base canonica no crea descargas ni reescribe IDs de catalogo existentes.
+
+## Organizacion Rust
+
+`services/library/game_database` mantiene una fachada en `mod.rs` con los mismos
+puntos de entrada para comandos, arranque e importadores. Las responsabilidades
+internas quedan separadas:
+
+- `dat.rs`: lectura DAT y normalizacion de identidad, sin SQLite ni red.
+- `repository.rs`: indice local, importacion transaccional, matching y consulta
+	de versiones/fuentes. `CanonicalMatch` nombra identidad, release, metodo y
+	confianza; ambos importadores comparten la prioridad y escritura del enlace.
+- `sync.rs`: fuentes remotas, limites HTTP, validadores y cadencia de consulta.
+- `tests.rs`: regresiones de parser y migracion con IDs operativos conservados.
+
+Una mejora de confianza conserva el favorito de la identidad anterior en la
+misma transaccion que cambia el enlace. Un juego todavia sin indice canonico
+puede alternar su favorito local. Las pruebas de matching en memoria comprueban
+prioridad de release, rechazo de ambiguedades y aislamiento por plataforma.
 
 ## Archivo activo
 

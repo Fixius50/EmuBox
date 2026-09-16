@@ -100,12 +100,19 @@ impl GameService {
 
     pub fn toggle_favorite(game_id: String) -> Result<bool, EmuBoxError> {
         let mut conn = DatabaseService::get_connection()?;
+        Self::toggle_favorite_on(&mut conn, &game_id)
+    }
+
+    fn toggle_favorite_on(
+        conn: &mut rusqlite::Connection,
+        game_id: &str,
+    ) -> Result<bool, EmuBoxError> {
         let transaction = conn
-            .transaction()
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
         let canonical_id: Option<String> = transaction
             .query_row(
-                "SELECT match.canonical_game_id FROM games AS game LEFT JOIN catalog_game_matches AS match ON match.catalog_game_id=game.id WHERE game.id=?1",
+                "SELECT canonical_game_id FROM catalog_game_matches WHERE catalog_game_id=?1",
                 params![&game_id],
                 |row| row.get(0),
             )
@@ -146,6 +153,22 @@ impl GameService {
 mod tests {
     use super::*;
     use crate::{models::CatalogEntry, services::game_database};
+
+    #[test]
+    fn favorite_without_canonical_match_remains_toggleable() {
+        let mut connection = rusqlite::Connection::open_in_memory().unwrap();
+        connection.execute_batch(
+            "CREATE TABLE games (id TEXT PRIMARY KEY, favorite INTEGER DEFAULT 0);
+             CREATE TABLE catalog_game_matches (catalog_game_id TEXT PRIMARY KEY, canonical_game_id TEXT NOT NULL);
+             INSERT INTO games(id) VALUES('unindexed');"
+        ).unwrap();
+        assert!(GameService::toggle_favorite_on(&mut connection, "unindexed").unwrap());
+        assert!(!GameService::toggle_favorite_on(&mut connection, "unindexed").unwrap());
+        assert!(matches!(
+            GameService::toggle_favorite_on(&mut connection, "absent"),
+            Err(EmuBoxError::NotFound(_))
+        ));
+    }
 
     #[test]
     fn row_mapping_preserves_nulls_but_rejects_invalid_types() {
