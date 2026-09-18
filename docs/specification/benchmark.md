@@ -6,7 +6,10 @@ Revision: 2026-09-16. Es un protocolo, no un informe de resultados.
 
 Registrar hardware/VM, kernel, Mesa, WebKit, compositor, resolucion, escala,
 binario y datos usados, caches, fecha, comando, salida y repeticiones.
-No comparar build caliente con compilacion de dependencias desde cero.
+No comparar build caliente con compilacion de dependencias desde cero. Para
+TypeScript, registrar por separado la primera ejecucion sin `.tsbuildinfo`, la
+primera ejecucion que crea la cache incremental y las ejecuciones calientes que
+la reutilizan.
 
 Separar latencia IPC/CPU, callbacks UI, presentacion de pixeles y juego real.
 requestAnimationFrame no mide scanout ni demuestra ausencia de negro. La sonda

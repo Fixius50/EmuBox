@@ -7,7 +7,9 @@ Bubblewrap. No existe fallback a ejecucion directa.
 ## Frontera de confianza
 
 `runtime/launch_policy.rs` selecciona el perfil compilado del registro nativo.
-La ruta y los argumentos arbitrarios del registro SQLite no determinan el comando.
+`runtime/game_sandbox.rs` conserva la API de lanzamiento; `game_sandbox/content.rs`
+valida la raiz gestionada y `game_sandbox/bubblewrap.rs` construye el entorno
+aislado. La ruta y los argumentos arbitrarios del registro SQLite no determinan el comando.
 Las herramientas se resuelven por candidatos absolutos o `/usr/bin`, sin PATH
 heredado; binarios y cores deben estar bajo `/usr` o `/opt/emubox/bin`, ser propiedad
 de root y tener todos sus ancestros protegidos contra escritura de grupo/otros.

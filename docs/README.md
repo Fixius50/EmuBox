@@ -3,24 +3,30 @@
 Fecha de revision: 2026-09-16. El codigo y las pruebas determinan el comportamiento;
 un informe historico o una propuesta no certifican una funcion disponible.
 
-## Referencias vigentes
+## Mapa de lectura
 
-| Tema | Referencia |
+| Necesidad | Entrada canonica | Complementos |
+| --- | --- | --- |
+| Instalar, ejecutar o validar el proyecto | [README principal](../README.md) | [Validacion de appliance](architecture/appliance-validation.md), [mediciones](specification/benchmark.md) |
+| Conocer que funciona hoy y que sigue pendiente | [Estado actual](architecture/current-state.md) | [requisitos y alcance](specification/requirements.md), [informes historicos](diagnostic-reports.md) |
+| Cambiar frontend, IPC o servicios nativos | [Guia de desarrollo](architecture/refactoring-and-architecture-guidelines.md) | [contratos backend](architecture/backend-contracts.md), [filesystem](architecture/filesystem-convention.md) |
+| Tocar catalogo, biblioteca o descargas | [Catalogo](architecture/catalog-sources.md) | [proveedores de descarga](architecture/download-providers.md), [sandbox](architecture/execution-sandbox.md) |
+| Evaluar online o multijugador futuro | [Online y multijugador](specification/online-multiplayer.md) | [requisitos y alcance](specification/requirements.md), [contratos backend](architecture/backend-contracts.md) |
+| Diagnosticar arranque, graficos o registros | [Arranque appliance](architecture/console-appliance-boot-architecture.md) | [VirtualBox](architecture/virtualbox-graphics.md), [logs](architecture/diagnostic-logging.md) |
+
+## Estructura canonica
+
+| Carpeta | Responsabilidad |
 | --- | --- |
-| Instalacion y uso | [README principal](../README.md) |
-| Estado y limites | [Estado actual](architecture/current-state.md) |
-| Contratos Tauri y tipos | [Backend](architecture/backend-contracts.md) |
-| Catalogo, identidades y versiones | [Catalogo](architecture/catalog-sources.md) |
-| Fuentes, descarga y preparacion | [Descargas](architecture/download-providers.md) |
-| Seguridad de ejecucion | [Sandbox](architecture/execution-sandbox.md) |
-| Arranque y servicios | [Arranque appliance](architecture/console-appliance-boot-architecture.md) |
-| Directorios del sistema | [Filesystem](architecture/filesystem-convention.md) |
-| Diagnostico de pantalla negra | [VirtualBox](architecture/virtualbox-graphics.md) |
-| Registros y filtros | [Logs](architecture/diagnostic-logging.md) |
-| Arquitectura y estilo | [Guia de desarrollo](architecture/refactoring-and-architecture-guidelines.md) |
-| Criterios de aceptacion | [Validacion](architecture/appliance-validation.md) |
-| Requisitos, diseno y propuesta de distribucion | [Alcance](specification/requirements.md) |
-| Metodologia y limites de benchmarks | [Mediciones](specification/benchmark.md) |
+| `architecture/` | Estado tecnico vigente, contratos, limites de runtime, servicios nativos, seguridad y diagnostico operativo. |
+| `specification/` | Requisitos de producto, alcance funcional, metodologia de medicion y criterios que no dependen de una implementacion concreta. |
+| `diagnostic-reports.md` | Cronologia fechada de pruebas y hallazgos. Es evidencia historica, no fuente normativa. |
+
+Antes de crear un documento nuevo, revisar si encaja en una de estas entradas. Si
+describe comportamiento vigente, debe enlazarse desde `architecture/current-state.md`
+o desde la guia tecnica responsable. Si describe una aspiracion, requisito o metodo
+de medida, pertenece a `specification/`. Si conserva una investigacion fechada,
+pertenece a `diagnostic-reports.md`.
 
 ## Evidencia historica
 

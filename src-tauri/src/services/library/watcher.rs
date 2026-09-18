@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
-use tauri::Emitter;
 
 pub struct GameLibraryWatcher;
 
@@ -67,8 +66,8 @@ impl GameLibraryWatcher {
                                     }
                                 }
                                 if let Some(handle) = &app_handle {
-                                    let _ = handle.emit(
-                                        "library-updated",
+                                    crate::api::events::library_updated(
+                                        handle,
                                         serde_json::json!({
                                             "scannedCount": result.scanned_count,
                                             "addedCount": result.added_count,

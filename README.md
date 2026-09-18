@@ -265,6 +265,9 @@ El menú te permite seleccionar con un solo número:
 ## Pruebas y Compilación Manual
 
 ```bash
+# Comprobar TypeScript; reutiliza cache incremental local si existe
+npm run typecheck
+
 # Ejecutar la suite actual de contratos y comportamiento
 npm test
 

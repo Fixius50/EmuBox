@@ -2,7 +2,6 @@ use crate::{
     errors::EmuBoxError,
     services::runtime::startup::{Report, Startup, StartupData},
 };
-use tauri::Emitter;
 
 #[tauri::command]
 pub fn get_startup_status(startup: tauri::State<'_, Startup>) -> Report {
@@ -27,6 +26,6 @@ pub fn startup_frontend_ready(
         "[Startup] interfaz preparada: {:?} en {} ms",
         report.phase, report.elapsed_ms
     );
-    let _ = app.emit("startup-status", &report);
+    crate::api::events::startup_status(&app, &report);
     Ok(report)
 }

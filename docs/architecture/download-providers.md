@@ -154,7 +154,7 @@ No se crean cuentas invitadas ni se intenta sustituir permisos mediante scraping
 Referencias: [1fichier API](https://1fichier.com/api.html),
 [GoFile API](https://gofile.io/api), [libarchive](https://www.libarchive.org/).
 
-## qBittorrent y Jackett locales
+## BitTorrent local y Jackett
 
 qBittorrent-nox >=5.0 sustituye a aria2. Magnet sigue usando BitTorrent: se cambia
 el cliente, no el protocolo. El valor SQLite `bittorrent` y los IDs de trabajo
@@ -167,7 +167,11 @@ sudo pacman -S --needed qbittorrent-nox
 Cada trabajo tiene su perfil en `.emubox-staging/<job-id>/qbittorrent/profile` y
 payload separado. API v2 en puerto efimero 127.0.0.1, credencial aleatoria PBKDF2
 SHA512, autenticacion local, validacion de Host y CSRF activas. No se usa la
-instancia personal. Se admiten cookies SID (5.0/5.1) y QBT_SID_* (5.2).
+instancia personal. Se admiten cookies SID (5.0/5.1) y QBT_SID_* (5.2). El
+proveedor conserva `providers/qbittorrent.rs` como orquestador; `qbittorrent/api.rs`
+posee las rutas API v2, `qbittorrent/engine.rs` posee el proceso, perfil y
+transporte autenticado, y `qbittorrent/files.rs` valida los archivos completados
+antes de publicarlos.
 El proceso termina con su supervisor; pausa/cancelacion solicitan parada y cierre.
 Un cierre forzado conserva datos para revalidacion, no promete reanudacion exacta.
 
@@ -178,6 +182,13 @@ No se alteran puertos del router ni firewall. Estado cada 500ms; lista de archiv
 solo al terminar. Progreso reutiliza conexion SQLite/sentencia preparada.
 Los archivos se validan antes de publicarlos: rutas relativas, regulares, completas
 y confinadas. Las comprobaciones posteriores de checksum/preparacion se conservan.
+
+`rqbit` es el candidato preferido si se decide sustituir qBittorrent: evita volver
+a `libtorrent-rasterbar`, ofrece binario/servidor, HTTP API, fastresume, limites
+de velocidad, metricas y streaming con Range. No forma parte de la implementacion
+actual. La sustitucion debe entrar como proveedor experimental compatible con el
+contrato `bittorrent`, con mediciones de CPU/E/S/red durante juego activo y sin
+relajar validacion de rutas, marcador de fuente ni publicacion segura.
 
 Parciales de aria2: no se borran, renombran ni anexan. Una reanudacion posterior
 usara el subdirectorio qBittorrent y puede volver a descargar contenido; comprueba

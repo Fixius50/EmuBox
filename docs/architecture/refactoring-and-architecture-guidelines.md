@@ -113,6 +113,7 @@ dependan del traslado fisico. Las implementaciones viven en estas carpetas:
 
 ```text
 src-tauri/src/
+  api/                      Registro IPC Tauri y eventos emitidos por Rust
   commands/                 Adaptadores IPC existentes
   models/                   DTO y modelos compartidos, incluido CatalogEntry
   services/
@@ -121,6 +122,7 @@ src-tauri/src/
       manager/              cola en mod, transfer, publication, tests
       installers/           detection, firmware, sandbox, validation, tests
       providers/            HTTP y qBittorrent-nox
+        qbittorrent/        api, engine y files del proveedor BitTorrent local
       jackett.rs            Busqueda local de candidatos y seleccion explicita
       archive.rs            Extraccion 7z/RAR
       preparation.rs        Verificacion SHA-256, ZIP y seleccion conservadora
@@ -136,6 +138,8 @@ src-tauri/src/
       compatibility.rs      Asociaciones juego-emulador
       watcher.rs            Notificaciones del filesystem
     runtime/                emulator, capabilities, process, startup, launch_policy, game_sandbox
+      game_sandbox/         content y bubblewrap del lanzamiento aislado
+      startup/              report y tasks del coordinador de preparacion nativa
     system/                 audio, display, input, power, config, storage, logs, bios
     emulators/              Perfiles individuales y alternativas Libretro
 ```

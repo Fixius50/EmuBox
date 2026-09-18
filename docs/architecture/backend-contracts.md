@@ -25,6 +25,17 @@ EmuBox is engineered with a strict, decoupled boundary between the **UI Presenta
 ### Core Tenet
 > **The UI delegates to native services through IPC. Missing runtime, unavailable capability and real failures must remain explicit; no fabricated success or hardware.**
 
+The Rust API surface is split deliberately:
+
+* `src-tauri/src/api/invoke.rs` is the single Tauri command registry.
+* `src-tauri/src/api/events.rs` is the single registry for event names emitted by Rust.
+* `src-tauri/src/commands/` contains thin IPC adapters grouped by domain.
+* `src-tauri/src/services/` owns filesystem, processes, network, hardware and persistence behavior.
+
+`npm run arch:check` validates that Rust commands declared with `#[tauri::command]`
+are registered in the Tauri handler and that frontend `TauriBackend` invokes only
+registered commands.
+
 ---
 
 ## 2. Master TypeScript Contract (`IEmuBoxBackend`)

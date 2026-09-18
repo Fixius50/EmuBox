@@ -1,6 +1,5 @@
 pub use crate::models::DownloadSourceOption as SourceOption;
 pub use crate::services::download_resolver::{source_access, source_option};
-use scraper::Html;
 use serde_json::{Map, Value};
 
 pub fn text(value: &Value) -> Option<String> {
@@ -17,24 +16,97 @@ pub fn text(value: &Value) -> Option<String> {
 }
 
 fn plain_html(value: &str) -> String {
-    let html = Html::parse_fragment(value);
-    html.root_element()
-        .descendants()
-        .filter_map(|node| {
-            if node.ancestors().any(|parent| {
-                parent.value().as_element().is_some_and(|element| {
-                    matches!(element.name(), "script" | "style" | "noscript" | "template")
-                })
-            }) {
-                return None;
-            }
-            node.value().as_text().map(|text| text.to_string())
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
+    strip_html(value)
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+fn strip_html(value: &str) -> String {
+    let mut output = String::new();
+    let mut cursor = 0;
+    let mut skipped_tag: Option<String> = None;
+    while let Some(start) = value[cursor..].find('<').map(|index| cursor + index) {
+        if skipped_tag.is_none() {
+            output.push_str(&decode_entities(&value[cursor..start]));
+        }
+        let Some(end) = value[start..].find('>').map(|index| start + index) else {
+            if skipped_tag.is_none() {
+                output.push_str(&decode_entities(&value[start..]));
+            }
+            return output;
+        };
+        let tag = tag_name(&value[start + 1..end]);
+        if let Some(blocked) = skipped_tag.as_deref() {
+            if value[start + 1..end].trim_start().starts_with('/')
+                && tag.as_deref() == Some(blocked)
+            {
+                skipped_tag = None;
+            }
+        } else if tag
+            .as_deref()
+            .is_some_and(|name| matches!(name, "script" | "style" | "noscript" | "template"))
+        {
+            skipped_tag = tag;
+        } else {
+            output.push(' ');
+        }
+        cursor = end + 1;
+    }
+    if skipped_tag.is_none() {
+        output.push_str(&decode_entities(&value[cursor..]));
+    }
+    output
+}
+
+fn tag_name(tag: &str) -> Option<String> {
+    let name = tag
+        .trim_start_matches('/')
+        .trim_start()
+        .chars()
+        .take_while(|character| character.is_ascii_alphanumeric())
+        .collect::<String>()
+        .to_ascii_lowercase();
+    (!name.is_empty()).then_some(name)
+}
+
+fn decode_entities(value: &str) -> String {
+    let mut output = String::new();
+    let mut cursor = 0;
+    while let Some(start) = value[cursor..].find('&').map(|index| cursor + index) {
+        output.push_str(&value[cursor..start]);
+        let Some(end) = value[start..].find(';').map(|index| start + index) else {
+            output.push_str(&value[start..]);
+            return output;
+        };
+        let entity = &value[start + 1..end];
+        if let Some(decoded) = decode_entity(entity) {
+            output.push(decoded);
+        } else {
+            output.push_str(&value[start..=end]);
+        }
+        cursor = end + 1;
+    }
+    output.push_str(&value[cursor..]);
+    output
+}
+
+fn decode_entity(entity: &str) -> Option<char> {
+    match entity {
+        "amp" => Some('&'),
+        "lt" => Some('<'),
+        "gt" => Some('>'),
+        "quot" => Some('"'),
+        "apos" | "#39" => Some('\''),
+        "nbsp" => Some(' '),
+        value if value.starts_with("#x") || value.starts_with("#X") => {
+            u32::from_str_radix(&value[2..], 16)
+                .ok()
+                .and_then(char::from_u32)
+        }
+        value if value.starts_with('#') => value[1..].parse::<u32>().ok().and_then(char::from_u32),
+        _ => None,
+    }
 }
 
 pub fn normalize(item: &Value) -> Option<Value> {
@@ -144,6 +216,14 @@ mod tests {
         assert!(legacy["releaseYear"].is_null());
         assert_eq!(legacy["title"], "Legacy");
         assert!(normalize(&json!({"title":"Broken", "uris":[]})).is_none());
+    }
+
+    #[test]
+    fn strips_blocked_html_content_and_common_entities() {
+        let text = plain_html(
+            "<style>bad</style><p>A&nbsp;B &#x26; C</p><template>hidden</template><span>&lt;ok&gt;</span>",
+        );
+        assert_eq!(text, "A B & C <ok>");
     }
 
     #[test]

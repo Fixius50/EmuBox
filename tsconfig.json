@@ -10,7 +10,8 @@
     "jsxImportSource": "solid-js",
     "strict": false,
     "skipLibCheck": true,
-    "incremental": false,
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.emubox-tsbuildinfo",
     "paths": {
       "@contracts/*": ["./solid/src/types/*"],
       "@services/*": ["./solid/src/services/*"],

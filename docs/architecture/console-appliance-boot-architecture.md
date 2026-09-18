@@ -52,11 +52,13 @@ desde SSH o TTY2, tras reparar la causa, se puede ejecutar
 
 ### Preparacion coordinada del runtime
 
-`services/runtime/startup.rs` es el propietario unico de la preparacion. El setup
-de Tauri inicia el coordinador una sola vez; App.tsx no inicia otro escaneo ni
-consulta hardware/emuladores por separado. La ventana se crea pronto con una
-pantalla de preparacion; la biblioteca solo se habilita tras recibir el conjunto
-de datos, agruparlo y montar la navegacion. La carga no depende de la red.
+`services/runtime/startup.rs` es el propietario unico de la preparacion. Sus
+submodulos `startup/report.rs` y `startup/tasks.rs` separan la maquina de estados
+de la ejecucion de tareas nativas. El setup de Tauri inicia el coordinador una
+sola vez; App.tsx no inicia otro escaneo ni consulta hardware/emuladores por
+separado. La ventana se crea pronto con una pantalla de preparacion; la biblioteca
+solo se habilita tras recibir el conjunto de datos, agruparlo y montar la
+navegacion. La carga no depende de la red.
 
 ```text
 Shell: preflight grafico -> compositor -> Tauri / pantalla de preparacion

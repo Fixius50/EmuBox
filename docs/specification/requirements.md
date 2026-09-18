@@ -11,6 +11,10 @@ distintos. Tauri/Rust y SolidJS estan implementados; hay scripts para Arch
 x86_64/aarch64. La ISO, particionado, bootloader y OTA del SO siguen siendo una
 propuesta no implementada ni autorizada por esta especificacion.
 
+Online, cuentas, matchmaking, servidores dedicados y multijugador quedan fuera de
+la fase vigente. La investigacion se conserva aparte para no condicionar el
+runtime single-player ni anadir librerias remotas antes de tener especificacion.
+
 El soporte se declara por equipo, version y configuracion. x86_64 tiene build
 local; ARM64 requiere aceptacion fisica. ARM32 queda fuera del contrato actual.
 Soportado requiere aceptacion completa; compatible, evidencia tecnica parcial;
@@ -59,4 +63,5 @@ archiso, mkosi ni un mecanismo OTA completo. No implica permiso para tocar disco
 - [Catalogo](../architecture/catalog-sources.md)
 - [Descargas](../architecture/download-providers.md)
 - [Sandbox](../architecture/execution-sandbox.md)
+- [Online y multijugador futuro](online-multiplayer.md)
 - [Metodo de medicion](benchmark.md)

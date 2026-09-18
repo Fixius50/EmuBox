@@ -208,7 +208,7 @@ TLS ni se aumenta indiscriminadamente ese limite.
 `manifest_service` normaliza tambien `games[]` y arrays: titulo/nombre,
 `genre`/`genres[]`, `releaseYear`/`year` numerico o textual y `coverImage`/`cover`.
 El texto literal `null` o `undefined` se convierte en ausencia de dato.
-`descriptionHtml` se convierte a texto mediante scraper/html5ever, sin scripts,
+`descriptionHtml` se convierte a texto con un normalizador local, sin scripts,
 estilos ni insercion HTML en la UI. No se usa uploadDate como ano del juego.
 
 Se conserva cada URI valida distinta por juego con identificador estable, sin
