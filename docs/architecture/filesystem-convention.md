@@ -17,6 +17,8 @@ EmuBox is an Arch Linux appliance and uses a canonical system-wide layout under 
 
 /var/lib/emubox/
 ├── emubox.db
+├── stores/<provider>/
+├── stores/<provider>/
 ├── games/<platform>/
 ├── emulators/<id>/bin/<architecture>/
 ├── emulators/<id>/{config,logs}/
@@ -65,6 +67,8 @@ EmuBox is an Arch Linux appliance and uses a canonical system-wide layout under 
 - Logs belong in `/var/log/emubox`; transient runtime state belongs in `/run/emubox`.
 - System configuration lives in `/etc/emubox` and is versioned by the appliance.
 - Jackett is installed separately under root-owned `/opt/jackett`; service state and API key live in `/var/lib/emubox/jackett/Jackett`. It is not part of the game sandbox or personal home.
+- Store-provider sessions are private files under `/var/lib/emubox/stores/<provider>/`. SQLite stores only account identity, entitlement, installation state and explicit links to `canonical_games`; it never stores passwords, cookies or access/refresh tokens. Game sandboxes do not receive this directory.
+- Store-provider sessions are private files under `/var/lib/emubox/stores/<provider>/`. SQLite stores only account identity, entitlement, installation state and explicit links to `canonical_games`; it never stores passwords, cookies or access/refresh tokens. Game sandboxes do not receive this directory.
 
 ## 3. Legacy migration behavior
 

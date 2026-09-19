@@ -28,6 +28,8 @@ pub mod runtime;
 pub use runtime::capabilities as emulator_capabilities;
 pub use runtime::emulator as emulator_service;
 pub use runtime::process as process_service;
+pub mod stores;
+pub use stores::StoreService;
 pub mod downloads;
 pub use downloads::archive as archive_preparation;
 pub use downloads::connectors as download_connectors;

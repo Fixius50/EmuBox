@@ -29,5 +29,5 @@ ring = "0.17"
 libc = "0.2"
 sha2 = "0.10"
 base64 = "0.22"
-zip = { version = "2", default-features = false, features = ["deflate-flate2"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
 compress-tools = "0.16.1"

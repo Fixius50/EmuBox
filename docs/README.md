@@ -11,6 +11,7 @@ un informe historico o una propuesta no certifican una funcion disponible.
 | Conocer que funciona hoy y que sigue pendiente | [Estado actual](architecture/current-state.md) | [requisitos y alcance](specification/requirements.md), [informes historicos](diagnostic-reports.md) |
 | Cambiar frontend, IPC o servicios nativos | [Guia de desarrollo](architecture/refactoring-and-architecture-guidelines.md) | [contratos backend](architecture/backend-contracts.md), [filesystem](architecture/filesystem-convention.md) |
 | Tocar catalogo, biblioteca o descargas | [Catalogo](architecture/catalog-sources.md) | [proveedores de descarga](architecture/download-providers.md), [sandbox](architecture/execution-sandbox.md) |
+| Integrar bibliotecas de Steam, Epic o GOG | [Proveedores de tiendas](architecture/store-library-providers.md) | [Catalogo](architecture/catalog-sources.md), [filesystem](architecture/filesystem-convention.md) |
 | Evaluar online o multijugador futuro | [Online y multijugador](specification/online-multiplayer.md) | [requisitos y alcance](specification/requirements.md), [contratos backend](architecture/backend-contracts.md) |
 | Diagnosticar arranque, graficos o registros | [Arranque appliance](architecture/console-appliance-boot-architecture.md) | [VirtualBox](architecture/virtualbox-graphics.md), [logs](architecture/diagnostic-logging.md) |
 

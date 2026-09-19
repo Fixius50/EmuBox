@@ -48,6 +48,7 @@ import type {
   UpdateChannel
 } from './update.types';
 import type { CreateDownloadRequest, DownloadJob, DownloadSource } from './download.types';
+import type { StoreAccount, StoreEntitlement, StoreProviderInfo } from './store.types';
 
 export * from './system.types';
 export * from './storage.types';
@@ -59,6 +60,7 @@ export * from './update.types';
 export * from './events.types';
 export * from './errors.types';
 export * from './download.types';
+export * from './store.types';
 
 export interface LaunchGameRequest {
   gameId: string;
@@ -174,6 +176,11 @@ export interface IEmuBoxBackend {
   // 8. Almacenamiento & XDG
   getStorageInfo(): Promise<StorageInfo>;
   getStorageLocations(): Promise<Record<string, StorageLocation>>;
+
+  // 8.1 Bibliotecas de tiendas
+  getStoreProviders(): Promise<StoreProviderInfo[]>;
+  getStoreAccounts(): Promise<StoreAccount[]>;
+  getStoreEntitlements(accountId: string): Promise<StoreEntitlement[]>;
 
   // 9. Diagnóstico, Terminal & Logs
   getSystemLogs(limit?: number): Promise<LogEntry[]>;

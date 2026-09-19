@@ -9,6 +9,7 @@ pub mod graphics;
 pub mod input;
 pub mod process;
 pub mod storage;
+pub mod store;
 pub mod system;
 
 pub use architecture::*;
@@ -21,4 +22,5 @@ pub use game::*;
 pub use input::*;
 pub use process::*;
 pub use storage::*;
+pub use store::*;
 pub use system::*;

@@ -300,6 +300,12 @@ fn http_jobs_keep_source_snapshot_and_verify_before_publication() {
         } else {
             assert!(matches!(finished.status, DownloadStatus::Failed));
             assert!(!Path::new(&finished.destination_path).exists());
+            assert!(!Path::new(&finished.destination_path)
+                .parent()
+                .unwrap()
+                .join(".emubox-staging")
+                .join(&finished.id)
+                .exists());
         }
     }
     worker.join().unwrap();

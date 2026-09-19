@@ -68,4 +68,7 @@ binario siga presente o cumpla la politica de seguridad actual.
 [Backend](backend-contracts.md), [filesystem](filesystem-convention.md),
 [arquitectura](refactoring-and-architecture-guidelines.md) y
 [requisitos/propuesta futura](../specification/requirements.md).
+La base de proveedores de bibliotecas para Steam, Epic y GOG conserva cuentas y
+entitlements sin credenciales; los flujos de autenticacion autorizados quedan
+pendientes por proveedor. [Tiendas](store-library-providers.md).
 No Git ni navegador en el flujo actual; no usar datos reales como fixtures.

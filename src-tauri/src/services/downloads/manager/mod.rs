@@ -208,7 +208,14 @@ fn start_requested(id: String, retry_preparation: bool) -> Result<DownloadJob, E
         } else if control.paused.load(Ordering::Relaxed) {
             let _ = status(&job.id, "paused", "paused", None);
         } else if let Err(error) = result {
-            let _ = status(&job.id, "failed", "failed", Some(&error.to_string()));
+            let cleanup = clean_staging(&job).err();
+            let failure = match cleanup {
+                Some(cleanup_error) => {
+                    format!("{error}; no se pudo limpiar el contenido parcial: {cleanup_error}")
+                }
+                None => error.to_string(),
+            };
+            let _ = status(&job.id, "failed", "failed", Some(&failure));
         }
         guard.remove(&job.id);
         drop(guard);

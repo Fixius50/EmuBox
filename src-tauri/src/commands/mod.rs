@@ -8,6 +8,7 @@ pub mod input;
 pub mod processes;
 pub mod startup;
 pub mod storage;
+pub mod stores;
 pub mod system;
 
 pub(crate) async fn blocking<T, F>(operation: F) -> Result<T, crate::errors::EmuBoxError>
@@ -55,4 +56,5 @@ pub use games::*;
 pub use input::*;
 pub use processes::*;
 pub use storage::*;
+pub use stores::*;
 pub use system::*;

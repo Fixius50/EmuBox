@@ -9,8 +9,9 @@ use bubblewrap::{
 };
 use content::{canonical, content};
 use sha2::{Digest, Sha256};
+#[cfg(test)]
+use std::fs;
 use std::{
-    fs,
     path::{Path, PathBuf},
     process::Command,
 };
@@ -195,6 +196,7 @@ pub(super) fn spawn(command: &mut Command) -> Result<std::process::Child, EmuBox
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::PublishedDownload;
 
     #[test]
     #[ignore = "Requires Linux user namespaces and installed Bubblewrap; launches only a fixed isolation probe"]

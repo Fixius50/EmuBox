@@ -27,6 +27,7 @@ import type {
   UpdateChannel
 } from '@contracts/backend.types';
 import type { CreateDownloadRequest, DownloadJob, DownloadSource } from '@contracts/download.types';
+import type { StoreAccount, StoreEntitlement, StoreProviderInfo } from '@contracts/store.types';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { StartupData, StartupReport } from '@contracts/startup.types';
 import { recordUiEvent, type FrontendLogEvent } from '@services/system/telemetry';
@@ -104,6 +105,18 @@ export class TauriBackendService implements IEmuBoxBackend {
 
   public async getSettings(): Promise<SystemSettings> {
     return this.invoke('get_settings', undefined);
+  }
+
+  public getStoreProviders(): Promise<StoreProviderInfo[]> {
+    return this.invoke('get_store_providers');
+  }
+
+  public getStoreAccounts(): Promise<StoreAccount[]> {
+    return this.invoke('get_store_accounts');
+  }
+
+  public getStoreEntitlements(accountId: string): Promise<StoreEntitlement[]> {
+    return this.invoke('get_store_entitlements', { accountId });
   }
 
   public async saveSettings(settings: SystemSettings): Promise<boolean> {

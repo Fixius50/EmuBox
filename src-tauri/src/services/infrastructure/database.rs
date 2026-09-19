@@ -239,6 +239,53 @@ impl DatabaseService {
             CREATE INDEX IF NOT EXISTS idx_catalog_matches_canonical
                 ON catalog_game_matches(canonical_game_id);
 
+            CREATE TABLE IF NOT EXISTS store_accounts (
+                id TEXT PRIMARY KEY,
+                provider TEXT NOT NULL,
+                external_account_id TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                avatar_url TEXT,
+                status TEXT NOT NULL,
+                last_login_at INTEGER,
+                last_sync_at INTEGER,
+                UNIQUE(provider, external_account_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS store_games (
+                provider TEXT NOT NULL,
+                external_game_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                metadata_json TEXT NOT NULL DEFAULT '{}',
+                updated_at INTEGER NOT NULL,
+                PRIMARY KEY(provider, external_game_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS store_entitlements (
+                store_account_id TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                external_game_id TEXT NOT NULL,
+                owned INTEGER NOT NULL CHECK(owned IN (0, 1)),
+                installed INTEGER NOT NULL CHECK(installed IN (0, 1)),
+                last_seen_at INTEGER NOT NULL,
+                PRIMARY KEY(store_account_id, provider, external_game_id),
+                FOREIGN KEY(store_account_id) REFERENCES store_accounts(id) ON DELETE CASCADE,
+                FOREIGN KEY(provider, external_game_id) REFERENCES store_games(provider, external_game_id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS store_game_links (
+                provider TEXT NOT NULL,
+                external_game_id TEXT NOT NULL,
+                canonical_game_id TEXT NOT NULL,
+                PRIMARY KEY(provider, external_game_id),
+                FOREIGN KEY(provider, external_game_id) REFERENCES store_games(provider, external_game_id) ON DELETE CASCADE,
+                FOREIGN KEY(canonical_game_id) REFERENCES canonical_games(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_store_entitlements_account
+                ON store_entitlements(store_account_id);
+            CREATE INDEX IF NOT EXISTS idx_store_links_canonical
+                ON store_game_links(canonical_game_id);
+
             CREATE TABLE IF NOT EXISTS game_database_sources (
                 platform_id TEXT PRIMARY KEY,
                 authority TEXT NOT NULL,

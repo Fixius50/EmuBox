@@ -49,6 +49,10 @@ pub fn database_path() -> String {
     format!("{DATA_DIR}/emubox.db")
 }
 
+pub fn stores_dir() -> String {
+    format!("{DATA_DIR}/stores")
+}
+
 pub fn downloads_cache_dir() -> String {
     format!("{CACHE_DIR}/downloads")
 }
