@@ -48,3 +48,18 @@ pub async fn sync_gog_library() -> Result<StoreSyncResult, EmuBoxError> {
 pub async fn disconnect_gog() -> Result<(), EmuBoxError> {
     super::blocking(StoreService::disconnect_gog).await
 }
+
+#[tauri::command]
+pub async fn start_steam_authorization() -> Result<(), EmuBoxError> {
+    super::blocking(StoreService::start_steam_authorization).await
+}
+
+#[tauri::command]
+pub async fn sync_steam_library() -> Result<StoreSyncResult, EmuBoxError> {
+    super::blocking(StoreService::sync_steam_library).await
+}
+
+#[tauri::command]
+pub async fn disconnect_steam() -> Result<(), EmuBoxError> {
+    super::blocking(StoreService::disconnect_steam).await
+}

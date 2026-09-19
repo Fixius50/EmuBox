@@ -40,6 +40,12 @@ Tras el login, EmuBox ejecuta `legendary status --json`, `legendary list --json`
 
 La sincronizacion invoca `gogdl auth` solo dentro del backend para renovar la sesion y consulta la biblioteca paginada de Galaxy. El token se mantiene en memoria durante esa consulta; SQLite recibe solo cuenta, identificador externo, titulo disponible y entitlement. El cierre elimina `auth.json` y marca la cuenta como desconectada.
 
+### Steam mediante clave Web API propia
+
+Steam no usa el WebView de EmuBox para extraer cookies, `webapi_token` u otros secretos de pagina. La terminal de Steam abre la pagina oficial de claves Web API; el usuario completa Steam Guard, MFA o CAPTCHA directamente en Steam e introduce despues su SteamID64 y la clave generada sin eco. EmuBox guarda el par solo en `stores/steam/credentials.json` con modo `0600`.
+
+La sincronizacion usa `GetPlayerSummaries` y `GetOwnedGames` sobre HTTPS. La clave nunca se incluye en IPC, telemetria, logs, argumentos de proceso ni SQLite. El cierre elimina el archivo privado. La disponibilidad de resultados depende de la clave y de la visibilidad que Steam permita para la biblioteca de esa cuenta.
+
 ## Investigacion de autenticacion
 
 No existe un flujo de autenticacion o de biblioteca comun para estas tres tiendas. EmuBox puede integrar componentes mantenidos que ya resuelven un flujo propio de cada tienda, siempre que se ejecuten aislados con un directorio de datos de EmuBox. No debe tratar una sesion de navegador, una cookie o un token observado en otro cliente como un contrato estable ni importarlo desde ese cliente.

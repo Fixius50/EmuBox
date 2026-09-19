@@ -22,6 +22,8 @@ export const StoresTab: Component<StoresTabProps> = (props) => {
   const [epicMessage, setEpicMessage] = createSignal("");
   const [gogBusy, setGogBusy] = createSignal(false);
   const [gogMessage, setGogMessage] = createSignal("");
+  const [steamBusy, setSteamBusy] = createSignal(false);
+  const [steamMessage, setSteamMessage] = createSignal("");
   const [library, { refetch }] = createResource(async () => {
     if (!props.backend) throw new Error("Backend de tiendas no disponible");
     const [providers, accounts] = await Promise.all([
@@ -76,6 +78,29 @@ export const StoresTab: Component<StoresTabProps> = (props) => {
       await refetch();
     } finally {
       setGogBusy(false);
+    }
+  };
+  const runSteam = async (action: "authorize" | "sync" | "disconnect") => {
+    if (!props.backend || steamBusy()) return;
+    setSteamBusy(true);
+    setSteamMessage("");
+    try {
+      if (action === "authorize") {
+        await props.backend.startSteamAuthorization();
+        setSteamMessage("Completa la clave Web API en la terminal y después sincroniza.");
+      } else if (action === "sync") {
+        const result = await props.backend.syncSteamLibrary();
+        setSteamMessage(`${result.importedGames} juegos de Steam sincronizados.`);
+      } else {
+        await props.backend.disconnectSteam();
+        setSteamMessage("Credenciales de Steam eliminadas.");
+      }
+      await refetch();
+    } catch {
+      setSteamMessage("La operación Steam no se completó. Revisa la clave Web API y la visibilidad de tu biblioteca.");
+      await refetch();
+    } finally {
+      setSteamBusy(false);
     }
   };
 
@@ -145,6 +170,16 @@ export const StoresTab: Component<StoresTabProps> = (props) => {
                     </div>
                     <Show when={gogMessage()}>
                       <p class="store-provider-note">{gogMessage()}</p>
+                    </Show>
+                  </Show>
+                  <Show when={provider.id === "steam"}>
+                    <div class="store-actions">
+                      <ConsoleButton label={steamBusy() ? "ESPERA..." : "CONECTAR STEAM"} variant="action" onClick={() => void runSteam("authorize")} />
+                      <ConsoleButton label="SINCRONIZAR" variant="action" onClick={() => void runSteam("sync")} />
+                      <ConsoleButton label="CERRAR SESIÓN" variant="action" onClick={() => void runSteam("disconnect")} />
+                    </div>
+                    <Show when={steamMessage()}>
+                      <p class="store-provider-note">{steamMessage()}</p>
                     </Show>
                   </Show>
                 </article>

@@ -1,5 +1,6 @@
 mod epic;
 mod gog;
+mod steam;
 
 use crate::{
     errors::EmuBoxError,
@@ -72,6 +73,18 @@ impl StoreService {
 
     pub fn disconnect_gog() -> Result<(), EmuBoxError> {
         gog::disconnect()
+    }
+
+    pub fn start_steam_authorization() -> Result<(), EmuBoxError> {
+        steam::start_authorization()
+    }
+
+    pub fn sync_steam_library() -> Result<StoreSyncResult, EmuBoxError> {
+        steam::sync_library()
+    }
+
+    pub fn disconnect_steam() -> Result<(), EmuBoxError> {
+        steam::disconnect()
     }
 
     pub fn providers() -> Result<Vec<StoreProviderInfo>, EmuBoxError> {

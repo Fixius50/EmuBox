@@ -187,6 +187,9 @@ export interface IEmuBoxBackend {
   startGogAuthorization(): Promise<void>;
   syncGogLibrary(): Promise<StoreSyncResult>;
   disconnectGog(): Promise<void>;
+  startSteamAuthorization(): Promise<void>;
+  syncSteamLibrary(): Promise<StoreSyncResult>;
+  disconnectSteam(): Promise<void>;
 
   // 9. Diagnóstico, Terminal & Logs
   getSystemLogs(limit?: number): Promise<LogEntry[]>;
