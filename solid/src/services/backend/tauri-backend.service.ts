@@ -131,6 +131,18 @@ export class TauriBackendService implements IEmuBoxBackend {
     return this.invoke('disconnect_epic');
   }
 
+  public startGogAuthorization(): Promise<void> {
+    return this.invoke('start_gog_authorization');
+  }
+
+  public syncGogLibrary(): Promise<StoreSyncResult> {
+    return this.invoke('sync_gog_library');
+  }
+
+  public disconnectGog(): Promise<void> {
+    return this.invoke('disconnect_gog');
+  }
+
   public async saveSettings(settings: SystemSettings): Promise<boolean> {
     return this.invoke('save_settings', { settings });
   }

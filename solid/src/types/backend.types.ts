@@ -184,6 +184,9 @@ export interface IEmuBoxBackend {
   startEpicAuthorization(): Promise<void>;
   syncEpicLibrary(): Promise<StoreSyncResult>;
   disconnectEpic(): Promise<void>;
+  startGogAuthorization(): Promise<void>;
+  syncGogLibrary(): Promise<StoreSyncResult>;
+  disconnectGog(): Promise<void>;
 
   // 9. Diagnóstico, Terminal & Logs
   getSystemLogs(limit?: number): Promise<LogEntry[]>;

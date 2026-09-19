@@ -33,3 +33,18 @@ pub async fn sync_epic_library() -> Result<StoreSyncResult, EmuBoxError> {
 pub async fn disconnect_epic() -> Result<(), EmuBoxError> {
     super::blocking(StoreService::disconnect_epic).await
 }
+
+#[tauri::command]
+pub async fn start_gog_authorization() -> Result<(), EmuBoxError> {
+    super::blocking(StoreService::start_gog_authorization).await
+}
+
+#[tauri::command]
+pub async fn sync_gog_library() -> Result<StoreSyncResult, EmuBoxError> {
+    super::blocking(StoreService::sync_gog_library).await
+}
+
+#[tauri::command]
+pub async fn disconnect_gog() -> Result<(), EmuBoxError> {
+    super::blocking(StoreService::disconnect_gog).await
+}

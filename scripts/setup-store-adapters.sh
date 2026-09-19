@@ -2,8 +2,8 @@
 set -Eeuo pipefail
 
 provider="${1:-epic}"
-[[ "${provider}" == "epic" ]] || {
-  printf '%s\n' 'Uso: setup-store-adapters.sh epic' >&2
+[[ "${provider}" == "epic" || "${provider}" == "gog" ]] || {
+  printf '%s\n' 'Uso: setup-store-adapters.sh <epic|gog>' >&2
   exit 2
 }
 [[ "${EUID}" -eq 0 ]] || {
@@ -11,16 +11,26 @@ provider="${1:-epic}"
   exit 1
 }
 
-root=/var/lib/emubox/stores/epic
-runtime="${root}/runtime"
 user=emubox
-version=0.21.1
+case "${provider}" in
+  epic)
+    root=/var/lib/emubox/stores/epic
+    package='legendary-gl==0.21.1'
+    executable=legendary
+    ;;
+  gog)
+    root=/var/lib/emubox/stores/gog
+    package='https://github.com/Heroic-Games-Launcher/heroic-gogdl/archive/refs/tags/v1.3.0.zip'
+    executable=gogdl
+    ;;
+esac
+runtime="${root}/runtime"
 
 pacman -S --needed --noconfirm python-pip
 install -d -m 0700 -o "${user}" -g "${user}" "${root}"
 runuser -u "${user}" -- env HOME="${root}/home" XDG_CONFIG_HOME="${root}/config" \
   python3 -m venv "${runtime}"
 runuser -u "${user}" -- "${runtime}/bin/python" -m pip install --disable-pip-version-check --no-cache-dir \
-  "legendary-gl==${version}"
-chmod 0755 "${runtime}/bin/legendary"
-printf '%s\n' "Adaptador Epic Legendary ${version} instalado en ${runtime}."
+  "${package}"
+chmod 0755 "${runtime}/bin/${executable}"
+printf '%s\n' "Adaptador ${provider} instalado en ${runtime}."

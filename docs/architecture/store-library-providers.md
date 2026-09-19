@@ -34,6 +34,12 @@ Steam, Epic y GOG exponen consultas IPC de proveedores/cuentas/entitlements y re
 
 Tras el login, EmuBox ejecuta `legendary status --json`, `legendary list --json` y `legendary list-installed --json`. Solo persiste identidad de cuenta, nombre de juego, identificador externo, estado de instalacion y marca temporal. El cierre usa `legendary auth --delete`. La opcion `legendary auth --import` queda excluida porque consume una sesion de Epic Games Launcher ajena y puede cerrarla.
 
+### GOG mediante gogdl
+
+`scripts/setup-store-adapters.sh gog` instala gogdl en `/var/lib/emubox/stores/gog/runtime`. La terminal de GOG abre el navegador, recibe el codigo por entrada estandar y llama al componente sin incluir el codigo como argumento o mensaje IPC. gogdl guarda y renueva `auth.json` bajo el mismo directorio privado.
+
+La sincronizacion invoca `gogdl auth` solo dentro del backend para renovar la sesion y consulta la biblioteca paginada de Galaxy. El token se mantiene en memoria durante esa consulta; SQLite recibe solo cuenta, identificador externo, titulo disponible y entitlement. El cierre elimina `auth.json` y marca la cuenta como desconectada.
+
 ## Investigacion de autenticacion
 
 No existe un flujo de autenticacion o de biblioteca comun para estas tres tiendas. EmuBox puede integrar componentes mantenidos que ya resuelven un flujo propio de cada tienda, siempre que se ejecuten aislados con un directorio de datos de EmuBox. No debe tratar una sesion de navegador, una cookie o un token observado en otro cliente como un contrato estable ni importarlo desde ese cliente.

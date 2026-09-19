@@ -20,6 +20,8 @@ const syncLabel = (provider: StoreProviderInfo) => {
 export const StoresTab: Component<StoresTabProps> = (props) => {
   const [epicBusy, setEpicBusy] = createSignal(false);
   const [epicMessage, setEpicMessage] = createSignal("");
+  const [gogBusy, setGogBusy] = createSignal(false);
+  const [gogMessage, setGogMessage] = createSignal("");
   const [library, { refetch }] = createResource(async () => {
     if (!props.backend) throw new Error("Backend de tiendas no disponible");
     const [providers, accounts] = await Promise.all([
@@ -51,6 +53,29 @@ export const StoresTab: Component<StoresTabProps> = (props) => {
       await refetch();
     } finally {
       setEpicBusy(false);
+    }
+  };
+  const runGog = async (action: "authorize" | "sync" | "disconnect") => {
+    if (!props.backend || gogBusy()) return;
+    setGogBusy(true);
+    setGogMessage("");
+    try {
+      if (action === "authorize") {
+        await props.backend.startGogAuthorization();
+        setGogMessage("Completa el inicio de sesión en la terminal y después sincroniza.");
+      } else if (action === "sync") {
+        const result = await props.backend.syncGogLibrary();
+        setGogMessage(`${result.importedGames} juegos de GOG sincronizados.`);
+      } else {
+        await props.backend.disconnectGog();
+        setGogMessage("Sesión de GOG cerrada.");
+      }
+      await refetch();
+    } catch {
+      setGogMessage("La operación GOG no se completó. Revisa que el adaptador esté instalado y la sesión siga activa.");
+      await refetch();
+    } finally {
+      setGogBusy(false);
     }
   };
 
@@ -110,6 +135,16 @@ export const StoresTab: Component<StoresTabProps> = (props) => {
                     </div>
                     <Show when={epicMessage()}>
                       <p class="store-provider-note">{epicMessage()}</p>
+                    </Show>
+                  </Show>
+                  <Show when={provider.id === "gog"}>
+                    <div class="store-actions">
+                      <ConsoleButton label={gogBusy() ? "ESPERA..." : "CONECTAR GOG"} variant="action" onClick={() => void runGog("authorize")} />
+                      <ConsoleButton label="SINCRONIZAR" variant="action" onClick={() => void runGog("sync")} />
+                      <ConsoleButton label="CERRAR SESIÓN" variant="action" onClick={() => void runGog("disconnect")} />
+                    </div>
+                    <Show when={gogMessage()}>
+                      <p class="store-provider-note">{gogMessage()}</p>
                     </Show>
                   </Show>
                 </article>
