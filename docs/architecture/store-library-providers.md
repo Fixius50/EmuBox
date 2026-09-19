@@ -30,19 +30,19 @@ Steam, Epic y GOG exponen consultas IPC de proveedores/cuentas/entitlements y re
 
 ### Epic mediante Legendary
 
-`scripts/setup-store-adapters.sh epic` instala `legendary-gl` versionada en un venv bajo `/var/lib/emubox/stores/epic/runtime`. El login se abre con `footclient` y ejecuta `legendary auth` dentro del directorio privado. No existe una casilla de contrasena, codigo, token ni cookie en la UI o IPC de EmuBox.
+`scripts/setup-store-adapters.sh epic` instala `legendary-gl` versionada en un venv bajo `/var/lib/emubox/stores/epic/runtime`. EmuBox abre el inicio oficial de Epic y recibe una vez el codigo de autorizacion a traves del formulario de Tiendas. El codigo no se registra, no se incluye en argumentos de proceso y no se persiste en SQLite.
 
 Tras el login, EmuBox ejecuta `legendary status --json`, `legendary list --json` y `legendary list-installed --json`. Solo persiste identidad de cuenta, nombre de juego, identificador externo, estado de instalacion y marca temporal. El cierre usa `legendary auth --delete`. La opcion `legendary auth --import` queda excluida porque consume una sesion de Epic Games Launcher ajena y puede cerrarla.
 
 ### GOG mediante gogdl
 
-`scripts/setup-store-adapters.sh gog` instala la etiqueta `v1.3.0` de gogdl con sus submodulos en `/var/lib/emubox/stores/gog/runtime`. La distribucion ZIP no sirve para este componente porque omite su extension xdelta3. La terminal de GOG abre el navegador, recibe el codigo por entrada estandar y llama al componente sin incluir el codigo como argumento o mensaje IPC. gogdl guarda y renueva `auth.json` bajo el mismo directorio privado.
+`scripts/setup-store-adapters.sh gog` instala la etiqueta `v1.3.0` de gogdl con sus submodulos en `/var/lib/emubox/stores/gog/runtime`. La distribucion ZIP no sirve para este componente porque omite su extension xdelta3. EmuBox abre el inicio oficial de GOG y recibe una vez el codigo por el formulario de Tiendas; el codigo no se registra, no se incluye en argumentos de proceso y no se persiste en SQLite. gogdl guarda y renueva `auth.json` bajo el mismo directorio privado.
 
 La sincronizacion invoca `gogdl auth` solo dentro del backend para renovar la sesion y consulta la biblioteca paginada de Galaxy. El token se mantiene en memoria durante esa consulta; SQLite recibe solo cuenta, identificador externo, titulo disponible y entitlement. El cierre elimina `auth.json` y marca la cuenta como desconectada.
 
 ### Steam mediante clave Web API propia
 
-Steam no usa el WebView de EmuBox para extraer cookies, `webapi_token` u otros secretos de pagina. La terminal de Steam abre la pagina oficial de claves Web API; el usuario completa Steam Guard, MFA o CAPTCHA directamente en Steam e introduce despues su SteamID64 y la clave generada sin eco. EmuBox guarda el par solo en `stores/steam/credentials.json` con modo `0600`.
+Steam no usa el WebView de EmuBox para extraer cookies, `webapi_token` u otros secretos de pagina. EmuBox abre la pagina oficial de claves Web API; el usuario completa Steam Guard, MFA o CAPTCHA directamente en Steam e introduce despues su SteamID64 y la clave generada en Tiendas. EmuBox guarda el par solo en `stores/steam/credentials.json` con modo `0600`.
 
 La sincronizacion usa `GetPlayerSummaries` y `GetOwnedGames` sobre HTTPS. La clave nunca se incluye en IPC, telemetria, logs, argumentos de proceso ni SQLite. El cierre elimina el archivo privado. La disponibilidad de resultados depende de la clave y de la visibilidad que Steam permita para la biblioteca de esa cuenta.
 
@@ -60,4 +60,4 @@ Las fuentes consultadas incluyen la documentacion de Steamworks sobre [claves We
 
 ## Requisitos previos para implementar un proveedor
 
-Antes de anadir metodos como `login`, `refresh`, `logout` o `sync_library`, cada proveedor debe documentar el componente y el formato que consume: como abre la autorizacion interactiva, artefactos que persisten, forma de renovar y revocar la sesion, alcance de biblioteca permitido y procedimiento de eliminacion. El adaptador debe escribir secretos solo despues de crear su directorio `0700`, nunca registrarlos y mantenerlos fuera de SQLite. Las interacciones que requieren secreto deben ocurrir dentro del proceso del componente o de una terminal/WebView visible al usuario, nunca como argumentos, resultado IPC o telemetria de EmuBox.
+Antes de anadir metodos como `login`, `refresh`, `logout` o `sync_library`, cada proveedor debe documentar el componente y el formato que consume: como abre la autorizacion interactiva, artefactos que persisten, forma de renovar y revocar la sesion, alcance de biblioteca permitido y procedimiento de eliminacion. El adaptador debe escribir secretos solo despues de crear su directorio `0700`, nunca registrarlos y mantenerlos fuera de SQLite. Las interacciones que requieren secreto pasan una sola vez de la UI local al backend, sin incluirlos en argumentos de proceso, resultados IPC, telemetria o logs.

@@ -25,6 +25,11 @@ pub async fn start_epic_authorization() -> Result<(), EmuBoxError> {
 }
 
 #[tauri::command]
+pub async fn complete_epic_authorization(code: String) -> Result<(), EmuBoxError> {
+    super::blocking(move || StoreService::complete_epic_authorization(code)).await
+}
+
+#[tauri::command]
 pub async fn sync_epic_library() -> Result<StoreSyncResult, EmuBoxError> {
     super::blocking(StoreService::sync_epic_library).await
 }
@@ -40,6 +45,11 @@ pub async fn start_gog_authorization() -> Result<(), EmuBoxError> {
 }
 
 #[tauri::command]
+pub async fn complete_gog_authorization(code: String) -> Result<(), EmuBoxError> {
+    super::blocking(move || StoreService::complete_gog_authorization(code)).await
+}
+
+#[tauri::command]
 pub async fn sync_gog_library() -> Result<StoreSyncResult, EmuBoxError> {
     super::blocking(StoreService::sync_gog_library).await
 }
@@ -52,6 +62,11 @@ pub async fn disconnect_gog() -> Result<(), EmuBoxError> {
 #[tauri::command]
 pub async fn start_steam_authorization() -> Result<(), EmuBoxError> {
     super::blocking(StoreService::start_steam_authorization).await
+}
+
+#[tauri::command]
+pub async fn complete_steam_authorization(steam_id: String, api_key: String) -> Result<(), EmuBoxError> {
+    super::blocking(move || StoreService::complete_steam_authorization(steam_id, api_key)).await
 }
 
 #[tauri::command]

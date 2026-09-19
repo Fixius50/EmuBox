@@ -182,12 +182,15 @@ export interface IEmuBoxBackend {
   getStoreAccounts(): Promise<StoreAccount[]>;
   getStoreEntitlements(accountId: string): Promise<StoreEntitlement[]>;
   startEpicAuthorization(): Promise<void>;
+  completeEpicAuthorization(code: string): Promise<void>;
   syncEpicLibrary(): Promise<StoreSyncResult>;
   disconnectEpic(): Promise<void>;
   startGogAuthorization(): Promise<void>;
+  completeGogAuthorization(code: string): Promise<void>;
   syncGogLibrary(): Promise<StoreSyncResult>;
   disconnectGog(): Promise<void>;
   startSteamAuthorization(): Promise<void>;
+  completeSteamAuthorization(steamId: string, apiKey: string): Promise<void>;
   syncSteamLibrary(): Promise<StoreSyncResult>;
   disconnectSteam(): Promise<void>;
 

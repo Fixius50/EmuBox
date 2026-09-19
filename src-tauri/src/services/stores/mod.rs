@@ -55,6 +55,10 @@ impl StoreService {
         epic::start_authorization()
     }
 
+    pub fn complete_epic_authorization(code: String) -> Result<(), EmuBoxError> {
+        epic::complete_authorization(code)
+    }
+
     pub fn sync_epic_library() -> Result<StoreSyncResult, EmuBoxError> {
         epic::sync_library()
     }
@@ -67,6 +71,10 @@ impl StoreService {
         gog::start_authorization()
     }
 
+    pub fn complete_gog_authorization(code: String) -> Result<(), EmuBoxError> {
+        gog::complete_authorization(code)
+    }
+
     pub fn sync_gog_library() -> Result<StoreSyncResult, EmuBoxError> {
         gog::sync_library()
     }
@@ -77,6 +85,10 @@ impl StoreService {
 
     pub fn start_steam_authorization() -> Result<(), EmuBoxError> {
         steam::start_authorization()
+    }
+
+    pub fn complete_steam_authorization(steam_id: String, api_key: String) -> Result<(), EmuBoxError> {
+        steam::complete_authorization(steam_id, api_key)
     }
 
     pub fn sync_steam_library() -> Result<StoreSyncResult, EmuBoxError> {

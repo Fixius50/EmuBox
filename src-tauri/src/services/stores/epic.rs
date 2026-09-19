@@ -5,6 +5,7 @@ use serde_json::Value;
 use std::{
     collections::BTreeSet,
     fs,
+    io::Write,
     os::unix::fs::PermissionsExt,
     path::{Component, Path, PathBuf},
     process::{Command, Stdio},
@@ -12,22 +13,28 @@ use std::{
 };
 
 const LEGENDARY: &str = "/var/lib/emubox/stores/epic/runtime/bin/legendary";
-const AUTH_SCRIPT: &str = "/opt/emubox/scripts/store-epic-auth.sh";
-
 pub(super) fn start_authorization() -> Result<(), EmuBoxError> {
     let root = epic_root()?;
     private_dir(&root)?;
     require_legendary()?;
-    Command::new("/usr/bin/footclient")
-        .arg("--")
-        .arg(AUTH_SCRIPT)
+    Command::new("/usr/bin/xdg-open")
+        .arg("https://legendary.gl/epiclogin")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|_| EmuBoxError::ProcessFailed("No se pudo abrir la terminal de Epic".into()))?;
+        .map_err(|_| EmuBoxError::ProcessFailed("No se pudo abrir la autorizacion de Epic".into()))?;
     set_state("authorization_required", None, None)?;
     Ok(())
+}
+
+pub(super) fn complete_authorization(code: String) -> Result<(), EmuBoxError> {
+    let root = epic_root()?;
+    private_dir(&root)?;
+    require_legendary()?;
+    let script = "import os,sys; from legendary.core import LegendaryCore; code=sys.stdin.read().strip(); core=LegendaryCore(os.environ['LEGENDARY_CONFIG_PATH']); ok=bool(code) and core.auth_code(code); core.exit(); raise SystemExit(0 if ok else 1)";
+    private_python(&root, script, &code, "Epic no pudo completar la autorizacion")?;
+    set_state("authorization_required", None, None)
 }
 
 pub(super) fn sync_library() -> Result<StoreSyncResult, EmuBoxError> {
@@ -186,6 +193,27 @@ fn legendary(root: &Path, arguments: &[&str]) -> Result<Vec<u8>, EmuBoxError> {
         ));
     }
     Ok(output.stdout)
+}
+
+fn private_python(root: &Path, script: &str, input: &str, message: &str) -> Result<(), EmuBoxError> {
+    let mut child = Command::new(root.join("runtime/bin/python"))
+        .args(["-c", script])
+        .env("HOME", root.join("home"))
+        .env("XDG_CONFIG_HOME", root.join("config"))
+        .env("LEGENDARY_CONFIG_PATH", root.join("legendary"))
+        .env("LC_ALL", "C")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|_| EmuBoxError::ProcessFailed(message.into()))?;
+    child.stdin.take().ok_or_else(|| EmuBoxError::ProcessFailed(message.into()))?
+        .write_all(input.as_bytes())
+        .map_err(|_| EmuBoxError::ProcessFailed(message.into()))?;
+    if !child.wait().map_err(|_| EmuBoxError::ProcessFailed(message.into()))?.success() {
+        return Err(EmuBoxError::ProcessFailed(message.into()));
+    }
+    Ok(())
 }
 
 fn read_identity(root: &Path) -> Result<String, EmuBoxError> {

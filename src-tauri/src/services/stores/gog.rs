@@ -5,6 +5,7 @@ use rusqlite::params;
 use serde_json::Value;
 use std::{
     fs,
+    io::Write,
     os::unix::fs::PermissionsExt,
     path::{Component, Path, PathBuf},
     process::{Command, Stdio},
@@ -12,8 +13,6 @@ use std::{
 };
 
 const GOGDL: &str = "/var/lib/emubox/stores/gog/runtime/bin/gogdl";
-const AUTH_SCRIPT: &str = "/opt/emubox/scripts/store-gog-auth.sh";
-
 struct Credentials {
     access_token: String,
     user_id: String,
@@ -23,14 +22,25 @@ pub(super) fn start_authorization() -> Result<(), EmuBoxError> {
     let root = gog_root()?;
     private_dir(&root)?;
     require_gogdl()?;
-    Command::new("/usr/bin/footclient")
-        .arg("--")
-        .arg(AUTH_SCRIPT)
+    let script = "import os,webbrowser; from urllib.parse import parse_qs,quote,urlparse; from gogdl.auth import CLIENT_ID,CODE_URL; redirect=parse_qs(urlparse(CODE_URL).query)['redirect_uri'][0]; webbrowser.open('https://auth.gog.com/auth?client_id={}&redirect_uri={}&response_type=code'.format(quote(CLIENT_ID,safe=''),quote(redirect,safe='')))";
+    Command::new(root.join("runtime/bin/python"))
+        .args(["-c", script])
+        .env("HOME", root.join("home"))
+        .env("GOGDL_CONFIG_PATH", root.join("config"))
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|_| EmuBoxError::ProcessFailed("No se pudo abrir la terminal de GOG".into()))?;
+        .map_err(|_| EmuBoxError::ProcessFailed("No se pudo abrir la autorizacion de GOG".into()))?;
+    set_state("authorization_required", None, None)
+}
+
+pub(super) fn complete_authorization(code: String) -> Result<(), EmuBoxError> {
+    let root = gog_root()?;
+    private_dir(&root)?;
+    require_gogdl()?;
+    let script = "import contextlib,io,os,sys; from types import SimpleNamespace; from gogdl.auth import AuthorizationManager; code=sys.stdin.read().strip(); manager=AuthorizationManager(os.environ['GOG_AUTH_FILE']); args=SimpleNamespace(authorization_code=code,client_id=None,client_secret=None); out=io.StringIO();\nwith contextlib.redirect_stdout(out): manager.handle_cli(args, []);\nraise SystemExit(0 if code and '\"error\": true' not in out.getvalue().lower() else 1)";
+    private_python(&root, script, &code, "GOG no pudo completar la autorizacion")?;
     set_state("authorization_required", None, None)
 }
 
@@ -162,6 +172,27 @@ fn credentials(root: &Path) -> Result<Credentials, EmuBoxError> {
         access_token: access_token.into(),
         user_id,
     })
+}
+
+fn private_python(root: &Path, script: &str, input: &str, message: &str) -> Result<(), EmuBoxError> {
+    let mut child = Command::new(root.join("runtime/bin/python"))
+        .args(["-c", script])
+        .env("HOME", root.join("home"))
+        .env("GOGDL_CONFIG_PATH", root.join("config"))
+        .env("GOG_AUTH_FILE", root.join("auth.json"))
+        .env("LC_ALL", "C")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|_| EmuBoxError::ProcessFailed(message.into()))?;
+    child.stdin.take().ok_or_else(|| EmuBoxError::ProcessFailed(message.into()))?
+        .write_all(input.as_bytes())
+        .map_err(|_| EmuBoxError::ProcessFailed(message.into()))?;
+    if !child.wait().map_err(|_| EmuBoxError::ProcessFailed(message.into()))?.success() {
+        return Err(EmuBoxError::ProcessFailed(message.into()));
+    }
+    Ok(())
 }
 
 fn account_name(client: &Client, credentials: &Credentials) -> Result<String, EmuBoxError> {

@@ -123,6 +123,10 @@ export class TauriBackendService implements IEmuBoxBackend {
     return this.invoke('start_epic_authorization');
   }
 
+  public completeEpicAuthorization(code: string): Promise<void> {
+    return this.invoke('complete_epic_authorization', { code });
+  }
+
   public syncEpicLibrary(): Promise<StoreSyncResult> {
     return this.invoke('sync_epic_library');
   }
@@ -135,6 +139,10 @@ export class TauriBackendService implements IEmuBoxBackend {
     return this.invoke('start_gog_authorization');
   }
 
+  public completeGogAuthorization(code: string): Promise<void> {
+    return this.invoke('complete_gog_authorization', { code });
+  }
+
   public syncGogLibrary(): Promise<StoreSyncResult> {
     return this.invoke('sync_gog_library');
   }
@@ -145,6 +153,10 @@ export class TauriBackendService implements IEmuBoxBackend {
 
   public startSteamAuthorization(): Promise<void> {
     return this.invoke('start_steam_authorization');
+  }
+
+  public completeSteamAuthorization(steamId: string, apiKey: string): Promise<void> {
+    return this.invoke('complete_steam_authorization', { steamId, apiKey });
   }
 
   public syncSteamLibrary(): Promise<StoreSyncResult> {

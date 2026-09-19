@@ -455,6 +455,34 @@
   margin-block-start: 0.875rem;
 }
 
+.store-credential-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+  margin-block-start: 0.875rem;
+}
+
+.store-steam-credential-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.store-credential-form input {
+  min-inline-size: 0;
+  border: 0.0625rem solid rgba(0, 240, 255, 0.35);
+  border-radius: var(--border-radius-sm);
+  background: rgba(0, 0, 0, 0.3);
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.55rem 0.625rem;
+  outline: none;
+}
+
+.store-credential-form input:focus {
+  border-color: #00f0ff;
+  box-shadow: 0 0 0.75rem rgba(0, 240, 255, 0.25);
+}
+
 .store-provider-error {
   border-inline-start: 0.1875rem solid currentColor;
   font-size: 0.75rem;

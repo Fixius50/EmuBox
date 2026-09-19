@@ -20,10 +20,14 @@ const syncLabel = (provider: StoreProviderInfo) => {
 export const StoresTab: Component<StoresTabProps> = (props) => {
   const [epicBusy, setEpicBusy] = createSignal(false);
   const [epicMessage, setEpicMessage] = createSignal("");
+  const [epicCode, setEpicCode] = createSignal("");
   const [gogBusy, setGogBusy] = createSignal(false);
   const [gogMessage, setGogMessage] = createSignal("");
+  const [gogCode, setGogCode] = createSignal("");
   const [steamBusy, setSteamBusy] = createSignal(false);
   const [steamMessage, setSteamMessage] = createSignal("");
+  const [steamId, setSteamId] = createSignal("");
+  const [steamKey, setSteamKey] = createSignal("");
   const [library, { refetch }] = createResource(async () => {
     if (!props.backend) throw new Error("Backend de tiendas no disponible");
     const [providers, accounts] = await Promise.all([
@@ -34,14 +38,18 @@ export const StoresTab: Component<StoresTabProps> = (props) => {
   });
   const accountsFor = (provider: string): StoreAccount[] =>
     library()?.accounts.filter((account) => account.provider === provider) ?? [];
-  const runEpic = async (action: "authorize" | "sync" | "disconnect") => {
+  const runEpic = async (action: "authorize" | "connect" | "sync" | "disconnect") => {
     if (!props.backend || epicBusy()) return;
     setEpicBusy(true);
     setEpicMessage("");
     try {
       if (action === "authorize") {
         await props.backend.startEpicAuthorization();
-        setEpicMessage("Completa el inicio de sesión en la terminal y después sincroniza.");
+        setEpicMessage("Inicia sesión en Epic y pega aquí el código de autorización.");
+      } else if (action === "connect") {
+        await props.backend.completeEpicAuthorization(epicCode());
+        setEpicCode("");
+        setEpicMessage("Cuenta de Epic conectada. Ya puedes sincronizar la biblioteca.");
       } else if (action === "sync") {
         const result = await props.backend.syncEpicLibrary();
         setEpicMessage(`${result.importedGames} juegos de Epic sincronizados.`);
@@ -51,20 +59,24 @@ export const StoresTab: Component<StoresTabProps> = (props) => {
       }
       await refetch();
     } catch {
-      setEpicMessage("La operación Epic no se completó. Revisa que el adaptador esté instalado y la sesión siga activa.");
+      setEpicMessage("La operación Epic no se completó. Revisa el código de autorización e inténtalo de nuevo.");
       await refetch();
     } finally {
       setEpicBusy(false);
     }
   };
-  const runGog = async (action: "authorize" | "sync" | "disconnect") => {
+  const runGog = async (action: "authorize" | "connect" | "sync" | "disconnect") => {
     if (!props.backend || gogBusy()) return;
     setGogBusy(true);
     setGogMessage("");
     try {
       if (action === "authorize") {
         await props.backend.startGogAuthorization();
-        setGogMessage("Completa el inicio de sesión en la terminal y después sincroniza.");
+        setGogMessage("Inicia sesión en GOG y pega aquí el código de autorización.");
+      } else if (action === "connect") {
+        await props.backend.completeGogAuthorization(gogCode());
+        setGogCode("");
+        setGogMessage("Cuenta de GOG conectada. Ya puedes sincronizar la biblioteca.");
       } else if (action === "sync") {
         const result = await props.backend.syncGogLibrary();
         setGogMessage(`${result.importedGames} juegos de GOG sincronizados.`);
@@ -74,20 +86,24 @@ export const StoresTab: Component<StoresTabProps> = (props) => {
       }
       await refetch();
     } catch {
-      setGogMessage("La operación GOG no se completó. Revisa que el adaptador esté instalado y la sesión siga activa.");
+      setGogMessage("La operación GOG no se completó. Revisa el código de autorización e inténtalo de nuevo.");
       await refetch();
     } finally {
       setGogBusy(false);
     }
   };
-  const runSteam = async (action: "authorize" | "sync" | "disconnect") => {
+  const runSteam = async (action: "authorize" | "connect" | "sync" | "disconnect") => {
     if (!props.backend || steamBusy()) return;
     setSteamBusy(true);
     setSteamMessage("");
     try {
       if (action === "authorize") {
         await props.backend.startSteamAuthorization();
-        setSteamMessage("Completa la clave Web API en la terminal y después sincroniza.");
+        setSteamMessage("Genera una clave Web API de Steam y completa los datos aquí.");
+      } else if (action === "connect") {
+        await props.backend.completeSteamAuthorization(steamId(), steamKey());
+        setSteamKey("");
+        setSteamMessage("Cuenta de Steam conectada. Ya puedes sincronizar la biblioteca.");
       } else if (action === "sync") {
         const result = await props.backend.syncSteamLibrary();
         setSteamMessage(`${result.importedGames} juegos de Steam sincronizados.`);
@@ -97,7 +113,7 @@ export const StoresTab: Component<StoresTabProps> = (props) => {
       }
       await refetch();
     } catch {
-      setSteamMessage("La operación Steam no se completó. Revisa la clave Web API y la visibilidad de tu biblioteca.");
+      setSteamMessage("La operación Steam no se completó. Revisa los datos y la visibilidad de tu biblioteca.");
       await refetch();
     } finally {
       setSteamBusy(false);
@@ -153,8 +169,12 @@ export const StoresTab: Component<StoresTabProps> = (props) => {
                     <p class="store-provider-error">{provider.sync.errorMessage}</p>
                   </Show>
                   <Show when={provider.id === "epic"}>
+                    <div class="store-credential-form">
+                      <input aria-label="Código de autorización de Epic" autocomplete="off" placeholder="Código de autorización" type="password" value={epicCode()} onInput={(event) => setEpicCode(event.currentTarget.value)} />
+                    </div>
                     <div class="store-actions">
-                      <ConsoleButton label={epicBusy() ? "ESPERA..." : "CONECTAR EPIC"} variant="action" onClick={() => void runEpic("authorize")} />
+                      <ConsoleButton label={epicBusy() ? "ESPERA..." : "ABRIR EPIC"} variant="action" onClick={() => void runEpic("authorize")} />
+                      <ConsoleButton label="CONECTAR" variant="action" onClick={() => void runEpic("connect")} />
                       <ConsoleButton label="SINCRONIZAR" variant="action" onClick={() => void runEpic("sync")} />
                       <ConsoleButton label="CERRAR SESIÓN" variant="action" onClick={() => void runEpic("disconnect")} />
                     </div>
@@ -163,8 +183,12 @@ export const StoresTab: Component<StoresTabProps> = (props) => {
                     </Show>
                   </Show>
                   <Show when={provider.id === "gog"}>
+                    <div class="store-credential-form">
+                      <input aria-label="Código de autorización de GOG" autocomplete="off" placeholder="Código de autorización" type="password" value={gogCode()} onInput={(event) => setGogCode(event.currentTarget.value)} />
+                    </div>
                     <div class="store-actions">
-                      <ConsoleButton label={gogBusy() ? "ESPERA..." : "CONECTAR GOG"} variant="action" onClick={() => void runGog("authorize")} />
+                      <ConsoleButton label={gogBusy() ? "ESPERA..." : "ABRIR GOG"} variant="action" onClick={() => void runGog("authorize")} />
+                      <ConsoleButton label="CONECTAR" variant="action" onClick={() => void runGog("connect")} />
                       <ConsoleButton label="SINCRONIZAR" variant="action" onClick={() => void runGog("sync")} />
                       <ConsoleButton label="CERRAR SESIÓN" variant="action" onClick={() => void runGog("disconnect")} />
                     </div>
@@ -173,8 +197,13 @@ export const StoresTab: Component<StoresTabProps> = (props) => {
                     </Show>
                   </Show>
                   <Show when={provider.id === "steam"}>
+                    <div class="store-credential-form store-steam-credential-form">
+                      <input aria-label="SteamID64" autocomplete="off" inputmode="numeric" placeholder="SteamID64" value={steamId()} onInput={(event) => setSteamId(event.currentTarget.value)} />
+                      <input aria-label="Clave Web API de Steam" autocomplete="off" placeholder="Clave Web API" type="password" value={steamKey()} onInput={(event) => setSteamKey(event.currentTarget.value)} />
+                    </div>
                     <div class="store-actions">
-                      <ConsoleButton label={steamBusy() ? "ESPERA..." : "CONECTAR STEAM"} variant="action" onClick={() => void runSteam("authorize")} />
+                      <ConsoleButton label={steamBusy() ? "ESPERA..." : "ABRIR STEAM"} variant="action" onClick={() => void runSteam("authorize")} />
+                      <ConsoleButton label="CONECTAR" variant="action" onClick={() => void runSteam("connect")} />
                       <ConsoleButton label="SINCRONIZAR" variant="action" onClick={() => void runSteam("sync")} />
                       <ConsoleButton label="CERRAR SESIÓN" variant="action" onClick={() => void runSteam("disconnect")} />
                     </div>
