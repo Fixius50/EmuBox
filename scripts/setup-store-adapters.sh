@@ -27,6 +27,9 @@ esac
 runtime="${root}/runtime"
 
 pacman -S --needed --noconfirm python-pip
+if [[ "${provider}" == "gog" ]]; then
+  pacman -S --needed --noconfirm xdelta3
+fi
 install -d -m 0700 -o "${user}" -g "${user}" "${root}"
 runuser -u "${user}" -- env HOME="${root}/home" XDG_CONFIG_HOME="${root}/config" \
   python3 -m venv "${runtime}"
