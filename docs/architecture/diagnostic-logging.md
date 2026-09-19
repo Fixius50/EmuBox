@@ -36,7 +36,11 @@ con el mismo `operationId`; `operation.result` incluye exito/error. El fin de un
 span solo significa salida de la funcion, no exito de la operacion.
 
 Estan instrumentados arranque, escaneo, lectura de biblioteca, indice local,
-base maestra, manifiestos y lanzamiento. El estado del coordinador incluye tareas,
+base maestra, manifiestos, lanzamiento y proveedores de tiendas. Estos ultimos
+emiten `operation.started`, `connection.opened`, `connection.connected`,
+`sync.completed`, `connection.disconnected` y `operation.failed`, con proveedor
+y contadores de juegos importados/instalados cuando corresponde. Nunca incluyen
+codigos, claves, tokens, SteamID, nombres de cuenta ni respuestas remotas. El estado del coordinador incluye tareas,
 recursos, avisos y errores. Las trazas antiguas por stderr se siguen recogiendo;
 su nivel/origen se infiere del texto y puede ser impreciso o duplicar un evento
 estructurado. No se modifica ni rota el session.log legado.
@@ -126,6 +130,8 @@ node scripts/logs.mjs --source ui --event incident.mark
 node scripts/logs.mjs --minutes 10 --level warn
 node scripts/logs.mjs --source catalog --minutes 10 --json
 node scripts/logs.mjs --source os.kernel --since 2026-09-16T18:00:00Z
+node scripts/logs.mjs --source stores --minutes 10 --json
+node scripts/logs.mjs --source stores --event sync.completed
 ```
 
 No hay eventos retroactivos de UI para incidentes anteriores al despliegue. Tras

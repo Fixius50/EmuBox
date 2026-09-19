@@ -5,9 +5,11 @@ mod steam;
 use crate::{
     errors::EmuBoxError,
     models::{StoreAccount, StoreEntitlement, StoreProviderInfo, StoreSyncResult, StoreSyncState},
-    services::{db_service::DatabaseService, paths},
+    services::{db_service::DatabaseService, infrastructure::telemetry, paths},
 };
+use log::Level;
 use rusqlite::OptionalExtension;
+use serde_json::json;
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::PathBuf,
@@ -52,54 +54,84 @@ pub struct StoreService;
 
 impl StoreService {
     pub fn start_epic_authorization() -> Result<(), EmuBoxError> {
-        epic::start_authorization()
+        operation("epic", "connect.open", epic::start_authorization)?;
+        store_event("epic", "connection.opened", Level::Info, json!({}));
+        Ok(())
     }
 
     pub fn complete_epic_authorization(code: String) -> Result<(), EmuBoxError> {
-        epic::complete_authorization(code)
+        operation("epic", "connect.complete", || {
+            epic::complete_authorization(code)
+        })?;
+        store_event("epic", "connection.connected", Level::Info, json!({}));
+        Ok(())
     }
 
     pub fn sync_epic_library() -> Result<StoreSyncResult, EmuBoxError> {
-        epic::sync_library()
+        let result = operation("epic", "sync", epic::sync_library)?;
+        sync_event(&result);
+        Ok(result)
     }
 
     pub fn disconnect_epic() -> Result<(), EmuBoxError> {
-        epic::disconnect()
+        operation("epic", "connect.disconnect", epic::disconnect)?;
+        store_event("epic", "connection.disconnected", Level::Info, json!({}));
+        Ok(())
     }
 
     pub fn start_gog_authorization() -> Result<(), EmuBoxError> {
-        gog::start_authorization()
+        operation("gog", "connect.open", gog::start_authorization)?;
+        store_event("gog", "connection.opened", Level::Info, json!({}));
+        Ok(())
     }
 
     pub fn complete_gog_authorization(code: String) -> Result<(), EmuBoxError> {
-        gog::complete_authorization(code)
+        operation("gog", "connect.complete", || {
+            gog::complete_authorization(code)
+        })?;
+        store_event("gog", "connection.connected", Level::Info, json!({}));
+        Ok(())
     }
 
     pub fn sync_gog_library() -> Result<StoreSyncResult, EmuBoxError> {
-        gog::sync_library()
+        let result = operation("gog", "sync", gog::sync_library)?;
+        sync_event(&result);
+        Ok(result)
     }
 
     pub fn disconnect_gog() -> Result<(), EmuBoxError> {
-        gog::disconnect()
+        operation("gog", "connect.disconnect", gog::disconnect)?;
+        store_event("gog", "connection.disconnected", Level::Info, json!({}));
+        Ok(())
     }
 
     pub fn start_steam_authorization() -> Result<(), EmuBoxError> {
-        steam::start_authorization()
+        operation("steam", "connect.open", steam::start_authorization)?;
+        store_event("steam", "connection.opened", Level::Info, json!({}));
+        Ok(())
     }
 
     pub fn complete_steam_authorization(
         steam_id: String,
         api_key: String,
     ) -> Result<(), EmuBoxError> {
-        steam::complete_authorization(steam_id, api_key)
+        operation("steam", "connect.complete", || {
+            steam::complete_authorization(steam_id, api_key)
+        })?;
+        store_event("steam", "connection.connected", Level::Info, json!({}));
+        Ok(())
     }
 
     pub fn sync_steam_library() -> Result<StoreSyncResult, EmuBoxError> {
-        steam::sync_library()
+        let result = operation("steam", "sync", steam::sync_library)?;
+        sync_event(&result);
+        Ok(result)
     }
 
     pub fn disconnect_steam() -> Result<(), EmuBoxError> {
-        steam::disconnect()
+        operation("steam", "connect.disconnect", steam::disconnect)?;
+        store_event("steam", "connection.disconnected", Level::Info, json!({}));
+        Ok(())
     }
 
     pub fn providers() -> Result<Vec<StoreProviderInfo>, EmuBoxError> {
@@ -241,6 +273,50 @@ impl StoreService {
 
 fn storage_error(error: rusqlite::Error) -> EmuBoxError {
     EmuBoxError::StorageUnavailable(error.to_string())
+}
+
+fn operation<T>(
+    provider: &str,
+    action: &str,
+    execute: impl FnOnce() -> Result<T, EmuBoxError>,
+) -> Result<T, EmuBoxError> {
+    store_event(
+        provider,
+        "operation.started",
+        Level::Info,
+        json!({"action": action}),
+    );
+    match execute() {
+        Ok(result) => Ok(result),
+        Err(error) => {
+            store_event(
+                provider,
+                "operation.failed",
+                Level::Error,
+                json!({"action": action}),
+            );
+            Err(error)
+        }
+    }
+}
+
+fn sync_event(result: &StoreSyncResult) {
+    store_event(
+        &result.provider,
+        "sync.completed",
+        Level::Info,
+        json!({"importedGames": result.imported_games, "installedGames": result.installed_games}),
+    );
+}
+
+fn store_event(provider: &str, event: &str, level: Level, data: serde_json::Value) {
+    telemetry::event(
+        level,
+        "stores",
+        event,
+        "Operacion de proveedor de tienda",
+        json!({"provider": provider, "result": data}),
+    );
 }
 
 #[cfg(test)]
