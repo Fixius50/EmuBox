@@ -18,6 +18,7 @@ import { SystemTab } from "./tabs/SystemTab";
 import { EmulatorsTab } from "./tabs/EmulatorsTab";
 import { AudioTab } from "./tabs/AudioTab";
 import { GamepadTab } from "./tabs/GamepadTab";
+import { StoresTab } from "./tabs/StoresTab";
 import { EmulatorCrudModal } from "./modals/EmulatorCrudModal";
 
 // Animations
@@ -59,7 +60,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
     if (props.focusArea === "content" && contentPaneRef && row !== undefined) {
       setTimeout(() => {
         const focusedEl = contentPaneRef?.querySelector(
-          ".setting-card-row.focused, .cyber-emulator-blade.focused, .gamepad-device-card.focused, .update-hero-blade.focused",
+          ".setting-card-row.focused, .cyber-emulator-blade.focused, .gamepad-device-card.focused, .store-provider-card.focused, .update-hero-blade.focused",
         ) as HTMLElement;
         if (focusedEl) {
           focusedEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -154,6 +155,14 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
                 isRowFocused={isRowFocused}
                 onSelectContentArea={props.onSelectContentArea}
                 onUpdateSettings={handleUpdate}
+              />
+            </Match>
+
+            <Match when={currentTab() === "stores"}>
+              <StoresTab
+                backend={props.storeBackend}
+                isRowFocused={isRowFocused}
+                onSelectContentArea={props.onSelectContentArea}
               />
             </Match>
           </Switch>

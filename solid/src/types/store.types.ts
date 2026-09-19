@@ -2,6 +2,16 @@ export interface StoreProviderInfo {
   id: 'steam' | 'epic' | 'gog';
   name: string;
   authenticated: boolean;
+  sync: StoreSyncState;
+  accountCount: number;
+  entitlementCount: number;
+  linkedGameCount: number;
+}
+
+export interface StoreSyncState {
+  status: 'authorization_required' | 'ready' | 'syncing' | 'error';
+  lastSyncAt?: number | null;
+  errorMessage?: string | null;
 }
 
 export interface StoreAccount {

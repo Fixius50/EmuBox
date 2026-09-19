@@ -286,6 +286,19 @@ impl DatabaseService {
             CREATE INDEX IF NOT EXISTS idx_store_links_canonical
                 ON store_game_links(canonical_game_id);
 
+            CREATE TABLE IF NOT EXISTS store_provider_states (
+                provider TEXT PRIMARY KEY,
+                status TEXT NOT NULL CHECK(status IN ('authorization_required', 'ready', 'syncing', 'error')),
+                last_sync_at INTEGER,
+                error_message TEXT,
+                updated_at INTEGER NOT NULL
+            );
+
+            INSERT OR IGNORE INTO store_provider_states(provider,status,updated_at) VALUES
+                ('steam','authorization_required',0),
+                ('epic','authorization_required',0),
+                ('gog','authorization_required',0);
+
             CREATE TABLE IF NOT EXISTS game_database_sources (
                 platform_id TEXT PRIMARY KEY,
                 authority TEXT NOT NULL,

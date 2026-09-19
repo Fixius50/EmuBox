@@ -1,10 +1,13 @@
 use crate::{
     errors::EmuBoxError,
-    models::{StoreAccount, StoreEntitlement, StoreProviderInfo},
+    models::{StoreAccount, StoreEntitlement, StoreProviderInfo, StoreSyncState},
     services::{db_service::DatabaseService, paths},
 };
 use rusqlite::OptionalExtension;
-use std::{collections::BTreeSet, path::PathBuf};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::PathBuf,
+};
 
 pub trait StoreProvider {
     fn id(&self) -> &'static str;
@@ -24,7 +27,6 @@ impl StoreProvider for BuiltInStoreProvider {
     fn name(&self) -> &'static str {
         self.name
     }
-
 }
 
 const PROVIDERS: [BuiltInStoreProvider; 3] = [
@@ -54,13 +56,54 @@ impl StoreService {
             .map_err(storage_error)?
             .collect::<Result<BTreeSet<_>, _>>()
             .map_err(storage_error)?;
+        let states = connection
+            .prepare("SELECT provider,status,last_sync_at,error_message FROM store_provider_states")
+            .map_err(storage_error)?
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    StoreSyncState {
+                        status: row.get(1)?,
+                        last_sync_at: row.get(2)?,
+                        error_message: row.get(3)?,
+                    },
+                ))
+            })
+            .map_err(storage_error)?
+            .collect::<Result<BTreeMap<_, _>, _>>()
+            .map_err(storage_error)?;
+        let counts = connection
+            .prepare("SELECT entitlement.provider,COUNT(DISTINCT entitlement.store_account_id),COUNT(*),COUNT(DISTINCT link.canonical_game_id) FROM store_entitlements AS entitlement LEFT JOIN store_game_links AS link ON link.provider=entitlement.provider AND link.external_game_id=entitlement.external_game_id GROUP BY entitlement.provider")
+            .map_err(storage_error)?
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    (row.get::<_, u32>(1)?, row.get::<_, u32>(2)?, row.get::<_, u32>(3)?),
+                ))
+            })
+            .map_err(storage_error)?
+            .collect::<Result<BTreeMap<_, _>, _>>()
+            .map_err(storage_error)?;
         Ok(PROVIDERS
             .iter()
             .map(|provider| {
+                let (account_count, entitlement_count, linked_game_count) =
+                    counts.get(provider.id()).copied().unwrap_or_default();
                 StoreProviderInfo {
                     id: provider.id().into(),
                     name: provider.name().into(),
                     authenticated: authenticated.contains(provider.id()),
+                    sync: states
+                        .get(provider.id())
+                        .cloned()
+                        .unwrap_or(StoreSyncState {
+                            status: "authorization_required".into(),
+                            last_sync_at: None,
+                            error_message: None,
+                        }),
+                    account_count,
+                    entitlement_count,
+                    linked_game_count,
                 }
             })
             .collect())
@@ -173,5 +216,36 @@ mod tests {
         for forbidden in ["password", "token", "cookie", "secret"] {
             assert!(!columns.iter().any(|column| column.contains(forbidden)));
         }
+    }
+
+    #[test]
+    fn provider_summary_and_entitlement_keep_canonical_links_explicit() {
+        let connection = DatabaseService::get_connection().unwrap();
+        connection.execute("INSERT OR IGNORE INTO systems(id,name,short_name,manufacturer,generation,release_year,color,icon,default_emulator_id,extensions_json) VALUES ('store-test','Store test','Store','EmuBox',0,2026,'#000000','store','', '[]')", []).unwrap();
+        connection.execute("INSERT OR IGNORE INTO canonical_games(id,authority,authority_id,title,normalized_title,platform_id,updated_at) VALUES ('store-canonical','fixture','store-canonical','Store fixture','store fixture','store-test',0)", []).unwrap();
+        connection.execute("INSERT OR REPLACE INTO store_accounts(id,provider,external_account_id,display_name,status) VALUES ('store-account','steam','fixture-account','Fixture account','authenticated')", []).unwrap();
+        connection.execute("INSERT OR REPLACE INTO store_games(provider,external_game_id,title,updated_at) VALUES ('steam','fixture-game','Fixture game',0)", []).unwrap();
+        connection.execute("INSERT OR REPLACE INTO store_entitlements(store_account_id,provider,external_game_id,owned,installed,last_seen_at) VALUES ('store-account','steam','fixture-game',1,0,0)", []).unwrap();
+        connection.execute("INSERT OR REPLACE INTO store_game_links(provider,external_game_id,canonical_game_id) VALUES ('steam','fixture-game','store-canonical')", []).unwrap();
+
+        let steam = StoreService::providers()
+            .unwrap()
+            .into_iter()
+            .find(|provider| provider.id == "steam")
+            .unwrap();
+        assert!(steam.authenticated);
+        assert!(steam.account_count >= 1);
+        assert!(steam.entitlement_count >= 1);
+        assert!(steam.linked_game_count >= 1);
+        assert_eq!(steam.sync.status, "authorization_required");
+
+        let entitlement = StoreService::entitlements("store-account")
+            .unwrap()
+            .pop()
+            .unwrap();
+        assert_eq!(
+            entitlement.canonical_game_id.as_deref(),
+            Some("store-canonical")
+        );
     }
 }

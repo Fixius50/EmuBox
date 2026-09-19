@@ -2,8 +2,9 @@ import type { SystemSettings, Emulator } from "./game.types";
 import type { SystemStore } from "@stores/system.store";
 import type { SoundFxService } from "@services/audio/sound-fx.service";
 import type { InputAction } from "./input.types";
+import type { IEmuBoxBackend } from "./backend.types";
 
-export type SettingsTabId = "system" | "emulators" | "audio" | "gamepad";
+export type SettingsTabId = "system" | "emulators" | "audio" | "gamepad" | "stores";
 
 export interface TabItem {
   id: SettingsTabId;
@@ -37,6 +38,12 @@ export const SETTINGS_TABS: readonly TabItem[] = [
     tag: "PAD",
     desc: "Dispositivos Conectados",
   },
+  {
+    id: "stores",
+    name: "Tiendas",
+    tag: "STORE",
+    desc: "Bibliotecas y cuentas externas",
+  },
 ] as const;
 
 export interface GamepadDeviceInfo {
@@ -57,6 +64,7 @@ export interface UseSettingsControllerOptions {
 export interface UseSettingsNavigationOptions {
   soundFx: SoundFxService;
   emulatorCount: () => number;
+  storeProviderCount?: () => number;
   activeSettingsTab: () => string;
   settingsFocusArea: () => "sidebar" | "content";
   settingsRowIndex: () => number;
@@ -116,6 +124,7 @@ export interface SettingsViewProps {
   onNavigate?: (action: InputAction) => void;
   settings?: SystemSettings;
   emulators?: Emulator[];
+  storeBackend?: IEmuBoxBackend;
   activeTab?: string;
   focusArea?: "sidebar" | "content";
   focusedRowIndex?: number;

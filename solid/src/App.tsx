@@ -115,6 +115,7 @@ const NativeApp: Component = () => {
   const handleSettingsAction = useSettingsNavigation({
     soundFx,
     emulatorCount: () => systemStore.emulators().length,
+    storeProviderCount: () => 3,
     activeSettingsTab,
     onSettingsTabChange: (tab) => {
       setActiveSettingsTab(tab);
@@ -305,6 +306,7 @@ const NativeApp: Component = () => {
           }}
           settings={systemStore.settings()}
           emulators={systemStore.emulators()}
+          storeBackend={backend}
           activeTab={activeSettingsTab()}
           focusArea={settingsFocusArea()}
           focusedRowIndex={settingsRowIndex()}

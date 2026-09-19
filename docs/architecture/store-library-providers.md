@@ -14,6 +14,7 @@ Una cuenta de EmuBox nunca equivale a una cuenta de tienda. La capa no acepta ni
 - `store_games`: identificador externo y metadatos estructurados de tienda.
 - `store_entitlements`: propiedad e instalacion por cuenta.
 - `store_game_links`: enlace explicito desde `(provider, external_game_id)` a `canonical_games`.
+- `store_provider_states`: estado local de sincronizacion, ultimo intento y error seguro de presentar.
 
 No hay matching textual automatico desde una tienda a una identidad canonica. Una misma identidad canonica puede tener enlaces de varias tiendas.
 
@@ -25,7 +26,7 @@ Los juegos ejecutados con Bubblewrap no reciben `/var/lib/emubox/stores`, la bas
 
 ## Estado actual
 
-La primera fase registra Steam, Epic y GOG, expone consultas IPC de proveedores/cuentas/entitlements y reserva la persistencia. No implementa login, importacion de sesiones, scraping ni tokens. Cada proveedor debe incorporar despues un flujo autorizado propio sin compartir contrasenas con EmuBox.
+La primera fase registra Steam, Epic y GOG, expone consultas IPC de proveedores/cuentas/entitlements y reserva la persistencia. Ajustes muestra cuentas, licencias y enlaces canonicos ya persistidos; los proveedores sin integracion aprobada aparecen como `authorization_required`. No implementa login, importacion de sesiones, scraping ni tokens. Cada proveedor debe incorporar despues un flujo autorizado propio sin compartir contrasenas con EmuBox.
 
 ## Investigacion de autenticacion
 

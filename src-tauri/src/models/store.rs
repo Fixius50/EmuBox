@@ -6,6 +6,18 @@ pub struct StoreProviderInfo {
     pub id: String,
     pub name: String,
     pub authenticated: bool,
+    pub sync: StoreSyncState,
+    pub account_count: u32,
+    pub entitlement_count: u32,
+    pub linked_game_count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoreSyncState {
+    pub status: String,
+    pub last_sync_at: Option<i64>,
+    pub error_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

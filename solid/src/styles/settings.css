@@ -346,6 +346,129 @@
   gap: 0.875rem;
 }
 
+.store-tab-panel {
+  max-inline-size: 62rem;
+}
+
+.store-security-indicator,
+.store-provider-metrics,
+.store-account-list {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.store-security-indicator {
+  color: #73e6be;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.store-provider-list {
+  display: grid;
+  gap: 0.875rem;
+}
+
+.store-provider-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 0.0625rem solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--border-radius-lg);
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.store-provider-card.focused,
+.store-provider-card:hover {
+  background: rgba(20, 35, 65, 0.85);
+  border-color: #00f0ff;
+  box-shadow: 0 0 1.25rem rgba(0, 240, 255, 0.28);
+}
+
+.store-provider-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.store-provider-heading h4,
+.store-provider-heading p,
+.store-provider-note,
+.store-provider-error {
+  margin: 0;
+}
+
+.store-provider-heading h4 {
+  color: #fff;
+  font-size: 0.9375rem;
+}
+
+.store-provider-heading p,
+.store-provider-note {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.store-provider-icon {
+  color: #00f0ff;
+}
+
+.store-status-chip {
+  margin-inline-start: auto;
+  border: 0.0625rem solid rgba(245, 158, 11, 0.55);
+  color: #fbbf24;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--border-radius-sm);
+}
+
+.store-status-chip.ready { color: #73e6be; border-color: rgba(115, 230, 190, 0.55); }
+.store-status-chip.error, .store-provider-error { color: #fca5a5; border-color: rgba(252, 165, 165, 0.55); }
+
+.store-provider-metrics {
+  color: #b8c5d8;
+  font-size: 0.75rem;
+  margin: 0.875rem 0 0.625rem;
+}
+
+.store-provider-metrics span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.store-account-chip {
+  color: #d8f7ff;
+  background: rgba(0, 240, 255, 0.1);
+  border: 0.0625rem solid rgba(0, 240, 255, 0.3);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.6875rem;
+  padding: 0.1875rem 0.4375rem;
+}
+
+.store-provider-error {
+  border-inline-start: 0.1875rem solid currentColor;
+  font-size: 0.75rem;
+  margin-block-start: 0.75rem;
+  padding-inline-start: 0.5rem;
+}
+
+.store-empty-state {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: var(--text-secondary);
+  min-block-size: 8rem;
+  justify-content: center;
+}
+
+.store-error-state { color: #fca5a5; }
+.store-loading-icon { animation: store-spin 1s linear infinite; }
+
+@keyframes store-spin { to { transform: rotate(360deg); } }
+
 .cyber-emulator-blade {
   background: rgba(15, 23, 42, 0.7);
   border: 0.0625rem solid rgba(255, 255, 255, 0.12);

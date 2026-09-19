@@ -56,7 +56,9 @@ export function useSettingsNavigation(options: UseSettingsNavigationOptions) {
           ? Math.max(1, options.emulatorCount())
           : tab === "gamepad"
             ? 6
-            : 2;
+            : tab === "stores"
+              ? Math.max(1, options.storeProviderCount?.() ?? 3)
+              : 2;
     switch (action) {
       case "NAV_DOWN":
       case "NAV_UP":
