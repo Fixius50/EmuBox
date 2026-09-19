@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 log_step "Creando jerarquía de directorios XDG..."
 
 mkdir -p "${EMUBOX_CONFIG_DIR}" "${EMUBOX_RUNTIME_DIR}"
-mkdir -p "${EMUBOX_DATA_DIR}"/{games,emulators,bios,saves,states,screenshots}
+mkdir -p "${EMUBOX_DATA_DIR}"/{games,emulators,bios,saves,states,screenshots,stores}
 mkdir -p "${EMUBOX_DATA_DIR}"/games/{snes,ps1,ps2,ps3,n64,genesis,gba,dreamcast,arcade,gamecube,wii,wiiu,psp,nds}
 mkdir -p "${EMUBOX_CACHE_DIR}"/{shaders,metadata,covers,downloads}
 mkdir -p "${EMUBOX_LOGS_DIR}"

@@ -17,7 +17,7 @@ echo "  -> Creando estructura de directorios del appliance..."
 mkdir -p "${EMUBOX_CONFIG_DIR}" "${EMUBOX_RUNTIME_DIR}"
 
 # 2. Persistent data and console game folders
-mkdir -p "${EMUBOX_DATA_DIR}"/{games,emulators,bios,saves,states,screenshots}
+mkdir -p "${EMUBOX_DATA_DIR}"/{games,emulators,bios,saves,states,screenshots,stores}
 mkdir -p "${EMUBOX_DATA_DIR}"/games/{snes,ps1,ps2,ps3,n64,genesis,gba,dreamcast,arcade,gamecube,wii,wiiu,psp,nds}
 
 # 3. Regenerable cache and temporary downloads

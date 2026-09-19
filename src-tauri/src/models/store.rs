@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 pub struct StoreProviderInfo {
     pub id: String,
     pub name: String,
-    pub session_directory: String,
     pub authenticated: bool,
 }
 

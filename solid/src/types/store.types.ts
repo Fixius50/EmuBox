@@ -1,7 +1,6 @@
 export interface StoreProviderInfo {
   id: 'steam' | 'epic' | 'gog';
   name: string;
-  sessionDirectory: string;
   authenticated: boolean;
 }
 

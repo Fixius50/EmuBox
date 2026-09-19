@@ -9,7 +9,6 @@ use std::{collections::BTreeSet, path::PathBuf};
 pub trait StoreProvider {
     fn id(&self) -> &'static str;
     fn name(&self) -> &'static str;
-    fn detect(&self) -> bool;
 }
 
 struct BuiltInStoreProvider {
@@ -26,9 +25,6 @@ impl StoreProvider for BuiltInStoreProvider {
         self.name
     }
 
-    fn detect(&self) -> bool {
-        StoreService::session_directory(self.id()).is_ok_and(|directory| directory.is_dir())
-    }
 }
 
 const PROVIDERS: [BuiltInStoreProvider; 3] = [
@@ -61,13 +57,10 @@ impl StoreService {
         Ok(PROVIDERS
             .iter()
             .map(|provider| {
-                let session_directory =
-                    Self::session_directory(provider.id()).expect("built-in provider");
                 StoreProviderInfo {
                     id: provider.id().into(),
                     name: provider.name().into(),
                     authenticated: authenticated.contains(provider.id()),
-                    session_directory: session_directory.to_string_lossy().into_owned(),
                 }
             })
             .collect())

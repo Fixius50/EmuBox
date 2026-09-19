@@ -435,7 +435,8 @@ mkdir -p \
     /var/lib/emubox/saves \
     /var/lib/emubox/states \
     /var/lib/emubox/bios \
-    /var/lib/emubox/screenshots
+    /var/lib/emubox/screenshots \
+    /var/lib/emubox/stores
 
 mkdir -p /etc/emubox /var/cache/emubox/{shaders,metadata,covers,downloads} /var/log/emubox /run/emubox
 

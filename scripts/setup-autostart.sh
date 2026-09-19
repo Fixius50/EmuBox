@@ -61,7 +61,7 @@ echo ""
 echo "[1/5] Preparando directorios del sistema, permisos y grupos de entrada..."
 
 mkdir -p /etc/emubox
-mkdir -p /var/lib/emubox/{emulators,games,saves,states,bios,screenshots}
+mkdir -p /var/lib/emubox/{emulators,games,saves,states,bios,screenshots,stores}
 if [[ -d /var/lib/emubox/roms && ! -L /var/lib/emubox/roms ]]; then
   echo "[ERROR] Migra /var/lib/emubox/roms a games antes de configurar el enlace. No se han borrado datos." >&2
   exit 1

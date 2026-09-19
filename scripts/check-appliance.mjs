@@ -44,7 +44,8 @@ export function collectApplianceFacts() {
       .filter(pid => /^\d+$/.test(pid))
       .some(pid => isCompositorCommand(readable(`/proc/${pid}/cmdline`).split('\0'))));
   const directories = ['/etc/emubox', '/var/lib/emubox', '/var/lib/emubox/games',
-    '/var/lib/emubox/saves', '/var/lib/emubox/states', '/var/cache/emubox', '/var/log/emubox', '/run/emubox'];
+    '/var/lib/emubox/saves', '/var/lib/emubox/states', '/var/lib/emubox/stores',
+    '/var/cache/emubox', '/var/log/emubox', '/run/emubox'];
   const directoryAccess = directories.map(directory => ({
     path: directory,
     writable: accessible(directory, constants.R_OK | constants.W_OK | constants.X_OK),
