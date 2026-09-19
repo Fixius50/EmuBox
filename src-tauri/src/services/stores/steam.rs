@@ -61,7 +61,7 @@ pub(super) fn start_authorization() -> Result<(), EmuBoxError> {
         .map_err(|_| {
             EmuBoxError::ProcessFailed("No se pudo abrir la autorizacion de Steam".into())
         })?;
-    set_authorization("connected")
+    set_state("authorization_required", None, None)
 }
 
 pub(super) fn complete_authorization(steam_id: String, api_key: String) -> Result<(), EmuBoxError> {
@@ -90,7 +90,7 @@ pub(super) fn complete_authorization(steam_id: String, api_key: String) -> Resul
         .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?
         .write_all(payload.to_string().as_bytes())
         .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
-    set_state("authorization_required", None, None)
+    set_authorization("connected")
 }
 
 pub(super) fn sync_library() -> Result<StoreSyncResult, EmuBoxError> {

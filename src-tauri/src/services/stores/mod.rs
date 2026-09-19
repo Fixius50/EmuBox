@@ -288,6 +288,7 @@ mod tests {
         connection.execute("INSERT OR REPLACE INTO store_games(provider,external_game_id,title,updated_at) VALUES ('steam','fixture-game','Fixture game',0)", []).unwrap();
         connection.execute("INSERT OR REPLACE INTO store_entitlements(store_account_id,provider,external_game_id,owned,installed,last_seen_at) VALUES ('store-account','steam','fixture-game',1,0,0)", []).unwrap();
         connection.execute("INSERT OR REPLACE INTO store_game_links(provider,external_game_id,canonical_game_id) VALUES ('steam','fixture-game','store-canonical')", []).unwrap();
+        connection.execute("UPDATE store_provider_states SET status='authorization_required',authorization_status='connected',error_message=NULL WHERE provider='steam'", []).unwrap();
 
         let steam = StoreService::providers()
             .unwrap()
@@ -299,6 +300,7 @@ mod tests {
         assert!(steam.entitlement_count >= 1);
         assert!(steam.linked_game_count >= 1);
         assert_eq!(steam.sync.status, "authorization_required");
+        assert_eq!(steam.sync.authorization_status, "connected");
 
         let entitlement = StoreService::entitlements("store-account")
             .unwrap()

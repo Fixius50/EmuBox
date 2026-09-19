@@ -34,7 +34,7 @@ pub(super) fn start_authorization() -> Result<(), EmuBoxError> {
         .map_err(|_| {
             EmuBoxError::ProcessFailed("No se pudo abrir la autorizacion de GOG".into())
         })?;
-    set_authorization("connected")
+    set_state("authorization_required", None, None)
 }
 
 pub(super) fn complete_authorization(code: String) -> Result<(), EmuBoxError> {
@@ -48,7 +48,7 @@ pub(super) fn complete_authorization(code: String) -> Result<(), EmuBoxError> {
         &code,
         "GOG no pudo completar la autorizacion",
     )?;
-    set_state("authorization_required", None, None)
+    set_authorization("connected")
 }
 
 pub(super) fn sync_library() -> Result<StoreSyncResult, EmuBoxError> {
