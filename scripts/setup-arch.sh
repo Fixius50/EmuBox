@@ -453,6 +453,7 @@ chown -R "${EMUBOX_USER}:${EMUBOX_GROUP}" \
     /var/cache/emubox \
     /var/log/emubox \
     /run/emubox
+chmod 0700 /var/lib/emubox/stores
 
 log_ok "Estructura de datos creada."
 

@@ -28,6 +28,7 @@ mkdir -p "${EMUBOX_LOGS_DIR}"
 
 # 5. Correct permissions
 chmod 755 "${EMUBOX_CONFIG_DIR}" "${EMUBOX_DATA_DIR}" "${EMUBOX_CACHE_DIR}" "${EMUBOX_LOGS_DIR}" "${EMUBOX_RUNTIME_DIR}"
+chmod 700 "${EMUBOX_DATA_DIR}/stores"
 
 echo "  ✓ Directorio de configuración: ${EMUBOX_CONFIG_DIR}"
 echo "  ✓ Directorio de ROMs y datos:   ${EMUBOX_DATA_DIR}"

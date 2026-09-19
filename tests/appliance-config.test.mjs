@@ -48,6 +48,8 @@ assert.ok(!setup.includes('systemctl enable emubox.service'));
 for (const source of [setup, autostart]) assert.ok(!source.includes('rm -rf /var/lib/emubox/roms'));
 assert.ok(setup.includes('/var/lib/emubox/stores'));
 assert.ok(autostart.includes('/var/lib/emubox/{emulators,games,saves,states,bios,screenshots,stores}'));
+assert.ok(setup.includes('chmod 0700 /var/lib/emubox/stores'));
+assert.ok(autostart.includes('chmod 0700 /var/lib/emubox/stores'));
 for (const name of ['emubox', 'emubox-launcher']) {
   const script = heredoc(setup, `cat > /usr/local/bin/${name} <<'EOF'\n`);
   assert.ok(script.includes('exec bash /opt/emubox/scripts/run.sh "$@"'));

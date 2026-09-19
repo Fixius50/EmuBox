@@ -20,5 +20,6 @@ mkdir -p "${EMUBOX_CACHE_DIR}"/{shaders,metadata,covers,downloads}
 mkdir -p "${EMUBOX_LOGS_DIR}"
 
 chmod 755 "${EMUBOX_CONFIG_DIR}" "${EMUBOX_DATA_DIR}" "${EMUBOX_CACHE_DIR}" "${EMUBOX_LOGS_DIR}" "${EMUBOX_RUNTIME_DIR}"
+chmod 700 "${EMUBOX_DATA_DIR}/stores"
 
 log_ok "Directorios XDG inicializados correctamente."

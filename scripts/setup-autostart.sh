@@ -74,6 +74,7 @@ chown -R "$EMUBOX_USER:$EMUBOX_USER" /var/lib/emubox
 chown -R "$EMUBOX_USER:$EMUBOX_USER" /var/cache/emubox /run/emubox
 chown -R "$EMUBOX_USER:$EMUBOX_USER" /etc/emubox
 chown -R "$EMUBOX_USER:$EMUBOX_USER" /var/log/emubox
+chmod 0700 /var/lib/emubox/stores
 chmod -R 755 /var/log/emubox
 
 mkdir -p /etc/tmpfiles.d
