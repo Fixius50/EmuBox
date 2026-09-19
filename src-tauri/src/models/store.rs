@@ -22,6 +22,14 @@ pub struct StoreSyncState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct StoreSyncResult {
+    pub provider: String,
+    pub imported_games: u32,
+    pub installed_games: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StoreAccount {
     pub id: String,
     pub provider: String,

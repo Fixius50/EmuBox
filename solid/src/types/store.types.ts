@@ -14,6 +14,12 @@ export interface StoreSyncState {
   errorMessage?: string | null;
 }
 
+export interface StoreSyncResult {
+  provider: StoreProviderInfo['id'];
+  importedGames: number;
+  installedGames: number;
+}
+
 export interface StoreAccount {
   id: string;
   provider: StoreProviderInfo['id'];

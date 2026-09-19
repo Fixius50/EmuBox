@@ -26,6 +26,7 @@ REQUIRED_PACKAGES=(
   "mesa-utils"
   "xdg-user-dirs"
   "libevdev"
+  "python-pip"
 )
 
 log_step "Comprobando e instalando paquetes necesarios..."

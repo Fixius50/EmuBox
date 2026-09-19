@@ -1,6 +1,8 @@
+mod epic;
+
 use crate::{
     errors::EmuBoxError,
-    models::{StoreAccount, StoreEntitlement, StoreProviderInfo, StoreSyncState},
+    models::{StoreAccount, StoreEntitlement, StoreProviderInfo, StoreSyncResult, StoreSyncState},
     services::{db_service::DatabaseService, paths},
 };
 use rusqlite::OptionalExtension;
@@ -47,6 +49,18 @@ const PROVIDERS: [BuiltInStoreProvider; 3] = [
 pub struct StoreService;
 
 impl StoreService {
+    pub fn start_epic_authorization() -> Result<(), EmuBoxError> {
+        epic::start_authorization()
+    }
+
+    pub fn sync_epic_library() -> Result<StoreSyncResult, EmuBoxError> {
+        epic::sync_library()
+    }
+
+    pub fn disconnect_epic() -> Result<(), EmuBoxError> {
+        epic::disconnect()
+    }
+
     pub fn providers() -> Result<Vec<StoreProviderInfo>, EmuBoxError> {
         let connection = DatabaseService::get_connection()?;
         let authenticated = connection

@@ -1,6 +1,6 @@
 use crate::{
     errors::EmuBoxError,
-    models::{StoreAccount, StoreEntitlement, StoreProviderInfo},
+    models::{StoreAccount, StoreEntitlement, StoreProviderInfo, StoreSyncResult},
     services::StoreService,
 };
 
@@ -17,4 +17,19 @@ pub fn get_store_accounts() -> Result<Vec<StoreAccount>, EmuBoxError> {
 #[tauri::command]
 pub fn get_store_entitlements(account_id: String) -> Result<Vec<StoreEntitlement>, EmuBoxError> {
     StoreService::entitlements(&account_id)
+}
+
+#[tauri::command]
+pub async fn start_epic_authorization() -> Result<(), EmuBoxError> {
+    super::blocking(StoreService::start_epic_authorization).await
+}
+
+#[tauri::command]
+pub async fn sync_epic_library() -> Result<StoreSyncResult, EmuBoxError> {
+    super::blocking(StoreService::sync_epic_library).await
+}
+
+#[tauri::command]
+pub async fn disconnect_epic() -> Result<(), EmuBoxError> {
+    super::blocking(StoreService::disconnect_epic).await
 }

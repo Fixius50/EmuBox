@@ -178,6 +178,7 @@ BASE_PACKAGES=(
     xz
     pkgconf
     openssl
+    python-pip
     ca-certificates
     nano
     sudo

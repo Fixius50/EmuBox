@@ -1,5 +1,6 @@
-import { Component, createResource, For, Show } from "solid-js";
+import { Component, createResource, createSignal, For, Show } from "solid-js";
 import { CloudOff, Link2, RefreshCw, ShieldCheck, Store } from "lucide-solid";
+import { ConsoleButton } from "@components/common/ConsoleButton";
 import type { IEmuBoxBackend } from "@contracts/backend.types";
 import type { StoreAccount, StoreProviderInfo } from "@contracts/store.types";
 
@@ -17,7 +18,9 @@ const syncLabel = (provider: StoreProviderInfo) => {
 };
 
 export const StoresTab: Component<StoresTabProps> = (props) => {
-  const [library] = createResource(async () => {
+  const [epicBusy, setEpicBusy] = createSignal(false);
+  const [epicMessage, setEpicMessage] = createSignal("");
+  const [library, { refetch }] = createResource(async () => {
     if (!props.backend) throw new Error("Backend de tiendas no disponible");
     const [providers, accounts] = await Promise.all([
       props.backend.getStoreProviders(),
@@ -27,6 +30,29 @@ export const StoresTab: Component<StoresTabProps> = (props) => {
   });
   const accountsFor = (provider: string): StoreAccount[] =>
     library()?.accounts.filter((account) => account.provider === provider) ?? [];
+  const runEpic = async (action: "authorize" | "sync" | "disconnect") => {
+    if (!props.backend || epicBusy()) return;
+    setEpicBusy(true);
+    setEpicMessage("");
+    try {
+      if (action === "authorize") {
+        await props.backend.startEpicAuthorization();
+        setEpicMessage("Completa el inicio de sesión en la terminal y después sincroniza.");
+      } else if (action === "sync") {
+        const result = await props.backend.syncEpicLibrary();
+        setEpicMessage(`${result.importedGames} juegos de Epic sincronizados.`);
+      } else {
+        await props.backend.disconnectEpic();
+        setEpicMessage("Sesión de Epic cerrada.");
+      }
+      await refetch();
+    } catch {
+      setEpicMessage("La operación Epic no se completó. Revisa que el adaptador esté instalado y la sesión siga activa.");
+      await refetch();
+    } finally {
+      setEpicBusy(false);
+    }
+  };
 
   return (
     <div class="settings-tab-panel store-tab-panel">
@@ -75,6 +101,16 @@ export const StoresTab: Component<StoresTabProps> = (props) => {
                   </Show>
                   <Show when={provider.sync.errorMessage}>
                     <p class="store-provider-error">{provider.sync.errorMessage}</p>
+                  </Show>
+                  <Show when={provider.id === "epic"}>
+                    <div class="store-actions">
+                      <ConsoleButton label={epicBusy() ? "ESPERA..." : "CONECTAR EPIC"} variant="action" onClick={() => void runEpic("authorize")} />
+                      <ConsoleButton label="SINCRONIZAR" variant="action" onClick={() => void runEpic("sync")} />
+                      <ConsoleButton label="CERRAR SESIÓN" variant="action" onClick={() => void runEpic("disconnect")} />
+                    </div>
+                    <Show when={epicMessage()}>
+                      <p class="store-provider-note">{epicMessage()}</p>
+                    </Show>
                   </Show>
                 </article>
               )}

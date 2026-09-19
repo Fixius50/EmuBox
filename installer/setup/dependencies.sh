@@ -32,6 +32,7 @@ CORE_PKGS=(
   "unshield"
   "bubblewrap"
   "util-linux"
+  "python-pip"
 )
 
 echo "  -> Comprobando gestor de paquetes de Arch Linux (pacman)..."

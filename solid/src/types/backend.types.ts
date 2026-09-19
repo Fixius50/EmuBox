@@ -48,7 +48,7 @@ import type {
   UpdateChannel
 } from './update.types';
 import type { CreateDownloadRequest, DownloadJob, DownloadSource } from './download.types';
-import type { StoreAccount, StoreEntitlement, StoreProviderInfo } from './store.types';
+import type { StoreAccount, StoreEntitlement, StoreProviderInfo, StoreSyncResult } from './store.types';
 
 export * from './system.types';
 export * from './storage.types';
@@ -181,6 +181,9 @@ export interface IEmuBoxBackend {
   getStoreProviders(): Promise<StoreProviderInfo[]>;
   getStoreAccounts(): Promise<StoreAccount[]>;
   getStoreEntitlements(accountId: string): Promise<StoreEntitlement[]>;
+  startEpicAuthorization(): Promise<void>;
+  syncEpicLibrary(): Promise<StoreSyncResult>;
+  disconnectEpic(): Promise<void>;
 
   // 9. Diagnóstico, Terminal & Logs
   getSystemLogs(limit?: number): Promise<LogEntry[]>;

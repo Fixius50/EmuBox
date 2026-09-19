@@ -27,7 +27,7 @@ import type {
   UpdateChannel
 } from '@contracts/backend.types';
 import type { CreateDownloadRequest, DownloadJob, DownloadSource } from '@contracts/download.types';
-import type { StoreAccount, StoreEntitlement, StoreProviderInfo } from '@contracts/store.types';
+import type { StoreAccount, StoreEntitlement, StoreProviderInfo, StoreSyncResult } from '@contracts/store.types';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { StartupData, StartupReport } from '@contracts/startup.types';
 import { recordUiEvent, type FrontendLogEvent } from '@services/system/telemetry';
@@ -117,6 +117,18 @@ export class TauriBackendService implements IEmuBoxBackend {
 
   public getStoreEntitlements(accountId: string): Promise<StoreEntitlement[]> {
     return this.invoke('get_store_entitlements', { accountId });
+  }
+
+  public startEpicAuthorization(): Promise<void> {
+    return this.invoke('start_epic_authorization');
+  }
+
+  public syncEpicLibrary(): Promise<StoreSyncResult> {
+    return this.invoke('sync_epic_library');
+  }
+
+  public disconnectEpic(): Promise<void> {
+    return this.invoke('disconnect_epic');
   }
 
   public async saveSettings(settings: SystemSettings): Promise<boolean> {

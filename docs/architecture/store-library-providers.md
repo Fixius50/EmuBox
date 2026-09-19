@@ -26,7 +26,13 @@ Los juegos ejecutados con Bubblewrap no reciben `/var/lib/emubox/stores`, la bas
 
 ## Estado actual
 
-La primera fase registra Steam, Epic y GOG, expone consultas IPC de proveedores/cuentas/entitlements y reserva la persistencia. Ajustes muestra cuentas, licencias y enlaces canonicos ya persistidos. No implementa login, importacion de sesiones, scraping ni tokens. Los adaptadores futuros pueden usar componentes mantenidos de terceros en sus propios directorios privados, pero no pueden copiar sesiones de otro launcher ni secretos de cliente a EmuBox.
+Steam, Epic y GOG exponen consultas IPC de proveedores/cuentas/entitlements y reservan persistencia privada. Ajustes muestra cuentas, licencias y enlaces canonicos ya persistidos. Epic incorpora un adaptador Legendary; Steam y GOG conservan el registro y la persistencia a la espera de sus adaptadores especificos.
+
+### Epic mediante Legendary
+
+`scripts/setup-store-adapters.sh epic` instala `legendary-gl` versionada en un venv bajo `/var/lib/emubox/stores/epic/runtime`. El login se abre con `footclient` y ejecuta `legendary auth` dentro del directorio privado. No existe una casilla de contrasena, codigo, token ni cookie en la UI o IPC de EmuBox.
+
+Tras el login, EmuBox ejecuta `legendary status --json`, `legendary list --json` y `legendary list-installed --json`. Solo persiste identidad de cuenta, nombre de juego, identificador externo, estado de instalacion y marca temporal. El cierre usa `legendary auth --delete`. La opcion `legendary auth --import` queda excluida porque consume una sesion de Epic Games Launcher ajena y puede cerrarla.
 
 ## Investigacion de autenticacion
 
