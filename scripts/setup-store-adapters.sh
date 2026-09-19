@@ -20,20 +20,26 @@ case "${provider}" in
     ;;
   gog)
     root=/var/lib/emubox/stores/gog
-    package='https://github.com/Heroic-Games-Launcher/heroic-gogdl/archive/refs/tags/v1.3.0.zip'
     executable=gogdl
     ;;
 esac
 runtime="${root}/runtime"
 
 pacman -S --needed --noconfirm python-pip
-if [[ "${provider}" == "gog" ]]; then
-  pacman -S --needed --noconfirm xdelta3
-fi
 install -d -m 0700 -o "${user}" -g "${user}" "${root}"
 runuser -u "${user}" -- env HOME="${root}/home" XDG_CONFIG_HOME="${root}/config" \
   python3 -m venv "${runtime}"
-runuser -u "${user}" -- "${runtime}/bin/python" -m pip install --disable-pip-version-check --no-cache-dir \
-  "${package}"
+if [[ "${provider}" == "gog" ]]; then
+  build_dir="$(mktemp -d)"
+  trap 'rm -rf "${build_dir}"' EXIT
+  chown "${user}:${user}" "${build_dir}"
+  runuser -u "${user}" -- git clone --depth 1 --branch v1.3.0 --recurse-submodules \
+    https://github.com/Heroic-Games-Launcher/heroic-gogdl.git "${build_dir}/gogdl"
+  runuser -u "${user}" -- "${runtime}/bin/python" -m pip install --disable-pip-version-check --no-cache-dir \
+    "${build_dir}/gogdl"
+else
+  runuser -u "${user}" -- "${runtime}/bin/python" -m pip install --disable-pip-version-check --no-cache-dir \
+    "legendary-gl==0.21.1"
+fi
 chmod 0755 "${runtime}/bin/${executable}"
 printf '%s\n' "Adaptador ${provider} instalado en ${runtime}."

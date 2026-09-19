@@ -36,7 +36,7 @@ Tras el login, EmuBox ejecuta `legendary status --json`, `legendary list --json`
 
 ### GOG mediante gogdl
 
-`scripts/setup-store-adapters.sh gog` instala gogdl en `/var/lib/emubox/stores/gog/runtime`. La terminal de GOG abre el navegador, recibe el codigo por entrada estandar y llama al componente sin incluir el codigo como argumento o mensaje IPC. gogdl guarda y renueva `auth.json` bajo el mismo directorio privado.
+`scripts/setup-store-adapters.sh gog` instala la etiqueta `v1.3.0` de gogdl con sus submodulos en `/var/lib/emubox/stores/gog/runtime`. La distribucion ZIP no sirve para este componente porque omite su extension xdelta3. La terminal de GOG abre el navegador, recibe el codigo por entrada estandar y llama al componente sin incluir el codigo como argumento o mensaje IPC. gogdl guarda y renueva `auth.json` bajo el mismo directorio privado.
 
 La sincronizacion invoca `gogdl auth` solo dentro del backend para renovar la sesion y consulta la biblioteca paginada de Galaxy. El token se mantiene en memoria durante esa consulta; SQLite recibe solo cuenta, identificador externo, titulo disponible y entitlement. El cierre elimina `auth.json` y marca la cuenta como desconectada.
 
