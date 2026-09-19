@@ -58,22 +58,35 @@ pub(super) fn start_authorization() -> Result<(), EmuBoxError> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|_| EmuBoxError::ProcessFailed("No se pudo abrir la autorizacion de Steam".into()))?;
-    set_state("authorization_required", None, None)
+        .map_err(|_| {
+            EmuBoxError::ProcessFailed("No se pudo abrir la autorizacion de Steam".into())
+        })?;
+    set_authorization("connected")
 }
 
 pub(super) fn complete_authorization(steam_id: String, api_key: String) -> Result<(), EmuBoxError> {
     let root = steam_root()?;
     private_dir(&root)?;
     if !steam_id.chars().all(|character| character.is_ascii_digit()) || api_key.trim().is_empty() {
-        return Err(EmuBoxError::InvalidConfiguration("Datos Steam invalidos".into()));
+        return Err(EmuBoxError::InvalidConfiguration(
+            "Datos Steam invalidos".into(),
+        ));
     }
     let path = root.join("credentials.json");
-    if fs::symlink_metadata(&path).is_ok_and(|metadata| !metadata.is_file() || metadata.file_type().is_symlink()) {
-        return Err(EmuBoxError::ProcessFailed("Credenciales Steam inseguras".into()));
+    if fs::symlink_metadata(&path)
+        .is_ok_and(|metadata| !metadata.is_file() || metadata.file_type().is_symlink())
+    {
+        return Err(EmuBoxError::ProcessFailed(
+            "Credenciales Steam inseguras".into(),
+        ));
     }
     let payload = serde_json::json!({"steam_id": steam_id, "api_key": api_key});
-    fs::OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(path)
+    fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(path)
         .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?
         .write_all(payload.to_string().as_bytes())
         .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
@@ -167,7 +180,7 @@ pub(super) fn disconnect() -> Result<(), EmuBoxError> {
             [],
         )
         .map_err(storage_error)?;
-    connection.execute("UPDATE store_provider_states SET status='authorization_required',error_message=NULL,updated_at=?1 WHERE provider='steam'", [now]).map_err(storage_error)?;
+    connection.execute("UPDATE store_provider_states SET status='authorization_required',authorization_status='required',error_message=NULL,updated_at=?1 WHERE provider='steam'", [now]).map_err(storage_error)?;
     Ok(())
 }
 
@@ -284,6 +297,12 @@ fn set_state(
 ) -> Result<(), EmuBoxError> {
     let now = unix_time()?;
     DatabaseService::get_connection()?.execute("UPDATE store_provider_states SET status=?1,last_sync_at=?2,error_message=?3,updated_at=?4 WHERE provider='steam'", params![status, last_sync_at, error_message, now]).map_err(storage_error)?;
+    Ok(())
+}
+
+fn set_authorization(status: &str) -> Result<(), EmuBoxError> {
+    let now = unix_time()?;
+    DatabaseService::get_connection()?.execute("UPDATE store_provider_states SET authorization_status=?1,error_message=NULL,updated_at=?2 WHERE provider='steam'", params![status, now]).map_err(storage_error)?;
     Ok(())
 }
 

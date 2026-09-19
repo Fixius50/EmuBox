@@ -289,15 +289,11 @@ impl DatabaseService {
             CREATE TABLE IF NOT EXISTS store_provider_states (
                 provider TEXT PRIMARY KEY,
                 status TEXT NOT NULL CHECK(status IN ('authorization_required', 'ready', 'syncing', 'error')),
+                authorization_status TEXT NOT NULL DEFAULT 'required' CHECK(authorization_status IN ('required', 'connected')),
                 last_sync_at INTEGER,
                 error_message TEXT,
                 updated_at INTEGER NOT NULL
             );
-
-            INSERT OR IGNORE INTO store_provider_states(provider,status,updated_at) VALUES
-                ('steam','authorization_required',0),
-                ('epic','authorization_required',0),
-                ('gog','authorization_required',0);
 
             CREATE TABLE IF NOT EXISTS game_database_sources (
                 platform_id TEXT PRIMARY KEY,
@@ -348,6 +344,22 @@ impl DatabaseService {
         .map_err(|e| {
             EmuBoxError::StorageUnavailable(format!("Error al inicializar tablas en SQLite: {}", e))
         })?;
+
+        let has_authorization_status = conn
+            .prepare("PRAGMA table_info(store_provider_states)")
+            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?
+            .query_map([], |row| row.get::<_, String>(1))
+            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?
+            .iter()
+            .any(|column| column == "authorization_status");
+        if !has_authorization_status {
+            conn.execute_batch("ALTER TABLE store_provider_states ADD COLUMN authorization_status TEXT NOT NULL DEFAULT 'required' CHECK(authorization_status IN ('required', 'connected')); UPDATE store_provider_states SET authorization_status='connected' WHERE provider IN (SELECT DISTINCT provider FROM store_accounts WHERE status='authenticated');")
+                .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+        }
+        conn.execute_batch("INSERT OR IGNORE INTO store_provider_states(provider,status,authorization_status,updated_at) VALUES ('steam','authorization_required','required',0), ('epic','authorization_required','required',0), ('gog','authorization_required','required',0);")
+            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
 
         Ok(())
     }

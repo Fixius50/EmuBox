@@ -31,8 +31,10 @@ pub(super) fn start_authorization() -> Result<(), EmuBoxError> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|_| EmuBoxError::ProcessFailed("No se pudo abrir la autorizacion de GOG".into()))?;
-    set_state("authorization_required", None, None)
+        .map_err(|_| {
+            EmuBoxError::ProcessFailed("No se pudo abrir la autorizacion de GOG".into())
+        })?;
+    set_authorization("connected")
 }
 
 pub(super) fn complete_authorization(code: String) -> Result<(), EmuBoxError> {
@@ -40,7 +42,12 @@ pub(super) fn complete_authorization(code: String) -> Result<(), EmuBoxError> {
     private_dir(&root)?;
     require_gogdl()?;
     let script = "import contextlib,io,os,sys; from types import SimpleNamespace; from gogdl.auth import AuthorizationManager; code=sys.stdin.read().strip(); manager=AuthorizationManager(os.environ['GOG_AUTH_FILE']); args=SimpleNamespace(authorization_code=code,client_id=None,client_secret=None); out=io.StringIO();\nwith contextlib.redirect_stdout(out): manager.handle_cli(args, []);\nraise SystemExit(0 if code and '\"error\": true' not in out.getvalue().lower() else 1)";
-    private_python(&root, script, &code, "GOG no pudo completar la autorizacion")?;
+    private_python(
+        &root,
+        script,
+        &code,
+        "GOG no pudo completar la autorizacion",
+    )?;
     set_state("authorization_required", None, None)
 }
 
@@ -138,7 +145,7 @@ pub(super) fn disconnect() -> Result<(), EmuBoxError> {
             [],
         )
         .map_err(storage_error)?;
-    connection.execute("UPDATE store_provider_states SET status='authorization_required',error_message=NULL,updated_at=?1 WHERE provider='gog'", [now]).map_err(storage_error)?;
+    connection.execute("UPDATE store_provider_states SET status='authorization_required',authorization_status='required',error_message=NULL,updated_at=?1 WHERE provider='gog'", [now]).map_err(storage_error)?;
     Ok(())
 }
 
@@ -174,7 +181,12 @@ fn credentials(root: &Path) -> Result<Credentials, EmuBoxError> {
     })
 }
 
-fn private_python(root: &Path, script: &str, input: &str, message: &str) -> Result<(), EmuBoxError> {
+fn private_python(
+    root: &Path,
+    script: &str,
+    input: &str,
+    message: &str,
+) -> Result<(), EmuBoxError> {
     let mut child = Command::new(root.join("runtime/bin/python"))
         .args(["-c", script])
         .env("HOME", root.join("home"))
@@ -186,10 +198,17 @@ fn private_python(root: &Path, script: &str, input: &str, message: &str) -> Resu
         .stderr(Stdio::null())
         .spawn()
         .map_err(|_| EmuBoxError::ProcessFailed(message.into()))?;
-    child.stdin.take().ok_or_else(|| EmuBoxError::ProcessFailed(message.into()))?
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| EmuBoxError::ProcessFailed(message.into()))?
         .write_all(input.as_bytes())
         .map_err(|_| EmuBoxError::ProcessFailed(message.into()))?;
-    if !child.wait().map_err(|_| EmuBoxError::ProcessFailed(message.into()))?.success() {
+    if !child
+        .wait()
+        .map_err(|_| EmuBoxError::ProcessFailed(message.into()))?
+        .success()
+    {
         return Err(EmuBoxError::ProcessFailed(message.into()));
     }
     Ok(())
@@ -305,6 +324,12 @@ fn set_state(
 ) -> Result<(), EmuBoxError> {
     let now = unix_time()?;
     DatabaseService::get_connection()?.execute("UPDATE store_provider_states SET status=?1,last_sync_at=?2,error_message=?3,updated_at=?4 WHERE provider='gog'", params![status, last_sync_at, error_message, now]).map_err(storage_error)?;
+    Ok(())
+}
+
+fn set_authorization(status: &str) -> Result<(), EmuBoxError> {
+    let now = unix_time()?;
+    DatabaseService::get_connection()?.execute("UPDATE store_provider_states SET authorization_status=?1,error_message=NULL,updated_at=?2 WHERE provider='gog'", params![status, now]).map_err(storage_error)?;
     Ok(())
 }
 

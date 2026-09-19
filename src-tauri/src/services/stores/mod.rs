@@ -87,7 +87,10 @@ impl StoreService {
         steam::start_authorization()
     }
 
-    pub fn complete_steam_authorization(steam_id: String, api_key: String) -> Result<(), EmuBoxError> {
+    pub fn complete_steam_authorization(
+        steam_id: String,
+        api_key: String,
+    ) -> Result<(), EmuBoxError> {
         steam::complete_authorization(steam_id, api_key)
     }
 
@@ -109,15 +112,16 @@ impl StoreService {
             .collect::<Result<BTreeSet<_>, _>>()
             .map_err(storage_error)?;
         let states = connection
-            .prepare("SELECT provider,status,last_sync_at,error_message FROM store_provider_states")
+            .prepare("SELECT provider,status,authorization_status,last_sync_at,error_message FROM store_provider_states")
             .map_err(storage_error)?
             .query_map([], |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     StoreSyncState {
                         status: row.get(1)?,
-                        last_sync_at: row.get(2)?,
-                        error_message: row.get(3)?,
+                        authorization_status: row.get(2)?,
+                        last_sync_at: row.get(3)?,
+                        error_message: row.get(4)?,
                     },
                 ))
             })
@@ -150,6 +154,11 @@ impl StoreService {
                         .cloned()
                         .unwrap_or(StoreSyncState {
                             status: "authorization_required".into(),
+                            authorization_status: if authenticated.contains(provider.id()) {
+                                "connected".into()
+                            } else {
+                                "required".into()
+                            },
                             last_sync_at: None,
                             error_message: None,
                         }),

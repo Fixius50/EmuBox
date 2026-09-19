@@ -16,6 +16,7 @@ pub struct StoreProviderInfo {
 #[serde(rename_all = "camelCase")]
 pub struct StoreSyncState {
     pub status: String,
+    pub authorization_status: String,
     pub last_sync_at: Option<i64>,
     pub error_message: Option<String>,
 }

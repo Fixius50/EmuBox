@@ -10,6 +10,7 @@ export interface StoreProviderInfo {
 
 export interface StoreSyncState {
   status: 'authorization_required' | 'ready' | 'syncing' | 'error';
+  authorizationStatus: 'required' | 'connected';
   lastSyncAt?: number | null;
   errorMessage?: string | null;
 }

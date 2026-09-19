@@ -23,7 +23,9 @@ pub(super) fn start_authorization() -> Result<(), EmuBoxError> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|_| EmuBoxError::ProcessFailed("No se pudo abrir la autorizacion de Epic".into()))?;
+        .map_err(|_| {
+            EmuBoxError::ProcessFailed("No se pudo abrir la autorizacion de Epic".into())
+        })?;
     set_state("authorization_required", None, None)?;
     Ok(())
 }
@@ -33,8 +35,13 @@ pub(super) fn complete_authorization(code: String) -> Result<(), EmuBoxError> {
     private_dir(&root)?;
     require_legendary()?;
     let script = "import os,sys; from legendary.core import LegendaryCore; code=sys.stdin.read().strip(); core=LegendaryCore(os.environ['LEGENDARY_CONFIG_PATH']); ok=bool(code) and core.auth_code(code); core.exit(); raise SystemExit(0 if ok else 1)";
-    private_python(&root, script, &code, "Epic no pudo completar la autorizacion")?;
-    set_state("authorization_required", None, None)
+    private_python(
+        &root,
+        script,
+        &code,
+        "Epic no pudo completar la autorizacion",
+    )?;
+    set_authorization("connected")
 }
 
 pub(super) fn sync_library() -> Result<StoreSyncResult, EmuBoxError> {
@@ -147,7 +154,7 @@ pub(super) fn disconnect() -> Result<(), EmuBoxError> {
         )
         .map_err(storage_error)?;
     connection
-        .execute("UPDATE store_provider_states SET status='authorization_required',error_message=NULL,updated_at=?1 WHERE provider='epic'", [now])
+        .execute("UPDATE store_provider_states SET status='authorization_required',authorization_status='required',error_message=NULL,updated_at=?1 WHERE provider='epic'", [now])
         .map_err(storage_error)?;
     Ok(())
 }
@@ -195,7 +202,12 @@ fn legendary(root: &Path, arguments: &[&str]) -> Result<Vec<u8>, EmuBoxError> {
     Ok(output.stdout)
 }
 
-fn private_python(root: &Path, script: &str, input: &str, message: &str) -> Result<(), EmuBoxError> {
+fn private_python(
+    root: &Path,
+    script: &str,
+    input: &str,
+    message: &str,
+) -> Result<(), EmuBoxError> {
     let mut child = Command::new(root.join("runtime/bin/python"))
         .args(["-c", script])
         .env("HOME", root.join("home"))
@@ -207,10 +219,17 @@ fn private_python(root: &Path, script: &str, input: &str, message: &str) -> Resu
         .stderr(Stdio::null())
         .spawn()
         .map_err(|_| EmuBoxError::ProcessFailed(message.into()))?;
-    child.stdin.take().ok_or_else(|| EmuBoxError::ProcessFailed(message.into()))?
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| EmuBoxError::ProcessFailed(message.into()))?
         .write_all(input.as_bytes())
         .map_err(|_| EmuBoxError::ProcessFailed(message.into()))?;
-    if !child.wait().map_err(|_| EmuBoxError::ProcessFailed(message.into()))?.success() {
+    if !child
+        .wait()
+        .map_err(|_| EmuBoxError::ProcessFailed(message.into()))?
+        .success()
+    {
         return Err(EmuBoxError::ProcessFailed(message.into()));
     }
     Ok(())
@@ -266,6 +285,12 @@ fn set_state(
             params![status, last_sync_at, error_message, now],
         )
         .map_err(storage_error)?;
+    Ok(())
+}
+
+fn set_authorization(status: &str) -> Result<(), EmuBoxError> {
+    let now = unix_time()?;
+    DatabaseService::get_connection()?.execute("UPDATE store_provider_states SET authorization_status=?1,error_message=NULL,updated_at=?2 WHERE provider='epic'", params![status, now]).map_err(storage_error)?;
     Ok(())
 }
 

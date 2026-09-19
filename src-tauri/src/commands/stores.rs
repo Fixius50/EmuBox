@@ -65,7 +65,10 @@ pub async fn start_steam_authorization() -> Result<(), EmuBoxError> {
 }
 
 #[tauri::command]
-pub async fn complete_steam_authorization(steam_id: String, api_key: String) -> Result<(), EmuBoxError> {
+pub async fn complete_steam_authorization(
+    steam_id: String,
+    api_key: String,
+) -> Result<(), EmuBoxError> {
     super::blocking(move || StoreService::complete_steam_authorization(steam_id, api_key)).await
 }
 

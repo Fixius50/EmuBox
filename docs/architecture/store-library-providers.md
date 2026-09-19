@@ -14,7 +14,7 @@ Una cuenta de EmuBox nunca equivale a una cuenta de tienda. La capa no acepta ni
 - `store_games`: identificador externo y metadatos estructurados de tienda.
 - `store_entitlements`: propiedad e instalacion por cuenta.
 - `store_game_links`: enlace explicito desde `(provider, external_game_id)` a `canonical_games`.
-- `store_provider_states`: estado local de sincronizacion, ultimo intento y error seguro de presentar.
+- `store_provider_states`: estado separado de autorizacion y sincronizacion, ultimo intento y error seguro de presentar.
 
 No hay matching textual automatico desde una tienda a una identidad canonica. Una misma identidad canonica puede tener enlaces de varias tiendas.
 
@@ -26,7 +26,7 @@ Los juegos ejecutados con Bubblewrap no reciben `/var/lib/emubox/stores`, la bas
 
 ## Estado actual
 
-Steam, Epic y GOG exponen consultas IPC de proveedores/cuentas/entitlements y reservan persistencia privada. Ajustes muestra cuentas, licencias y enlaces canonicos ya persistidos. Epic incorpora un adaptador Legendary; Steam y GOG conservan el registro y la persistencia a la espera de sus adaptadores especificos.
+Steam, Epic y GOG exponen consultas IPC de proveedores/cuentas/entitlements y reservan persistencia privada. Ajustes muestra cuentas, licencias y enlaces canonicos ya persistidos. La autorizacion (`required` o `connected`) es independiente de la sincronizacion (`authorization_required`, `syncing`, `ready` o `error`): una cuenta conectada puede seguir pendiente de su primera importacion.
 
 ### Epic mediante Legendary
 
@@ -44,7 +44,7 @@ La sincronizacion invoca `gogdl auth` solo dentro del backend para renovar la se
 
 Steam no usa el WebView de EmuBox para extraer cookies, `webapi_token` u otros secretos de pagina. EmuBox abre la pagina oficial de claves Web API; el usuario completa Steam Guard, MFA o CAPTCHA directamente en Steam e introduce despues su SteamID64 y la clave generada en Tiendas. EmuBox guarda el par solo en `stores/steam/credentials.json` con modo `0600`.
 
-La sincronizacion usa `GetPlayerSummaries` y `GetOwnedGames` sobre HTTPS. La clave nunca se incluye en IPC, telemetria, logs, argumentos de proceso ni SQLite. El cierre elimina el archivo privado. La disponibilidad de resultados depende de la clave y de la visibilidad que Steam permita para la biblioteca de esa cuenta.
+La sincronizacion usa `GetPlayerSummaries` y `GetOwnedGames` sobre HTTPS. La clave entra una vez por IPC local desde el formulario protegido, pero nunca aparece en telemetria, logs, argumentos de proceso, resultados IPC ni SQLite. El cierre elimina el archivo privado. La disponibilidad de resultados depende de la clave y de la visibilidad que Steam permita para la biblioteca de esa cuenta.
 
 ## Investigacion de autenticacion
 
@@ -60,4 +60,4 @@ Las fuentes consultadas incluyen la documentacion de Steamworks sobre [claves We
 
 ## Requisitos previos para implementar un proveedor
 
-Antes de anadir metodos como `login`, `refresh`, `logout` o `sync_library`, cada proveedor debe documentar el componente y el formato que consume: como abre la autorizacion interactiva, artefactos que persisten, forma de renovar y revocar la sesion, alcance de biblioteca permitido y procedimiento de eliminacion. El adaptador debe escribir secretos solo despues de crear su directorio `0700`, nunca registrarlos y mantenerlos fuera de SQLite. Las interacciones que requieren secreto pasan una sola vez de la UI local al backend, sin incluirlos en argumentos de proceso, resultados IPC, telemetria o logs.
+Antes de anadir metodos como `login`, `refresh`, `logout` o `sync_library`, cada proveedor debe documentar el componente y el formato que consume: como abre la autorizacion interactiva, artefactos que persisten, forma de renovar y revocar la sesion, alcance de biblioteca permitido y procedimiento de eliminacion. El adaptador debe escribir secretos solo despues de crear su directorio `0700`, nunca registrarlos y mantenerlos fuera de SQLite. Las interacciones que requieren secreto pasan una sola vez de la UI local al backend mediante IPC local; no se incluyen en argumentos de proceso, resultados IPC, telemetria, logs, SQLite ni archivos temporales.

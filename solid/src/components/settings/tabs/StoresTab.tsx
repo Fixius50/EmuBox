@@ -11,10 +11,11 @@ interface StoresTabProps {
 }
 
 const syncLabel = (provider: StoreProviderInfo) => {
+  if (provider.sync.authorizationStatus === "required") return "Cuenta no conectada";
   if (provider.sync.status === "error") return "Error conservado";
   if (provider.sync.status === "syncing") return "Sincronizando";
-  if (provider.sync.status === "ready") return "Preparado";
-  return "Pendiente de autorización";
+  if (provider.entitlementCount === 0) return "Pendiente de sincronización";
+  return "Biblioteca sincronizada";
 };
 
 export const StoresTab: Component<StoresTabProps> = (props) => {
@@ -158,7 +159,7 @@ export const StoresTab: Component<StoresTabProps> = (props) => {
                     <span>{provider.entitlementCount} juegos con licencia</span>
                     <span><Link2 size={14} />{provider.linkedGameCount} enlazados</span>
                   </div>
-                  <Show when={accountsFor(provider.id).length > 0} fallback={<p class="store-provider-note">La conexión requiere un flujo autorizado específico de {provider.name}.</p>}>
+                  <Show when={accountsFor(provider.id).length > 0} fallback={<p class="store-provider-note">Conecta tu cuenta para importar la biblioteca de {provider.name}.</p>}>
                     <div class="store-account-list">
                       <For each={accountsFor(provider.id)}>
                         {(account) => <span class="store-account-chip">{account.displayName}</span>}
