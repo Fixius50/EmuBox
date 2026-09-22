@@ -192,6 +192,7 @@ test("XMB: controller handles search, settings, empty catalogs and cleanup", () 
     assert.equal(model.position().row, 0);
     model.chooseCategory(0);
     assert.equal(model.rows(), 1);
+    assert.equal(opened.at(-1), "system");
     dispatch("NAV_DOWN");
     assert.equal(opened.at(-1), "system");
     assert.equal(model.position().row, 0);

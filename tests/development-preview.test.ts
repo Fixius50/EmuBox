@@ -39,6 +39,39 @@ test("Preview: edits and favorites exist only in the current instance", async ()
   assert.equal((await fresh.getGames())[0].favorite, false);
 });
 
+test('Settings: adaptive display and performance values are never persisted', async () => {
+  const settingsFixture = JSON.parse(
+    readFileSync(new URL('../data/settings.json', import.meta.url), 'utf8'),
+  );
+  const configFixture = JSON.parse(
+    readFileSync(new URL('../data/config/config.json', import.meta.url), 'utf8'),
+  );
+  const backend = new DevelopmentBackendService();
+  const settings = await backend.getSettings();
+  for (const value of [settings, settingsFixture]) {
+    assert.ok(!Object.hasOwn(value.display, 'resolution'));
+    assert.ok(!Object.hasOwn(value.display, 'refreshRate'));
+    assert.ok(!Object.hasOwn(value.display, 'fullscreen'));
+    assert.ok(!Object.hasOwn(value.system || {}, 'performanceMode'));
+    assert.ok(!Object.hasOwn(value.system || {}, 'vramLimit'));
+  }
+  assert.ok(!Object.hasOwn(configFixture.display, 'resolution'));
+  assert.ok(!Object.hasOwn(configFixture.display, 'refreshRate'));
+  assert.ok(!Object.hasOwn(configFixture.display, 'fullscreen'));
+  assert.ok(!Object.hasOwn(configFixture.display, 'gamescopeEnabled'));
+  assert.ok(!Object.hasOwn(configFixture.display, 'gamescopeScaling'));
+  assert.ok(!Object.hasOwn(configFixture.interface, 'performanceMode'));
+  const configService = readFileSync(
+    new URL('../src-tauri/src/services/system/config.rs', import.meta.url),
+    'utf8',
+  );
+  assert.match(configService, /strip_adaptive_settings/);
+  assert.match(configService, /strip_adaptive_config/);
+  assert.match(configService, /\["resolution", "refreshRate", "fullscreen"\]/);
+  assert.match(configService, /\["performanceMode", "vramLimit"\]/);
+  assert.match(configService, /"gamescopeEnabled",[\s\S]*"gamescopeScaling"/);
+});
+
 test("Preview: native operations remain unavailable", async () => {
   const backend = new DevelopmentBackendService();
   assert.equal(backend.isTauriEnvironment, false);

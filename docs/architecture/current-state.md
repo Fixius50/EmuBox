@@ -17,6 +17,11 @@ El coordinador prepara configuracion, biblioteca cacheada, hardware y emuladores
 con dependencias y plazos. Reindexacion/escaneo/sincronizacion secundarios esperan
 al reconocimiento de la UI. [Arranque](console-appliance-boot-architecture.md).
 
+Resolucion, frecuencia, fullscreen, compositor y rendimiento son decisiones
+adaptativas de la sesion actual, obtenidas desde Wayland y la evidencia de
+hardware. No se conservan como preferencias; las configuraciones heredadas se
+migran al leerse para retirar esos valores persistidos.
+
 ## Biblioteca y descargas
 
 Carpetas por identidad canonica; versiones con IDs operativos. Favorito canonico,

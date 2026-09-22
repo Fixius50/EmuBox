@@ -285,7 +285,6 @@ const NativeApp: Component = () => {
             xmbController = handler;
           }}
           onCloseSettings={() => navigationStore.setCurrentSection('library')}
-          settingsActive={navigationStore.currentSection() === 'settings'}
           settingsPanel={
         <SettingsView
           onNavigate={handleSettingsAction}

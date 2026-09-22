@@ -66,12 +66,62 @@ fn write_json<T: serde::Serialize>(path: &Path, value: &T) -> Result<(), EmuBoxE
     result.map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))
 }
 
+fn strip_adaptive_settings(value: &mut serde_json::Value) -> bool {
+    let mut changed = false;
+    if let Some(display) = value
+        .get_mut("display")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        for key in ["resolution", "refreshRate", "fullscreen"] {
+            changed |= display.remove(key).is_some();
+        }
+    }
+    if let Some(system) = value
+        .get_mut("system")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        for key in ["performanceMode", "vramLimit"] {
+            changed |= system.remove(key).is_some();
+        }
+    }
+    changed
+}
+
+fn strip_adaptive_config(value: &mut serde_json::Value) -> bool {
+    let mut changed = false;
+    if let Some(display) = value
+        .get_mut("display")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        for key in [
+            "resolution",
+            "refreshRate",
+            "fullscreen",
+            "gamescopeEnabled",
+            "gamescopeScaling",
+        ] {
+            changed |= display.remove(key).is_some();
+        }
+    }
+    if let Some(interface) = value
+        .get_mut("interface")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        changed |= interface.remove("performanceMode").is_some();
+    }
+    changed
+}
+
 pub fn get_config() -> Result<EmuBoxConfig, EmuBoxError> {
-    serde_json::from_str(&read_or_default(
-        Path::new(&paths::config_file()),
-        DEFAULT_CONFIG,
-    )?)
-    .map_err(|error| EmuBoxError::InvalidConfiguration(error.to_string()))
+    let path = Path::new(&paths::config_file());
+    let mut value: serde_json::Value =
+        serde_json::from_str(&read_or_default(path, DEFAULT_CONFIG)?)
+            .map_err(|error| EmuBoxError::InvalidConfiguration(error.to_string()))?;
+    if strip_adaptive_config(&mut value) {
+        write_json(path, &value)?;
+    }
+    serde_json::from_value(value)
+        .map_err(|error| EmuBoxError::InvalidConfiguration(error.to_string()))
 }
 
 pub fn save_config(config: EmuBoxConfig) -> Result<(), EmuBoxError> {
@@ -84,16 +134,27 @@ pub fn get_settings() -> Result<SystemSettings, EmuBoxError> {
         DEFAULT_SETTINGS,
     )?)
     .map_err(|error| EmuBoxError::InvalidConfiguration(error.to_string()))?;
+    let mut changed = false;
     if value.get("library").is_none() {
         let defaults: serde_json::Value = serde_json::from_str(DEFAULT_SETTINGS)
             .map_err(|error| EmuBoxError::InvalidConfiguration(error.to_string()))?;
         value["library"] = defaults["library"].clone();
+        changed = true;
+    }
+    changed |= strip_adaptive_settings(&mut value);
+    if changed {
+        write_json(Path::new(&paths::settings_file()), &value)?;
     }
     serde_json::from_value(value)
         .map_err(|error| EmuBoxError::InvalidConfiguration(error.to_string()))
 }
 
 pub fn save_settings(settings: SystemSettings) -> Result<bool, EmuBoxError> {
+    let mut value = serde_json::to_value(settings)
+        .map_err(|error| EmuBoxError::InvalidConfiguration(error.to_string()))?;
+    strip_adaptive_settings(&mut value);
+    let settings = serde_json::from_value(value)
+        .map_err(|error| EmuBoxError::InvalidConfiguration(error.to_string()))?;
     write_json(Path::new(&paths::settings_file()), &settings)?;
     Ok(true)
 }

@@ -34,7 +34,6 @@ export default function DevelopmentPreview() {
             onMove={() => {}}
             onControllerReady={preview.registerLibrary}
             onCloseSettings={preview.back}
-            settingsActive={preview.section() === 'settings'}
             settingsPanel={
           <SettingsView
             onNavigate={preview.navigateSettings}

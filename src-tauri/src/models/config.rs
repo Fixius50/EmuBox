@@ -15,12 +15,7 @@ pub struct ConfigPaths {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigDisplay {
-    pub resolution: String,
-    pub refresh_rate: u32,
-    pub fullscreen: bool,
     pub vsync: bool,
-    pub gamescope_enabled: bool,
-    pub gamescope_scaling: String,
     pub crt_shader: String,
 }
 
@@ -56,7 +51,6 @@ pub struct ConfigInterface {
     pub theme: String,
     pub animations: bool,
     pub show_fps_overlay: bool,
-    pub performance_mode: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

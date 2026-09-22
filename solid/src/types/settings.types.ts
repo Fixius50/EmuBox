@@ -3,6 +3,7 @@ import type { SystemStore } from "@stores/system.store";
 import type { SoundFxService } from "@services/audio/sound-fx.service";
 import type { InputAction } from "./input.types";
 import type { IEmuBoxBackend } from "./backend.types";
+import type { DisplayInfo } from "./system.types";
 
 export type SettingsTabId = "system" | "audio" | "gamepad" | "stores";
 
@@ -87,6 +88,7 @@ export interface SettingsSidebarProps {
 export interface SystemTabProps {
   settings?: SystemSettings;
   emulators?: Emulator[];
+  displayInfo?: DisplayInfo | null;
   isRowFocused: (row: number) => boolean;
   onSelectContentArea?: () => void;
   onUpdateSettings: (updater: (s: SystemSettings) => void) => void;

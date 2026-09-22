@@ -1,8 +1,5 @@
 {
   "display": {
-    "resolution": "1920x1080",
-    "refreshRate": 60,
-    "fullscreen": true,
     "vsync": true,
     "crtShader": "none"
   },

@@ -113,14 +113,9 @@ export interface ExecutionTarget {
   configPath?: string;
 }
 
-export type PerformanceMode = 'high-performance' | 'balanced' | 'power-saver' | 'ultra-boost';
-
 export interface SystemSettings {
   display: {
-    resolution: '1920x1080' | '3840x2160' | '1280x720' | string;
-    refreshRate: 60 | 120 | 144 | 165 | 240 | number;
     vsync: boolean;
-    fullscreen: boolean;
     crtShader: 'none' | 'scanlines' | 'curved_crt' | 'phosphor';
   };
   audio: {
@@ -142,8 +137,6 @@ export interface SystemSettings {
     defaultPlatform: PlatformId;
   };
   system?: {
-    performanceMode?: PerformanceMode;
-    vramLimit?: string;
     showFps?: boolean;
   };
   updates?: {
@@ -168,12 +161,7 @@ export interface EmuBoxConfig {
     logs: string;
   };
   display: {
-    resolution: string;
-    refreshRate: number | string;
-    fullscreen: boolean;
     vsync: boolean;
-    gamescopeEnabled: boolean;
-    gamescopeScaling: 'integer' | 'fit' | 'stretch';
     crtShader: 'none' | 'scanlines' | 'curved_crt' | 'phosphor';
   };
   audio: {
@@ -197,7 +185,6 @@ export interface EmuBoxConfig {
     theme: 'dark-cyber' | 'glassmorphism' | 'pure-oled';
     animations: boolean;
     showFpsOverlay: boolean;
-    performanceMode: 'high-performance' | 'balanced' | 'power-saver' | 'ultra-boost';
   };
   updates: {
     autoUpdate: boolean;

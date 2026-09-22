@@ -35,7 +35,6 @@ export interface XmbLibraryProps {
   onOpenGame: (game: Game) => void;
   onOpenSettings: (tab: string) => void;
   onCloseSettings?: () => void;
-  settingsActive?: boolean;
   settingsPanel?: JSX.Element;
   onFavorite: (id: string) => void;
   onMove: () => void;

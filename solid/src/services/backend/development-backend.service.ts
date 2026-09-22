@@ -10,7 +10,7 @@ import type {
   DownloadSourceOption,
 } from "@contracts/download.types";
 import type { StoreAccount, StoreProviderInfo } from "@contracts/store.types";
-import type { AudioInfo } from "@contracts/system.types";
+import type { AudioInfo, DisplayInfo } from "@contracts/system.types";
 import { TauriBackendService } from "@services/backend/tauri-backend.service";
 
 function exampleGame(
@@ -60,10 +60,7 @@ export class DevelopmentBackendService extends TauriBackendService {
   ];
   private settings: SystemSettings = {
     display: {
-      resolution: "1920x1080",
-      refreshRate: 60,
       vsync: true,
-      fullscreen: false,
       crtShader: "none",
     },
     audio: {
@@ -78,7 +75,7 @@ export class DevelopmentBackendService extends TauriBackendService {
       showMissingCovers: true,
       defaultPlatform: "all",
     },
-    system: { performanceMode: "balanced", showFps: false },
+    system: { showFps: false },
     updates: { autoUpdate: false, channel: "stable", checkOnStartup: false },
   };
 
@@ -123,6 +120,21 @@ export class DevelopmentBackendService extends TauriBackendService {
           isDefault: false,
           type: device.kind === "audioinput" ? "source" : "sink",
         })),
+    };
+  }
+  public override async getDisplayInfo(): Promise<DisplayInfo> {
+    const width = typeof window === 'undefined' ? 1920 : window.innerWidth;
+    const height = typeof window === 'undefined' ? 1080 : window.innerHeight;
+    return {
+      resolution: `${width}x${height}`,
+      width,
+      height,
+      refreshRate: 60,
+      devicePixelRatio: typeof window === 'undefined' ? 1 : window.devicePixelRatio,
+      colorDepth: typeof screen === 'undefined' ? null : screen.colorDepth,
+      hdrSupported: null,
+      activeCompositor: 'browser',
+      gamescopeActive: false,
     };
   }
   public override async getEmulators(): Promise<Emulator[]> {

@@ -140,8 +140,9 @@ export function useXmbLibrary(props: XmbLibraryProps) {
     props.onMove();
   };
   const chooseCategory = (index: number) => {
-    props.onCloseSettings?.();
     setPosition({ category: index, row: 0, expanded: false, game: 0 });
+    if (index === 0) props.onOpenSettings("system");
+    else props.onCloseSettings?.();
     props.onMove();
   };
   const chooseRow = (row: number) => {

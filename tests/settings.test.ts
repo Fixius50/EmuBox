@@ -57,6 +57,11 @@ test("Settings: tabs, volume and back navigation", () => {
   assert.equal(settingsTab, "stores");
   settingsAction("BUTTON_RB");
   assert.equal(settingsTab, "system");
+  settingsArea = "content";
+  settingsRow = 0;
+  settingsAction("NAV_DOWN");
+  assert.equal(settingsRow, 0, "System has no editable performance preference");
+  settingsArea = "sidebar";
   settingsAction("NAV_UP");
   assert.equal(wentBack, true, "Up from the first sidebar tab exits settings");
   wentBack = false;

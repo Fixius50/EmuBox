@@ -1,15 +1,8 @@
-import type { Emulator, PerformanceMode } from "@contracts/game.types";
+import type { Emulator } from "@contracts/game.types";
 import type {
   UseSettingsControllerOptions,
   UseSettingsControllerReturn,
 } from "@contracts/settings.types";
-
-const PERFORMANCE_MODES_LIST: readonly PerformanceMode[] = [
-  "high-performance",
-  "balanced",
-  "power-saver",
-  "ultra-boost",
-] as const;
 
 export function useSettingsController(
   options: UseSettingsControllerOptions,
@@ -60,22 +53,7 @@ export function useSettingsController(
     switch (tab) {
       case "system":
         switch (row) {
-          case 0: {
-            const current = clone.system?.performanceMode || "high-performance";
-            const curIdx = PERFORMANCE_MODES_LIST.indexOf(
-              current as PerformanceMode,
-            );
-            const nextMode =
-              PERFORMANCE_MODES_LIST[
-                (curIdx + 1) % PERFORMANCE_MODES_LIST.length
-              ];
-            if (!clone.system) clone.system = {};
-            clone.system.performanceMode = nextMode;
-            systemStore.updateSettings(clone);
-            soundFx.playMove();
-            break;
-          }
-          case 1:
+          case 0:
             clone.display.vsync = !clone.display.vsync;
             systemStore.updateSettings(clone);
             soundFx.playSelect();

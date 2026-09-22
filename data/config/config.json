@@ -9,12 +9,7 @@
     "logs": "/var/log/emubox"
   },
   "display": {
-    "resolution": "1920x1080",
-    "refreshRate": 60,
-    "fullscreen": true,
     "vsync": true,
-    "gamescopeEnabled": true,
-    "gamescopeScaling": "integer",
     "crtShader": "none"
   },
   "audio": {
@@ -48,7 +43,6 @@
     "locale": "es",
     "theme": "dark-cyber",
     "animations": true,
-    "showFpsOverlay": false,
-    "performanceMode": "high-performance"
+    "showFpsOverlay": false
   }
 }

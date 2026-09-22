@@ -165,15 +165,8 @@ export function XmbLibrary(props: XmbLibraryProps) {
         </section>
       </Show>
       <Show when={category().kind === 'settings'}>
-        <section class="xmb-settings-panel" aria-label="Panel de ajustes" classList={{ 'is-active': props.settingsActive }}>
-          <Show when={props.settingsActive} fallback={
-            <button class="xmb-settings-entry" onClick={() => props.onOpenSettings('system')}>
-              <Settings2 size={32} aria-hidden="true" />
-              <strong>Ajustes</strong>
-              <span>Sistema y pantalla · Audio general · Controles · Tiendas</span>
-              <ChevronDown size={22} aria-hidden="true" />
-            </button>
-          }>{props.settingsPanel}</Show>
+        <section class="xmb-settings-panel" aria-label="Panel de ajustes">
+          {props.settingsPanel}
         </section>
       </Show>
       <Show when={category().kind !== 'settings'}>

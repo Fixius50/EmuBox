@@ -136,11 +136,11 @@ invented empty history. OTA methods explicitly reject unsupported operations.
 Single, central, versioned JSON configuration model:
 * `version`: Schema version number.
 * `paths`: Canonical appliance paths for `roms`, `saves`, `states`, `screenshots`, `covers`, `logs` under `/etc/emubox` and the system data/cache directories.
-* `display`: `resolution`, `refreshRate`, `fullscreen`, `vsync`, `gamescopeEnabled`, `gamescopeScaling`, `crtShader`.
+* `display`: preferencias persistidas `vsync` y `crtShader`. Resolucion, frecuencia, fullscreen y seleccion de compositor son evidencia adaptativa de la sesion mediante `get_display_info`, no configuracion persistida.
 * `audio`: `volume`, `uiSoundEffects`, `backgroundMusic`, `latencyMs`.
 * `input`: `deadzone`, `vibrationEnabled`, `swapSouthEastButtons`, `pollRateHz`.
 * `emulators`: `defaultMapping`, `customBinariesPath`.
-* `interface`: `locale`, `theme`, `animations`, `showFpsOverlay`, `performanceMode`.
+* `interface`: `locale`, `theme`, `animations`, `showFpsOverlay`. El rendimiento se decide adaptativamente segun hardware y carga.
 
 ### `Emulator`
 Abstracted execution profile for engines:

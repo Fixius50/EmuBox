@@ -5,7 +5,6 @@ import {
   onCleanup,
   Switch,
   Match,
-  Show,
 } from "solid-js";
 import type { SystemSettings } from "@contracts/game.types";
 import type { SettingsViewProps } from "@contracts/settings.types";
@@ -16,19 +15,20 @@ import { SystemTab } from "./tabs/SystemTab";
 import { AudioTab } from "./tabs/AudioTab";
 import { GamepadTab } from "./tabs/GamepadTab";
 import { StoresTab } from "./tabs/StoresTab";
+import { useDisplayInfo } from "@hooks/useDisplayInfo";
 
 // Animations
 import {
   animateSettingsEntrance,
   animateTabTransition,
 } from "@animations/settings-animations";
-import { ArrowUp } from "lucide-solid";
 
 export const SettingsView: Component<SettingsViewProps> = (props) => {
   let rootContainerRef: HTMLDivElement | undefined;
   let contentPaneRef: HTMLDivElement | undefined;
 
   const currentTab = () => props.activeTab || "system";
+  const display = useDisplayInfo(props.storeBackend);
   const isRowFocused = (row: number) =>
     props.focusArea === "content" && props.focusedRowIndex === row;
 
@@ -88,17 +88,6 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
 
   return (
     <div class="console-settings-container" ref={rootContainerRef}>
-      {/* Top Header Bar with Back Button */}
-      <div class="settings-top-bar">
-        <Show when={props.onBack}>
-          <button class="settings-back-pill" title="Volver a categorias" aria-label="Volver a categorias" onClick={props.onBack}>
-            <ArrowUp size={18} />
-          </button>
-        </Show>
-        <div class="settings-screen-title">Ajustes</div>
-        <div class="settings-top-clock">EMUBOX</div>
-      </div>
-
       {/* Main Settings Master-Detail Layout */}
       <div class="console-tabs-system">
         {/* Left Sidebar Tabs */}
@@ -115,6 +104,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
               <SystemTab
                 settings={props.settings}
                 emulators={props.emulators}
+                displayInfo={display.info()}
                 isRowFocused={isRowFocused}
                 onSelectContentArea={props.onSelectContentArea}
                 onUpdateSettings={handleUpdate}
