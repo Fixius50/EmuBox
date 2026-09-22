@@ -52,6 +52,7 @@ assert.match(xmbCss, /background:\s*var\(--xmb-background\) var\(--xmb-bg\)/);
 assert.match(xmbCss, /html\[data-gpu-kind="virtual"\] \.xmb-wave\s*\{\s*animation: none;/);
 assert.ok(!/\.xmb-atmosphere\s*\{[^}]*z-index:\s*-/.test(xmbCss));
 const emulatorRuntime = readFileSync(new URL('../src-tauri/src/services/runtime/emulator.rs', import.meta.url), 'utf8');
+const sandbox = readFileSync(new URL('../src-tauri/src/services/runtime/game_sandbox.rs', import.meta.url), 'utf8');
 const emulatorProfiles = ['retroarch', 'pcsx2', 'duckstation', 'dolphin', 'ppsspp'];
 assert.match(emulatorRuntime, /renderer_preference\(&hardware\.graphics\.operational_backend\)/);
 for (const profile of emulatorProfiles) {
@@ -60,4 +61,9 @@ for (const profile of emulatorProfiles) {
   assert.doesNotMatch(source, /vulkan_ok\(/);
   assert.match(source, /RendererPreference::Conservative\s*=>\s*(?:\(\)|return Ok\(\(\)\))/);
 }
+assert.match(sandbox, /mount_managed_config\(&mut command, &state, emulator_id\)/);
+assert.match(sandbox, /emulators::managed_config\(emulator_id\)/);
+assert.match(sandbox, /--ro-bind/);
+assert.match(sandbox, /canonical_source\.starts_with\(&canonical_root\)/);
+assert.match(sandbox, /target\.starts_with\("\.config"\)/);
 console.log('Graphics policy: native GPU and accelerated VM preferred, CPU fallback independent of architecture');

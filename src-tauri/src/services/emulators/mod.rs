@@ -106,6 +106,36 @@ pub(crate) fn config_home() -> PathBuf {
     PathBuf::from(crate::services::paths::emulators_dir())
 }
 
+/// Archivo de configuración gestionado y su destino relativo dentro del HOME
+/// privado del sandbox. La tabla es cerrada: nunca acepta rutas de la UI o de
+/// metadata SQLite para ampliar los montajes del juego.
+pub(crate) fn managed_config(emulator_id: &str) -> Option<(PathBuf, PathBuf)> {
+    let config = PathBuf::from(crate::services::paths::emulator_config_dir(emulator_id));
+    match emulator_id {
+        "retroarch" => Some((
+            config.join("retroarch.cfg"),
+            PathBuf::from(".config/retroarch/retroarch.cfg"),
+        )),
+        "pcsx2" => Some((
+            config.join("PCSX2.ini"),
+            PathBuf::from(".config/PCSX2/PCSX2.ini"),
+        )),
+        "duckstation" => Some((
+            config.join("settings.ini"),
+            PathBuf::from(".config/duckstation/settings.ini"),
+        )),
+        "dolphin" => Some((
+            config.join("Dolphin.ini"),
+            PathBuf::from(".config/dolphin-emu/Dolphin.ini"),
+        )),
+        "ppsspp" => Some((
+            config.join("PSP/SYSTEM/ppsspp.ini"),
+            PathBuf::from(".config/ppsspp/PSP/SYSTEM/ppsspp.ini"),
+        )),
+        _ => None,
+    }
+}
+
 /// Inserta o reemplaza `key = "value"` en un archivo de configuración plano sin
 /// secciones (formato de `retroarch.cfg`), preservando el resto del contenido.
 pub(crate) fn upsert_flat_key(path: &Path, key: &str, value: &str) -> Result<(), EmuBoxError> {
@@ -299,5 +329,21 @@ mod tests {
             RendererPreference::Conservative.metadata_name("standalone"),
             "auto"
         );
+    }
+
+    #[test]
+    fn managed_config_table_is_closed_and_confined_to_private_config() {
+        for (id, expected) in [
+            ("retroarch", ".config/retroarch/retroarch.cfg"),
+            ("pcsx2", ".config/PCSX2/PCSX2.ini"),
+            ("duckstation", ".config/duckstation/settings.ini"),
+            ("dolphin", ".config/dolphin-emu/Dolphin.ini"),
+            ("ppsspp", ".config/ppsspp/PSP/SYSTEM/ppsspp.ini"),
+        ] {
+            let (source, target) = managed_config(id).unwrap();
+            assert!(source.starts_with(crate::services::paths::emulator_config_dir(id)));
+            assert_eq!(target, PathBuf::from(expected));
+        }
+        assert!(managed_config("wine").is_none());
     }
 }

@@ -56,7 +56,9 @@ override CPU global; los filtros se adaptan a la GPU virtual.
 Los perfiles de RetroArch, PCSX2, DuckStation, Dolphin y PPSSPP parten del
 backend operativo seleccionado para la sesion. Vulkan disponible por si solo no
 sobrescribe una seleccion OpenGL; con backend `software` o `auto` no se fuerza un
-renderer en los archivos nativos del emulador.
+renderer en los archivos nativos del emulador. Al lanzar, solo el archivo de
+configuracion gestionado de ese perfil entra al sandbox como lectura; no se
+exponen configuraciones generales del host ni de otros perfiles.
 
 **La pantalla negra intermitente NO esta declarada resuelta.** La confirmacion
 antigua sobre fondo/onda fue invalidada por recurrencias. [Incidencia](virtualbox-graphics.md).

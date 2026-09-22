@@ -170,6 +170,11 @@ Los perfiles que escriben renderer nativo reciben la misma seleccion
 `operationalBackend` que usa EmuBox: OpenGL se propaga como OpenGL/GL y Vulkan
 como Vulkan. Los estados `software` y `auto` son conservadores: conservan el
 renderer del emulador en vez de forzar Vulkan por disponibilidad aislada.
+Al lanzar, Bubblewrap monta solo lectura el archivo gestionado del perfil bajo
+su destino exacto en `$HOME/.config`. La tabla de perfiles es cerrada; se valida
+que el archivo sea regular, canónico y permanezca dentro de
+`/var/lib/emubox/emulators/<id>/config`. No se monta la configuración general del
+host ni configuraciones de otros emuladores.
 
 ## Confined Launch
 
