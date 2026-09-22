@@ -140,7 +140,7 @@ Single, central, versioned JSON configuration model:
 * `audio`: `volume`, `uiSoundEffects`, `backgroundMusic`, `latencyMs`.
 * `input`: `deadzone`, `vibrationEnabled`, `swapSouthEastButtons`, `pollRateHz`.
 * `emulators`: `defaultMapping`, `customBinariesPath`.
-* `interface`: `locale`, `theme`, `animations`, `showFpsOverlay`. El rendimiento se decide adaptativamente segun hardware y carga.
+* `interface`: `locale`, `theme`, `animations`, `showFpsOverlay`. El paralelismo de arranque se decide una vez segun los recursos disponibles al iniciar.
 
 ### `Emulator`
 Abstracted execution profile for engines:
@@ -165,6 +165,11 @@ libretro core checks. The UI uses this result to disable launch with a reason;
 catalog IDs, platforms, downloads and game storage remain architecture-independent.
 RPCS3 remains visible even when unavailable. Matrix support is not evidence that
 a compatible binary is installed or that a particular game will perform well.
+
+Los perfiles que escriben renderer nativo reciben la misma seleccion
+`operationalBackend` que usa EmuBox: OpenGL se propaga como OpenGL/GL y Vulkan
+como Vulkan. Los estados `software` y `auto` son conservadores: conservan el
+renderer del emulador en vez de forzar Vulkan por disponibilidad aislada.
 
 ## Confined Launch
 

@@ -17,10 +17,12 @@ El coordinador prepara configuracion, biblioteca cacheada, hardware y emuladores
 con dependencias y plazos. Reindexacion/escaneo/sincronizacion secundarios esperan
 al reconocimiento de la UI. [Arranque](console-appliance-boot-architecture.md).
 
-Resolucion, frecuencia, fullscreen, compositor y rendimiento son decisiones
-adaptativas de la sesion actual, obtenidas desde Wayland y la evidencia de
-hardware. No se conservan como preferencias; las configuraciones heredadas se
-migran al leerse para retirar esos valores persistidos.
+Resolucion, frecuencia, fullscreen y compositor son decisiones adaptativas de la
+sesion actual, obtenidas desde Wayland y la evidencia de hardware. El paralelismo
+de arranque se ajusta una vez con los recursos disponibles al iniciar; no se
+recalcula continuamente durante la sesion. Estos valores no se conservan como
+preferencias; las configuraciones heredadas se migran al leerse para retirar esos
+valores persistidos.
 
 ## Biblioteca y descargas
 
@@ -50,6 +52,11 @@ Limites de audio, configs y firmware: [sandbox](execution-sandbox.md).
 La GPU se determina por evidencia, no marca de CPU. Cage admite OpenGL; Gamescope
 tiene requisitos propios. SVGA3D no es llvmpipe. vmwgfx usa SHM para WebKit, sin
 override CPU global; los filtros se adaptan a la GPU virtual.
+
+Los perfiles de RetroArch, PCSX2, DuckStation, Dolphin y PPSSPP parten del
+backend operativo seleccionado para la sesion. Vulkan disponible por si solo no
+sobrescribe una seleccion OpenGL; con backend `software` o `auto` no se fuerza un
+renderer en los archivos nativos del emulador.
 
 **La pantalla negra intermitente NO esta declarada resuelta.** La confirmacion
 antigua sobre fondo/onda fue invalidada por recurrencias. [Incidencia](virtualbox-graphics.md).

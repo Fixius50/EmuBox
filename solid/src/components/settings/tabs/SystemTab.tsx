@@ -29,7 +29,7 @@ export const SystemTab: Component<SystemTabProps> = (props) => {
       <section class="settings-information" aria-label="Informacion del sistema">
         <h4>Informacion del sistema</h4>
         <dl>
-          <div><dt>Rendimiento</dt><dd>Adaptativo segun hardware y carga</dd></div>
+          <div><dt>Rendimiento</dt><dd>Adaptativo segun recursos disponibles al iniciar</dd></div>
           <div><dt>Resolucion actual adaptativa</dt><dd>{props.displayInfo?.resolution || 'Detectando salida actual...'}</dd></div>
           <div><dt>Frecuencia actual adaptativa</dt><dd>{props.displayInfo?.refreshRate ? `${props.displayInfo.refreshRate} Hz` : 'Detectando salida actual...'}</dd></div>
           <div><dt>Compositor actual</dt><dd>{props.displayInfo?.activeCompositor || 'Detectando salida actual...'}</dd></div>

@@ -40,12 +40,44 @@ pub trait EmulatorProfile: Sync + Send {
         }
     }
 
-    /// Escribe/actualiza la configuración nativa real del emulador según el hardware
-    /// detectado (renderer, etc.). Por defecto no hace nada: solo se sobreescribe cuando
-    /// la clave de configuración está verificada contra el código fuente oficial o un
-    /// archivo de configuración real generado por el binario instalado.
-    fn apply_hardware_config(&self, _hardware: &HardwareInfo) -> Result<(), EmuBoxError> {
+    /// Escribe/actualiza la configuración nativa según el backend operativo ya
+    /// seleccionado por EmuBox. Por defecto no hace nada: solo se sobreescribe cuando
+    /// la clave está verificada contra la configuración real del emulador.
+    fn apply_hardware_config(
+        &self,
+        _hardware: &HardwareInfo,
+        _renderer: RendererPreference,
+    ) -> Result<(), EmuBoxError> {
         Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RendererPreference {
+    OpenGl,
+    Vulkan,
+    Conservative,
+}
+
+impl RendererPreference {
+    pub(crate) fn metadata_name(self, core_type: &str) -> &'static str {
+        match (self, core_type) {
+            (Self::OpenGl, "libretro") => "gl",
+            (Self::OpenGl, _) => "opengl",
+            (Self::Vulkan, _) => "vulkan",
+            (Self::Conservative, _) => "auto",
+        }
+    }
+}
+
+/// Comparte la única decisión gráfica de EmuBox con los perfiles. Los backends
+/// software o indeterminados no fuerzan una clave nativa: cada emulador conserva
+/// su valor seguro hasta que exista una evidencia operativa acelerada.
+pub(crate) fn renderer_preference(operational_backend: &str) -> RendererPreference {
+    match operational_backend {
+        "opengl" => RendererPreference::OpenGl,
+        "vulkan" => RendererPreference::Vulkan,
+        _ => RendererPreference::Conservative,
     }
 }
 
@@ -166,11 +198,6 @@ pub(crate) fn upsert_ini_key(
     })
 }
 
-/// Vulkan usable por este perfil, incluidas las GPU virtuales aceleradas.
-pub(crate) fn vulkan_ok(hardware: &HardwareInfo) -> bool {
-    hardware.vulkan_supported
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -249,5 +276,28 @@ mod tests {
         assert!(pcsx2_content.contains("Renderer = Vulkan"));
 
         fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn renderer_preference_follows_emubox_operational_backend() {
+        assert_eq!(renderer_preference("opengl"), RendererPreference::OpenGl);
+        assert_eq!(renderer_preference("vulkan"), RendererPreference::Vulkan);
+        assert_eq!(
+            renderer_preference("software"),
+            RendererPreference::Conservative
+        );
+        assert_eq!(
+            renderer_preference("auto"),
+            RendererPreference::Conservative
+        );
+        assert_eq!(RendererPreference::OpenGl.metadata_name("libretro"), "gl");
+        assert_eq!(
+            RendererPreference::OpenGl.metadata_name("standalone"),
+            "opengl"
+        );
+        assert_eq!(
+            RendererPreference::Conservative.metadata_name("standalone"),
+            "auto"
+        );
     }
 }

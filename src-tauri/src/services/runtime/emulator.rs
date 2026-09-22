@@ -276,7 +276,7 @@ impl EmulatorService {
         hardware: &crate::models::HardwareInfo,
     ) -> Result<(), EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
-        let vulkan_ok = hardware.vulkan_supported;
+        let renderer = emulators::renderer_preference(&hardware.graphics.operational_backend);
 
         for profile in emulators::registry() {
             if !crate::services::emulator_capabilities::supports(
@@ -285,25 +285,9 @@ impl EmulatorService {
             ) {
                 continue;
             }
-            let renderer = match profile.core_type() {
-                "libretro" => {
-                    if vulkan_ok {
-                        "vulkan"
-                    } else {
-                        "gl"
-                    }
-                }
-                _ => {
-                    if vulkan_ok {
-                        "vulkan"
-                    } else {
-                        "opengl"
-                    }
-                }
-            };
             conn.execute(
                 "UPDATE emulator_metadata SET renderer = ?1 WHERE emulator_id = ?2;",
-                params![renderer, profile.id()],
+                params![renderer.metadata_name(profile.core_type()), profile.id()],
             )
             .map_err(|e| {
                 EmuBoxError::StorageUnavailable(format!(
@@ -313,7 +297,7 @@ impl EmulatorService {
                 ))
             })?;
 
-            profile.apply_hardware_config(hardware)?;
+            profile.apply_hardware_config(hardware, renderer)?;
         }
 
         Ok(())

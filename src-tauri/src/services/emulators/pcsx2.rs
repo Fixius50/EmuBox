@@ -1,4 +1,4 @@
-use super::{config_home, upsert_ini_key, vulkan_ok, EmulatorProfile};
+use super::{config_home, upsert_ini_key, EmulatorProfile, RendererPreference};
 use crate::errors::EmuBoxError;
 use crate::models::HardwareInfo;
 
@@ -28,12 +28,16 @@ impl EmulatorProfile for Pcsx2 {
     }
 
     /// Verificado contra PCSX2 Qt (PCSX2.ini, sección [EmuCore/GS], clave Renderer).
-    /// Asigna "Vulkan" cuando la GPU soporta Vulkan o "OpenGL" en caso contrario.
-    fn apply_hardware_config(&self, hardware: &HardwareInfo) -> Result<(), EmuBoxError> {
-        let renderer = if vulkan_ok(hardware) {
-            "Vulkan"
-        } else {
-            "OpenGL"
+    /// Sigue el backend operativo de EmuBox; sin evidencia acelerada no fuerza renderer.
+    fn apply_hardware_config(
+        &self,
+        _hardware: &HardwareInfo,
+        renderer: RendererPreference,
+    ) -> Result<(), EmuBoxError> {
+        let renderer = match renderer {
+            RendererPreference::Vulkan => "Vulkan",
+            RendererPreference::OpenGl => "OpenGL",
+            RendererPreference::Conservative => return Ok(()),
         };
         let path = config_home().join("pcsx2/config/PCSX2.ini");
         upsert_ini_key(&path, "EmuCore/GS", "Renderer", renderer)

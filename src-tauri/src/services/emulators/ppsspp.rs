@@ -1,4 +1,4 @@
-use super::{config_home, upsert_ini_key, vulkan_ok, EmulatorProfile};
+use super::{config_home, upsert_ini_key, EmulatorProfile, RendererPreference};
 use crate::errors::EmuBoxError;
 use crate::models::HardwareInfo;
 
@@ -34,8 +34,16 @@ impl EmulatorProfile for Ppsspp {
     /// Archivo: `ppsspp.ini`, sección `[Graphics]`. Se escribe el valor numérico plano
     /// (sin el sufijo "(NOMBRE)" que añade el traductor de depuración) para que
     /// `TryParse` lo lea directamente como entero.
-    fn apply_hardware_config(&self, hardware: &HardwareInfo) -> Result<(), EmuBoxError> {
-        let backend = if vulkan_ok(hardware) { "3" } else { "0" };
+    fn apply_hardware_config(
+        &self,
+        _hardware: &HardwareInfo,
+        renderer: RendererPreference,
+    ) -> Result<(), EmuBoxError> {
+        let backend = match renderer {
+            RendererPreference::Vulkan => "3",
+            RendererPreference::OpenGl => "0",
+            RendererPreference::Conservative => return Ok(()),
+        };
         let path = config_home().join("ppsspp/config/PSP/SYSTEM/ppsspp.ini");
         upsert_ini_key(&path, "Graphics", "GraphicsBackend", backend)
     }

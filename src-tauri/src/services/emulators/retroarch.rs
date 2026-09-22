@@ -1,4 +1,4 @@
-use super::{config_home, upsert_flat_key, vulkan_ok, EmulatorProfile};
+use super::{config_home, upsert_flat_key, EmulatorProfile, RendererPreference};
 use crate::errors::EmuBoxError;
 use crate::models::HardwareInfo;
 use std::path::{Path, PathBuf};
@@ -41,14 +41,17 @@ impl EmulatorProfile for RetroArch {
     /// `retroarch.cfg` (formato plano `clave = "valor"`, sin secciones). Gobierna también
     /// los cores libretro instalados (flycast, melonds, ppsspp, dolphin, mgba), ya que
     /// todos renderizan a través del video driver del frontend.
-    fn apply_hardware_config(&self, hardware: &HardwareInfo) -> Result<(), EmuBoxError> {
-        let driver = if vulkan_ok(hardware) {
-            "vulkan"
-        } else {
-            "glcore"
-        };
+    fn apply_hardware_config(
+        &self,
+        hardware: &HardwareInfo,
+        renderer: RendererPreference,
+    ) -> Result<(), EmuBoxError> {
         let path = config_home().join("retroarch/config/retroarch.cfg");
-        upsert_flat_key(&path, "video_driver", driver)?;
+        match renderer {
+            RendererPreference::Vulkan => upsert_flat_key(&path, "video_driver", "vulkan")?,
+            RendererPreference::OpenGl => upsert_flat_key(&path, "video_driver", "glcore")?,
+            RendererPreference::Conservative => (),
+        }
         configure_gamemode(&path, hardware.is_virtual_machine)?;
         if hardware.is_virtual_machine {
             let user_config = std::env::var_os("XDG_CONFIG_HOME")

@@ -51,4 +51,13 @@ const xmbCss = readFileSync(new URL('../solid/src/styles/xmb.css', import.meta.u
 assert.match(xmbCss, /background:\s*var\(--xmb-background\) var\(--xmb-bg\)/);
 assert.match(xmbCss, /html\[data-gpu-kind="virtual"\] \.xmb-wave\s*\{\s*animation: none;/);
 assert.ok(!/\.xmb-atmosphere\s*\{[^}]*z-index:\s*-/.test(xmbCss));
+const emulatorRuntime = readFileSync(new URL('../src-tauri/src/services/runtime/emulator.rs', import.meta.url), 'utf8');
+const emulatorProfiles = ['retroarch', 'pcsx2', 'duckstation', 'dolphin', 'ppsspp'];
+assert.match(emulatorRuntime, /renderer_preference\(&hardware\.graphics\.operational_backend\)/);
+for (const profile of emulatorProfiles) {
+  const source = readFileSync(new URL(`../src-tauri/src/services/emulators/${profile}.rs`, import.meta.url), 'utf8');
+  assert.match(source, /RendererPreference/);
+  assert.doesNotMatch(source, /vulkan_ok\(/);
+  assert.match(source, /RendererPreference::Conservative\s*=>\s*(?:\(\)|return Ok\(\(\)\))/);
+}
 console.log('Graphics policy: native GPU and accelerated VM preferred, CPU fallback independent of architecture');

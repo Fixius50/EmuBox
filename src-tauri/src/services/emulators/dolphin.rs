@@ -1,4 +1,4 @@
-use super::{config_home, upsert_ini_key, vulkan_ok, EmulatorProfile};
+use super::{config_home, upsert_ini_key, EmulatorProfile, RendererPreference};
 use crate::errors::EmuBoxError;
 use crate::models::HardwareInfo;
 
@@ -31,8 +31,16 @@ impl EmulatorProfile for Dolphin {
     /// `MAIN_GFX_BACKEND{{System::Main, "Core", "GFXBackend"}, ...}` y
     /// `VideoBackendBase::GetConfigName()` ("OGL" | "Vulkan" | "Software Renderer").
     /// Archivo: `Dolphin.ini`, sección `[Core]`.
-    fn apply_hardware_config(&self, hardware: &HardwareInfo) -> Result<(), EmuBoxError> {
-        let backend = if vulkan_ok(hardware) { "Vulkan" } else { "OGL" };
+    fn apply_hardware_config(
+        &self,
+        _hardware: &HardwareInfo,
+        renderer: RendererPreference,
+    ) -> Result<(), EmuBoxError> {
+        let backend = match renderer {
+            RendererPreference::Vulkan => "Vulkan",
+            RendererPreference::OpenGl => "OGL",
+            RendererPreference::Conservative => return Ok(()),
+        };
         let path = config_home().join("dolphin/config/Dolphin.ini");
         upsert_ini_key(&path, "Core", "GFXBackend", backend)
     }
