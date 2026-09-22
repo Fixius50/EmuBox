@@ -9,13 +9,15 @@ interface UseConsoleInputOptions {
   onAction: (action: InputAction) => void;
 }
 
+const keyboardStatus: InputDeviceStatus = {
+  isConnected: true,
+  deviceName: 'Teclado USB Detectado',
+  source: 'keyboard',
+};
+
 export function useConsoleInput(options: UseConsoleInputOptions) {
   const inputManager = new InputManager();
-  const [inputStatus, setInputStatus] = createSignal<InputDeviceStatus>({
-    isConnected: true,
-    deviceName: 'Teclado USB Detectado',
-    source: 'keyboard'
-  });
+  const [inputStatus, setInputStatus] = createSignal<InputDeviceStatus>(keyboardStatus);
 
   onMount(() => {
     const keyboard = new KeyboardProvider();
@@ -27,10 +29,12 @@ export function useConsoleInput(options: UseConsoleInputOptions) {
     inputManager.registerProvider(tauriInput);
 
     inputManager.onStatusChange((status) => {
-      setInputStatus(status);
+      if (!status.isConnected && inputStatus().source === status.source)
+        setInputStatus(keyboardStatus);
     });
 
-    inputManager.onAction((action: InputAction) => {
+    inputManager.onAction((action: InputAction, status?: InputDeviceStatus) => {
+      if (status?.isConnected) setInputStatus(status);
       options.onAction(action);
     });
 

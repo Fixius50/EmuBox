@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { GamepadProvider } from '../solid/src/services/input/gamepad.provider';
-import type { InputAction } from '../solid/src/types/input.types';
+import { InputManager } from '../solid/src/services/input/input.manager';
+import type { InputAction, InputDeviceStatus, IInputProvider } from '../solid/src/types/input.types';
 
 const buttons = Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 }));
 const axes = [0, 0];
@@ -51,3 +52,24 @@ try {
 } finally {
   provider.destroy();
 }
+
+let emitAction!: (action: InputAction) => void;
+const activeGamepad: InputDeviceStatus = {
+  isConnected: true,
+  deviceName: 'Fixture gamepad',
+  source: 'gamepad',
+};
+const fixtureProvider: IInputProvider = {
+  id: 'fixture-gamepad', name: 'Fixture Gamepad', init: () => {}, destroy: () => {},
+  onAction: listener => { emitAction = listener; return () => {}; },
+  onStatusChange: () => () => {},
+  getStatus: () => activeGamepad,
+};
+const manager = new InputManager();
+let actionSource: InputDeviceStatus | undefined;
+manager.registerProvider(fixtureProvider);
+manager.onAction((_action, status) => { actionSource = status; });
+emitAction('BUTTON_Y');
+assert.deepEqual(actionSource, activeGamepad);
+manager.destroy();
+console.log('Input source: the last action retains its originating provider.');

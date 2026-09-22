@@ -199,8 +199,45 @@ test("XMB: controller handles search, settings, empty catalogs and cleanup", () 
     dispatch("BUTTON_A");
     assert.equal(opened.at(-1), "system");
     assert.ok(!opened.includes("maintenance"));
+    model.search("");
+    runtime.setGames(groupCatalog([
+      ...fixtures,
+      { ...fixtures[0], id: "gba-one", platform: "gba" },
+      { ...fixtures[0], id: "snes-one", platform: "snes" },
+    ]));
+    model.chooseCategory(1);
+    assert.deepEqual(
+      model.categories().filter((entry) => entry.kind === "platform").map((entry) => entry.title),
+      ["gba", "ps1", "ps2", "snes"],
+    );
   } finally {
     runtime.dispose();
   }
   assert.equal(controller, null, "Controller must be released on unmount");
+});
+
+test("XMB: virtual keyboard opens only without a keyboard input source", () => {
+  let controller: ((action: InputAction) => void) | null = null;
+  const runtime = createRoot((dispose) => {
+    const model = useXmbLibrary({
+      games: groupCatalog(fixtures), platforms: [], loading: false, downloadingIds: new Set(),
+      inputStatus: { isConnected: true, deviceName: "Fixture pad", source: "gamepad" },
+      onOpenGame: () => {}, onOpenSettings: () => {}, onFavorite: () => {}, onMove: () => {},
+      onControllerReady: handler => { controller = handler; },
+    });
+    return { model, dispose };
+  });
+  try {
+    controller?.("BUTTON_Y");
+    assert.equal(runtime.model.virtualKeyboardOpen(), true);
+    controller?.("BUTTON_A");
+    assert.equal(runtime.model.query(), "A");
+    controller?.("BUTTON_Y");
+    assert.equal(runtime.model.query(), "A ");
+    controller?.("BUTTON_X");
+    assert.equal(runtime.model.query(), "A");
+    controller?.("BUTTON_B");
+    assert.equal(runtime.model.virtualKeyboardOpen(), false);
+  } finally { runtime.dispose(); }
+  assert.equal(controller, null);
 });

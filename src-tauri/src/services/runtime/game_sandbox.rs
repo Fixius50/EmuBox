@@ -14,11 +14,9 @@ use bubblewrap::{
 use content::{canonical, content};
 use sha2::{Digest, Sha256};
 #[cfg(test)]
-use std::fs;
-#[cfg(test)]
 use std::os::unix::fs::symlink;
 use std::{
-    fs::OpenOptions,
+    fs::{self, OpenOptions},
     path::{Path, PathBuf},
     process::Command,
 };
@@ -156,40 +154,6 @@ pub(super) fn command(
         ]);
     }
     if emulator_id == "shadps4" {
-        #[test]
-        fn managed_profile_config_is_read_only_and_confined_to_private_home() {
-            let (source, target) = emulators::managed_config("pcsx2").unwrap();
-            fs::create_dir_all(source.parent().unwrap()).unwrap();
-            fs::write(&source, "[EmuCore/GS]\nRenderer = OpenGL\n").unwrap();
-            let state = std::env::temp_dir()
-                .join(format!("emubox-managed-config-test-{}", std::process::id()));
-            fs::create_dir_all(&state).unwrap();
-            let mut command = Command::new("/usr/bin/true");
-            mount_managed_config(&mut command, &state, "pcsx2").unwrap();
-            let args: Vec<_> = command
-                .get_args()
-                .map(|arg| arg.to_string_lossy().into_owned())
-                .collect();
-            let canonical_source = fs::canonicalize(&source)
-                .unwrap()
-                .to_string_lossy()
-                .into_owned();
-            let destination = Path::new(HOME).join(target).to_string_lossy().into_owned();
-            assert!(args.windows(3).any(
-                |entry| entry == ["--ro-bind", canonical_source.as_str(), destination.as_str()]
-            ));
-            assert!(state.join(".config/PCSX2/PCSX2.ini").is_file());
-
-            let mut unknown = Command::new("/usr/bin/true");
-            mount_managed_config(&mut unknown, &state, "wine").unwrap();
-            assert_eq!(unknown.get_args().count(), 0);
-
-            fs::remove_file(&source).unwrap();
-            symlink("/etc/passwd", &source).unwrap();
-            assert!(mount_managed_config(&mut command, &state, "pcsx2").is_err());
-            let _ = fs::remove_file(&source);
-            let _ = fs::remove_dir_all(&state);
-        }
         command.args(["--override-root", "/home/player/.config/shadps4"]);
     }
     command.arg(&content.rom);
@@ -204,18 +168,20 @@ fn mount_managed_config(
     let Some((source, target)) = emulators::managed_config(emulator_id) else {
         return Ok(());
     };
-    if !target.starts_with(".config")
+    let allowed_target =
+        target.starts_with(".config") || target.starts_with(".local/share/dolphin-emu");
+    if !allowed_target
         || target
             .components()
             .any(|component| !matches!(component, std::path::Component::Normal(_)))
     {
         return Err(failure("Destino de configuracion gestionada invalido"));
     }
-    if !source.exists() {
-        return Ok(());
-    }
-    let source_metadata =
-        fs::symlink_metadata(&source).map_err(|error| failure(error.to_string()))?;
+    let source_metadata = match fs::symlink_metadata(&source) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(failure(error.to_string())),
+    };
     if !source_metadata.is_file() || source_metadata.file_type().is_symlink() {
         return Err(failure("Configuracion gestionada no es un archivo regular"));
     }
@@ -441,5 +407,40 @@ mod tests {
         fs::write(&marker, serde_json::to_vec(&package).unwrap()).unwrap();
         assert!(content(&rom, &root, true).is_err());
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn managed_profile_config_is_read_only_and_confined_to_private_home() {
+        let (source, target) = emulators::managed_config("pcsx2").unwrap();
+        fs::create_dir_all(source.parent().unwrap()).unwrap();
+        fs::write(&source, "[EmuCore/GS]\nRenderer = OpenGL\n").unwrap();
+        let state =
+            std::env::temp_dir().join(format!("emubox-managed-config-test-{}", std::process::id()));
+        fs::create_dir_all(&state).unwrap();
+        let mut command = Command::new("/usr/bin/true");
+        mount_managed_config(&mut command, &state, "pcsx2").unwrap();
+        let args: Vec<_> = command
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect();
+        let canonical_source = fs::canonicalize(&source)
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        let destination = Path::new(HOME).join(target).to_string_lossy().into_owned();
+        assert!(args
+            .windows(3)
+            .any(|entry| entry == ["--ro-bind", canonical_source.as_str(), destination.as_str()]));
+        assert!(state.join(".config/PCSX2/inis/PCSX2.ini").is_file());
+
+        let mut unknown = Command::new("/usr/bin/true");
+        mount_managed_config(&mut unknown, &state, "wine").unwrap();
+        assert_eq!(unknown.get_args().count(), 0);
+
+        fs::remove_file(&source).unwrap();
+        symlink("/missing-managed-config", &source).unwrap();
+        assert!(mount_managed_config(&mut command, &state, "pcsx2").is_err());
+        let _ = fs::remove_file(&source);
+        let _ = fs::remove_dir_all(&state);
     }
 }

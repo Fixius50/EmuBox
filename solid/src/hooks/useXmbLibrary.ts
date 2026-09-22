@@ -8,6 +8,7 @@ import {
 } from "solid-js";
 import type { InputAction } from "@contracts/input.types";
 import type {
+  VirtualKeyboardKey,
   XmbCommand,
   XmbLibraryProps,
   XmbPosition,
@@ -29,6 +30,16 @@ const settingItems = [
     detail: "Sistema, audio, controles y tiendas",
   },
 ];
+const VIRTUAL_KEYBOARD_COLUMNS = 10;
+const VIRTUAL_KEYBOARD_KEYS: readonly VirtualKeyboardKey[] = [
+  ..."ABCDEFGHIJ".split("").map((value) => ({ label: value, value })),
+  ..."KLMNOPQRST".split("").map((value) => ({ label: value, value })),
+  ..."UVWXYZ".split("").map((value) => ({ label: value, value })),
+  { label: "ESP", value: " " },
+  { label: "BORRAR", value: "backspace" },
+  { label: "LIMPIAR", value: "clear" },
+  { label: "LISTO", value: "done" },
+];
 
 export function useXmbLibrary(props: XmbLibraryProps) {
   const [position, setPosition] = createSignal<XmbPosition>({
@@ -40,6 +51,8 @@ export function useXmbLibrary(props: XmbLibraryProps) {
   const [query, setQuery] = createSignal("");
   const [clock, setClock] = createSignal("");
   const [coverFailed, setCoverFailed] = createSignal(false);
+  const [virtualKeyboardOpen, setVirtualKeyboardOpen] = createSignal(false);
+  const [virtualKeyboardIndex, setVirtualKeyboardIndex] = createSignal(0);
   let searchInput: HTMLInputElement | undefined;
   let detailPanel: HTMLDivElement | undefined;
 
@@ -58,7 +71,11 @@ export function useXmbLibrary(props: XmbLibraryProps) {
       { id: "all", title: "Todos los juegos", kind: "all" },
       { id: "favorites", title: "Favoritos", kind: "favorites" },
       { id: "installed", title: "Instalados", kind: "installed" },
-      ...[...platforms].map(([id, title]) => ({ id, title, kind: "platform" })),
+      ...[...platforms]
+        .sort(([, left], [, right]) =>
+          left.localeCompare(right, "es", { sensitivity: "base" }),
+        )
+        .map(([id, title]) => ({ id, title, kind: "platform" })),
     ];
   });
   const categoryIndex = createMemo(() => position().category);
@@ -172,7 +189,74 @@ export function useXmbLibrary(props: XmbLibraryProps) {
       game: 0,
     }));
   };
+  const keyboardAvailable = () => props.inputStatus.source === "keyboard";
+  const openSearch = () => {
+    if (keyboardAvailable()) searchInput?.focus();
+    else {
+      setVirtualKeyboardIndex(0);
+      setVirtualKeyboardOpen(true);
+    }
+  };
+  const closeVirtualKeyboard = () => setVirtualKeyboardOpen(false);
+  const applyVirtualKey = (key: VirtualKeyboardKey) => {
+    switch (key.value) {
+      case "backspace":
+        search(query().slice(0, -1));
+        break;
+      case "clear":
+        search("");
+        break;
+      case "done":
+        closeVirtualKeyboard();
+        break;
+      default:
+        search(`${query()}${key.value}`);
+        break;
+    }
+  };
+  const navigateVirtualKeyboard = (action: InputAction) => {
+    switch (action) {
+      case "NAV_LEFT":
+        setVirtualKeyboardIndex((index) =>
+          Math.max(0, index - 1),
+        );
+        break;
+      case "NAV_RIGHT":
+        setVirtualKeyboardIndex((index) =>
+          Math.min(VIRTUAL_KEYBOARD_KEYS.length - 1, index + 1),
+        );
+        break;
+      case "NAV_UP":
+        setVirtualKeyboardIndex((index) =>
+          Math.max(0, index - VIRTUAL_KEYBOARD_COLUMNS),
+        );
+        break;
+      case "NAV_DOWN":
+        setVirtualKeyboardIndex((index) =>
+          Math.min(VIRTUAL_KEYBOARD_KEYS.length - 1, index + VIRTUAL_KEYBOARD_COLUMNS),
+        );
+        break;
+      case "BUTTON_A":
+        applyVirtualKey(VIRTUAL_KEYBOARD_KEYS[virtualKeyboardIndex()]);
+        break;
+      case "BUTTON_B":
+        closeVirtualKeyboard();
+        break;
+      case "BUTTON_X":
+        applyVirtualKey({ label: "BORRAR", value: "backspace" });
+        break;
+      case "BUTTON_Y":
+        applyVirtualKey({ label: "ESP", value: " " });
+        break;
+      default:
+        break;
+    }
+  };
   const controller = (action: InputAction) => {
+    if (virtualKeyboardOpen()) {
+      navigateVirtualKeyboard(action);
+      return;
+    }
     const command = commands[action];
     if (command) {
       navigate(command);
@@ -200,7 +284,7 @@ export function useXmbLibrary(props: XmbLibraryProps) {
           detailPanel?.scrollBy({ top: action === "BUTTON_RT" ? 160 : -160 });
         break;
       case "BUTTON_Y":
-        searchInput?.focus();
+        openSearch();
         break;
       case "BUTTON_START":
       case "HOME":
@@ -242,6 +326,9 @@ export function useXmbLibrary(props: XmbLibraryProps) {
     query,
     clock,
     coverFailed,
+    virtualKeyboardOpen,
+    virtualKeyboardIndex,
+    virtualKeyboardKeys: VIRTUAL_KEYBOARD_KEYS,
     categories,
     category,
     folders,
@@ -257,6 +344,9 @@ export function useXmbLibrary(props: XmbLibraryProps) {
     chooseRow,
     chooseGame,
     search,
+    openSearch,
+    closeVirtualKeyboard,
+    applyVirtualKey,
     onSearchKeyDown,
     bindSearchInput: (element: HTMLInputElement) => {
       searchInput = element;

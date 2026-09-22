@@ -9,6 +9,7 @@ import {
   Folder,
   Gamepad2,
   Heart,
+  Keyboard,
   Layers,
   LoaderCircle,
   Monitor,
@@ -25,6 +26,9 @@ export function XmbLibrary(props: XmbLibraryProps) {
     query,
     clock,
     coverFailed,
+    virtualKeyboardOpen,
+    virtualKeyboardIndex,
+    virtualKeyboardKeys,
     categories,
     category,
     folders,
@@ -40,6 +44,9 @@ export function XmbLibrary(props: XmbLibraryProps) {
     chooseRow,
     chooseGame,
     search,
+    openSearch,
+    closeVirtualKeyboard,
+    applyVirtualKey,
     onSearchKeyDown,
     bindSearchInput,
     bindDetailPanel,
@@ -83,21 +90,52 @@ export function XmbLibrary(props: XmbLibraryProps) {
           </Show>
         </div>
         <div class="xmb-top-actions">
-          <label class="xmb-search">
-            <Search size={17} />
-            <input
-              ref={bindSearchInput}
-              type="search"
-              value={query()}
-              placeholder="Buscar"
-              aria-label="Buscar juegos"
-              onInput={(event) => search(event.currentTarget.value)}
-              onKeyDown={onSearchKeyDown}
-            />
-          </label>
+          <Show
+            when={props.inputStatus.source === "keyboard"}
+            fallback={
+              <button class="xmb-search" title="Abrir buscador" aria-label="Abrir buscador" onClick={openSearch}>
+                <Keyboard size={17} />
+                <span>{query() || "Buscar"}</span>
+              </button>
+            }
+          >
+            <label class="xmb-search">
+              <Search size={17} />
+              <input
+                ref={bindSearchInput}
+                type="search"
+                value={query()}
+                placeholder="Buscar"
+                aria-label="Buscar juegos"
+                onInput={(event) => search(event.currentTarget.value)}
+                onKeyDown={onSearchKeyDown}
+              />
+            </label>
+          </Show>
           <time>{clock()}</time>
         </div>
       </header>
+      <Show when={virtualKeyboardOpen()}>
+        <section class="xmb-virtual-keyboard" role="dialog" aria-modal="true" aria-label="Buscar juegos">
+          <header>
+            <strong>Buscar juegos</strong>
+            <output>{query() || " "}</output>
+          </header>
+          <div class="xmb-virtual-keyboard-grid">
+            <For each={virtualKeyboardKeys}>
+              {(key, index) => (
+                <button
+                  classList={{ selected: index() === virtualKeyboardIndex() }}
+                  onClick={() => applyVirtualKey(key)}
+                >
+                  {key.label}
+                </button>
+              )}
+            </For>
+          </div>
+          <footer><button onClick={closeVirtualKeyboard}>Cerrar</button></footer>
+        </section>
+      </Show>
       <nav
         class="xmb-category-rail"
         aria-label="Categorias"
@@ -190,7 +228,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                   active: active(),
                   expanded: active() && position().expanded,
                 }}
-                style={{ "--row-offset": row - position().row }}
+                style={{ "--row-offset": row - (position().row || 1) }}
               >
                 <button
                   class="xmb-folder-button"

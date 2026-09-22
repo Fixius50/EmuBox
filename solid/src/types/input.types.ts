@@ -43,7 +43,10 @@ export interface GamepadStatus {
   devices: GamepadDevice[];
 }
 
-export type InputActionListener = (action: InputAction) => void;
+export type InputActionListener = (
+  action: InputAction,
+  status?: InputDeviceStatus,
+) => void;
 export type InputStatusListener = (status: InputDeviceStatus) => void;
 
 export interface IInputProvider {

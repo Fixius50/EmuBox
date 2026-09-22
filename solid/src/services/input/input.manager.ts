@@ -19,7 +19,7 @@ export class InputManager {
     provider.init();
 
     const unhookAction = provider.onAction((action: InputAction) => {
-      this.broadcastAction(action);
+      this.broadcastAction(action, provider.getStatus());
     });
 
     const unhookStatus = provider.onStatusChange((status: InputDeviceStatus) => {
@@ -52,9 +52,9 @@ export class InputManager {
     return () => this.statusListeners.delete(listener);
   }
 
-  private broadcastAction(action: InputAction): void {
+  private broadcastAction(action: InputAction, status: InputDeviceStatus): void {
     for (const listener of this.actionListeners) {
-      listener(action);
+      listener(action, status);
     }
   }
 

@@ -57,8 +57,10 @@ Los perfiles de RetroArch, PCSX2, DuckStation, Dolphin y PPSSPP parten del
 backend operativo seleccionado para la sesion. Vulkan disponible por si solo no
 sobrescribe una seleccion OpenGL; con backend `software` o `auto` no se fuerza un
 renderer en los archivos nativos del emulador. Al lanzar, solo el archivo de
-configuracion gestionado de ese perfil entra al sandbox como lectura; no se
-exponen configuraciones generales del host ni de otros perfiles.
+configuracion gestionado de ese perfil entra al sandbox como lectura. PCSX2 usa
+`$XDG_CONFIG_HOME/PCSX2/inis/PCSX2.ini`; Dolphin recibe `-u` y su user directory
+privado bajo `$XDG_DATA_HOME/dolphin-emu/Config/Dolphin.ini`. No se exponen
+configuraciones generales del host ni de otros perfiles.
 
 **La pantalla negra intermitente NO esta declarada resuelta.** La confirmacion
 antigua sobre fondo/onda fue invalidada por recurrencias. [Incidencia](virtualbox-graphics.md).

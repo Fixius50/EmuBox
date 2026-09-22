@@ -21,7 +21,7 @@ impl EmulatorProfile for Dolphin {
         "standalone"
     }
     fn default_arguments(&self) -> &'static [&'static str] {
-        &["-b", "-e"]
+        &["-u", "/home/player/.local/share/dolphin-emu", "-b", "-e"]
     }
     fn version_flag(&self) -> &'static str {
         "--version"

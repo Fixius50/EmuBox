@@ -23,6 +23,11 @@ export interface XmbBounds {
   games: number;
 }
 
+export interface VirtualKeyboardKey {
+  label: string;
+  value: string;
+}
+
 export interface XmbLibraryProps {
   games: CatalogGroup[];
   platforms: Platform[];

@@ -118,7 +118,7 @@ pub(crate) fn managed_config(emulator_id: &str) -> Option<(PathBuf, PathBuf)> {
         )),
         "pcsx2" => Some((
             config.join("PCSX2.ini"),
-            PathBuf::from(".config/PCSX2/PCSX2.ini"),
+            PathBuf::from(".config/PCSX2/inis/PCSX2.ini"),
         )),
         "duckstation" => Some((
             config.join("settings.ini"),
@@ -126,7 +126,7 @@ pub(crate) fn managed_config(emulator_id: &str) -> Option<(PathBuf, PathBuf)> {
         )),
         "dolphin" => Some((
             config.join("Dolphin.ini"),
-            PathBuf::from(".config/dolphin-emu/Dolphin.ini"),
+            PathBuf::from(".local/share/dolphin-emu/Config/Dolphin.ini"),
         )),
         "ppsspp" => Some((
             config.join("PSP/SYSTEM/ppsspp.ini"),
@@ -335,9 +335,9 @@ mod tests {
     fn managed_config_table_is_closed_and_confined_to_private_config() {
         for (id, expected) in [
             ("retroarch", ".config/retroarch/retroarch.cfg"),
-            ("pcsx2", ".config/PCSX2/PCSX2.ini"),
+            ("pcsx2", ".config/PCSX2/inis/PCSX2.ini"),
             ("duckstation", ".config/duckstation/settings.ini"),
-            ("dolphin", ".config/dolphin-emu/Dolphin.ini"),
+            ("dolphin", ".local/share/dolphin-emu/Config/Dolphin.ini"),
             ("ppsspp", ".config/ppsspp/PSP/SYSTEM/ppsspp.ini"),
         ] {
             let (source, target) = managed_config(id).unwrap();
