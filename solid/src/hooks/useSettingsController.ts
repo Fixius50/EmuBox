@@ -17,21 +17,13 @@ export function useSettingsController(
   const { systemStore, soundFx, activeSettingsTab, settingsRowIndex } = options;
 
   // Emulator CRUD Handlers
-  const handleSaveEmulator = (emulator: Emulator) => {
-    const emus = [...systemStore.emulators()];
-    const existingIdx = emus.findIndex((e) => e.id === emulator.id);
-    const updatedEmus =
-      existingIdx >= 0
-        ? emus.map((e, idx) => (idx === existingIdx ? emulator : e))
-        : [...emus, emulator];
-
-    systemStore.setEmulators(updatedEmus);
+  const handleSaveEmulator = async (emulator: Emulator) => {
+    await systemStore.saveEmulator(emulator);
     soundFx.playFavorite();
   };
 
-  const handleDeleteEmulator = (emulatorId: string) => {
-    const emus = systemStore.emulators().filter((e) => e.id !== emulatorId);
-    systemStore.setEmulators(emus);
+  const handleDeleteEmulator = async (emulatorId: string) => {
+    await systemStore.deleteEmulator(emulatorId);
     soundFx.playBack();
   };
 

@@ -38,7 +38,9 @@ for (const operation of [
 }
 console.log('Native IPC: absent runtime rejects operations without fabricated results.');
 const source = ts.createSourceFile('backend.ts', readFileSync(new URL('../solid/src/services/backend/tauri-backend.service.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
-const registered = new Set([...readFileSync(new URL('../src-tauri/src/lib.rs', import.meta.url), 'utf8').matchAll(/commands::\w+::(\w+)/g)].map(match => match[1]));
+const nativeApp = readFileSync(new URL('../src-tauri/src/lib.rs', import.meta.url), 'utf8');
+assert.match(nativeApp, /\.invoke_handler\(crate::emubox_ipc_handler!\(\)\)/);
+const registered = new Set([...readFileSync(new URL('../src-tauri/src/api/invoke.rs', import.meta.url), 'utf8').matchAll(/commands::\w+::(\w+)/g)].map(match => match[1]));
 assert.equal(registered.has('execute_command'), false, 'Generic shell execution must not be exposed over IPC');
 const nativeStartup = readFileSync(new URL('../src-tauri/src/services/runtime/startup.rs', import.meta.url), 'utf8');
 assert.doesNotMatch(nativeStartup, /game_database::(?:ensure_local_index|sync_all)/,

@@ -177,8 +177,8 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
         isOpen={isCrudModalOpen()}
         initialData={selectedEmulatorForEdit()}
         onClose={() => setIsCrudModalOpen(false)}
-        onSave={(emu) => props.onSaveEmulator?.(emu)}
-        onDelete={(id) => props.onDeleteEmulator?.(id)}
+        onSave={props.onSaveEmulator}
+        onDelete={props.onDeleteEmulator}
       />
     </div>
   );

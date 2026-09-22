@@ -77,8 +77,8 @@ export interface UseSettingsNavigationOptions {
 }
 
 export interface UseSettingsControllerReturn {
-  handleSaveEmulator: (emulator: Emulator) => void;
-  handleDeleteEmulator: (emulatorId: string) => void;
+  handleSaveEmulator: (emulator: Emulator) => Promise<void>;
+  handleDeleteEmulator: (emulatorId: string) => Promise<void>;
   handleToggleCurrentSetting: () => void;
   handleAdjustCurrentSlider: (delta: number) => void;
   triggerVibrationTest: (padIndex: number) => void;
@@ -132,6 +132,6 @@ export interface SettingsViewProps {
   onUpdateSettings?: (newSettings: SystemSettings) => void;
   onSelectContentArea?: () => void;
   onBack?: () => void;
-  onSaveEmulator?: (emulator: Emulator) => void;
-  onDeleteEmulator?: (emulatorId: string) => void;
+  onSaveEmulator: (emulator: Emulator) => Promise<void>;
+  onDeleteEmulator: (emulatorId: string) => Promise<void>;
 }

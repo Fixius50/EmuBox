@@ -57,13 +57,15 @@ try {
   assert.ok(
     diagnostics.some(
       (diagnostic) =>
-        diagnostic.code === 2322 && diagnostic.file?.fileName === closed,
+        diagnostic.code === 2322 &&
+        diagnostic.file && path.resolve(diagnostic.file.fileName) === closed,
     ),
   );
   assert.ok(
     diagnostics.some(
       (diagnostic) =>
-        diagnostic.code === 2875 && diagnostic.file?.fileName === jsx,
+        diagnostic.code === 2875 &&
+        diagnostic.file && path.resolve(diagnostic.file.fileName) === jsx,
     ),
   );
   console.log(

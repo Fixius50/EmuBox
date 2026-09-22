@@ -10,7 +10,7 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "test": "node tests/build-cache.test.mjs && node tests/telemetry.test.mjs && tsx tests/native-backend.test.ts && tsx --conditions=browser tests/library.test.ts && tsx tests/gamepad.test.ts && tsx --conditions=browser tests/catalog-groups.test.ts && tsx --conditions=browser tests/xmb.test.ts",
+    "test": "node --import tsx --conditions=browser --test --test-concurrency=4 tests/*.test.ts tests/build-cache.test.mjs tests/telemetry.test.mjs",
     "test:architecture": "bash tests/architecture.test.sh && bash tests/graphics.test.sh && tsx tests/graphics-policy.test.ts",
     "test:appliance": "node tests/appliance.test.mjs && node tests/appliance-config.test.mjs",
     "check:appliance": "node scripts/check-appliance.mjs",

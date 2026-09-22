@@ -57,8 +57,8 @@ export interface UseEmulatorCrudOptions {
   isOpen: () => boolean;
   initialData: () => Emulator | null | undefined;
   onClose: () => void;
-  onSave: (emulator: Emulator) => void;
-  onDelete: (emulatorId: string) => void;
+  onSave: (emulator: Emulator) => Promise<void>;
+  onDelete: (emulatorId: string) => Promise<void>;
 }
 
 export interface UseEmulatorCrudReturn {
@@ -67,9 +67,12 @@ export interface UseEmulatorCrudReturn {
   modalFocusIdx: Accessor<number>;
   isTyping: Accessor<boolean>;
   setIsTyping: Setter<boolean>;
+  isPending: Accessor<boolean>;
+  error: Accessor<string>;
+  handleClose: () => void;
   focusModalElement: (idx: number) => void;
-  handleSave: () => void;
-  handleDelete: () => void;
+  handleSave: () => Promise<void>;
+  handleDelete: () => Promise<void>;
   setElementRefs: (refs: {
     modalBoxRef?: HTMLDivElement;
     nameInputRef?: HTMLInputElement;
@@ -86,8 +89,8 @@ export interface EmulatorCrudModalProps {
   isOpen: boolean;
   initialData?: Emulator | null;
   onClose: () => void;
-  onSave: (emulator: Emulator) => void;
-  onDelete: (emulatorId: string) => void;
+  onSave: (emulator: Emulator) => Promise<void>;
+  onDelete: (emulatorId: string) => Promise<void>;
 }
 
 export interface EmulatorSelectorModalProps {

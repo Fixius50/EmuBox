@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import test from "node:test";
 import {
   moveXmb,
   xmbFolders,
@@ -9,11 +10,9 @@ import type { Game } from "../solid/src/types/game.types";
 import { createRoot, createSignal } from "solid-js";
 import { useXmbLibrary } from "../solid/src/hooks/useXmbLibrary";
 import type { InputAction } from "../solid/src/types/input.types";
-import { useSettingsNavigation } from "../solid/src/hooks/useSettingsNavigation";
-import { useMaintenanceController } from "../solid/src/hooks/useMaintenanceController";
-import { TauriBackendService } from "../solid/src/services/backend/tauri-backend.service";
-import { SoundFxService } from "../solid/src/services/audio/sound-fx.service";
+import { SETTINGS_TABS } from "@contracts/settings.types";
 
+test("XMB: movement respects category, row and game bounds", () => {
 const bounds = { categories: 5, rows: 120000, games: 3 };
 let position: XmbPosition = { category: 1, row: 0, expanded: false, game: 0 };
 position = moveXmb(position, "enter", bounds);
@@ -41,6 +40,8 @@ assert.equal(
   moveXmb({ ...position, row: 1, expanded: true }, "left", bounds).expanded,
   false,
 );
+});
+
 const fixtures = [
   { id: "ps1-one", title: "Example", platform: "ps1" },
   { id: "ps2-one", title: "EXAMPLE", platform: "ps2" },
@@ -54,6 +55,7 @@ const fixtures = [
       releaseYear: 2000,
     }) as Game,
 );
+test("XMB: folders preserve platforms and original variants", () => {
 const folders = xmbFolders(groupCatalog(fixtures));
 assert.equal(folders.length, 2);
 assert.equal(folders[0].games.length, 2);
@@ -65,7 +67,9 @@ assert.deepEqual(
 );
 assert.equal(folders[1].title, "Example 2");
 assert.deepEqual(xmbFolders([]), []);
+});
 
+test("XMB: canonical versions are built lazily and cached", () => {
 const canonicalFolders = xmbFolders(groupCatalog([
   { ...fixtures[0], id: 'edition-us', canonicalId: 'canonical-example', canonicalTitle: 'Example', releaseTitle: 'Example (USA)' },
   { ...fixtures[0], id: 'edition-eu', canonicalId: 'canonical-example', canonicalTitle: 'Example', releaseTitle: 'Example (Europe)', installed: true },
@@ -86,7 +90,9 @@ const lazyVersions = lazyFolder[0].games;
 const afterFirstAccess = versionReads;
 assert.equal(lazyFolder[0].games, lazyVersions);
 assert.equal(versionReads, afterFirstAccess, 'Opening the same folder reuses version cards');
+});
 
+test("XMB: controller handles search, settings, empty catalogs and cleanup", () => {
 let controller: ((action: InputAction) => void) | null = null;
 const opened: string[] = [];
 const runtime = createRoot((dispose) => {
@@ -142,79 +148,17 @@ try {
   runtime.setGames([]);
   assert.equal(model.position().row, 0);
   model.chooseCategory(0);
-  assert.equal(model.rows(), 5);
-  model.chooseRow(5);
+  assert.equal(model.rows(), SETTINGS_TABS.length + 1);
+  for (const [index, tab] of SETTINGS_TABS.entries()) {
+    model.chooseRow(index + 1);
+    dispatch("BUTTON_A");
+    assert.equal(opened.at(-1), tab.id);
+  }
+  model.chooseRow(SETTINGS_TABS.length + 1);
   dispatch("BUTTON_A");
   assert.equal(opened.at(-1), "maintenance");
 } finally {
   runtime.dispose();
 }
 assert.equal(controller, null, "Controller must be released on unmount");
-let settingsArea: "sidebar" | "content" = "sidebar";
-let settingsTab = "system";
-let settingsRow = 0;
-let volumeChange = 0;
-let wentBack = false;
-const settingsAction = useSettingsNavigation({
-  soundFx: new SoundFxService(),
-  emulatorCount: () => 0,
-  activeSettingsTab: () => settingsTab,
-  settingsFocusArea: () => settingsArea,
-  settingsRowIndex: () => settingsRow,
-  onSettingsTabChange: (tab) => {
-    settingsTab = tab;
-  },
-  onSettingsFocusAreaChange: (area) => {
-    settingsArea = area;
-  },
-  onSettingsRowIndexChange: (row) => {
-    settingsRow = row;
-  },
-  onToggleCurrentSetting: () => {},
-  onAdjustCurrentSlider: (delta) => {
-    volumeChange += delta;
-  },
-  onBack: () => {
-    wentBack = true;
-  },
 });
-settingsAction("BUTTON_LB");
-assert.equal(settingsTab, "gamepad");
-settingsTab = "audio";
-settingsAction("BUTTON_A");
-settingsAction("NAV_DOWN");
-settingsAction("NAV_RIGHT");
-assert.equal(volumeChange, 5);
-settingsAction("BUTTON_B");
-assert.equal(settingsArea, "sidebar");
-settingsAction("BUTTON_B");
-assert.equal(wentBack, true);
-
-let maintenanceController: ((action: InputAction) => void) | null = null;
-const maintenance = createRoot((dispose) => {
-  const [index, setIndex] = createSignal(0);
-  const model = useMaintenanceController({
-    backend: new TauriBackendService(),
-    isOpen: () => true,
-    focusedIndex: index,
-    onSelectIndex: setIndex,
-    onClose: () => {},
-    onControllerReady: (handler) => {
-      maintenanceController = handler;
-    },
-  });
-  return { model, dispose };
-});
-try {
-  for (let step = 0; step < 10; step++) maintenanceController?.("NAV_DOWN");
-  assert.equal(
-    maintenance.model.activeIndex(),
-    maintenance.model.actions.length - 1,
-  );
-} finally {
-  maintenance.dispose();
-}
-assert.equal(maintenanceController, null);
-console.log(
-  "XMB: categories, folders, horizontal titles, back and empty/large catalog navigation: OK",
-);

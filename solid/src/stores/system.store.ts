@@ -26,6 +26,18 @@ export function createSystemStore(backend: IEmuBoxBackend) {
     await backend.saveSettings(newSettings);
   };
 
+  const saveEmulator = async (emulator: Emulator) => {
+    await backend.saveEmulator(emulator);
+    setEmulators(current => current.some(entry => entry.id === emulator.id)
+      ? current.map(entry => entry.id === emulator.id ? emulator : entry)
+      : [...current, emulator]);
+  };
+
+  const deleteEmulator = async (emulatorId: string) => {
+    await backend.deleteEmulator(emulatorId);
+    setEmulators(current => current.filter(entry => entry.id !== emulatorId));
+  };
+
   return {
     platforms,
     setPlatforms,
@@ -35,7 +47,9 @@ export function createSystemStore(backend: IEmuBoxBackend) {
     setSettings,
     isLoading,
     loadSystemData,
-    updateSettings
+    updateSettings,
+    saveEmulator,
+    deleteEmulator
   };
 }
 

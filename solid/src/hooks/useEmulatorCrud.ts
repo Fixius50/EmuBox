@@ -22,6 +22,8 @@ export function useEmulatorCrud(
 
   const [modalFocusIdx, setModalFocusIdx] = createSignal<number>(0);
   const [isTyping, setIsTyping] = createSignal<boolean>(false);
+  const [isPending, setIsPending] = createSignal(false);
+  const [error, setError] = createSignal("");
 
   let modalBoxRef: HTMLDivElement | undefined;
   let nameInputRef: HTMLInputElement | undefined;
@@ -68,6 +70,7 @@ export function useEmulatorCrud(
       }
       setModalFocusIdx(0);
       setIsTyping(false);
+      setError("");
       setTimeout(() => {
         if (modalBoxRef) animateEmulatorModalEntrance(modalBoxRef);
       }, 50);
@@ -102,11 +105,15 @@ export function useEmulatorCrud(
     }
   };
 
+  const handleClose = () => {
+    if (!isPending()) options.onClose();
+  };
+
   const controller = (action: InputAction) => {
-    if (!options.isOpen()) return;
+    if (!options.isOpen() || isPending()) return;
     if (action === "BUTTON_B") {
       if (isTyping()) focusModalElement(modalFocusIdx());
-      else options.onClose();
+      else handleClose();
       return;
     }
     const cur = modalFocusIdx();
@@ -144,11 +151,11 @@ export function useEmulatorCrud(
           break;
         }
         if (hasDelete && cur === 3) {
-          handleDelete();
+          void handleDelete();
         } else if ((hasDelete && cur === 4) || (!hasDelete && cur === 3)) {
-          options.onClose();
+          handleClose();
         } else if ((hasDelete && cur === 5) || (!hasDelete && cur === 4)) {
-          handleSave();
+          void handleSave();
         } else {
           setIsTyping(true);
           switch (cur) {
@@ -176,19 +183,35 @@ export function useEmulatorCrud(
   onMount(() => options.onControllerReady?.(controller));
   onCleanup(() => options.onControllerReady?.(null));
 
-  const handleSave = () => {
-    const data = formData();
-    if (data.id && data.name) {
-      options.onSave(data as Emulator);
+  const persist = async (operation: () => Promise<void>) => {
+    if (!options.isOpen() || isPending()) return;
+    setIsPending(true);
+    setError("");
+    try {
+      await operation();
       options.onClose();
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message
+        : typeof cause === "string" ? cause
+        : cause && typeof cause === "object" && "details" in cause && typeof cause.details === "string"
+          ? cause.details : "No se pudo guardar el cambio del emulador";
+      setError(message);
+    } finally {
+      setIsPending(false);
     }
   };
 
-  const handleDelete = () => {
+  const handleSave = async () => {
+    const data = formData();
+    if (data.id && data.name) {
+      await persist(() => options.onSave(data as Emulator));
+    }
+  };
+
+  const handleDelete = async () => {
     const data = formData();
     if (data.id) {
-      options.onDelete(data.id);
-      options.onClose();
+      await persist(() => options.onDelete(data.id));
     }
   };
 
@@ -198,6 +221,9 @@ export function useEmulatorCrud(
     modalFocusIdx,
     isTyping,
     setIsTyping,
+    isPending,
+    error,
+    handleClose,
     focusModalElement,
     handleSave,
     handleDelete,

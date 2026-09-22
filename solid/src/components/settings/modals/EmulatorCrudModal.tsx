@@ -9,6 +9,9 @@ export const EmulatorCrudModal: Component<EmulatorCrudModalProps> = (props) => {
     modalFocusIdx,
     isTyping,
     setIsTyping,
+    isPending,
+    error,
+    handleClose,
     handleSave,
     handleDelete,
     setElementRefs,
@@ -23,9 +26,10 @@ export const EmulatorCrudModal: Component<EmulatorCrudModalProps> = (props) => {
 
   return (
     <Show when={props.isOpen}>
-      <div class="crud-modal-backdrop" onClick={props.onClose}>
+      <div class="crud-modal-backdrop" onClick={handleClose}>
         <div
           class="crud-modal-box"
+          aria-busy={isPending()}
           ref={(element) => setElementRefs({ modalBoxRef: element })}
           onClick={(event) => event.stopPropagation()}
           onKeyDown={(event) => {
@@ -47,6 +51,7 @@ export const EmulatorCrudModal: Component<EmulatorCrudModalProps> = (props) => {
             <input
               ref={(element) => setElementRefs({ nameInputRef: element })}
               type="text"
+              disabled={isPending()}
               class={`crud-input ${modalFocusIdx() === 0 ? "focused" : ""} ${isTyping() && modalFocusIdx() === 0 ? "typing" : ""}`}
               value={formData().name || ""}
               onFocus={() => setIsTyping(true)}
@@ -62,6 +67,7 @@ export const EmulatorCrudModal: Component<EmulatorCrudModalProps> = (props) => {
             <input
               ref={(element) => setElementRefs({ execInputRef: element })}
               type="text"
+              disabled={isPending()}
               class={`crud-input ${modalFocusIdx() === 1 ? "focused" : ""} ${isTyping() && modalFocusIdx() === 1 ? "typing" : ""}`}
               value={formData().executable || ""}
               onFocus={() => setIsTyping(true)}
@@ -80,6 +86,7 @@ export const EmulatorCrudModal: Component<EmulatorCrudModalProps> = (props) => {
             <input
               ref={(element) => setElementRefs({ typeInputRef: element })}
               type="text"
+              disabled={isPending()}
               class={`crud-input ${modalFocusIdx() === 2 ? "focused" : ""} ${isTyping() && modalFocusIdx() === 2 ? "typing" : ""}`}
               value={formData().coreType || "libretro"}
               onFocus={() => setIsTyping(true)}
@@ -93,11 +100,16 @@ export const EmulatorCrudModal: Component<EmulatorCrudModalProps> = (props) => {
             />
           </div>
 
+          <Show when={error()}>
+            <p role="alert">{error()}</p>
+          </Show>
+
           <div class="crud-modal-actions">
             <Show when={formData().id}>
               <button
                 ref={(element) => setElementRefs({ deleteBtnRef: element })}
                 class={`crud-btn-delete ${modalFocusIdx() === 3 ? "focused" : ""}`}
+                disabled={isPending()}
                 onClick={handleDelete}
               >
                 ELIMINAR NÚCLEO
@@ -106,13 +118,15 @@ export const EmulatorCrudModal: Component<EmulatorCrudModalProps> = (props) => {
             <button
               ref={(element) => setElementRefs({ cancelBtnRef: element })}
               class={`crud-btn-cancel ${(formData().id ? modalFocusIdx() === 4 : modalFocusIdx() === 3) ? "focused" : ""}`}
-              onClick={props.onClose}
+              disabled={isPending()}
+              onClick={handleClose}
             >
               CANCELAR [B]
             </button>
             <button
               ref={(element) => setElementRefs({ saveBtnRef: element })}
               class={`crud-btn-save ${(formData().id ? modalFocusIdx() === 5 : modalFocusIdx() === 4) ? "focused" : ""}`}
+              disabled={isPending()}
               onClick={handleSave}
             >
               GUARDAR CAMBIOS [A]

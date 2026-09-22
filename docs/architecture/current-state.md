@@ -1,6 +1,6 @@
 # Estado actual de EmuBox
 
-Revision: 2026-09-16. Vision resumida; los documentos por responsabilidad contienen
+Revision: 2026-09-22. Vision resumida; los documentos por responsabilidad contienen
 el detalle. [Indice de documentacion](../README.md).
 
 ## Runtime y appliance
@@ -70,7 +70,10 @@ binario siga presente o cumpla la politica de seguridad actual.
 [requisitos/propuesta futura](../specification/requirements.md).
 La base de proveedores de bibliotecas para Steam, Epic y GOG conserva cuentas,
 entitlements, enlaces canonicos y estado persistido de sincronizacion sin
-credenciales. Ajustes muestra esos estados locales sin simular una conexion; los
-flujos de autenticacion autorizados quedan pendientes por proveedor.
+credenciales en SQLite. Ajustes incluye conexion, sincronizacion y desconexion:
+Steam mediante clave Web API propia, Epic mediante Legendary y GOG mediante gogdl.
+Los secretos quedan en el almacenamiento privado de cada proveedor. La presencia
+de estos adaptadores no certifica su funcionamiento con cuentas reales; esa
+aceptacion funcional sigue pendiente en el equipo objetivo.
 [Tiendas](store-library-providers.md).
 No Git ni navegador en el flujo actual; no usar datos reales como fixtures.

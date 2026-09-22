@@ -20,13 +20,15 @@ No hay matching textual automatico desde una tienda a una identidad canonica. Un
 
 ## Arranque y aislamiento
 
-La UI usa el estado SQLite persistido antes de cualquier sincronizacion. Una futura sincronizacion de proveedor sera secundaria al arranque y conservara la biblioteca previa ante errores de red o autenticacion.
+La UI usa el estado SQLite persistido antes de cualquier sincronizacion. Los adaptadores ofrecen sincronizacion explicita desde Ajustes; la autorizacion de tiendas no es un requisito del arranque.
 
 Los juegos ejecutados con Bubblewrap no reciben `/var/lib/emubox/stores`, la base SQLite de EmuBox ni sesiones de proveedores. Un proveedor puede requerir red y un flujo de login oficial; eso no cambia la politica de red por defecto de los juegos.
 
 ## Estado actual
 
 Steam, Epic y GOG exponen consultas IPC de proveedores/cuentas/entitlements y reservan persistencia privada. Ajustes muestra cuentas, licencias y enlaces canonicos ya persistidos. La autorizacion (`required` o `connected`) es independiente de la sincronizacion (`authorization_required`, `syncing`, `ready` o `error`): una cuenta conectada puede seguir pendiente de su primera importacion.
+
+Los flujos de conexion, sincronizacion y desconexion estan implementados por proveedor. Su aceptacion con cuentas reales y los adaptadores instalados debe verificarse en el equipo objetivo; las pruebas locales no la certifican.
 
 ### Epic mediante Legendary
 
@@ -52,9 +54,9 @@ No existe un flujo de autenticacion o de biblioteca comun para estas tres tienda
 
 | Proveedor | Patron investigado | Limite para EmuBox | Decision |
 | --- | --- | --- | --- |
-| Steam | Playnite usa el formulario web de Steam y conserva su propia sesion. `IPlayerService/GetOwnedGames` requiere `steamid` y una clave Web API de usuario. | El issue de Playnite citado solo describe un fallo de autenticacion; no documenta una API publica para capturar un token de biblioteca. | No extraer `webapi_token`, cookies ni configuracion de otro cliente. Una futura integracion debe tener un flujo propio verificable y no distribuir claves de editor. |
-| Epic | Legendary ofrece `auth`, renovacion local y `list --json`; puede ejecutar un navegador/WebView o recibir un codigo introducido en su propio proceso. | `--import` reutiliza y revoca una sesion de Epic Games Launcher. | Se puede integrar Legendary como proceso separado, con configuracion bajo `stores/epic`, siempre que el login ocurra en su terminal/WebView y EmuBox no reciba ni registre los codigos o tokens. |
-| GOG | gogdl esta pensado para ser llamado por otra aplicacion y mantiene su archivo de autenticacion en una ruta indicada. | El componente incorpora configuracion de cliente propia, cuya validez puede cambiar; su CLI no constituye una biblioteca completa documentada. | Se puede usar un gogdl mantenido como componente aislado, pero EmuBox no copiara ni fijara sus credenciales de cliente y necesitara un adaptador de biblioteca verificable antes de sincronizar entitlements. |
+| Steam | Playnite usa el formulario web de Steam y conserva su propia sesion. `IPlayerService/GetOwnedGames` requiere `steamid` y una clave Web API de usuario. | Una sesion de otro cliente no es una API publica de biblioteca. | Se usa SteamID64 y una clave Web API propia introducidos por IPC local y almacenados de forma privada. No se extraen `webapi_token`, cookies ni configuracion de otro cliente. |
+| Epic | Legendary ofrece `auth`, renovacion local y `list --json`; puede recibir un codigo de autorizacion. | `--import` reutiliza y revoca una sesion de Epic Games Launcher. | Se integra Legendary como proceso separado bajo `stores/epic`. El codigo se recibe una vez por IPC local desde Tiendas, sin registrarlo ni pasarlo en argumentos de proceso; no se importa la sesion de otro cliente. |
+| GOG | gogdl esta pensado para ser llamado por otra aplicacion y mantiene su archivo de autenticacion en una ruta indicada. | El componente incorpora configuracion de cliente propia, cuya validez puede cambiar; su CLI no constituye una biblioteca completa documentada. | Se usa gogdl con autenticacion privada bajo `stores/gog` y un adaptador que consulta la biblioteca de Galaxy. EmuBox no copia ni fija las credenciales de cliente del componente. |
 
 Las fuentes consultadas incluyen la documentacion de Steamworks sobre [claves Web API](https://partner.steamgames.com/doc/webapi_overview/auth) y [GetOwnedGames](https://partner.steamgames.com/doc/webapi/IPlayerService), [Legendary](https://github.com/legendary-gl/legendary), [gogdl](https://github.com/Heroic-Games-Launcher/heroic-gogdl), y los limites observados en [gogdl #72](https://github.com/Heroic-Games-Launcher/heroic-gogdl/issues/72).
 
