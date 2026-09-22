@@ -172,6 +172,10 @@
   &[data-category="ps3"] {
     --xmb-background: linear-gradient(125deg, #151823, #253b49, #141b21);
   }
+
+  &.xmb-in-list .xmb-category-rail {
+    inset-block-start: 5.5rem;
+  }
 }
 
 .xmb-atmosphere {
@@ -301,9 +305,6 @@
     }
   }
 }
-.xmb-search input::placeholder {
-  color: var(--xmb-muted);
-}
 .xmb-category-rail {
   position: absolute;
   inset-inline-start: 0;
@@ -313,9 +314,6 @@
   transition: inset-block-start 250ms ease;
   z-index: 5;
   pointer-events: none;
-}
-.xmb-in-list .xmb-category-rail {
-  inset-block-start: 5.5rem;
 }
 .xmb-category-track {
   display: flex;
@@ -524,9 +522,10 @@
   padding-inline: 0.25rem;
   font-size: 0.8rem;
   color: var(--xmb-muted);
-}
-.xmb-version-heading span {
-  font-variant-numeric: tabular-nums;
+
+  & span {
+    font-variant-numeric: tabular-nums;
+  }
 }
 .xmb-version-track {
   position: relative;

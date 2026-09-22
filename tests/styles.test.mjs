@@ -40,6 +40,11 @@ for (const file of files) {
 
 for (const { file, ast } of styles) {
   test(`CSS: ${file} uses relative units, explicit transitions and defined tokens`, () => {
+    assert.doesNotMatch(
+      readFileSync(new URL(file, directory), "utf8"),
+      /&-[A-Za-z0-9_-]/,
+      `${file}: CSS nesting does not support Sass-style selector concatenation`,
+    );
     walk(ast, (node) => {
       if (node.type === "value-number")
         assert.notEqual(node.unit, "px", `${file}: use relative units`);
