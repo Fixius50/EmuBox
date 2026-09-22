@@ -446,13 +446,9 @@
 
 .xmb-folder-viewport {
   position: absolute;
-  inset: 10.25rem 0 4.5rem;
+  inset: calc(30% + 5rem) 0 4.5rem;
   overflow: hidden;
   pointer-events: none;
-}
-
-.xmb:not(.xmb-in-list) .xmb-folder-viewport {
-  visibility: hidden;
 }
 
 .xmb-folder-row {
@@ -483,6 +479,10 @@
 
   & .xmb-category-rail {
     inset-block-start: 5.5rem;
+  }
+
+  & .xmb-folder-viewport {
+    inset-block-start: 10.25rem;
   }
 }
 
@@ -950,13 +950,17 @@
     display: none;
   }
   .xmb-folder-viewport {
-    inset-block-start: 8.75rem;
+    inset-block-start: calc(26% + 5rem);
   }
   .xmb-in-list {
     --xmb-row: 5rem;
 
     & .xmb-category-rail {
       inset-block-start: 4rem;
+    }
+
+    & .xmb-folder-viewport {
+      inset-block-start: 8.75rem;
     }
   }
   .xmb-folder-label {

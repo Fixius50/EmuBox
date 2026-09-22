@@ -251,7 +251,12 @@ export function XmbLibrary(props: XmbLibraryProps) {
                     style={{ visibility: row < rows() ? "visible" : "hidden" }}
                   />
                 </button>
-                <Show when={active() && !position().expanded}>
+                <Show
+                  when={
+                    (position().row === 0 || active()) &&
+                    !position().expanded
+                  }
+                >
                   <div class="xmb-folder-label">
                     <h2>{current()?.title}</h2>
                     <p>
