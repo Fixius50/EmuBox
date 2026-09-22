@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
+import { parseArgs } from "node:util";
 
 const frontendRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -109,15 +110,26 @@ function checkImplicitTypeLibraries() {
   return broken;
 }
 
-const checks = [
-  ["TypeScript", ["run", "typecheck"]],
-  ["Cobertura TypeScript", ["run", "test:validator"]],
-  ["ESLint", ["run", "lint"]],
-  ["Prettier", ["run", "format:check"]],
-  ["Arquitectura", ["run", "arch:check"]],
-  ["Texto", ["run", "quality:text"]],
-  ["Tests", ["test"]],
-];
+const checks = {
+  typecheck: ["TypeScript", ["run", "typecheck"]],
+  validator: ["Cobertura TypeScript", ["run", "test:validator"]],
+  lint: ["ESLint", ["run", "lint"]],
+  format: ["Prettier", ["run", "format:check"]],
+  architecture: ["Arquitectura", ["run", "arch:check"]],
+  text: ["Texto", ["run", "quality:text"]],
+  tests: ["Tests", ["test"]],
+};
+const { values } = parseArgs({
+  options: { only: { type: "string", multiple: true } },
+});
+const selectedChecks = [...new Set(values.only ?? Object.keys(checks))];
+const unknownChecks = selectedChecks.filter((id) => !Object.hasOwn(checks, id));
+if (unknownChecks.length > 0) {
+  console.error(
+    `[verify] Controles desconocidos: ${unknownChecks.join(", ")}. Disponibles: ${Object.keys(checks).join(", ")}.`,
+  );
+  process.exit(1);
+}
 
 const failedChecks = [];
 mkdirSync(reportsDirectory, { recursive: true });
@@ -125,6 +137,7 @@ mkdirSync(reportsDirectory, { recursive: true });
 console.log(
   "[verify] Se comprueban archivos guardados del proyecto, abiertos o cerrados en VS Code.",
 );
+console.log(`[verify] Controles seleccionados: ${selectedChecks.join(", ")}.`);
 console.log("\n[verify] Dependencias");
 const missingDependencies = [
   ...checkDependencies(),
@@ -146,7 +159,8 @@ if (missingDependencies.length > 0) {
   console.log("Todas las dependencias resuelven correctamente.");
 }
 
-for (const [name, argumentsList] of checks) {
+for (const id of selectedChecks) {
+  const [name, argumentsList] = checks[id];
   console.log(`\n[verify] ${name}`);
   const result = spawnSync(
     npmCommand,
@@ -172,5 +186,5 @@ if (failedChecks.length > 0) {
   console.error(`\n[verify] Fallaron: ${failedChecks.join(", ")}`);
   process.exitCode = 1;
 } else {
-  console.log("\n[verify] Todos los controles pasaron.");
+  console.log("\n[verify] Todos los controles seleccionados pasaron.");
 }

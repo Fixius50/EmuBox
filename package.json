@@ -11,6 +11,7 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "test": "node --import tsx --conditions=browser --test --test-concurrency=4 tests/*.test.ts tests/build-cache.test.mjs tests/telemetry.test.mjs",
+    "test:ui": "node --import tsx --conditions=browser --test --test-concurrency=4 tests/library.test.ts tests/catalog-groups.test.ts tests/xmb.test.ts tests/settings.test.ts",
     "test:architecture": "bash tests/architecture.test.sh && bash tests/graphics.test.sh && tsx tests/graphics-policy.test.ts",
     "test:appliance": "node tests/appliance.test.mjs && node tests/appliance-config.test.mjs",
     "check:appliance": "node scripts/check-appliance.mjs",
@@ -21,6 +22,7 @@
     "typecheck": "node ./node_modules/typescript/bin/tsc --project ./tsconfig.json --noEmit --pretty false",
     "test:validator": "node tests/validator.test.mjs",
     "verify": "node scripts/verify.mjs",
+    "verify:dev": "node scripts/verify.mjs --only tests --only lint --only format --only architecture --only text",
     "mojibake:check": "node scripts/mojibake-check.mjs",
     "quality:text": "npm run mojibake:check",
     "arch:check": "node scripts/architecture-check.mjs && node scripts/docs-check.mjs && node scripts/ipc-contract-check.mjs"

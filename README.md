@@ -264,11 +264,48 @@ El menú te permite seleccionar con un solo número:
 
 ## Pruebas y Compilación Manual
 
+Las pruebas portables usan el runner nativo de Node (Node 22 o superior, como en
+CI) y el cargador `tsx` ya instalado. Cada archivo se ejecuta en un proceso
+aislado, con un maximo de cuatro procesos simultaneos. Un fallo no impide obtener
+el resultado del resto de archivos. Los casos XMB, ajustes y backend tienen
+nombres propios y estado local; no dependen del orden de otros casos.
+
+`npm test` descubre `tests/*.test.ts` e incluye explicitamente las pruebas
+portables de cache y lectura de telemetria. Un nuevo test TypeScript en esa ruta
+debe ser portable y no requerir hardware ni servicios reales. Las suites
+`test:architecture` y `test:appliance` permanecen separadas porque necesitan
+Bash/Linux. Las pruebas Rust y C siguen siendo nativas.
+
+`test:ui` comprueba biblioteca, agrupacion, navegacion y ajustes con la
+reactividad cliente de Solid. No abre un navegador, no sustituye Tauri y no
+certifica la presentacion visual ni la appliance. No se generan builds.
+
+```bash
+# Bucle corto para cambios en logica de UI
+npm run test:ui
+
+# Un solo comportamiento dentro de un archivo
+node --import tsx --conditions=browser --test --test-name-pattern="Settings: modal" tests/settings.test.ts
+
+# Tests, lint, formato, arquitectura/contratos y texto, sin invocar el compilador
+npm run verify:dev
+
+# Seleccion explicita; las dependencias siempre se comprueban primero
+npm run verify -- --only tests --only lint
+```
+
+`verify` sin argumentos mantiene todas las comprobaciones existentes. `--only`
+admite `typecheck`, `validator`, `lint`, `format`, `architecture`, `text` y `tests`;
+los nombres desconocidos se rechazan y los repetidos se ejecutan una sola vez.
+Los informes en `reports/verify/` se actualizan solo para los controles ejecutados;
+otros informes pueden pertenecer a ejecuciones anteriores. El resumen identifica
+la seleccion y devuelve error si falla cualquiera de sus controles.
+
 ```bash
 # Comprobar TypeScript; reutiliza cache incremental local si existe
 npm run typecheck
 
-# Ejecutar la suite actual de contratos y comportamiento
+# Ejecutar todas las pruebas portables de contratos y comportamiento
 npm test
 
 # Compilar bundle de producción para SolidJS

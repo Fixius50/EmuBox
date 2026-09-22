@@ -13,9 +13,14 @@ import { SoundFxService } from "@services/audio/sound-fx.service";
 
 function createEmulatorFixture(): Emulator {
   return {
-    id: "fixture-emulator", name: "Fixture", supportedPlatforms: ["snes"],
-    coreType: "libretro", executable: "/fixture/retroarch", arguments: [],
-    version: "1.0", status: "active",
+    id: "fixture-emulator",
+    name: "Fixture",
+    supportedPlatforms: ["snes"],
+    coreType: "libretro",
+    executable: "/fixture/retroarch",
+    arguments: [],
+    version: "1.0",
+    status: "active",
   };
 }
 
@@ -31,12 +36,22 @@ test("Settings: tabs, volume and back navigation", () => {
     activeSettingsTab: () => settingsTab,
     settingsFocusArea: () => settingsArea,
     settingsRowIndex: () => settingsRow,
-    onSettingsTabChange: (tab) => { settingsTab = tab; },
-    onSettingsFocusAreaChange: (area) => { settingsArea = area; },
-    onSettingsRowIndexChange: (row) => { settingsRow = row; },
+    onSettingsTabChange: (tab) => {
+      settingsTab = tab;
+    },
+    onSettingsFocusAreaChange: (area) => {
+      settingsArea = area;
+    },
+    onSettingsRowIndexChange: (row) => {
+      settingsRow = row;
+    },
     onToggleCurrentSetting: () => {},
-    onAdjustCurrentSlider: (delta) => { volumeChange += delta; },
-    onBack: () => { wentBack = true; },
+    onAdjustCurrentSlider: (delta) => {
+      volumeChange += delta;
+    },
+    onBack: () => {
+      wentBack = true;
+    },
   });
   settingsAction("BUTTON_LB");
   assert.equal(settingsTab, "stores");
@@ -63,15 +78,22 @@ test("Settings: emulator persistence, reload and rejected writes", async () => {
   let saveSounds = 0;
   let deleteSounds = 0;
   const emulatorSound = new SoundFxService();
-  emulatorSound.playFavorite = () => { saveSounds++; };
-  emulatorSound.playBack = () => { deleteSounds++; };
-  emulatorBackend.saveEmulator = async emulator => {
-    saveCalls++;
-    persistedEmulators = [...persistedEmulators.filter(entry => entry.id !== emulator.id), emulator];
+  emulatorSound.playFavorite = () => {
+    saveSounds++;
   };
-  emulatorBackend.deleteEmulator = async id => {
+  emulatorSound.playBack = () => {
+    deleteSounds++;
+  };
+  emulatorBackend.saveEmulator = async (emulator) => {
+    saveCalls++;
+    persistedEmulators = [
+      ...persistedEmulators.filter((entry) => entry.id !== emulator.id),
+      emulator,
+    ];
+  };
+  emulatorBackend.deleteEmulator = async (id) => {
     deleteCalls++;
-    persistedEmulators = persistedEmulators.filter(entry => entry.id !== id);
+    persistedEmulators = persistedEmulators.filter((entry) => entry.id !== id);
   };
   emulatorBackend.getEmulators = async () => [...persistedEmulators];
   const emulatorSettings = useSettingsController({
@@ -81,7 +103,11 @@ test("Settings: emulator persistence, reload and rejected writes", async () => {
     settingsRowIndex: () => 0,
   });
   const savingEmulator = emulatorSettings.handleSaveEmulator(emulatorFixture);
-  assert.deepEqual(emulatorStore.emulators(), [], "State waits for persistence");
+  assert.deepEqual(
+    emulatorStore.emulators(),
+    [],
+    "State waits for persistence",
+  );
   assert.equal(saveSounds, 0);
   await savingEmulator;
   assert.deepEqual(emulatorStore.emulators(), [emulatorFixture]);
@@ -93,19 +119,35 @@ test("Settings: emulator persistence, reload and rejected writes", async () => {
   assert.deepEqual(emulatorStore.emulators(), [editedEmulator]);
   emulatorStore.setEmulators([]);
   emulatorStore.setEmulators(await emulatorBackend.getEmulators());
-  assert.deepEqual(emulatorStore.emulators(), [editedEmulator], "Saved edits survive a reload");
+  assert.deepEqual(
+    emulatorStore.emulators(),
+    [editedEmulator],
+    "Saved edits survive a reload",
+  );
   const confirmedEmulators = emulatorStore.emulators();
-  emulatorBackend.saveEmulator = async () => { throw new Error("Save rejected"); };
-  await assert.rejects(() => emulatorSettings.handleSaveEmulator(emulatorFixture), /Save rejected/);
+  emulatorBackend.saveEmulator = async () => {
+    throw new Error("Save rejected");
+  };
+  await assert.rejects(
+    () => emulatorSettings.handleSaveEmulator(emulatorFixture),
+    /Save rejected/,
+  );
   assert.equal(emulatorStore.emulators(), confirmedEmulators);
   assert.equal(saveSounds, 2);
   const removeEmulator = emulatorBackend.deleteEmulator;
-  emulatorBackend.deleteEmulator = async () => { throw new Error("Delete rejected"); };
-  await assert.rejects(() => emulatorSettings.handleDeleteEmulator(emulatorFixture.id), /Delete rejected/);
+  emulatorBackend.deleteEmulator = async () => {
+    throw new Error("Delete rejected");
+  };
+  await assert.rejects(
+    () => emulatorSettings.handleDeleteEmulator(emulatorFixture.id),
+    /Delete rejected/,
+  );
   assert.equal(emulatorStore.emulators(), confirmedEmulators);
   assert.equal(deleteSounds, 0);
   emulatorBackend.deleteEmulator = removeEmulator;
-  const deletingEmulator = emulatorSettings.handleDeleteEmulator(emulatorFixture.id);
+  const deletingEmulator = emulatorSettings.handleDeleteEmulator(
+    emulatorFixture.id,
+  );
   assert.equal(emulatorStore.emulators(), confirmedEmulators);
   await deletingEmulator;
   assert.equal(deleteCalls, 1);
@@ -123,22 +165,31 @@ test("Settings: modal waits, rejects duplicate actions and allows retry", async 
   let finishSave!: () => void;
   let rejectSave!: (cause: unknown) => void;
   let rejectDelete!: (cause: unknown) => void;
-  const crud = createRoot(dispose => ({
+  const crud = createRoot((dispose) => ({
     model: useEmulatorCrud({
       isOpen: () => true,
       initialData: () => emulatorFixture,
-      onClose: () => { closeCalls++; },
-      onSave: emulator => {
+      onClose: () => {
+        closeCalls++;
+      },
+      onSave: (emulator) => {
         assert.deepEqual(emulator, emulatorFixture);
         crudSaveCalls++;
-        return new Promise<void>((resolve, reject) => { finishSave = resolve; rejectSave = reject; });
+        return new Promise<void>((resolve, reject) => {
+          finishSave = resolve;
+          rejectSave = reject;
+        });
       },
-      onDelete: id => {
+      onDelete: (id) => {
         assert.equal(id, emulatorFixture.id);
         crudDeleteCalls++;
-        return new Promise<void>((_resolve, reject) => { rejectDelete = reject; });
+        return new Promise<void>((_resolve, reject) => {
+          rejectDelete = reject;
+        });
       },
-      onControllerReady: handler => { crudController = handler; },
+      onControllerReady: (handler) => {
+        crudController = handler;
+      },
     }),
     dispose,
   }));
@@ -188,7 +239,9 @@ test("Settings: maintenance controller bounds and cleanup", (context) => {
       focusedIndex: index,
       onSelectIndex: setIndex,
       onClose: () => {},
-      onControllerReady: (handler) => { controller = handler; },
+      onControllerReady: (handler) => {
+        controller = handler;
+      },
     });
     return { model, dispose };
   });
@@ -197,5 +250,8 @@ test("Settings: maintenance controller bounds and cleanup", (context) => {
     assert.equal(controller, null);
   });
   for (let step = 0; step < 10; step++) controller?.("NAV_DOWN");
-  assert.equal(maintenance.model.activeIndex(), maintenance.model.actions.length - 1);
+  assert.equal(
+    maintenance.model.activeIndex(),
+    maintenance.model.actions.length - 1,
+  );
 });
