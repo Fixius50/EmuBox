@@ -3,6 +3,12 @@
   grid-template-rows: auto minmax(0, 1fr);
   block-size: 100%;
   min-inline-size: 0;
+
+  & > .emubox-xmb-root {
+    position: relative;
+    min-block-size: 0;
+    min-inline-size: 0;
+  }
 }
 
 .development-preview-status {
@@ -16,14 +22,8 @@
   font-size: 0.75rem;
   letter-spacing: 0;
   overflow-wrap: anywhere;
-}
 
-.development-preview-status svg {
-  flex: none;
-}
-
-.development-preview > .emubox-xmb-root {
-  position: relative;
-  min-block-size: 0;
-  min-inline-size: 0;
+  & svg {
+    flex: none;
+  }
 }

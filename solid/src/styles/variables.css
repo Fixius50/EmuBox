@@ -41,6 +41,14 @@
   --border-radius-md: 0.5rem;
   --border-radius-lg: 0.75rem;
   --border-radius-xl: 1rem;
+  --border-radius-full: 0.5rem;
+  --xmb-bg: #090f13;
+  --xmb-surface: #151f24;
+  --xmb-text: #eef1f0;
+  --xmb-muted: #9babaf;
+  --xmb-accent: #78d6c5;
+  --xmb-gold: #e8c276;
+  --xmb-border: #36484f;
 }
 [data-render-pipeline="cpu-compatible"],
 [data-render-pipeline="indeterminate"],
@@ -60,14 +68,4 @@
   --glow-modal-shadow:
     0 0 0 0.125rem var(--neon-cyan), 0 1rem 2.5rem rgba(0, 0, 0, 0.98);
   --glow-card-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.9);
-}
-:root {
-  font-size: 100%;
-  --xmb-bg: #090f13;
-  --xmb-surface: #151f24;
-  --xmb-text: #eef1f0;
-  --xmb-muted: #9babaf;
-  --xmb-accent: #78d6c5;
-  --xmb-gold: #e8c276;
-  --xmb-border: #36484f;
 }

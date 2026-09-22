@@ -297,7 +297,7 @@ el resultado del resto de archivos. Los casos XMB, ajustes y backend tienen
 nombres propios y estado local; no dependen del orden de otros casos.
 
 `npm test` descubre `tests/*.test.ts` e incluye explicitamente las pruebas
-portables de cache y lectura de telemetria. Un nuevo test TypeScript en esa ruta
+portables de cache, lectura de telemetria y reglas CSS. Un nuevo test TypeScript en esa ruta
 debe ser portable y no requerir hardware ni servicios reales. Las suites
 `test:architecture` y `test:appliance` permanecen separadas porque necesitan
 Bash/Linux. Las pruebas Rust y C siguen siendo nativas.
@@ -306,9 +306,32 @@ Bash/Linux. Las pruebas Rust y C siguen siendo nativas.
 reactividad cliente de Solid. No abre un navegador, no sustituye Tauri y no
 certifica la presentacion visual ni la appliance. No se generan builds.
 
+### Estilos
+
+Los tokens compartidos se declaran en `solid/src/styles/variables.css`; los
+componentes conservan sus propias hojas y el orden explicito de `index.css`.
+`development-preview.css` se carga solo desde la previsualizacion. La politica
+comun de movimiento reducido reside en `animations.css`, importada al final e
+incluye los dialogos que se renderizan fuera de la raiz de la aplicacion.
+
+Usar unidades relativas, propiedades logicas para posicion y espaciado,
+transiciones con propiedades explicitas y tokens definidos. Conservar la
+especificidad y el orden de los estados al unificar reglas: mover una declaracion
+puede alterar hover, foco o los breakpoints aunque su valor no cambie. No retirar
+reglas de compatibilidad grafica ni prefijos necesarios para WebKit por limpieza.
+
+`npm run test:styles` analiza todas las hojas con el parser CSS de Prettier ya
+instalado: valida sintaxis, unidades, transiciones, tokens y orden de imports.
+Las variables de posicion que proporciona XMB se reconocen explicitamente.
+`format:check` y `format` incluyen las hojas CSS. Estos controles no sustituyen
+la comprobacion en navegador de foco, responsive, dialogos y movimiento reducido.
+
 ```bash
 # Bucle corto para cambios en logica de UI
 npm run test:ui
+
+# Reglas de todas las hojas de estilo
+npm run test:styles
 
 # Un solo comportamiento dentro de un archivo
 node --import tsx --conditions=browser --test --test-name-pattern="Settings: modal" tests/settings.test.ts

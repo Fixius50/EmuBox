@@ -1,7 +1,24 @@
-.jackett-results { border-block: 0.0625rem solid var(--xmb-border); padding-block: 0.75rem; min-inline-size: 0; }
-.jackett-results p { overflow-wrap: anywhere; }
-.jackett-result-list { max-block-size: 15rem; overflow-y: auto; }
-.jackett-results .game-case-section-label button { display: grid; place-items: center; inline-size: 2rem; block-size: 2rem; background: transparent; color: inherit; border: 0; }
+.jackett-results {
+  border-block: 0.0625rem solid var(--xmb-border);
+  padding-block: 0.75rem;
+  min-inline-size: 0;
+}
+.jackett-results p {
+  overflow-wrap: anywhere;
+}
+.jackett-result-list {
+  max-block-size: 15rem;
+  overflow-y: auto;
+}
+.jackett-results .game-case-section-label button {
+  display: grid;
+  place-items: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  background: transparent;
+  color: inherit;
+  border: 0;
+}
 .download-source-dialog.game-case {
   --case-accent: var(--xmb-accent);
   position: relative;
@@ -9,21 +26,32 @@
   block-size: min(46rem, calc(100dvh - 3rem));
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.07fr);
-  border: 0.0625rem solid var(--xmb-border);
+  border: 0.0625rem solid #4b666a;
   border-radius: 0.375rem;
-  background: var(--xmb-surface);
+  background: #132127;
   color: var(--text-primary);
   overflow: hidden;
   box-shadow: 0 1.5rem 5rem #0008;
   animation: gameCaseOpen 230ms ease-out;
+
+  @media (width <= 48em) {
+    inline-size: calc(100dvw - 1.5rem);
+    block-size: calc(100dvh - 1.5rem);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
 }
-.game-case :is(h2, h3, h4, p, dd, strong, span) {
-  overflow-wrap: anywhere;
-  letter-spacing: 0;
-}
-.game-case :is(button, input, [tabindex]):focus-visible {
-  outline: 0.125rem solid var(--case-accent);
-  outline-offset: -0.125rem;
+.game-case {
+  & :is(h2, h3, h4, p, dd, strong, span) {
+    overflow-wrap: anywhere;
+    letter-spacing: 0;
+  }
+
+  & :is(button, input, [tabindex]):focus-visible {
+    outline: 0.125rem solid var(--case-accent);
+    outline-offset: -0.125rem;
+  }
 }
 .game-case-left {
   min-inline-size: 0;
@@ -38,6 +66,11 @@
   grid-template-columns: 7rem minmax(0, 1fr);
   gap: 1.25rem;
   align-items: start;
+
+  & .console-minimal-icon-container {
+    inline-size: 85%;
+    block-size: auto;
+  }
 }
 .game-case-cover {
   aspect-ratio: 3 / 4;
@@ -48,35 +81,34 @@
   border: 0.0625rem solid #41535d;
   border-radius: 0.1875rem;
   overflow: hidden;
-}
-.game-case-cover img {
-  inline-size: 100%;
-  block-size: 100%;
-  object-fit: contain;
-}
-.game-case-cover .console-minimal-icon-container {
-  inline-size: 85%;
-  block-size: auto;
+
+  & img {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: contain;
+  }
 }
 .game-case-heading {
   min-inline-size: 0;
+
+  & h2 {
+    margin-block: 0.5rem;
+    font-size: 1.4rem;
+    line-height: 1.15;
+    max-block-size: 7rem;
+    overflow-y: auto;
+  }
+
+  & p {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+  }
 }
 .game-case-platform {
   color: var(--xmb-gold);
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
-}
-.game-case-heading h2 {
-  margin-block: 0.5rem;
-  font-size: 1.4rem;
-  line-height: 1.15;
-  max-block-size: 7rem;
-  overflow-y: auto;
-}
-.game-case-heading p {
-  color: var(--text-secondary);
-  font-size: 0.85rem;
 }
 .game-case-favorite,
 .game-case-close {
@@ -93,10 +125,11 @@
 }
 .game-case-favorite {
   margin-block-start: 0.75rem;
-}
-.game-case-favorite[aria-pressed="true"] {
-  color: var(--xmb-gold);
-  border-color: var(--xmb-gold);
+
+  &[aria-pressed="true"] {
+    color: var(--xmb-gold);
+    border-color: var(--xmb-gold);
+  }
 }
 .game-case-close {
   position: absolute;
@@ -112,6 +145,15 @@
   gap: 0.5rem;
   border-block-end: 0.0625rem solid #394950;
   padding-block-end: 0.7rem;
+
+  & h3 {
+    font-size: 0.95rem;
+  }
+
+  & > span {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
 }
 .game-release-selector {
   min-inline-size: 0;
@@ -122,25 +164,44 @@
   overflow-x: auto;
   padding-block: 0.25rem 0.75rem;
   scroll-snap-type: inline mandatory;
+
+  & button {
+    position: relative;
+    display: grid;
+    gap: 0.2rem;
+    flex: 0 0 min(18rem, 72%);
+    min-block-size: 4.5rem;
+    padding: 0.65rem 0.75rem;
+    border: 0.0625rem solid var(--xmb-border);
+    border-radius: 0.25rem;
+    color: var(--xmb-muted);
+    background: #10181d;
+    text-align: start;
+    scroll-snap-align: start;
+
+    &.selected {
+      border-color: var(--xmb-accent);
+      color: var(--xmb-text);
+      background: #173039;
+    }
+  }
+
+  & strong,
+  & small {
+    overflow-wrap: anywhere;
+  }
+
+  & small {
+    font-size: 0.68rem;
+  }
+
+  & svg {
+    position: absolute;
+    inset-block-start: 0.5rem;
+    inset-inline-end: 0.5rem;
+    color: var(--xmb-accent);
+  }
 }
-.game-release-track button {
-  position: relative;
-  display: grid;
-  gap: 0.2rem;
-  flex: 0 0 min(18rem, 72%);
-  min-block-size: 4.5rem;
-  padding: 0.65rem 0.75rem;
-  border: 0.0625rem solid var(--xmb-border);
-  border-radius: 0.25rem;
-  color: var(--xmb-muted);
-  background: #10181d;
-  text-align: start;
-  scroll-snap-align: start;
-}
-.game-release-track button.selected {
-  border-color: var(--xmb-accent);
-  color: var(--xmb-text);
-  background: #173039;
 }
 .game-release-track strong,
 .game-release-track small {
@@ -151,8 +212,8 @@
 }
 .game-release-track svg {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  inset-block-start: 0.5rem;
+  inset-inline-end: 0.5rem;
   color: var(--xmb-accent);
 }
 .game-case-section-label h3 {
@@ -366,11 +427,6 @@
     transform: scale(1);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .download-source-dialog.game-case {
-    animation: none;
-  }
-}
 @media (width <= 48em) {
   .download-source-dialog.game-case {
     inline-size: calc(100dvw - 1.5rem);
@@ -381,9 +437,13 @@
   }
   .game-case-left {
     flex: 0 0 auto;
-    block-size: 32rem;
-    max-block-size: 80dvh;
+    block-size: auto;
+    max-block-size: none;
     padding: 1.1rem;
+  }
+  .download-source-list {
+    flex: 0 0 auto;
+    max-block-size: 15rem;
   }
   .game-case-summary {
     grid-template-columns: 5rem minmax(0, 1fr);
@@ -413,12 +473,6 @@
     align-self: flex-end;
     margin: 0.8rem 0.8rem -3.3rem 0;
   }
-}
-.download-source-dialog.game-case {
-  border-radius: 0.375rem;
-  border-color: #4b666a;
-  box-shadow: 0 1.5rem 5rem #0008;
-  background: #132127;
 }
 .game-case .game-case-left {
   background: #15262c;
@@ -461,15 +515,6 @@
   color: #849494;
 }
 
-@media (width <= 48em) {
-  .game-case .game-case-close {
-    position: sticky;
-    top: 0.8rem;
-    right: auto;
-    align-self: flex-end;
-    margin: 0.8rem 0.8rem -3.3rem 0;
-  }
-}
 @media (width <= 40em) {
   .game-case .game-case-heading h2 {
     font-size: 1.15rem;

@@ -1,5 +1,10 @@
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+}
+
+* {
   margin: 0;
   padding: 0;
   user-select: none;
@@ -58,4 +63,20 @@ select,
 .emubox-xmb-root button,
 .emubox-xmb-root input {
   font: inherit;
+}
+
+:where(input, textarea, [contenteditable="true"]) {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+:is(.emubox-xmb-root, .console-modal-center-container, .crud-modal-backdrop)
+  :is(button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 0.125rem solid var(--xmb-gold);
+  outline-offset: 0.125rem;
+}
+
+:is(.emubox-xmb-root, .console-modal-center-container, .crud-modal-backdrop)
+  :is(button, input, select, textarea):disabled {
+  cursor: not-allowed;
 }

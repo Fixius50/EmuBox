@@ -17,3 +17,44 @@
     transform: scale(1) translateY(0);
   }
 }
+
+@keyframes emubox-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(
+    .emubox-xmb-root,
+    .console-modal-backdrop,
+    .console-modal-center-container,
+    .crud-modal-backdrop,
+    .game-case
+  ),
+  :where(
+      .emubox-xmb-root,
+      .console-modal-center-container,
+      .crud-modal-backdrop,
+      .game-case
+    )
+    *,
+  :where(
+      .emubox-xmb-root,
+      .console-modal-center-container,
+      .crud-modal-backdrop,
+      .game-case
+    )
+    *::before,
+  :where(
+      .emubox-xmb-root,
+      .console-modal-center-container,
+      .crud-modal-backdrop,
+      .game-case
+    )
+    *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
