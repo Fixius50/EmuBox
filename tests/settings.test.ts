@@ -57,8 +57,13 @@ test("Settings: tabs, volume and back navigation", () => {
   assert.equal(settingsTab, "stores");
   settingsAction("BUTTON_RB");
   assert.equal(settingsTab, "system");
+  settingsAction("NAV_UP");
+  assert.equal(wentBack, true, "Up from the first sidebar tab exits settings");
+  wentBack = false;
   settingsTab = "audio";
   settingsAction("BUTTON_A");
+  settingsAction("NAV_DOWN");
+  settingsAction("NAV_DOWN");
   settingsAction("NAV_DOWN");
   settingsAction("NAV_RIGHT");
   assert.equal(volumeChange, 5);
@@ -66,6 +71,15 @@ test("Settings: tabs, volume and back navigation", () => {
   assert.equal(settingsArea, "sidebar");
   settingsAction("BUTTON_B");
   assert.equal(wentBack, true);
+  wentBack = false;
+  settingsArea = "content";
+  settingsRow = 0;
+  settingsAction("NAV_UP");
+  assert.equal(
+    wentBack,
+    true,
+    "Up from the first control returns to categories",
+  );
 });
 
 test("Settings: emulator persistence, reload and rejected writes", async () => {

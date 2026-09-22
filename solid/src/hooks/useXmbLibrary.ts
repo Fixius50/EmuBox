@@ -6,7 +6,6 @@ import {
   onCleanup,
   onMount,
 } from "solid-js";
-import { SETTINGS_TABS } from "@contracts/settings.types";
 import type { InputAction } from "@contracts/input.types";
 import type {
   XmbCommand,
@@ -24,15 +23,10 @@ const commands: Partial<Record<InputAction, XmbCommand>> = {
   BUTTON_B: "back",
 };
 const settingItems = [
-  ...SETTINGS_TABS.map((tab) => ({
-    id: tab.id,
-    title: tab.name,
-    detail: tab.desc,
-  })),
   {
-    id: "maintenance",
-    title: "Mantenimiento",
-    detail: "Sistema y recuperacion",
+    id: "system",
+    title: "Ajustes",
+    detail: "Sistema, audio, controles y tiendas",
   },
 ];
 
@@ -126,13 +120,10 @@ export function useXmbLibrary(props: XmbLibraryProps) {
 
   const navigate = (command: XmbCommand) => {
     if (
-      command === "enter" &&
-      category().kind === "settings" &&
-      position().row > 0
+      (command === "enter" || command === "down") &&
+      category().kind === "settings"
     ) {
-      const item = settingItems[position().row - 1];
-      if (item.id === "maintenance") props.onMaintenance();
-      else props.onOpenSettings(item.id);
+      props.onOpenSettings("system");
       return;
     }
     if (command === "enter" && position().expanded && selectedGame()) {
@@ -149,6 +140,7 @@ export function useXmbLibrary(props: XmbLibraryProps) {
     props.onMove();
   };
   const chooseCategory = (index: number) => {
+    props.onCloseSettings?.();
     setPosition({ category: index, row: 0, expanded: false, game: 0 });
     props.onMove();
   };

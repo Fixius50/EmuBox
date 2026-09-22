@@ -45,6 +45,7 @@ export interface AudioDevice {
 }
 
 export interface AudioInfo {
+  deviceNamesLimited?: boolean;
   masterVolume: number | null;
   uiSoundEffects: boolean;
   backgroundMusic: boolean;

@@ -4,7 +4,7 @@ import type { SoundFxService } from "@services/audio/sound-fx.service";
 import type { InputAction } from "./input.types";
 import type { IEmuBoxBackend } from "./backend.types";
 
-export type SettingsTabId = "system" | "emulators" | "audio" | "gamepad" | "stores";
+export type SettingsTabId = "system" | "audio" | "gamepad" | "stores";
 
 export interface TabItem {
   id: SettingsTabId;
@@ -16,21 +16,15 @@ export interface TabItem {
 export const SETTINGS_TABS: readonly TabItem[] = [
   {
     id: "system",
-    name: "Sistema & Pantalla",
+    name: "Sistema y pantalla",
     tag: "OS",
-    desc: "Hardware, GPU, Auto-Update, VSync",
-  },
-  {
-    id: "emulators",
-    name: "Núcleos & Emuladores",
-    tag: "EMU",
-    desc: "Cores Libretro, Binarios",
+    desc: "Preferencias e informacion",
   },
   {
     id: "audio",
-    name: "Audio & Sintetizador",
+    name: "Audio general",
     tag: "SND",
-    desc: "Volumen, Efectos UI",
+    desc: "Entrada, salida y volumen",
   },
   {
     id: "gamepad",
@@ -92,6 +86,7 @@ export interface SettingsSidebarProps {
 
 export interface SystemTabProps {
   settings?: SystemSettings;
+  emulators?: Emulator[];
   isRowFocused: (row: number) => boolean;
   onSelectContentArea?: () => void;
   onUpdateSettings: (updater: (s: SystemSettings) => void) => void;
@@ -106,6 +101,7 @@ export interface EmulatorsTabProps {
 
 export interface AudioTabProps {
   settings?: SystemSettings;
+  backend?: IEmuBoxBackend;
   isRowFocused: (row: number) => boolean;
   onSelectContentArea?: () => void;
   onUpdateSettings: (updater: (s: SystemSettings) => void) => void;
@@ -132,6 +128,4 @@ export interface SettingsViewProps {
   onUpdateSettings?: (newSettings: SystemSettings) => void;
   onSelectContentArea?: () => void;
   onBack?: () => void;
-  onSaveEmulator: (emulator: Emulator) => Promise<void>;
-  onDeleteEmulator: (emulatorId: string) => Promise<void>;
 }

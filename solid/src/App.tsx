@@ -1,4 +1,4 @@
-import { Component, onMount, onCleanup, createSignal, Show, batch } from "solid-js";
+import { Component, onMount, onCleanup, createSignal, Show, batch, lazy, Suspense } from "solid-js";
 import { listen } from "@tauri-apps/api/event";
 import { LoaderCircle, LogOut } from 'lucide-solid';
 import { startupErrorMessage, startupMessage, waitForStartup } from '@services/system/startup';
@@ -32,7 +32,6 @@ import { useSettingsController } from "@hooks/useSettingsController";
 import { XmbLibrary } from "@components/library/XmbLibrary";
 import { EmulatorSelectorModal } from "@components/modals/EmulatorSelectorModal";
 import { SettingsView } from "@components/settings/SettingsView";
-import { MaintenanceModal } from "@components/modals/MaintenanceModal";
 import { DownloadSourceModal } from "@components/modals/DownloadSourceModal";
 
 const NativeApp: Component = () => {
@@ -62,7 +61,6 @@ const NativeApp: Component = () => {
   let sourceController: ((action: InputAction) => void) | null = null;
   let xmbController: ((action: InputAction) => void) | null = null;
   let emulatorController: ((action: InputAction) => void) | null = null;
-  let maintenanceController: ((action: InputAction) => void) | null = null;
   let settingsController: ((action: InputAction) => void) | null = null;
 
   const [activeSettingsTab, setActiveSettingsTab] =
@@ -93,8 +91,6 @@ const NativeApp: Component = () => {
 
   // 2. Settings Controller (Business Logic & OTA Lifecycle)
   const {
-    handleSaveEmulator,
-    handleDeleteEmulator,
     handleToggleCurrentSetting,
     handleAdjustCurrentSlider,
   } = useSettingsController({
@@ -135,11 +131,6 @@ const NativeApp: Component = () => {
       recordUiEvent('input.action', { action });
       if (!startupReady()) return;
       if (action === "MAINTENANCE_MENU") {
-        modalStore.openMaintenance();
-        return;
-      }
-      if (modalStore.isMaintenanceOpen()) {
-        maintenanceController?.(action);
         return;
       }
       if (libraryStore.sourceGame()) {
@@ -263,7 +254,6 @@ const NativeApp: Component = () => {
         </section>
       </Show>
       <div
-        hidden={navigationStore.currentSection() !== "library"}
         class="xmb-library-layer"
         style={{ visibility: startupReady() ? 'visible' : 'hidden' }}
         inert={!startupReady()}
@@ -285,7 +275,6 @@ const NativeApp: Component = () => {
             setSettingsRowIndex(0);
             navigationStore.setCurrentSection("settings");
           }}
-          onMaintenance={() => modalStore.openMaintenance()}
           onFavorite={(id) => {
             void libraryStore
               .toggleFavorite(id)
@@ -295,10 +284,9 @@ const NativeApp: Component = () => {
           onControllerReady={(handler) => {
             xmbController = handler;
           }}
-        />
-      </div>
-
-      <Show when={navigationStore.currentSection() === "settings"}>
+          onCloseSettings={() => navigationStore.setCurrentSection('library')}
+          settingsActive={navigationStore.currentSection() === 'settings'}
+          settingsPanel={
         <SettingsView
           onNavigate={handleSettingsAction}
           onControllerReady={(handler) => {
@@ -319,14 +307,14 @@ const NativeApp: Component = () => {
             soundFx.setEnabled(s.audio.uiSoundEffects);
             systemStore.updateSettings(s);
           }}
-          onSaveEmulator={handleSaveEmulator}
-          onDeleteEmulator={handleDeleteEmulator}
           onBack={() => {
             soundFx.playBack();
             navigationStore.setCurrentSection("library");
           }}
         />
-      </Show>
+          }
+        />
+      </div>
 
       <EmulatorSelectorModal
         onControllerReady={(handler) => {
@@ -364,28 +352,23 @@ const NativeApp: Component = () => {
         }}
       />
 
-      <MaintenanceModal
-        onControllerReady={(handler) => {
-          maintenanceController = handler;
-        }}
-        isOpen={modalStore.isMaintenanceOpen()}
-        onClose={() => {
-          soundFx.playBack();
-          modalStore.closeMaintenance();
-        }}
-        backend={backend}
-        focusedIndex={modalStore.maintenanceIndex()}
-        onSelectIndex={(idx) => modalStore.setMaintenanceIndex(idx)}
-      />
     </div>
   );
 };
 
-export const App: Component = () => (
-  <Show when={new TauriBackendService().isTauriEnvironment} fallback={
+const BrowserFallback: Component = import.meta.env.DEV
+  ? lazy(() => import('@components/development/DevelopmentPreview'))
+  : () => (
     <main class="native-runtime-required" role="alert">
       <h1>EmuBox</h1><p>Runtime nativo Tauri no disponible.</p>
     </main>
+  );
+
+export const App: Component = () => (
+  <Show when={new TauriBackendService().isTauriEnvironment} fallback={
+    <Suspense fallback={<main class="native-runtime-required" role="status">Abriendo previsualizacion...</main>}>
+      <BrowserFallback />
+    </Suspense>
   }><NativeApp /></Show>
 );
 

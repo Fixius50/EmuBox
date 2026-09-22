@@ -7,6 +7,11 @@ export { animateEmulatorModalEntrance } from './emulator-animations';
  */
 export function animateSettingsEntrance(target: HTMLElement): void {
   if (!target) return;
+  if (document.hidden || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    target.style.opacity = '1';
+    target.style.transform = 'none';
+    return;
+  }
   animate(target, {
     opacity: [0, 1],
     translateY: [15, 0],
@@ -20,6 +25,11 @@ export function animateSettingsEntrance(target: HTMLElement): void {
  */
 export function animateTabTransition(target: HTMLElement): void {
   if (!target) return;
+  if (document.hidden || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    target.style.opacity = '1';
+    target.style.transform = 'none';
+    return;
+  }
   animate(target, {
     opacity: [0, 1],
     translateX: [12, 0],

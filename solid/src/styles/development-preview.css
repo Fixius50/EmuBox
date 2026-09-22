@@ -1,0 +1,29 @@
+.development-preview {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  block-size: 100%;
+  min-inline-size: 0;
+}
+
+.development-preview-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  padding: 0.5rem 1rem;
+  background: #202722;
+  color: #f1dfae;
+  font-size: 0.75rem;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.development-preview-status svg {
+  flex: none;
+}
+
+.development-preview > .emubox-xmb-root {
+  position: relative;
+  min-block-size: 0;
+  min-inline-size: 0;
+}

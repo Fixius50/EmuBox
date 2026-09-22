@@ -75,7 +75,7 @@ export function useSettingsController(
             soundFx.playMove();
             break;
           }
-          case 3:
+          case 1:
             clone.display.vsync = !clone.display.vsync;
             systemStore.updateSettings(clone);
             soundFx.playSelect();
@@ -86,7 +86,7 @@ export function useSettingsController(
         break;
 
       case "audio":
-        if (row === 0) {
+        if (row === 2) {
           clone.audio.uiSoundEffects = !clone.audio.uiSoundEffects;
           soundFx.setEnabled(clone.audio.uiSoundEffects);
           systemStore.updateSettings(clone);
@@ -126,7 +126,7 @@ export function useSettingsController(
 
     switch (tab) {
       case "audio":
-        if (row === 1) {
+        if (row === 3) {
           clone.audio.masterVolume = Math.min(
             100,
             Math.max(0, clone.audio.masterVolume + delta),

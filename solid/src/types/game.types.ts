@@ -125,6 +125,8 @@ export interface SystemSettings {
   };
   audio: {
     masterVolume: number;
+    inputDevice?: string;
+    outputDevice?: string;
     uiSoundEffects: boolean;
     backgroundMusic: boolean;
     audioLatencyMs: number;

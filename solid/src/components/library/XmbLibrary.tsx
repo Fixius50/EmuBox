@@ -14,8 +14,6 @@ import {
   Monitor,
   Search,
   Settings2,
-  SlidersHorizontal,
-  Wrench,
 } from "lucide-solid";
 import type { XmbLibraryProps } from "@contracts/xmb.types";
 import { useXmbLibrary } from "@hooks/useXmbLibrary";
@@ -53,7 +51,8 @@ export function XmbLibrary(props: XmbLibraryProps) {
       class="xmb"
       classList={{
         "xmb-expanded": position().expanded,
-        "xmb-in-list": position().row > 0,
+        "xmb-in-list": position().row > 0 || category().kind === 'settings',
+        "xmb-settings": category().kind === 'settings',
       }}
       data-category={category().id}
       onKeyDown={(event) => {
@@ -145,7 +144,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
           </For>
         </div>
       </nav>
-      <Show when={position().row === 0}>
+      <Show when={position().row === 0 && category().kind !== 'settings'}>
         <section class="xmb-category-intro">
           <span class="xmb-eyebrow">
             {category().kind === "settings" ? "Consola" : "Biblioteca"}
@@ -165,6 +164,19 @@ export function XmbLibrary(props: XmbLibraryProps) {
           </Show>
         </section>
       </Show>
+      <Show when={category().kind === 'settings'}>
+        <section class="xmb-settings-panel" aria-label="Panel de ajustes" classList={{ 'is-active': props.settingsActive }}>
+          <Show when={props.settingsActive} fallback={
+            <button class="xmb-settings-entry" onClick={() => props.onOpenSettings('system')}>
+              <Settings2 size={32} aria-hidden="true" />
+              <strong>Ajustes</strong>
+              <span>Sistema y pantalla · Audio general · Controles · Tiendas</span>
+              <ChevronDown size={22} aria-hidden="true" />
+            </button>
+          }>{props.settingsPanel}</Show>
+        </section>
+      </Show>
+      <Show when={category().kind !== 'settings'}>
       <section
         class="xmb-folder-viewport"
         aria-label={
@@ -201,11 +213,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                     size={12}
                     style={{ visibility: row > 1 ? "visible" : "hidden" }}
                   />
-                  {category().kind === "settings" ? (
-                    <SlidersHorizontal size={24} />
-                  ) : (
-                    <Folder size={26} fill="currentColor" strokeWidth={1.4} />
-                  )}
+                  <Folder size={26} fill="currentColor" strokeWidth={1.4} />
                   <ChevronDown
                     class="xmb-below"
                     size={12}
@@ -227,6 +235,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
           }}
         </For>
       </section>
+      </Show>
       <Show when={position().expanded && selectedGame()}>
         {(game) => (
           <>
@@ -445,14 +454,6 @@ export function XmbLibrary(props: XmbLibraryProps) {
           <Gamepad2 size={16} />
           {props.inputStatus.deviceName}
         </span>
-        <button
-          class="xmb-icon-button"
-          title="Mantenimiento"
-          aria-label="Mantenimiento"
-          onClick={props.onMaintenance}
-        >
-          <Wrench size={17} />
-        </button>
       </footer>
     </main>
   );

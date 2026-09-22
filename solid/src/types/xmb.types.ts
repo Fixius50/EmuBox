@@ -1,4 +1,5 @@
 import type { CatalogGroup } from "@services/library/catalog-groups";
+import type { JSX } from "solid-js";
 import type { Game, Platform } from "./game.types";
 import type { InputAction, InputDeviceStatus } from "./input.types";
 
@@ -33,7 +34,9 @@ export interface XmbLibraryProps {
   error?: { gameId: string; message: string } | null;
   onOpenGame: (game: Game) => void;
   onOpenSettings: (tab: string) => void;
-  onMaintenance: () => void;
+  onCloseSettings?: () => void;
+  settingsActive?: boolean;
+  settingsPanel?: JSX.Element;
   onFavorite: (id: string) => void;
   onMove: () => void;
   onControllerReady: (handler: ((action: InputAction) => void) | null) => void;

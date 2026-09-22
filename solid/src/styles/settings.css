@@ -9,6 +9,45 @@
   position: relative;
 }
 
+.settings-device-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) minmax(0, 1.5fr);
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 0.0625rem solid var(--xmb-border);
+}
+.settings-device-row.focused { background: #23413f; }
+.settings-device-row select {
+  inline-size: 100%;
+  min-inline-size: 0;
+  padding: 0.625rem;
+  border: 0.0625rem solid var(--xmb-border);
+  border-radius: 0.25rem;
+  background: #142329;
+  color: var(--xmb-text);
+  font: inherit;
+}
+.settings-device-note { color: var(--xmb-muted); font-size: 0.8125rem; line-height: 1.5; }
+.settings-information { margin-top: 1.5rem; }
+.settings-information h4 { font-size: 1rem; margin-block: 1rem 0.75rem; }
+.settings-information dl > div,
+.settings-engine-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding-block: 0.75rem;
+  border-bottom: 0.0625rem solid var(--xmb-border);
+  overflow-wrap: anywhere;
+}
+.settings-information dt,
+.settings-engine-list span { color: var(--xmb-muted); }
+.settings-engine-list { list-style: none; }
+@media (max-width: 48rem) {
+  .settings-device-row { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; padding: 0.75rem; }
+}
+
 .settings-top-bar {
   display: flex;
   align-items: center;

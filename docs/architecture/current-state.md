@@ -76,4 +76,7 @@ Los secretos quedan en el almacenamiento privado de cada proveedor. La presencia
 de estos adaptadores no certifica su funcionamiento con cuentas reales; esa
 aceptacion funcional sigue pendiente en el equipo objetivo.
 [Tiendas](store-library-providers.md).
-No Git ni navegador en el flujo actual; no usar datos reales como fixtures.
+El despliegue nativo no ejecuta Git ni pruebas de navegador. Para trabajar la UI,
+`npm run dev` habilita una previsualizacion de navegador con datos ficticios en
+memoria, exclusiva de desarrollo y sin acceso a operaciones nativas. No sustituye
+la aceptacion de la appliance ni usa datos reales como fixtures.

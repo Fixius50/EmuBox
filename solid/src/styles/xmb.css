@@ -5,6 +5,53 @@
 .xmb-library-layer[hidden] {
   display: none;
 }
+
+.xmb-settings-panel {
+  position: absolute;
+  inset: 12rem 2rem 4.5rem;
+  border: 0.0625rem solid var(--xmb-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: #122326;
+}
+.xmb-settings-panel.is-active {
+  border-color: var(--xmb-gold);
+}
+.xmb-settings-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  inline-size: 100%;
+  block-size: 100%;
+  padding: 1.5rem;
+  border: 0;
+  background: transparent;
+  text-align: center;
+}
+.xmb-settings-entry strong { font-size: 1.5rem; }
+.xmb-settings-entry span { color: var(--xmb-muted); overflow-wrap: anywhere; }
+.xmb-settings-panel .console-settings-container {
+  padding: 1rem;
+  background: transparent;
+}
+.xmb-settings-panel .console-sidebar-menu { inline-size: 15rem; }
+.xmb-settings-panel .console-tabs-system { gap: 1.25rem; min-block-size: 0; }
+.xmb-settings-panel .panel-section-title { font-size: 1.25rem; }
+.xmb-settings-panel .settings-top-bar { margin-bottom: 0.75rem; }
+@media (max-width: 48rem) {
+  .xmb-settings-panel { inset: 10.5rem 0.75rem 4rem; }
+  .xmb-settings-panel .console-tabs-system { flex-direction: column; gap: 0.75rem; }
+  .xmb-settings-panel .console-sidebar-menu {
+    inline-size: 100%; flex-direction: row; overflow-x: auto;
+    overflow-y: hidden; border: 0; padding: 0; gap: 0.5rem;
+  }
+  .xmb-settings-panel .sidebar-tab-trigger { flex: 0 0 auto; inline-size: auto; padding: 0.5rem; }
+  .xmb-settings-panel .tab-sub-text,
+  .xmb-settings-panel .tab-badge-icon { display: none; }
+  .xmb-settings-panel .console-settings-content-pane { min-block-size: 0; }
+}
 .emubox-startup {
   position: absolute;
   inset: 0;

@@ -35,6 +35,7 @@ interface DownloadSourceModalProps {
   onConfirm: () => void;
   onPlay?: (game: Game) => void;
   playBlockReason?: string | null;
+  searchDisabled?: boolean;
   onControllerReady?: (handler: ((action: InputAction) => void) | null) => void;
 }
 
@@ -359,7 +360,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                 <span>{props.store.sourceOptions().length} fuentes</span>
               </div>
               <div class="download-source-actions">
-                <button disabled={jackett.busy() || props.store.sourcesLoading()} title="Buscar fuentes en Jackett" onClick={() => void jackett.search()}>
+                <button disabled={props.searchDisabled || jackett.busy() || props.store.sourcesLoading()} title="Buscar fuentes en Jackett" onClick={() => void jackett.search()}>
                   <Search size={18} /> Jackett
                 </button>
               </div>

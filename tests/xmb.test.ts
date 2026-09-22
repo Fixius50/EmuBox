@@ -10,7 +10,6 @@ import type { Game } from "../solid/src/types/game.types";
 import { createRoot, createSignal } from "solid-js";
 import { useXmbLibrary } from "../solid/src/hooks/useXmbLibrary";
 import type { InputAction } from "../solid/src/types/input.types";
-import { SETTINGS_TABS } from "@contracts/settings.types";
 
 test("XMB: movement respects category, row and game bounds", () => {
   const bounds = { categories: 5, rows: 120000, games: 3 };
@@ -152,7 +151,6 @@ test("XMB: controller handles search, settings, empty catalogs and cleanup", () 
       },
       onOpenGame: (game) => opened.push(game.id),
       onOpenSettings: (tab) => opened.push(tab),
-      onMaintenance: () => opened.push("maintenance"),
       onFavorite: (id) => opened.push(id),
       onMove: () => {},
       onControllerReady: (handler) => {
@@ -193,15 +191,13 @@ test("XMB: controller handles search, settings, empty catalogs and cleanup", () 
     runtime.setGames([]);
     assert.equal(model.position().row, 0);
     model.chooseCategory(0);
-    assert.equal(model.rows(), SETTINGS_TABS.length + 1);
-    for (const [index, tab] of SETTINGS_TABS.entries()) {
-      model.chooseRow(index + 1);
-      dispatch("BUTTON_A");
-      assert.equal(opened.at(-1), tab.id);
-    }
-    model.chooseRow(SETTINGS_TABS.length + 1);
+    assert.equal(model.rows(), 1);
+    dispatch("NAV_DOWN");
+    assert.equal(opened.at(-1), "system");
+    assert.equal(model.position().row, 0);
     dispatch("BUTTON_A");
-    assert.equal(opened.at(-1), "maintenance");
+    assert.equal(opened.at(-1), "system");
+    assert.ok(!opened.includes("maintenance"));
   } finally {
     runtime.dispose();
   }

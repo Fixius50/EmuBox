@@ -139,7 +139,33 @@ solid/src/
 
 Flechas y D-pad navegan; Enter/A abre; Escape/B retrocede. LB/RB cambia categoría, X alterna favorito y Y enfoca búsqueda. En la ficha, LT/RT desplaza los detalles; en fuentes, Y permite jugar si el título instalado es compatible.
 
-El CSS se organiza por componente, con medidas relativas, propiedades lógicas y movimiento reducido. Las reglas y controladores de navegación se prueban en Node. La aplicación requiere Tauri; Vite solo no ofrece un backend alternativo ni inventa una biblioteca.
+El CSS se organiza por componente, con medidas relativas, propiedades lógicas y movimiento reducido. Las reglas y controladores de navegación se prueban en Node. La aplicación instalada requiere Tauri; la previsualizacion de desarrollo descrita abajo no sustituye el backend nativo.
+
+## Desarrollo de UI
+
+`npm run dev` abre la previsualizacion web en `http://localhost:3001`, sin compilar
+Tauri. Usa los componentes reales con juegos ficticios identificados como ejemplos.
+Favoritos y ajustes viven solo en memoria y se reinician
+al recargar. No contiene ROMs, fuentes de descarga ni cuentas reales.
+
+La previsualizacion solo se habilita con `import.meta.env.DEV` fuera de Tauri.
+Descargas, Jackett, lanzamiento de juegos y mantenimiento nativo permanecen
+bloqueados. En Tauri se conserva el arranque real; en produccion, abrir la web
+sin Tauri sigue mostrando el requisito de runtime nativo. `test:ui` y `verify:dev`
+son comprobaciones y no arrancan la aplicacion.
+
+Ajustes se abre en un unico contenedor bajo las categorias: bajar entra y subir
+desde el primer control vuelve a la categoria. No hay acceso a Mantenimiento ni
+pestana de gestion de emuladores; los motores se muestran como informacion en
+Sistema y pantalla. Las opciones editables son Preferencia de rendimiento y VSync.
+
+Audio general permite seleccionar entrada y salida entre los dispositivos que
+expone el navegador, con `Automatico (sistema)` como valor inicial. No abre el
+microfono ni pide permiso de captura; el navegador puede limitar los nombres y
+dispositivos disponibles. En desarrollo, las selecciones son preferencias en
+memoria: no cambian el dispositivo fisico ni la configuracion de PipeWire.
+La aplicacion nativa consulta los dispositivos mediante `getAudioInfo`; aplicar
+estas nuevas preferencias al enrutamiento nativo de audio queda pendiente.
 
 ---
 

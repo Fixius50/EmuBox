@@ -1,6 +1,5 @@
 import {
   Component,
-  createSignal,
   createEffect,
   onMount,
   onCleanup,
@@ -8,32 +7,24 @@ import {
   Match,
   Show,
 } from "solid-js";
-import type { InputAction } from "@contracts/input.types";
-import type { Emulator, SystemSettings } from "@contracts/game.types";
+import type { SystemSettings } from "@contracts/game.types";
 import type { SettingsViewProps } from "@contracts/settings.types";
 
 // Subcomponents
 import { SettingsSidebar } from "./SettingsSidebar";
 import { SystemTab } from "./tabs/SystemTab";
-import { EmulatorsTab } from "./tabs/EmulatorsTab";
 import { AudioTab } from "./tabs/AudioTab";
 import { GamepadTab } from "./tabs/GamepadTab";
 import { StoresTab } from "./tabs/StoresTab";
-import { EmulatorCrudModal } from "./modals/EmulatorCrudModal";
 
 // Animations
 import {
   animateSettingsEntrance,
   animateTabTransition,
 } from "@animations/settings-animations";
-import { ArrowLeft } from "lucide-solid";
+import { ArrowUp } from "lucide-solid";
 
 export const SettingsView: Component<SettingsViewProps> = (props) => {
-  const [selectedEmulatorForEdit, setSelectedEmulatorForEdit] =
-    createSignal<Emulator | null>(null);
-  const [isCrudModalOpen, setIsCrudModalOpen] = createSignal<boolean>(false);
-  let crudController: ((action: InputAction) => void) | null = null;
-
   let rootContainerRef: HTMLDivElement | undefined;
   let contentPaneRef: HTMLDivElement | undefined;
 
@@ -60,7 +51,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
     if (props.focusArea === "content" && contentPaneRef && row !== undefined) {
       setTimeout(() => {
         const focusedEl = contentPaneRef?.querySelector(
-          ".setting-card-row.focused, .cyber-emulator-blade.focused, .gamepad-device-card.focused, .store-provider-card.focused, .update-hero-blade.focused",
+          ".setting-card-row.focused, .settings-device-row.focused, .gamepad-device-card.focused, .store-provider-card.focused",
         ) as HTMLElement;
         if (focusedEl) {
           focusedEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -69,21 +60,20 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
     }
   });
 
-  const openEditEmulatorModal = (emu?: Emulator) => {
-    setSelectedEmulatorForEdit(emu || null);
-    setIsCrudModalOpen(true);
-  };
-
   onMount(() =>
     props.onControllerReady?.((action) => {
-      if (isCrudModalOpen()) crudController?.(action);
-      else if (
-        action === "BUTTON_A" &&
-        currentTab() === "emulators" &&
-        props.focusArea === "content"
-      ) {
-        openEditEmulatorModal(props.emulators?.[props.focusedRowIndex ?? 0]);
-      } else props.onNavigate?.(action);
+      if (currentTab() === 'audio' && props.focusArea === 'content' && (props.focusedRowIndex ?? 0) < 2) {
+        const select = contentPaneRef?.querySelector<HTMLSelectElement>(`[data-setting-row="${props.focusedRowIndex ?? 0}"] select`);
+        if (select && !select.disabled && ['BUTTON_A', 'NAV_LEFT', 'NAV_RIGHT'].includes(action)) {
+          if (action === 'BUTTON_A') select.focus();
+          else {
+            select.selectedIndex = Math.max(0, Math.min(select.options.length - 1, select.selectedIndex + (action === 'NAV_RIGHT' ? 1 : -1)));
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          return;
+        }
+      }
+      props.onNavigate?.(action);
     }),
   );
   onCleanup(() => props.onControllerReady?.(null));
@@ -101,9 +91,8 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
       {/* Top Header Bar with Back Button */}
       <div class="settings-top-bar">
         <Show when={props.onBack}>
-          <button class="settings-back-pill" onClick={props.onBack}>
-            <ArrowLeft size={18} />
-            <span class="back-label">Biblioteca</span>
+          <button class="settings-back-pill" title="Volver a categorias" aria-label="Volver a categorias" onClick={props.onBack}>
+            <ArrowUp size={18} />
           </button>
         </Show>
         <div class="settings-screen-title">Ajustes</div>
@@ -125,24 +114,17 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
             <Match when={currentTab() === "system"}>
               <SystemTab
                 settings={props.settings}
+                emulators={props.emulators}
                 isRowFocused={isRowFocused}
                 onSelectContentArea={props.onSelectContentArea}
                 onUpdateSettings={handleUpdate}
               />
             </Match>
 
-            <Match when={currentTab() === "emulators"}>
-              <EmulatorsTab
-                emulators={props.emulators}
-                isRowFocused={isRowFocused}
-                onSelectContentArea={props.onSelectContentArea}
-                onOpenEditModal={openEditEmulatorModal}
-              />
-            </Match>
-
             <Match when={currentTab() === "audio"}>
               <AudioTab
                 settings={props.settings}
+                backend={props.storeBackend}
                 isRowFocused={isRowFocused}
                 onSelectContentArea={props.onSelectContentArea}
                 onUpdateSettings={handleUpdate}
@@ -169,17 +151,6 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
         </div>
       </div>
 
-      {/* CRUD Modal for Emulator / Core Management */}
-      <EmulatorCrudModal
-        onControllerReady={(handler) => {
-          crudController = handler;
-        }}
-        isOpen={isCrudModalOpen()}
-        initialData={selectedEmulatorForEdit()}
-        onClose={() => setIsCrudModalOpen(false)}
-        onSave={props.onSaveEmulator}
-        onDelete={props.onDeleteEmulator}
-      />
     </div>
   );
 };

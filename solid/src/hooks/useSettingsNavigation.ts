@@ -8,6 +8,14 @@ export function useSettingsNavigation(options: UseSettingsNavigationOptions) {
   return (action: InputAction) => {
     const tab = options.activeSettingsTab();
     const row = options.settingsRowIndex();
+    if (action === 'NAV_UP' && (
+      (options.settingsFocusArea() === 'content' && row === 0) ||
+      (options.settingsFocusArea() === 'sidebar' && tab === SETTINGS_TABS[0].id)
+    )) {
+      options.onBack();
+      options.soundFx.playBack();
+      return;
+    }
     if (options.settingsFocusArea() === "sidebar") {
       const index = SETTINGS_TABS.findIndex((entry) => entry.id === tab);
       switch (action) {
@@ -43,7 +51,7 @@ export function useSettingsNavigation(options: UseSettingsNavigationOptions) {
       return;
     }
 
-    const slider = tab === "audio" && row === 1;
+    const slider = tab === "audio" && row === 3;
     if (action === "BUTTON_B" || (action === "NAV_LEFT" && !slider)) {
       options.onSettingsFocusAreaChange("sidebar");
       options.soundFx.playBack();
@@ -51,14 +59,12 @@ export function useSettingsNavigation(options: UseSettingsNavigationOptions) {
     }
     const count =
       tab === "system"
-        ? 4
-        : tab === "emulators"
-          ? Math.max(1, options.emulatorCount())
+        ? 2
           : tab === "gamepad"
             ? 6
             : tab === "stores"
               ? Math.max(1, options.storeProviderCount?.() ?? 3)
-              : 2;
+              : 4;
     switch (action) {
       case "NAV_DOWN":
       case "NAV_UP":

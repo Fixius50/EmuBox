@@ -1,4 +1,4 @@
-import { Component } from 'solid-js';
+import { Component, For, Show } from 'solid-js';
 import type { PerformanceMode } from '@contracts/game.types';
 import type { SystemTabProps } from '@contracts/settings.types';
 import { SettingCardRow } from '@components/common/SettingCardRow';
@@ -41,16 +41,15 @@ export const SystemTab: Component<SystemTabProps> = (props) => {
     <div class="settings-tab-panel">
       <div class="panel-header-block">
         <div class="panel-header-titles">
-          <h3 class="panel-section-title">Ajustes del Sistema y Motor Gráfico</h3>
-          <p class="panel-section-desc">Configuración de bajo nivel de EmuBox OS en Arch Linux</p>
+          <h3 class="panel-section-title">Sistema y pantalla</h3>
         </div>
       </div>
 
       <div class="settings-form-stack">
         {/* Row 0: Performance Mode */}
         <SettingCardRow
-          title="Modo de Rendimiento del Kernel"
-          description="Ajusta el perfil de escalado de frecuencia de CPU y GPU"
+          title="Preferencia de rendimiento"
+          description="Perfil preferido de la consola"
           isFocused={props.isRowFocused(0)}
           onClick={handleRotatePerformanceMode}
         >
@@ -59,36 +58,11 @@ export const SystemTab: Component<SystemTabProps> = (props) => {
           </Badge>
         </SettingCardRow>
 
-        {/* Row 1: Pipeline Gráfico */}
-        <SettingCardRow
-          title="Pipeline Gráfico Adaptativo"
-          description="Gamescope para GPU acelerada / Cage para renderizado por software"
-          isFocused={props.isRowFocused(1)}
-          onClick={props.onSelectContentArea}
-        >
-          <Badge variant="highlight">
-            AUTO (HARDWARE KMS)
-          </Badge>
-        </SettingCardRow>
-
-        {/* Row 2: Resolution */}
-        <SettingCardRow
-          title="Resolución y Geometría"
-          description="Adaptación automática en caliente ante cambios en la salida DRM"
-          isFocused={props.isRowFocused(2)}
-          onClick={props.onSelectContentArea}
-        >
-          <Badge variant="default">
-            DINÁMICA (AUTO-AJUSTE)
-          </Badge>
-        </SettingCardRow>
-
-        {/* Row 3: VSync */}
         <SettingSwitch
           title="Sincronización Vertical (VSync)"
-          description="Elimina el desgarro de pantalla mediante sincronización KMS"
+          description="Preferencia de sincronizacion de imagen"
           checked={props.settings?.display?.vsync ?? true}
-          isFocused={props.isRowFocused(3)}
+          isFocused={props.isRowFocused(1)}
           onChange={(val) => {
             props.onSelectContentArea?.();
             props.onUpdateSettings((s) => {
@@ -97,23 +71,23 @@ export const SystemTab: Component<SystemTabProps> = (props) => {
           }}
         />
 
-        {/* Row 4: Auto-Updates */}
-        <SettingSwitch
-          title="Actualizaciones Automáticas del Sistema"
-          description="Comprobación y aplicación atómica de versiones estables en arranque"
-          checked={props.settings?.updates?.autoUpdate ?? true}
-          isFocused={props.isRowFocused(4)}
-          onChange={(val) => {
-            props.onSelectContentArea?.();
-            props.onUpdateSettings((s) => {
-              if (!s.updates) {
-                s.updates = { autoUpdate: true, channel: 'stable', checkOnStartup: true };
-              }
-              s.updates.autoUpdate = val;
-            });
-          }}
-        />
       </div>
+      <section class="settings-information" aria-label="Informacion del sistema">
+        <h4>Informacion del sistema</h4>
+        <dl>
+          <div><dt>Resolucion configurada</dt><dd>{props.settings?.display.resolution || 'No disponible'}</dd></div>
+          <div><dt>Frecuencia configurada</dt><dd>{props.settings?.display.refreshRate ? `${props.settings.display.refreshRate} Hz` : 'No disponible'}</dd></div>
+          <div><dt>Motores registrados</dt><dd>{props.emulators?.length ?? 0}</dd></div>
+        </dl>
+        <h4>Nucleos y emuladores</h4>
+        <Show when={props.emulators?.length} fallback={<p>No hay motores registrados.</p>}>
+          <ul class="settings-engine-list">
+            <For each={props.emulators}>{emulator => (
+              <li><strong>{emulator.name}</strong><span>{emulator.version || 'Version no disponible'} · {emulator.coreType === 'libretro' ? 'Nucleo Libretro' : 'Independiente'}</span></li>
+            )}</For>
+          </ul>
+        </Show>
+      </section>
     </div>
   );
 };
