@@ -168,6 +168,17 @@ fn mount_managed_config(
     let Some((source, target)) = emulators::managed_config(emulator_id) else {
         return Ok(());
     };
+    let config_root = PathBuf::from(paths::emulator_config_dir(emulator_id));
+    mount_managed_config_from(command, state, &source, &target, &config_root)
+}
+
+fn mount_managed_config_from(
+    command: &mut Command,
+    state: &Path,
+    source: &Path,
+    target: &Path,
+    config_root: &Path,
+) -> Result<(), EmuBoxError> {
     let allowed_target =
         target.starts_with(".config") || target.starts_with(".local/share/dolphin-emu");
     if !allowed_target
@@ -177,7 +188,7 @@ fn mount_managed_config(
     {
         return Err(failure("Destino de configuracion gestionada invalido"));
     }
-    let source_metadata = match fs::symlink_metadata(&source) {
+    let source_metadata = match fs::symlink_metadata(source) {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
         Err(error) => return Err(failure(error.to_string())),
@@ -185,14 +196,13 @@ fn mount_managed_config(
     if !source_metadata.is_file() || source_metadata.file_type().is_symlink() {
         return Err(failure("Configuracion gestionada no es un archivo regular"));
     }
-    let config_root = PathBuf::from(paths::emulator_config_dir(emulator_id));
     let root_metadata =
-        fs::symlink_metadata(&config_root).map_err(|error| failure(error.to_string()))?;
+        fs::symlink_metadata(config_root).map_err(|error| failure(error.to_string()))?;
     if !root_metadata.is_dir() || root_metadata.file_type().is_symlink() {
         return Err(failure("Directorio de configuracion gestionada invalido"));
     }
-    let canonical_root = canonical(&config_root)?;
-    let canonical_source = canonical(&source)?;
+    let canonical_root = canonical(config_root)?;
+    let canonical_source = canonical(source)?;
     if !canonical_source.starts_with(&canonical_root) || canonical_source == canonical_root {
         return Err(failure("Configuracion gestionada fuera de su directorio"));
     }
@@ -411,14 +421,23 @@ mod tests {
 
     #[test]
     fn managed_profile_config_is_read_only_and_confined_to_private_home() {
-        let (source, target) = emulators::managed_config("pcsx2").unwrap();
+        let test_root = std::env::temp_dir().join(format!(
+            "emubox-managed-config-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let config_root = test_root.join("config");
+        let source = config_root.join("PCSX2.ini");
+        let target = PathBuf::from(".config/PCSX2/inis/PCSX2.ini");
+        let state = test_root.join("state");
         fs::create_dir_all(source.parent().unwrap()).unwrap();
         fs::write(&source, "[EmuCore/GS]\nRenderer = OpenGL\n").unwrap();
-        let state =
-            std::env::temp_dir().join(format!("emubox-managed-config-test-{}", std::process::id()));
         fs::create_dir_all(&state).unwrap();
         let mut command = Command::new("/usr/bin/true");
-        mount_managed_config(&mut command, &state, "pcsx2").unwrap();
+        mount_managed_config_from(&mut command, &state, &source, &target, &config_root).unwrap();
         let args: Vec<_> = command
             .get_args()
             .map(|arg| arg.to_string_lossy().into_owned())
@@ -439,8 +458,10 @@ mod tests {
 
         fs::remove_file(&source).unwrap();
         symlink("/missing-managed-config", &source).unwrap();
-        assert!(mount_managed_config(&mut command, &state, "pcsx2").is_err());
-        let _ = fs::remove_file(&source);
-        let _ = fs::remove_dir_all(&state);
+        assert!(
+            mount_managed_config_from(&mut command, &state, &source, &target, &config_root)
+                .is_err()
+        );
+        fs::remove_dir_all(&test_root).unwrap();
     }
 }
