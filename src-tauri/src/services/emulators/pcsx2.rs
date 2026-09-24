@@ -1,4 +1,4 @@
-use super::{config_home, upsert_ini_key, EmulatorProfile, RendererPreference};
+use super::{managed_config_source, upsert_ini_key, EmulatorProfile, RendererPreference};
 use crate::errors::EmuBoxError;
 use crate::models::HardwareInfo;
 
@@ -39,7 +39,7 @@ impl EmulatorProfile for Pcsx2 {
             RendererPreference::OpenGl => "OpenGL",
             RendererPreference::Conservative => return Ok(()),
         };
-        let path = config_home().join("pcsx2/config/PCSX2.ini");
+        let path = managed_config_source(self.id())?;
         upsert_ini_key(&path, "EmuCore/GS", "Renderer", renderer)
     }
 }

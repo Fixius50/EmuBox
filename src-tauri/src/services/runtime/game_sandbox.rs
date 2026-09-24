@@ -2,15 +2,13 @@ use super::launch_policy::{failure, trusted_binary, LaunchPolicy};
 use crate::{
     errors::EmuBoxError,
     models::Game,
-    services::{emulators, paths},
+    services::{emulators, paths, runtime::sandbox_paths},
 };
 mod bubblewrap;
 mod content;
 #[cfg(test)]
 use bubblewrap::gamepad_only;
-use bubblewrap::{
-    base_command, entrypoint, private_directory, retroarch_config, session_access, HOME,
-};
+use bubblewrap::{base_command, entrypoint, private_directory, retroarch_config, session_access};
 use content::{canonical, content};
 use sha2::{Digest, Sha256};
 #[cfg(test)]
@@ -27,9 +25,9 @@ pub(super) fn command(
     policy: &LaunchPolicy,
     gamescope: bool,
 ) -> Result<Command, EmuBoxError> {
-    let bwrap = trusted_binary(Path::new("/usr/bin/bwrap"))?;
-    trusted_binary(Path::new("/usr/bin/prlimit"))?;
-    trusted_binary(Path::new("/usr/bin/sh"))?;
+    let bwrap = trusted_binary(Path::new(sandbox_paths::BWRAP_BINARY))?;
+    trusted_binary(Path::new(sandbox_paths::PRLIMIT_BINARY))?;
+    trusted_binary(Path::new(sandbox_paths::SHELL_BINARY))?;
     let rom = game
         .rom_path
         .as_deref()
@@ -42,13 +40,13 @@ pub(super) fn command(
     let state = Path::new(paths::DATA_DIR).join("sandbox").join(identity);
     private_directory(&state)?;
     for directory in [
-        ".config",
-        ".local/share",
-        ".cache",
-        "saves",
-        "states",
-        "screenshots",
-        "wine",
+        sandbox_paths::CONFIG_DIRECTORY,
+        sandbox_paths::DATA_DIRECTORY,
+        sandbox_paths::CACHE_DIRECTORY,
+        sandbox_paths::SAVES_DIRECTORY,
+        sandbox_paths::STATES_DIRECTORY,
+        sandbox_paths::SCREENSHOTS_DIRECTORY,
+        sandbox_paths::WINE_DIRECTORY,
     ] {
         private_directory(&state.join(directory))?;
     }
@@ -60,20 +58,14 @@ pub(super) fn command(
         .arg("--ro-bind")
         .arg(&content.root)
         .arg(&content.target);
-    for path in [
-        "/etc/fonts",
-        "/etc/ld.so.cache",
-        "/etc/localtime",
-        "/sys/devices",
-        "/sys/class/drm",
-    ] {
+    for path in sandbox_paths::OPTIONAL_READ_ONLY_HOST_MOUNTS {
         if Path::new(path).exists() {
             command.args(["--ro-bind", path, path]);
         }
     }
     let bios = PathBuf::from(paths::bios_dir());
     if bios.is_dir() && canonical(&bios)? == bios {
-        command.arg("--ro-bind").arg(bios).arg("/bios");
+        command.arg("--ro-bind").arg(bios).arg(sandbox_paths::BIOS);
     }
     if emulator_id == "rpcs3" {
         let config = content
@@ -87,31 +79,33 @@ pub(super) fn command(
                 "Falta firmware PS3 autorizado en el entorno gestionado",
             ));
         }
-        private_directory(&state.join(".config/rpcs3/dev_flash"))?;
+        private_directory(&state.join(sandbox_paths::RPCS3_DEV_FLASH))?;
         command
             .arg("--ro-bind")
             .arg(firmware)
-            .arg("/home/player/.config/rpcs3/dev_flash");
+            .arg(sandbox_paths::home_path(sandbox_paths::RPCS3_DEV_FLASH));
         if content.ps3_config.is_some() {
             let installed = config.join("dev_hdd0/game");
             if canonical(&installed)? != installed {
                 return Err(failure("Instalacion PS3 redirigida"));
             }
-            private_directory(&state.join(".config/rpcs3/dev_hdd0/game"))?;
+            private_directory(&state.join(sandbox_paths::RPCS3_INSTALLED_GAMES))?;
             command
                 .arg("--ro-bind")
                 .arg(installed)
-                .arg("/home/player/.config/rpcs3/dev_hdd0/game");
+                .arg(sandbox_paths::home_path(
+                    sandbox_paths::RPCS3_INSTALLED_GAMES,
+                ));
         }
     }
-    if !policy.executable.starts_with("/usr") {
+    if !policy.executable.starts_with(sandbox_paths::SYSTEM_USR) {
         command
             .arg("--ro-bind")
             .arg(&policy.executable)
             .arg(&policy.executable);
     }
     for pair in policy.arguments.windows(2) {
-        if pair[0] == "-L" && !Path::new(&pair[1]).starts_with("/usr") {
+        if pair[0] == "-L" && !Path::new(&pair[1]).starts_with(sandbox_paths::SYSTEM_USR) {
             command.arg("--ro-bind").arg(&pair[1]).arg(&pair[1]);
         }
     }
@@ -122,39 +116,41 @@ pub(super) fn command(
         command
             .arg("--ro-bind")
             .arg(retroarch_config(&state)?)
-            .arg("/run/retroarch-profile.cfg");
+            .arg(sandbox_paths::RETROARCH_PROFILE_CONFIG);
     }
     if policy.wine {
-        command.args([
-            "--setenv",
-            "WINEPREFIX",
-            "/home/player/wine",
-            "--setenv",
-            "WINEDLLOVERRIDES",
-            "mscoree,mshtml=",
-        ]);
+        command
+            .args(["--setenv", "WINEPREFIX"])
+            .arg(sandbox_paths::home_path(sandbox_paths::WINE_DIRECTORY))
+            .args(["--setenv", "WINEDLLOVERRIDES", "mscoree,mshtml="]);
     }
-    command
-        .arg("--chdir")
-        .arg(content.rom.parent().unwrap_or(Path::new("/game")));
+    command.arg("--chdir").arg(
+        content
+            .rom
+            .parent()
+            .unwrap_or(Path::new(sandbox_paths::GAME)),
+    );
     entrypoint(&mut command);
     if gamescope || policy.wine {
-        let compositor = trusted_binary(Path::new("/usr/bin/gamescope"))?;
+        let compositor = trusted_binary(Path::new(sandbox_paths::GAMESCOPE_BINARY))?;
         command.arg(compositor).args(["-f", "--"]);
     }
     command.arg(&policy.executable).args(&policy.arguments);
     if libretro {
-        command.args([
-            "--appendconfig",
-            "/run/retroarch-profile.cfg",
-            "--save",
-            "/home/player/saves/content.srm",
-            "--savestate",
-            "/home/player/states/content.state",
-        ]);
+        command
+            .args([
+                "--appendconfig",
+                sandbox_paths::RETROARCH_PROFILE_CONFIG,
+                "--save",
+            ])
+            .arg(sandbox_paths::home_path(sandbox_paths::RETROARCH_SAVE))
+            .arg("--savestate")
+            .arg(sandbox_paths::home_path(sandbox_paths::RETROARCH_STATE));
     }
     if emulator_id == "shadps4" {
-        command.args(["--override-root", "/home/player/.config/shadps4"]);
+        command
+            .arg("--override-root")
+            .arg(sandbox_paths::home_path(sandbox_paths::SHADPS4_CONFIG));
     }
     command.arg(&content.rom);
     Ok(command)
@@ -179,8 +175,8 @@ fn mount_managed_config_from(
     target: &Path,
     config_root: &Path,
 ) -> Result<(), EmuBoxError> {
-    let allowed_target =
-        target.starts_with(".config") || target.starts_with(".local/share/dolphin-emu");
+    let allowed_target = target.starts_with(sandbox_paths::CONFIG_DIRECTORY)
+        || target.starts_with(sandbox_paths::DOLPHIN_USER_DIRECTORY_RELATIVE);
     if !allowed_target
         || target
             .components()
@@ -206,7 +202,7 @@ fn mount_managed_config_from(
     if !canonical_source.starts_with(&canonical_root) || canonical_source == canonical_root {
         return Err(failure("Configuracion gestionada fuera de su directorio"));
     }
-    let destination = Path::new(HOME).join(&target);
+    let destination = sandbox_paths::home_path(&target);
     let private_destination = state.join(&target);
     let parent = private_destination
         .parent()
@@ -284,7 +280,7 @@ mod tests {
         fs::create_dir_all(root.join("state")).unwrap();
         fs::write(root.join("secret"), "private-host-fixture").unwrap();
         fs::write(root.join("content"), "readonly-content").unwrap();
-        let mut command = base_command(Path::new("/usr/bin/bwrap"));
+        let mut command = base_command(Path::new(sandbox_paths::BWRAP_BINARY));
         command.env("EMUBOX_PRIVATE_SENTINEL", "must-not-inherit");
         command
             .arg("--ro-bind")
@@ -307,7 +303,7 @@ mod tests {
             fs::read_to_string(root.join("content")).unwrap(),
             "readonly-content"
         );
-        let mut rejected = base_command(Path::new("/usr/bin/bwrap"));
+        let mut rejected = base_command(Path::new(sandbox_paths::BWRAP_BINARY));
         rejected
             .arg("--ro-bind")
             .arg(root.join("missing-mount"))
@@ -320,7 +316,7 @@ mod tests {
 
     #[test]
     fn namespace_and_environment_have_no_host_fallback() {
-        let command = base_command(Path::new("/usr/bin/bwrap"));
+        let command = base_command(Path::new(sandbox_paths::BWRAP_BINARY));
         let args: Vec<_> = command
             .get_args()
             .map(|arg| arg.to_string_lossy().into_owned())
@@ -446,7 +442,9 @@ mod tests {
             .unwrap()
             .to_string_lossy()
             .into_owned();
-        let destination = Path::new(HOME).join(target).to_string_lossy().into_owned();
+        let destination = sandbox_paths::home_path(target)
+            .to_string_lossy()
+            .into_owned();
         assert!(args
             .windows(3)
             .any(|entry| entry == ["--ro-bind", canonical_source.as_str(), destination.as_str()]));
@@ -461,6 +459,46 @@ mod tests {
         assert!(
             mount_managed_config_from(&mut command, &state, &source, &target, &config_root)
                 .is_err()
+        );
+        fs::remove_dir_all(&test_root).unwrap();
+    }
+
+    #[test]
+    #[ignore = "Requires Linux user namespaces, Bubblewrap and util-linux/prlimit; writes only to a temporary fixture"]
+    fn managed_profile_config_is_read_only_inside_bubblewrap() {
+        let test_root = std::env::temp_dir().join(format!(
+            "emubox-managed-config-bwrap-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let config_root = test_root.join("config");
+        let source = config_root.join("PCSX2.ini");
+        let target = PathBuf::from(".config/PCSX2/inis/PCSX2.ini");
+        let state = test_root.join("state");
+        let fixture = "renderer-fixture\n";
+        fs::create_dir_all(&config_root).unwrap();
+        fs::write(&source, fixture).unwrap();
+        private_directory(&state).unwrap();
+
+        let mut command = base_command(Path::new(sandbox_paths::BWRAP_BINARY));
+        command.arg("--bind").arg(&state).arg(HOME);
+        mount_managed_config_from(&mut command, &state, &source, &target, &config_root).unwrap();
+        entrypoint(&mut command);
+        command.args([
+            "/usr/bin/sh",
+            "-c",
+            "test \"$(cat /home/player/.config/PCSX2/inis/PCSX2.ini)\" = 'renderer-fixture' && if printf changed > /home/player/.config/PCSX2/inis/PCSX2.ini 2>/dev/null; then exit 42; fi && printf '%s\\n' private > /home/player/write-check",
+        ]);
+
+        let mut child = spawn(&mut command).unwrap();
+        assert!(child.wait().unwrap().success());
+        assert_eq!(fs::read_to_string(&source).unwrap(), fixture);
+        assert_eq!(
+            fs::read_to_string(state.join("write-check")).unwrap(),
+            "private\n"
         );
         fs::remove_dir_all(&test_root).unwrap();
     }

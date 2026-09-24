@@ -1,5 +1,6 @@
 use crate::errors::EmuBoxError;
 use crate::models::HardwareInfo;
+use crate::services::runtime::sandbox_paths;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -102,38 +103,24 @@ pub fn registry() -> Vec<Box<dyn EmulatorProfile>> {
     profiles
 }
 
-pub(crate) fn config_home() -> PathBuf {
-    PathBuf::from(crate::services::paths::emulators_dir())
-}
-
 /// Archivo de configuración gestionado y su destino relativo dentro del HOME
 /// privado del sandbox. La tabla es cerrada: nunca acepta rutas de la UI o de
 /// metadata SQLite para ampliar los montajes del juego.
 pub(crate) fn managed_config(emulator_id: &str) -> Option<(PathBuf, PathBuf)> {
-    let config = PathBuf::from(crate::services::paths::emulator_config_dir(emulator_id));
-    match emulator_id {
-        "retroarch" => Some((
-            config.join("retroarch.cfg"),
-            PathBuf::from(".config/retroarch/retroarch.cfg"),
-        )),
-        "pcsx2" => Some((
-            config.join("PCSX2.ini"),
-            PathBuf::from(".config/PCSX2/inis/PCSX2.ini"),
-        )),
-        "duckstation" => Some((
-            config.join("settings.ini"),
-            PathBuf::from(".config/duckstation/settings.ini"),
-        )),
-        "dolphin" => Some((
-            config.join("Dolphin.ini"),
-            PathBuf::from(".local/share/dolphin-emu/Config/Dolphin.ini"),
-        )),
-        "ppsspp" => Some((
-            config.join("PSP/SYSTEM/ppsspp.ini"),
-            PathBuf::from(".config/ppsspp/PSP/SYSTEM/ppsspp.ini"),
-        )),
-        _ => None,
-    }
+    let route = sandbox_paths::managed_config_route(emulator_id)?;
+    let source =
+        PathBuf::from(crate::services::paths::emulator_config_dir(emulator_id)).join(route.source);
+    Some((source, PathBuf::from(route.target)))
+}
+
+pub(crate) fn managed_config_source(emulator_id: &str) -> Result<PathBuf, EmuBoxError> {
+    managed_config(emulator_id)
+        .map(|(source, _)| source)
+        .ok_or_else(|| {
+            EmuBoxError::InvalidConfiguration(format!(
+                "No hay configuracion gestionada para {emulator_id}"
+            ))
+        })
 }
 
 /// Inserta o reemplaza `key = "value"` en un archivo de configuración plano sin

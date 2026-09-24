@@ -1,7 +1,7 @@
 use crate::{
     errors::EmuBoxError,
     models::LaunchGameRequest,
-    services::{binary_service, emulators},
+    services::{binary_service, emulators, runtime::sandbox_paths},
 };
 use std::{
     fs,
@@ -21,7 +21,9 @@ pub(super) fn failure(message: impl Into<String>) -> EmuBoxError {
 
 pub(super) fn trusted_binary(path: &Path) -> Result<PathBuf, EmuBoxError> {
     let resolved = fs::canonicalize(path).map_err(|error| failure(error.to_string()))?;
-    if !resolved.starts_with("/usr") && !resolved.starts_with("/opt/emubox/bin") {
+    if !resolved.starts_with(sandbox_paths::SYSTEM_USR)
+        && !resolved.starts_with(sandbox_paths::EMUBOX_BIN)
+    {
         return Err(failure(
             "El ejecutable o core no pertenece a una raiz de herramientas autorizada",
         ));
@@ -79,7 +81,7 @@ pub(super) fn resolve(emulator_id: &str, platform: &str) -> Result<LaunchPolicy,
             if path.is_absolute() {
                 path.to_path_buf()
             } else {
-                Path::new("/usr/bin").join(path)
+                Path::new(sandbox_paths::SYSTEM_BIN).join(path)
             }
         })
         .find(|candidate| candidate.is_file())

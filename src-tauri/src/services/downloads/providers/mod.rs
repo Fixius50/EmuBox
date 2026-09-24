@@ -14,12 +14,16 @@ pub trait DownloadProvider: Send + Sync {
     ) -> Result<TransferOutcome, EmuBoxError>;
 }
 
-pub fn provider(id: crate::models::ProviderId) -> Box<dyn DownloadProvider> {
+pub fn provider(
+    id: crate::models::ProviderId,
+    seed_completed_torrents: bool,
+) -> Box<dyn DownloadProvider> {
     match id {
         crate::models::ProviderId::Http => Box::new(http::HttpProvider),
-        crate::models::ProviderId::BitTorrent => {
-            Box::new(qbittorrent::QbittorrentProvider::default())
-        }
+        crate::models::ProviderId::BitTorrent => Box::new(qbittorrent::QbittorrentProvider {
+            seed_completed: seed_completed_torrents,
+            ..qbittorrent::QbittorrentProvider::default()
+        }),
     }
 }
 

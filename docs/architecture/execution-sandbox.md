@@ -9,7 +9,10 @@ Bubblewrap. No existe fallback a ejecucion directa.
 `runtime/launch_policy.rs` selecciona el perfil compilado del registro nativo.
 `runtime/game_sandbox.rs` conserva la API de lanzamiento; `game_sandbox/content.rs`
 valida la raiz gestionada y `game_sandbox/bubblewrap.rs` construye el entorno
-aislado. La ruta y los argumentos arbitrarios del registro SQLite no determinan el comando.
+aislado. `runtime/sandbox_paths.rs` centraliza las rutas del HOME y runtime privados,
+los mountpoints internos, los bind mounts del host y las rutas gestionadas de
+configuracion (fuente y destino). La ruta y los argumentos arbitrarios del registro
+SQLite no determinan el comando.
 Las herramientas se resuelven por candidatos absolutos o `/usr/bin`, sin PATH
 heredado; binarios y cores deben estar bajo `/usr` o `/opt/emubox/bin`, ser propiedad
 de root y tener todos sus ancestros protegidos contra escritura de grupo/otros.
@@ -95,8 +98,15 @@ por symlink, dispositivos mixtos y seleccion Windows gestionada. La prueba nativ
 opt-in ejecuta solo un shell fijo con datos artificiales: verifica entorno vacio,
 ausencia de home/repositorio/config del host, contenido no escribible, estado privado
 escribible y rechazo de conexion al loopback del host. No ejecuta ROMs, Wine ni juegos.
+`managed_profile_config_is_read_only_and_confined_to_private_home` comprueba la
+construccion del `--ro-bind`, pero no ejecuta el montaje. La prueba opt-in
+`managed_profile_config_is_read_only_inside_bubblewrap` ejecuta Bubblewrap con un
+`PCSX2.ini` temporal en su destino real, intenta sobrescribirlo desde el sandbox y
+comprueba que la escritura falla, el original permanece intacto y el HOME privado
+sigue siendo escribible. Tampoco ejecuta un emulador ni usa configuracion del host.
 
 ```sh
 cargo test --offline --manifest-path src-tauri/Cargo.toml services::runtime::game_sandbox::tests
 cargo test --offline --manifest-path src-tauri/Cargo.toml native_sandbox_hides_host_data_and_keeps_only_private_writes -- --ignored
+cargo test --offline --manifest-path src-tauri/Cargo.toml managed_profile_config_is_read_only_inside_bubblewrap -- --ignored
 ```

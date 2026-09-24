@@ -3,6 +3,7 @@ use crate::models::Emulator;
 use crate::services::db_service::DatabaseService;
 use crate::services::emulators::{self, EmulatorProfile};
 use crate::services::paths;
+use crate::services::runtime::sandbox_paths;
 use rusqlite::params;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -102,7 +103,11 @@ impl EmulatorService {
         }
 
         for candidate in profile.binary_candidates() {
-            for prefix in &["/usr/local/bin", "/usr/bin", "/opt"] {
+            for prefix in &[
+                sandbox_paths::SYSTEM_LOCAL_BIN,
+                sandbox_paths::SYSTEM_BIN,
+                sandbox_paths::OPT_ROOT,
+            ] {
                 let p = Path::new(prefix).join(candidate);
                 if p.is_file() {
                     return Some(Self::provision_dedicated_environment(profile, &p));

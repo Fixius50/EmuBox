@@ -20,11 +20,22 @@ use std::{
 
 pub struct QbittorrentProvider {
     pub discovery: bool,
+    pub seed_completed: bool,
 }
 impl Default for QbittorrentProvider {
     fn default() -> Self {
-        Self { discovery: true }
+        Self {
+            discovery: true,
+            seed_completed: false,
+        }
     }
+}
+
+fn should_seed_completed_torrent(enabled: bool, total_size: i64, uploaded: u64) -> bool {
+    enabled
+        && u64::try_from(total_size)
+            .ok()
+            .is_some_and(|total| total > 0 && uploaded < total)
 }
 
 fn failure(message: impl Into<String>) -> EmuBoxError {
@@ -144,25 +155,40 @@ impl DownloadProvider for QbittorrentProvider {
             {
                 return Err(failure("Contenido supera el limite permitido"));
             }
-            progress(TransferProgress {
-                downloaded: status.completed,
-                total,
-                speed: status.dlspeed,
-            })?;
-            if request.control.interrupted() {
-                engine.shutdown()?;
-                return Ok(TransferOutcome::Interrupted);
-            }
-            if status.total_size > 0
+            let download_complete = status.total_size > 0
                 && status.amount_left == 0
                 && matches!(
                     status.state.as_str(),
                     "uploading" | "stalledUP" | "queuedUP" | "stoppedUP" | "pausedUP" | "forcedUP"
+                );
+            if download_complete
+                && !should_seed_completed_torrent(
+                    self.seed_completed,
+                    status.total_size,
+                    status.uploaded,
                 )
             {
                 let files = completed_files(&engine, &payload, &hash)?;
                 engine.shutdown()?;
                 return Ok(TransferOutcome::Complete(files));
+            }
+            progress(TransferProgress {
+                downloaded: status.completed,
+                total,
+                speed: if download_complete {
+                    status.upspeed
+                } else {
+                    status.dlspeed
+                },
+                phase: if download_complete {
+                    "seeding"
+                } else {
+                    "transferring"
+                },
+            })?;
+            if request.control.interrupted() {
+                engine.shutdown()?;
+                return Ok(TransferOutcome::Interrupted);
             }
             thread::sleep(Duration::from_millis(500));
         }
@@ -241,7 +267,10 @@ mod tests {
             control: &control,
             max_bytes: None,
         };
-        let provider = QbittorrentProvider { discovery: false };
+        let provider = QbittorrentProvider {
+            discovery: false,
+            seed_completed: false,
+        };
         let paused = provider.transfer(&request, &mut |_| {
             control
                 .paused
@@ -261,5 +290,13 @@ mod tests {
         assert_eq!(files.len(), 1);
         assert_eq!(fs::read(&files[0]).unwrap(), b"data");
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn completed_torrent_seeding_stops_at_one_to_one_ratio() {
+        assert!(!should_seed_completed_torrent(false, 100, 0));
+        assert!(should_seed_completed_torrent(true, 100, 99));
+        assert!(!should_seed_completed_torrent(true, 100, 100));
+        assert!(!should_seed_completed_torrent(true, 0, 0));
     }
 }

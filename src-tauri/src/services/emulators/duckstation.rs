@@ -1,4 +1,4 @@
-use super::{config_home, upsert_ini_key, EmulatorProfile, RendererPreference};
+use super::{managed_config_source, upsert_ini_key, EmulatorProfile, RendererPreference};
 use crate::errors::EmuBoxError;
 use crate::models::HardwareInfo;
 
@@ -44,7 +44,7 @@ impl EmulatorProfile for DuckStation {
             RendererPreference::OpenGl => "OpenGL",
             RendererPreference::Conservative => return Ok(()),
         };
-        let path = config_home().join("duckstation/config/settings.ini");
+        let path = managed_config_source(self.id())?;
         upsert_ini_key(&path, "GPU", "Renderer", renderer)
     }
 }

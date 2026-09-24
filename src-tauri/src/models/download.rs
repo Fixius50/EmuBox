@@ -57,6 +57,7 @@ pub struct TransferProgress {
     pub downloaded: u64,
     pub total: Option<u64>,
     pub speed: u64,
+    pub phase: &'static str,
 }
 
 pub enum TransferOutcome {

@@ -14,6 +14,10 @@ pub(super) struct Status {
     pub total_size: i64,
     pub completed: u64,
     pub dlspeed: u64,
+    #[serde(default)]
+    pub uploaded: u64,
+    #[serde(default)]
+    pub upspeed: u64,
 }
 
 pub(super) fn validated_files(root: &Path, text: &str) -> Result<Vec<PathBuf>, EmuBoxError> {

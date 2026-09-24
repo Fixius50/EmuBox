@@ -75,7 +75,7 @@ export class DevelopmentBackendService extends TauriBackendService {
       showMissingCovers: true,
       defaultPlatform: "all",
     },
-    system: { showFps: false },
+    system: { showFps: false, seedCompletedTorrents: false },
     updates: { autoUpdate: false, channel: "stable", checkOnStartup: false },
   };
 

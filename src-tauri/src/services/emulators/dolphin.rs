@@ -1,6 +1,7 @@
-use super::{config_home, upsert_ini_key, EmulatorProfile, RendererPreference};
+use super::{managed_config_source, upsert_ini_key, EmulatorProfile, RendererPreference};
 use crate::errors::EmuBoxError;
 use crate::models::HardwareInfo;
+use crate::services::runtime::sandbox_paths;
 
 pub struct Dolphin;
 
@@ -21,7 +22,7 @@ impl EmulatorProfile for Dolphin {
         "standalone"
     }
     fn default_arguments(&self) -> &'static [&'static str] {
-        &["-u", "/home/player/.local/share/dolphin-emu", "-b", "-e"]
+        &["-u", sandbox_paths::DOLPHIN_USER_DIRECTORY, "-b", "-e"]
     }
     fn version_flag(&self) -> &'static str {
         "--version"
@@ -41,7 +42,7 @@ impl EmulatorProfile for Dolphin {
             RendererPreference::OpenGl => "OGL",
             RendererPreference::Conservative => return Ok(()),
         };
-        let path = config_home().join("dolphin/config/Dolphin.ini");
+        let path = managed_config_source(self.id())?;
         upsert_ini_key(&path, "Core", "GFXBackend", backend)
     }
 }

@@ -138,6 +138,7 @@ export interface SystemSettings {
   };
   system?: {
     showFps?: boolean;
+    seedCompletedTorrents?: boolean;
   };
   updates?: {
     autoUpdate: boolean;

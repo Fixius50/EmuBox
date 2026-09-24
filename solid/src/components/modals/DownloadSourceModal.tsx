@@ -26,7 +26,7 @@ const labels = {
 };
 
 const phases: Record<string, string> = {
-  queued: 'En cola', transferring: 'Descargando', verifying: 'Verificando', preparing: 'Preparando',
+  queued: 'En cola', transferring: 'Descargando', seeding: 'Compartiendo', verifying: 'Verificando', preparing: 'Preparando',
   ready: 'Preparado', preparation_required: 'Requiere preparacion', paused: 'Pausado', failed: 'Error', cancelled: 'Cancelado',
 };
 
@@ -470,7 +470,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                   onClick={props.onConfirm}
                 >
                   <Download size={18} />
-                  {busy() ? (currentJob()?.phase === 'preparing' ? "Preparando..." : "Descargando...") : "Descargar seleccionada"}
+                  {busy() ? (currentJob()?.phase === 'seeding' ? "Compartiendo..." : currentJob()?.phase === 'preparing' ? "Preparando..." : "Descargando...") : "Descargar seleccionada"}
                 </button>
                 <Show when={detailsGame()?.installed && props.onPlay}>
                   <button

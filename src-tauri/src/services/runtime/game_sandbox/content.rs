@@ -1,7 +1,10 @@
 use crate::{
     errors::EmuBoxError,
     models::{PublishedDownload, TransferControl},
-    services::{download_preparation, installer_preparation, runtime::launch_policy::failure},
+    services::{
+        download_preparation, installer_preparation,
+        runtime::{launch_policy::failure, sandbox_paths},
+    },
 };
 use std::{
     fs,
@@ -99,8 +102,8 @@ pub(super) fn content(rom: &Path, games: &Path, wine: bool) -> Result<Content, E
             };
         return Ok(Content {
             root: root.into(),
-            target: "/game".into(),
-            rom: Path::new("/game").join(relative),
+            target: sandbox_paths::GAME.into(),
+            rom: Path::new(sandbox_paths::GAME).join(relative),
             ps3_config,
         });
     }
@@ -120,9 +123,10 @@ pub(super) fn content(rom: &Path, games: &Path, wine: bool) -> Result<Content, E
             .to_path_buf()
     };
     let target = if root.is_file() {
-        Path::new("/game").join(root.file_name().ok_or_else(|| failure("ROM sin nombre"))?)
+        Path::new(sandbox_paths::GAME)
+            .join(root.file_name().ok_or_else(|| failure("ROM sin nombre"))?)
     } else {
-        "/game".into()
+        sandbox_paths::GAME.into()
     };
     let destination = if root == rom {
         target.clone()

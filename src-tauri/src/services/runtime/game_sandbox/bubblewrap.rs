@@ -1,13 +1,13 @@
-use crate::{errors::EmuBoxError, services::runtime::launch_policy::failure};
+use crate::{
+    errors::EmuBoxError,
+    services::runtime::{launch_policy::failure, sandbox_paths},
+};
 use std::{
     fs,
     os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt},
     path::{Component, Path, PathBuf},
     process::{Command, Stdio},
 };
-
-pub(super) const HOME: &str = "/home/player";
-pub(super) const RUNTIME: &str = "/run/player";
 
 pub(super) fn private_directory(path: &Path) -> Result<(), EmuBoxError> {
     if !path.is_absolute()
@@ -39,7 +39,7 @@ pub(super) fn private_directory(path: &Path) -> Result<(), EmuBoxError> {
 }
 
 pub(super) fn base_command(bwrap: &Path) -> Command {
-    let mut command = Command::new("/usr/bin/prlimit");
+    let mut command = Command::new(sandbox_paths::PRLIMIT_BINARY);
     command
         .args(["--core=0", "--fsize=21474836480", "--nofile=2048", "--"])
         .arg(bwrap);
@@ -60,61 +60,52 @@ pub(super) fn base_command(bwrap: &Path) -> Command {
         "--hostname",
         "emubox-game",
         "--ro-bind",
-        "/usr",
-        "/usr",
+        sandbox_paths::HOST_USR,
+        sandbox_paths::HOST_USR,
         "--symlink",
         "usr/bin",
-        "/bin",
+        sandbox_paths::HOST_BIN,
         "--symlink",
         "usr/lib",
-        "/lib",
+        sandbox_paths::HOST_LIB,
         "--symlink",
         "usr/lib",
-        "/lib64",
+        sandbox_paths::HOST_LIB64,
         "--proc",
-        "/proc",
+        sandbox_paths::PROC,
         "--dev",
-        "/dev",
+        sandbox_paths::DEV,
         "--size",
         "536870912",
         "--tmpfs",
-        "/tmp",
+        sandbox_paths::TMP,
         "--size",
         "16777216",
         "--tmpfs",
-        "/run",
+        sandbox_paths::RUN,
         "--size",
         "134217728",
         "--tmpfs",
-        "/dev/shm",
+        sandbox_paths::DEV_SHM,
         "--dir",
-        RUNTIME,
+        sandbox_paths::RUNTIME,
         "--dir",
-        "/game",
+        sandbox_paths::GAME,
         "--dir",
-        HOME,
+        sandbox_paths::HOME,
         "--clearenv",
         "--setenv",
         "PATH",
-        "/usr/bin",
+        sandbox_paths::HOST_BIN,
         "--setenv",
         "LANG",
         "C.UTF-8",
         "--setenv",
         "HOME",
-        HOME,
+        sandbox_paths::HOME,
         "--setenv",
         "XDG_RUNTIME_DIR",
-        RUNTIME,
-        "--setenv",
-        "XDG_CONFIG_HOME",
-        "/home/player/.config",
-        "--setenv",
-        "XDG_DATA_HOME",
-        "/home/player/.local/share",
-        "--setenv",
-        "XDG_CACHE_HOME",
-        "/home/player/.cache",
+        sandbox_paths::RUNTIME,
         "--setenv",
         "APPIMAGE_EXTRACT_AND_RUN",
         "1",
@@ -131,6 +122,13 @@ pub(super) fn base_command(bwrap: &Path) -> Command {
         "ALSOFT_DRIVERS",
         "alsa",
     ]);
+    command
+        .args(["--setenv", "XDG_CONFIG_HOME"])
+        .arg(sandbox_paths::XDG_CONFIG_HOME)
+        .args(["--setenv", "XDG_DATA_HOME"])
+        .arg(sandbox_paths::XDG_DATA_HOME)
+        .args(["--setenv", "XDG_CACHE_HOME"])
+        .arg(sandbox_paths::XDG_CACHE_HOME);
     command
 }
 
@@ -161,9 +159,13 @@ pub(super) fn session_access(command: &mut Command) -> Result<(), EmuBoxError> {
     command
         .arg("--ro-bind")
         .arg(socket)
-        .arg("/run/player/wayland-0")
+        .arg(sandbox_paths::WAYLAND_SOCKET)
         .args(["--setenv", "WAYLAND_DISPLAY", "wayland-0"]);
-    for entry in fs::read_dir("/dev/snd").into_iter().flatten().flatten() {
+    for entry in fs::read_dir(sandbox_paths::SOUND_DEVICES)
+        .into_iter()
+        .flatten()
+        .flatten()
+    {
         let name = entry.file_name().to_string_lossy().into_owned();
         if ((name.starts_with("pcmC") && name.ends_with('p')) || name.starts_with("controlC"))
             && entry.file_type().is_ok_and(|kind| kind.is_char_device())
@@ -174,7 +176,11 @@ pub(super) fn session_access(command: &mut Command) -> Result<(), EmuBoxError> {
                 .arg(entry.path());
         }
     }
-    for entry in fs::read_dir("/dev/dri").into_iter().flatten().flatten() {
+    for entry in fs::read_dir(sandbox_paths::DRM_DEVICES)
+        .into_iter()
+        .flatten()
+        .flatten()
+    {
         if entry.file_name().to_string_lossy().starts_with("renderD")
             && entry.file_type().is_ok_and(|kind| kind.is_char_device())
         {
@@ -184,7 +190,11 @@ pub(super) fn session_access(command: &mut Command) -> Result<(), EmuBoxError> {
                 .arg(entry.path());
         }
     }
-    for entry in fs::read_dir("/dev/input").into_iter().flatten().flatten() {
+    for entry in fs::read_dir(sandbox_paths::INPUT_DEVICES)
+        .into_iter()
+        .flatten()
+        .flatten()
+    {
         let metadata = entry
             .metadata()
             .map_err(|error| failure(error.to_string()))?;
@@ -192,7 +202,8 @@ pub(super) fn session_access(command: &mut Command) -> Result<(), EmuBoxError> {
         let major = ((device >> 8) & 0xfff) | ((device >> 32) & 0xfffff000);
         let minor = (device & 0xff) | ((device >> 12) & 0xffffff00);
         let properties =
-            fs::read_to_string(format!("/run/udev/data/c{major}:{minor}")).unwrap_or_default();
+            fs::read_to_string(format!("{}/c{major}:{minor}", sandbox_paths::UDEV_DATA))
+                .unwrap_or_default();
         if metadata.file_type().is_char_device() && gamepad_only(&properties) {
             command
                 .arg("--dev-bind")
@@ -221,7 +232,12 @@ pub(super) fn retroarch_config(state: &Path) -> Result<PathBuf, EmuBoxError> {
         .create_new(true)
         .open(&temporary)
         .map_err(|error| failure(error.to_string()))?;
-    file.write_all(b"system_directory = \"/bios\"\nscreenshot_directory = \"/home/player/screenshots\"\naudio_driver = \"alsa\"\nconfig_save_on_exit = \"false\"\nnetwork_cmd_enable = \"false\"\nstdin_cmd_enable = \"false\"\n")
+    let content = format!(
+        "system_directory = \"{}\"\nscreenshot_directory = \"{}\"\naudio_driver = \"alsa\"\nconfig_save_on_exit = \"false\"\nnetwork_cmd_enable = \"false\"\nstdin_cmd_enable = \"false\"\n",
+        sandbox_paths::BIOS,
+        sandbox_paths::home_path(sandbox_paths::SCREENSHOTS_DIRECTORY).display()
+    );
+    file.write_all(content.as_bytes())
         .map_err(|error| failure(error.to_string()))?;
     fs::rename(&temporary, &destination).map_err(|error| failure(error.to_string()))?;
     Ok(destination)
@@ -230,7 +246,7 @@ pub(super) fn retroarch_config(state: &Path) -> Result<PathBuf, EmuBoxError> {
 pub(super) fn entrypoint(command: &mut Command) {
     command.args([
         "--",
-        "/usr/bin/sh",
+        sandbox_paths::SHELL_BINARY,
         "-c",
         "printf '%s\n' EMUBOX_SANDBOX_READY; exec \"$@\"",
         "emubox-launch",

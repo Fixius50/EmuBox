@@ -53,6 +53,7 @@ assert.match(xmbCss, /html\[data-gpu-kind="virtual"\] \.xmb-wave\s*\{\s*animatio
 assert.ok(!/\.xmb-atmosphere\s*\{[^}]*z-index:\s*-/.test(xmbCss));
 const emulatorRuntime = readFileSync(new URL('../src-tauri/src/services/runtime/emulator.rs', import.meta.url), 'utf8');
 const sandbox = readFileSync(new URL('../src-tauri/src/services/runtime/game_sandbox.rs', import.meta.url), 'utf8');
+const sandboxPaths = readFileSync(new URL('../src-tauri/src/services/runtime/sandbox_paths.rs', import.meta.url), 'utf8');
 const emulatorRegistry = readFileSync(new URL('../src-tauri/src/services/emulators/mod.rs', import.meta.url), 'utf8');
 const dolphinProfile = readFileSync(new URL('../src-tauri/src/services/emulators/dolphin.rs', import.meta.url), 'utf8');
 const emulatorProfiles = ['retroarch', 'pcsx2', 'duckstation', 'dolphin', 'ppsspp'];
@@ -62,15 +63,19 @@ for (const profile of emulatorProfiles) {
   assert.match(source, /RendererPreference/);
   assert.doesNotMatch(source, /vulkan_ok\(/);
   assert.match(source, /RendererPreference::Conservative\s*=>\s*(?:\(\)|return Ok\(\(\)\))/);
+  assert.match(source, /managed_config_source\(self\.id\(\)\)/);
 }
 assert.match(sandbox, /mount_managed_config\(&mut command, &state, emulator_id\)/);
 assert.match(sandbox, /emulators::managed_config\(emulator_id\)/);
 assert.match(sandbox, /--ro-bind/);
 assert.match(sandbox, /canonical_source\.starts_with\(&canonical_root\)/);
-assert.match(sandbox, /symlink_metadata\(&source\)/);
+assert.match(sandbox, /symlink_metadata\(&?source\)/);
 assert.doesNotMatch(sandbox, /if emulator_id == "shadps4"\s*\{\s*#\[test\]/);
 assert.match(sandbox, /fn managed_profile_config_is_read_only_and_confined_to_private_home\(\)/);
-assert.match(emulatorRegistry, /\.config\/PCSX2\/inis\/PCSX2\.ini/);
-assert.match(emulatorRegistry, /\.local\/share\/dolphin-emu\/Config\/Dolphin\.ini/);
-assert.match(dolphinProfile, /"-u", "\/home\/player\/\.local\/share\/dolphin-emu"/);
+assert.match(sandboxPaths, /managed_config_route/);
+assert.match(sandboxPaths, /\.config\/PCSX2\/inis\/PCSX2\.ini/);
+assert.match(sandboxPaths, /\.local\/share\/dolphin-emu\/Config\/Dolphin\.ini/);
+assert.match(sandboxPaths, /\/home\/player\/\.local\/share\/dolphin-emu/);
+assert.match(dolphinProfile, /sandbox_paths::DOLPHIN_USER_DIRECTORY/);
+assert.match(emulatorRegistry, /sandbox_paths::managed_config_route\(emulator_id\)/);
 console.log('Graphics policy: native GPU and accelerated VM preferred, CPU fallback independent of architecture');

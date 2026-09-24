@@ -1,4 +1,4 @@
-use super::{config_home, upsert_flat_key, EmulatorProfile, RendererPreference};
+use super::{managed_config_source, upsert_flat_key, EmulatorProfile, RendererPreference};
 use crate::errors::EmuBoxError;
 use crate::models::HardwareInfo;
 use std::path::{Path, PathBuf};
@@ -46,7 +46,7 @@ impl EmulatorProfile for RetroArch {
         hardware: &HardwareInfo,
         renderer: RendererPreference,
     ) -> Result<(), EmuBoxError> {
-        let path = config_home().join("retroarch/config/retroarch.cfg");
+        let path = managed_config_source(self.id())?;
         match renderer {
             RendererPreference::Vulkan => upsert_flat_key(&path, "video_driver", "vulkan")?,
             RendererPreference::OpenGl => upsert_flat_key(&path, "video_driver", "glcore")?,

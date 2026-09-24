@@ -230,6 +230,7 @@ async fn transfer(
                 total,
                 speed: ((downloaded - resumed) as f64 / started.elapsed().as_secs_f64().max(0.001))
                     as u64,
+                phase: "transferring",
             })?;
             reported = Instant::now();
         }
@@ -250,6 +251,7 @@ async fn transfer(
         downloaded,
         total: Some(downloaded),
         speed: 0,
+        phase: "transferring",
     })?;
     Ok(TransferOutcome::Complete(vec![artifact]))
 }

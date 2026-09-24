@@ -18,6 +18,7 @@
     "language": "es",
     "theme": "obsidian-cyan",
     "showFps": true,
+    "seedCompletedTorrents": false,
     "virtualization": false
   }
 }
