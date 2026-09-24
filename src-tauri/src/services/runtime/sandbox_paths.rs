@@ -62,7 +62,7 @@ pub(crate) struct ManagedConfigRoute {
     pub target: &'static str,
 }
 
-pub(crate) const fn managed_config_route(emulator_id: &str) -> Option<ManagedConfigRoute> {
+pub(crate) fn managed_config_route(emulator_id: &str) -> Option<ManagedConfigRoute> {
     let (source, target) = match emulator_id {
         "retroarch" => ("retroarch.cfg", ".config/retroarch/retroarch.cfg"),
         "pcsx2" => ("PCSX2.ini", ".config/PCSX2/inis/PCSX2.ini"),

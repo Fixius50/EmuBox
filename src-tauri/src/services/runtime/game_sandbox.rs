@@ -442,7 +442,7 @@ mod tests {
             .unwrap()
             .to_string_lossy()
             .into_owned();
-        let destination = sandbox_paths::home_path(target)
+        let destination = sandbox_paths::home_path(&target)
             .to_string_lossy()
             .into_owned();
         assert!(args

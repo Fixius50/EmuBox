@@ -113,7 +113,8 @@ fn strip_adaptive_config(value: &mut serde_json::Value) -> bool {
 }
 
 pub fn get_config() -> Result<EmuBoxConfig, EmuBoxError> {
-    let path = Path::new(&paths::config_file());
+    let config_file = paths::config_file();
+    let path = Path::new(&config_file);
     let mut value: serde_json::Value =
         serde_json::from_str(&read_or_default(path, DEFAULT_CONFIG)?)
             .map_err(|error| EmuBoxError::InvalidConfiguration(error.to_string()))?;
@@ -153,7 +154,7 @@ pub fn save_settings(settings: SystemSettings) -> Result<bool, EmuBoxError> {
     let mut value = serde_json::to_value(settings)
         .map_err(|error| EmuBoxError::InvalidConfiguration(error.to_string()))?;
     strip_adaptive_settings(&mut value);
-    let settings = serde_json::from_value(value)
+    let settings: SystemSettings = serde_json::from_value(value)
         .map_err(|error| EmuBoxError::InvalidConfiguration(error.to_string()))?;
     write_json(Path::new(&paths::settings_file()), &settings)?;
     Ok(true)
