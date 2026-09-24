@@ -1,6 +1,6 @@
-import { Component, onMount, onCleanup, createSignal, Show, batch, lazy, Suspense } from "solid-js";
+import { Component, onMount, onCleanup, createSignal, Show, For, batch, lazy, Suspense } from "solid-js";
 import { listen } from "@tauri-apps/api/event";
-import { LoaderCircle, LogOut } from 'lucide-solid';
+import { Check, Gamepad2, LoaderCircle, LogOut } from 'lucide-solid';
 import { startupErrorMessage, startupMessage, waitForStartup } from '@services/system/startup';
 import type { StartupReport } from '@contracts/startup.types';
 import { startFrontendTelemetry, recordUiEvent } from '@services/system/telemetry';
@@ -34,6 +34,14 @@ import { EmulatorSelectorModal } from "@components/modals/EmulatorSelectorModal"
 import { SettingsView } from "@components/settings/SettingsView";
 import { DownloadSourceModal } from "@components/modals/DownloadSourceModal";
 
+const startupSteps = [
+  { id: 'library', label: 'Biblioteca' },
+  { id: 'hardware', label: 'Gráficos' },
+  { id: 'services', label: 'Servicios' },
+  { id: 'emulators', label: 'Emuladores' },
+  { id: 'catalog', label: 'Catálogo' },
+] as const;
+
 const NativeApp: Component = () => {
   // 1. Singletons & Stores Initialization
   const viewport = ViewportService.getInstance();
@@ -50,9 +58,19 @@ const NativeApp: Component = () => {
   const navigationStore = createNavigationStore();
   const modalStore = createModalStore();
   const [startupStatus, setStartupStatus] = createSignal('Preparando EmuBox...');
+  const [startupReport, setStartupReport] = createSignal<StartupReport | null>(null);
+  const [startupHydrating, setStartupHydrating] = createSignal(false);
   const [startupError, setStartupError] = createSignal('');
   const [startupReady, setStartupReady] = createSignal(false);
   const [startupFailed, setStartupFailed] = createSignal(false);
+  const startupStepState = (id: typeof startupSteps[number]['id']) => {
+    if (id === 'catalog') return startupHydrating() ? (startupFailed() ? 'error' : 'running') : 'pending';
+    return startupReport()?.tasks.find(task => task.id === id)?.state ?? 'pending';
+  };
+  const startupCompletedCount = () => startupSteps.filter(({ id }) =>
+    ['ready', 'degraded'].includes(startupStepState(id)),
+  ).length;
+  const startupProgress = () => Math.round(startupCompletedCount() / startupSteps.length * 100);
 
   const handleGameActivate = (game: Game) => {
     soundFx.playSelect();
@@ -204,9 +222,14 @@ const NativeApp: Component = () => {
       unlistenLibraryUpdated = unlisten;
       await waitForStartup(() => backend.getStartupStatus(),
         handler => listen<StartupReport>('startup-status', event => handler(event.payload)),
-        report => setStartupStatus(startupMessage(report)), controller.signal);
+        report => {
+          setStartupReport(report);
+          setStartupStatus(startupMessage(report));
+        }, controller.signal);
       const data = await backend.getStartupData();
       if (disposed || controller.signal.aborted) return;
+      setStartupReport(data.report);
+      setStartupHydrating(true);
       setStartupStatus('Organizando biblioteca...');
       const hydrationStarted = performance.now();
       batch(() => {
@@ -242,15 +265,81 @@ const NativeApp: Component = () => {
   return (
     <div class="emubox-xmb-root">
       <Show when={!startupReady()}>
-        <section class="emubox-startup" aria-label="Arranque de EmuBox">
-          <h1>EmuBox</h1>
-          <div role="status" aria-live="polite" aria-atomic="true">
-            <Show when={!startupFailed()}><LoaderCircle class="xmb-loading-spinner" size={24} aria-hidden="true" /></Show>
-            <p>{startupFailed() ? startupError() : startupStatus()}</p>
+        <section class="emubox-startup" classList={{ 'is-failed': startupFailed() }} aria-label="Arranque de EmuBox">
+          <div class="startup-backdrop" aria-hidden="true">
+            <div class="startup-backdrop-grid" />
+            <div class="startup-backdrop-sweep" />
           </div>
-          <Show when={startupFailed()}>
-            <button onClick={() => { void backend.exitToLinuxShell(); }}><LogOut size={18} />Salir a consola</button>
-          </Show>
+          <header class="startup-header">
+            <div class="startup-lockup">
+              <span class="startup-lockup-mark"><Gamepad2 size={20} /></span>
+              <span class="startup-lockup-copy"><strong>EMUBOX</strong><small>CONSOLE SYSTEM</small></span>
+            </div>
+            <div class="startup-state">
+              <span class="startup-state-light" />
+              <span>{startupFailed() ? 'ARRANQUE INTERRUMPIDO' : 'INICIALIZANDO SISTEMA'}</span>
+            </div>
+          </header>
+
+          <main class="startup-main">
+            <div class="startup-emblem" aria-hidden="true">
+              <span class="startup-orbit startup-orbit-outer" />
+              <span class="startup-orbit startup-orbit-inner" />
+              <span class="startup-emblem-core"><Gamepad2 size={34} strokeWidth={1.5} /></span>
+              <span class="startup-emblem-index">01</span>
+            </div>
+            <p class="startup-eyebrow">ENTORNO DE CONSOLA</p>
+            <h1>EmuBox</h1>
+            <div class="startup-current" role="status" aria-live="polite" aria-atomic="true">
+              <Show when={!startupFailed()}><LoaderCircle class="startup-current-spinner" size={18} aria-hidden="true" /></Show>
+              <p>{startupFailed() ? startupError() : startupStatus()}</p>
+            </div>
+          </main>
+
+          <footer class="startup-footer">
+            <div class="startup-progress-heading">
+              <span>PROCESO DE ARRANQUE</span>
+              <span>{startupCompletedCount()} / {startupSteps.length}</span>
+            </div>
+            <div
+              class="startup-progress-track"
+              role="progressbar"
+              aria-label="Progreso del arranque"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={startupProgress()}
+              aria-valuetext={`${startupCompletedCount()} de ${startupSteps.length} etapas completadas`}
+              style={{ '--startup-progress': `${startupProgress()}%` }}
+            >
+              <span class="startup-progress-fill" />
+            </div>
+            <ol class="startup-steps" aria-label="Etapas del arranque">
+              <For each={startupSteps}>{step => {
+                const state = () => startupStepState(step.id);
+                const complete = () => state() === 'ready' || state() === 'degraded';
+                return (
+                  <li classList={{ complete: complete(), active: state() === 'running', failed: state() === 'error' }}>
+                    <span class="startup-step-marker" aria-hidden="true">
+                      <Show when={complete()} fallback={
+                        <Show when={state() === 'running'} fallback={<span class="startup-step-pending" />}>
+                          <LoaderCircle class="startup-step-spinner" size={14} />
+                        </Show>
+                      }>
+                        <Check size={14} />
+                      </Show>
+                    </span>
+                    <span class="startup-step-label">{step.label}</span>
+                    <Show when={state() === 'degraded'}><span class="startup-step-note">AVISO</span></Show>
+                  </li>
+                );
+              }}</For>
+            </ol>
+            <Show when={startupFailed()}>
+              <button class="startup-exit" onClick={() => { void backend.exitToLinuxShell(); }}>
+                <LogOut size={17} />Salir a consola
+              </button>
+            </Show>
+          </footer>
         </section>
       </Show>
       <div

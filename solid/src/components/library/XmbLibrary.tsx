@@ -228,7 +228,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                   active: active(),
                   expanded: active() && position().expanded,
                 }}
-                style={{ "--row-offset": row - (position().row || 1) }}
+                style={{ transform: `translateY(calc(${row - (position().row || 1)} * var(--xmb-row)))` }}
               >
                 <button
                   class="xmb-folder-button"
@@ -251,12 +251,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                     style={{ visibility: row < rows() ? "visible" : "hidden" }}
                   />
                 </button>
-                <Show
-                  when={
-                    (position().row === 0 || active()) &&
-                    !position().expanded
-                  }
-                >
+                <Show when={!position().expanded}>
                   <div class="xmb-folder-label">
                     <h2>{current()?.title}</h2>
                     <p>

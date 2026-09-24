@@ -100,8 +100,8 @@ export function useXmbLibrary(props: XmbLibraryProps) {
   const folder = () => folders()[position().row - 1];
   const selectedGame = () => folder()?.games[position().game];
   const rowWindow = createMemo(() => {
-    const start = Math.max(1, position().row - 3);
-    const end = Math.min(rows(), Math.max(6, position().row + 3));
+    const start = Math.max(1, position().row - 6);
+    const end = Math.min(rows(), Math.max(8, position().row + 6));
     return Array.from(
       { length: Math.max(0, end - start + 1) },
       (_, index) => start + index,
