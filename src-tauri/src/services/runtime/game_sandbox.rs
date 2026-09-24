@@ -54,7 +54,7 @@ pub(super) fn command(
     command
         .arg("--bind")
         .arg(&state)
-        .arg(HOME)
+        .arg(sandbox_paths::HOME)
         .arg("--ro-bind")
         .arg(&content.root)
         .arg(&content.target);
@@ -288,7 +288,7 @@ mod tests {
             .arg("/game/content")
             .arg("--bind")
             .arg(root.join("state"))
-            .arg(HOME);
+            .arg(sandbox_paths::HOME);
         entrypoint(&mut command);
         command.args(["/usr/bin/sh", "-c",
                 "test -z \"$EMUBOX_PRIVATE_SENTINEL\" && test ! -e /opt/emubox && test ! -e /etc/emubox && test ! -e /run/user && test ! -e \"$1\" && test ! -e /home/emubox && ! echo changed > /game/content && ! /usr/bin/bash -c 'exec 3<>/dev/tcp/127.0.0.1/$1' network-probe \"$2\" && echo private > /home/player/result",
@@ -484,7 +484,7 @@ mod tests {
         private_directory(&state).unwrap();
 
         let mut command = base_command(Path::new(sandbox_paths::BWRAP_BINARY));
-        command.arg("--bind").arg(&state).arg(HOME);
+        command.arg("--bind").arg(&state).arg(sandbox_paths::HOME);
         mount_managed_config_from(&mut command, &state, &source, &target, &config_root).unwrap();
         entrypoint(&mut command);
         command.args([
