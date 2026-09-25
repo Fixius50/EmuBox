@@ -62,6 +62,7 @@ fn prepares_published_archive_without_accessing_source() {
         &mut package,
         &[archive_path.clone()],
         &TransferControl::default(),
+        true,
     )
     .unwrap();
     assert!(matches!(
@@ -106,6 +107,64 @@ fn prepares_published_archive_without_accessing_source() {
     fs::remove_dir_all(destination).unwrap();
     status(&job.id, "paused", "paused", None).unwrap();
     assert!(DownloadService::resume(job.id.clone()).is_err());
+}
+
+#[test]
+fn disabled_auto_install_keeps_single_candidate_for_manual_selection() {
+    let _test = QUEUE_TEST.lock().unwrap();
+    let imported = DownloadService::import_from_json(&serde_json::json!({"downloads":[{"gameId":"manual-snes-fixture","title":"Manual SNES fixture","platform":"snes","uris":["http://127.0.0.1:1/fixture.sfc"]}]}).to_string()).unwrap();
+    let source = imported[0].clone();
+    let job = DownloadService::create_job(crate::models::CreateDownloadRequest {
+        game_id: source.game_id.clone(), platform: "snes".into(), source: source.clone(),
+    }).unwrap();
+    let destination = Path::new(&job.destination_path);
+    fs::create_dir_all(destination).unwrap();
+    let rom = destination.join("fixture.sfc");
+    fs::write(&rom, b"fixture bytes").unwrap();
+    let mut package = PublishedDownload {
+        job_id: job.id.clone(),
+        source_digest: format!("{:x}", Sha256::digest(serde_json::to_vec(&source).unwrap())),
+        files: vec!["fixture.sfc".into()], launch: None, preparation_reason: None,
+        installation: None,
+    };
+    fs::write(destination.join(".emubox-managed"), serde_json::to_vec(&package).unwrap()).unwrap();
+    prepare_published(&job, &source, destination, &mut package, &[rom], &TransferControl::default(), false).unwrap();
+    assert!(matches!(DownloadService::get_job(&job.id).unwrap().unwrap().status, DownloadStatus::Downloaded));
+    assert!(!crate::services::GameService::get_game_by_id(job.game_id.clone()).unwrap().unwrap().installed);
+    assert_eq!(candidates(&job.id).unwrap(), ["fixture.sfc"]);
+    assert!(matches!(select_candidate(&job.id, "fixture.sfc").unwrap().status, DownloadStatus::Completed));
+    fs::write(destination.join("user-save.dat"), b"personal").unwrap();
+    assert!(uninstall(&job.game_id).is_err());
+    assert!(destination.join("fixture.sfc").is_file());
+    fs::remove_file(destination.join("user-save.dat")).unwrap();
+    let marker = destination.join(".emubox-managed");
+    fs::rename(&marker, destination.join("marker.bak")).unwrap();
+    assert!(uninstall(&job.game_id).is_err());
+    fs::rename(destination.join("marker.bak"), &marker).unwrap();
+    uninstall(&job.game_id).unwrap();
+    assert!(!destination.exists());
+    assert!(!crate::services::GameService::get_game_by_id(job.game_id).unwrap().unwrap().installed);
+}
+
+#[test]
+fn deleting_cancelled_job_preserves_game_and_rejects_published_content() {
+    let _test = QUEUE_TEST.lock().unwrap();
+    let imported = DownloadService::import_from_json(&serde_json::json!({"downloads":[{"gameId":"delete-cancelled-fixture","title":"Delete cancelled fixture","platform":"snes","uris":["http://127.0.0.1:1/fixture.sfc"]}]}).to_string()).unwrap();
+    let job = DownloadService::create_job(crate::models::CreateDownloadRequest {
+        game_id: imported[0].game_id.clone(), platform: "snes".into(), source: imported[0].clone(),
+    }).unwrap();
+    assert!(delete_cancelled(&job.id).is_err());
+    status(&job.id, "cancelled", "cancelled", None).unwrap();
+    fs::create_dir_all(Path::new(&job.destination_path).parent().unwrap()).unwrap();
+    std::os::unix::fs::symlink("missing-package", &job.destination_path).unwrap();
+    assert!(delete_cancelled(&job.id).is_err());
+    fs::remove_file(&job.destination_path).unwrap();
+    fs::create_dir_all(&job.destination_path).unwrap();
+    assert!(delete_cancelled(&job.id).is_err());
+    fs::remove_dir_all(&job.destination_path).unwrap();
+    delete_cancelled(&job.id).unwrap();
+    assert!(DownloadService::get_job(&job.id).unwrap().is_none());
+    assert!(crate::services::GameService::get_game_by_id(job.game_id).unwrap().is_some());
 }
 
 #[test]

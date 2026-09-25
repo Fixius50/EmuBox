@@ -14,7 +14,7 @@ use crate::{
 };
 use rusqlite::{params, OptionalExtension};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
     sync::{atomic::Ordering, Mutex, OnceLock},
@@ -274,4 +274,98 @@ pub fn cancel(id: &str) -> Result<DownloadJob, EmuBoxError> {
         clean_staging(&job)?;
     }
     DownloadService::get_job(id)?.ok_or_else(|| EmuBoxError::NotFound(id.into()))
+}
+
+pub fn delete_cancelled(id: &str) -> Result<(), EmuBoxError> {
+    let guard = active().lock().map_err(io_error)?;
+    let job = DownloadService::get_job(id)?.ok_or_else(|| EmuBoxError::NotFound(id.into()))?;
+    let valid = |value: &str| !value.is_empty() && value.chars().all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_'));
+    if !matches!(job.status, DownloadStatus::Cancelled) || guard.contains_key(id)
+        || !valid(&job.id) || !valid(&job.platform)
+        || Path::new(&job.destination_path) != content_root().join(&job.platform).join(&job.id)
+        || fs::symlink_metadata(&job.destination_path).is_ok()
+    {
+        return Err(EmuBoxError::InvalidConfiguration("Solo se puede borrar un trabajo cancelado sin contenido publicado".into()));
+    }
+    let platform = content_root().join(&job.platform);
+    for directory in [&platform, &platform.join(".emubox-staging")] {
+        if fs::symlink_metadata(directory).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
+            return Err(EmuBoxError::InvalidConfiguration("Ruta de descarga enlazada fuera del almacenamiento gestionado".into()));
+        }
+    }
+    clean_staging(&job)?;
+    let mut connection = DatabaseService::get_connection()?;
+    let transaction = connection.transaction().map_err(io_error)?;
+    transaction.execute("DELETE FROM download_execution WHERE job_id=?1", [id]).map_err(io_error)?;
+    transaction.execute("DELETE FROM download_jobs WHERE id=?1 AND status='cancelled'", [id]).map_err(io_error)?;
+    transaction.commit().map_err(io_error)
+}
+
+pub fn uninstall(game_id: &str) -> Result<(), EmuBoxError> {
+    let guard = active().lock().map_err(io_error)?;
+    let game = crate::services::GameService::get_game_by_id(game_id.to_string())?
+        .ok_or_else(|| EmuBoxError::NotFound("Juego no encontrado".into()))?;
+    let rom = Path::new(game.rom_path.as_deref().ok_or_else(|| EmuBoxError::InvalidConfiguration("El juego no esta instalado".into()))?);
+    if crate::services::ProcessService::get_running_game()?.is_some_and(|running| running.game_id == game_id) {
+        return Err(EmuBoxError::ProcessFailed("Cierra el juego antes de desinstalarlo".into()));
+    }
+    let root = content_root().join(&game.platform);
+    if fs::symlink_metadata(&root).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
+        return Err(EmuBoxError::InvalidConfiguration("Ruta de instalacion enlazada fuera del almacenamiento gestionado".into()));
+    }
+    let job_id = rom.strip_prefix(&root).ok()
+        .and_then(|relative| relative.components().next())
+        .filter(|component| matches!(component, std::path::Component::Normal(_)))
+        .map(|component| component.as_os_str().to_string_lossy().into_owned())
+        .ok_or_else(|| EmuBoxError::InvalidConfiguration("Instalacion no gestionada por EmuBox".into()))?;
+    let job = DownloadService::get_job(&job_id)?.ok_or_else(|| EmuBoxError::InvalidConfiguration("Falta el trabajo propietario de la instalacion".into()))?;
+    let destination = root.join(&job_id);
+    if job.game_id != game_id || !matches!(job.status, DownloadStatus::Completed)
+        || job.destination_path != destination.to_string_lossy()
+        || guard.contains_key(&job_id)
+        || !job_id.chars().all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_'))
+    {
+        return Err(EmuBoxError::InvalidConfiguration("Instalacion no gestionada o en uso".into()));
+    }
+    let metadata = fs::symlink_metadata(&destination).map_err(io_error)?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err(EmuBoxError::InvalidConfiguration("Directorio gestionado invalido".into()));
+    }
+    let package = publication::validated_package(&job)?;
+    if package.launch.as_ref().map(|path| destination.join(path)) != Some(rom.to_path_buf()) {
+        return Err(EmuBoxError::InvalidConfiguration("El juego no corresponde al paquete gestionado".into()));
+    }
+    let mut allowed = HashSet::from([destination.join(".emubox-managed")]);
+    for file in &package.files {
+        let mut path = destination.join(file);
+        while path != destination {
+            allowed.insert(path.clone());
+            path = path.parent().ok_or_else(|| EmuBoxError::InvalidConfiguration("Ruta de paquete invalida".into()))?.to_path_buf();
+        }
+    }
+    for entry in walkdir::WalkDir::new(&destination).follow_links(false) {
+        let entry = entry.map_err(io_error)?;
+        if entry.path() != destination && (!allowed.contains(entry.path()) || entry.file_type().is_symlink()) {
+            return Err(EmuBoxError::InvalidConfiguration("El paquete contiene archivos ajenos; no se borra".into()));
+        }
+    }
+    let pending = root.join(format!(".uninstall-{job_id}"));
+    if pending.exists() || fs::symlink_metadata(&pending).is_ok() {
+        return Err(EmuBoxError::InvalidConfiguration("Desinstalacion pendiente existente".into()));
+    }
+    let mut connection = DatabaseService::get_connection()?;
+    fs::rename(&destination, &pending).map_err(io_error)?;
+    let result = (|| -> Result<(), EmuBoxError> {
+        let transaction = connection.transaction().map_err(io_error)?;
+        let changed = transaction.execute("UPDATE games SET rom_path=NULL,file_size_bytes=0 WHERE id=?1 AND rom_path=?2", params![game_id, rom.to_string_lossy()]).map_err(io_error)?;
+        if changed != 1 { return Err(EmuBoxError::StorageUnavailable("La instalacion cambio durante la desinstalacion".into())); }
+        transaction.execute("DELETE FROM download_execution WHERE job_id=?1", [&job_id]).map_err(io_error)?;
+        transaction.execute("DELETE FROM download_jobs WHERE id=?1", [&job_id]).map_err(io_error)?;
+        transaction.commit().map_err(io_error)
+    })();
+    if result.is_err() {
+        fs::rename(&pending, &destination).map_err(io_error)?;
+        return result;
+    }
+    fs::remove_dir_all(&pending).map_err(io_error)
 }

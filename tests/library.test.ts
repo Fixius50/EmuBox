@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { TauriBackendService } from '../solid/src/services/backend/tauri-backend.service';
 import { createLibraryStore } from '../solid/src/stores/library.store';
 import type { Game } from '../solid/src/types/game.types';
+import type { DownloadJob } from '../solid/src/types/download.types';
 import { createRoot } from 'solid-js';
 import { useJackettSearch } from '../solid/src/hooks/useJackettSearch';
 
@@ -129,4 +130,33 @@ try {
   await pending;
   assert.deepEqual(jackett.model.results(), []);
 } finally { jackett.dispose(); }
+const operationsBackend = new TauriBackendService();
+const cancelledJob: DownloadJob = {
+  id: 'cancelled-fixture', gameId: game.id, sourceId: 'source-fixture', platform: 'ps2',
+  destinationPath: '/fixture/cancelled', status: 'cancelled', progress: 0,
+  downloadedBytes: 0, speedBytesPerSecond: 0,
+};
+let requestedRetry: [string, string | undefined] | undefined;
+let removedJob = '';
+let removedGame = '';
+let gameInstalled = true;
+operationsBackend.getDownloadJobs = async () => removedJob ? [] : [cancelledJob];
+operationsBackend.getGames = async () => [{ ...installed, installed: gameInstalled, romPath: gameInstalled ? installed.romPath : undefined }];
+operationsBackend.downloadGame = async (gameId, sourceId) => {
+  requestedRetry = [gameId, sourceId];
+  throw new Error('No hay descarga real en este fixture');
+};
+operationsBackend.deleteCancelledDownload = async id => { removedJob = id; };
+operationsBackend.uninstallGame = async id => { removedGame = id; gameInstalled = false; };
+const operationsStore = createLibraryStore(operationsBackend);
+await operationsStore.retryCancelled(cancelledJob);
+assert.deepEqual(requestedRetry, [game.id, cancelledJob.sourceId]);
+assert.match(operationsStore.downloadError()?.message || '', /No hay descarga real/);
+await operationsStore.deleteCancelled(cancelledJob);
+assert.equal(removedJob, cancelledJob.id);
+assert.equal(operationsStore.downloadJobs().length, 0);
+assert.equal(operationsStore.downloadError(), null);
+await operationsStore.uninstallGame(game.id);
+assert.equal(removedGame, game.id);
+assert.equal(operationsStore.games()[0].installed, false);
 console.log('Library: real grouping and native errors, no fabricated downloads or sources.');

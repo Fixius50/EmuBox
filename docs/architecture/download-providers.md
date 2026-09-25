@@ -154,6 +154,20 @@ No se crean cuentas invitadas ni se intenta sustituir permisos mediante scraping
 Referencias: [1fichier API](https://1fichier.com/api.html),
 [GoFile API](https://gofile.io/api), [libarchive](https://www.libarchive.org/).
 
+## Instalacion y retirada de descargas
+
+En Ajustes > Servicios, `autoInstallDownloads` esta activado por defecto. Solo
+asigna el archivo de lanzamiento automaticamente cuando el paquete tiene un
+candidato inequivoco. Con el ajuste desactivado el trabajo queda `downloaded`,
+sin `rom_path`, hasta que el usuario elige un archivo del paquete en la ficha.
+
+Reintentar un trabajo cancelado crea un trabajo nuevo desde la misma fuente;
+no reanuda el anterior. Borrar un cancelado elimina su registro y staging solo
+si ya no hay transferencia activa ni publicacion. Desinstalar requiere un juego
+instalado por un trabajo completado, marcador `.emubox-managed` valido y ningun
+archivo ajeno ni enlace simbolico en el paquete. No afecta a ROM importadas ni
+a directorios externos. Se rechaza la operacion si el juego esta en ejecucion.
+
 ## BitTorrent local y Jackett
 
 qBittorrent-nox >=5.0 sustituye a aria2. Magnet sigue usando BitTorrent: se cambia

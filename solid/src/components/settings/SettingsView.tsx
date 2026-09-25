@@ -135,6 +135,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
               <ServicesTab
                 settings={props.settings}
                 backend={props.storeBackend}
+                libraryStore={props.libraryStore}
                 isRowFocused={isRowFocused}
                 onSelectContentArea={props.onSelectContentArea}
                 onUpdateSettings={handleUpdate}

@@ -1,10 +1,25 @@
 import { catalogTitle, type CatalogGroup } from "./catalog-groups";
+import type { Game } from "@contracts/game.types";
+import type { DownloadJob } from "@contracts/download.types";
 import type {
   XmbBounds,
   XmbCommand,
   XmbFolder,
   XmbPosition,
 } from "@contracts/xmb.types";
+
+export function xmbDownloadStatus(game: Game, jobs: DownloadJob[], downloadingIds: Set<string>): string {
+  const job = jobs.find(entry => entry.gameId === game.id && (entry.status === 'downloading' || entry.status === 'queued'));
+  if (job?.status === 'queued') return 'En cola 0 %';
+  if (job?.status === 'downloading') {
+    const progress = `${Math.round(Math.max(0, Math.min(1, job.progress)) * 100)} %`;
+    if (job.phase === 'verifying') return `Verificando ${progress}`;
+    if (job.phase === 'preparing') return `Preparando ${progress}`;
+    if (job.phase === 'seeding') return `Compartiendo ${progress}`;
+    return `Descargando ${progress}`;
+  }
+  return downloadingIds.has(game.id) ? 'Iniciando descarga' : game.installed ? 'Instalada' : 'Sin instalar';
+}
 export type {
   XmbBounds,
   XmbCommand,

@@ -113,6 +113,13 @@ test("Settings: services toggles torrent seeding without changing display", () =
   assert.equal(store.settings()?.system?.seedCompletedTorrents, true);
   assert.equal(store.settings()?.display.vsync, true);
   assert.equal(saved, true);
+  const autoInstall = useSettingsController({
+    systemStore: store, soundFx: new SoundFxService(),
+    activeSettingsTab: () => "services", settingsRowIndex: () => 1,
+  });
+  autoInstall.handleToggleCurrentSetting();
+  assert.equal(store.settings()?.system?.autoInstallDownloads, false);
+  assert.equal(store.settings()?.system?.seedCompletedTorrents, true);
 });
 
 test("Settings: emulator persistence, reload and rejected writes", async () => {

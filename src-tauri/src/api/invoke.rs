@@ -75,6 +75,8 @@ macro_rules! emubox_ipc_handler {
             crate::commands::downloads::pause_download,
             crate::commands::downloads::resume_download,
             crate::commands::downloads::cancel_download,
+            crate::commands::downloads::delete_cancelled_download,
+            crate::commands::downloads::uninstall_game,
             crate::commands::downloads::get_download_candidates,
             crate::commands::downloads::select_download_candidate,
             crate::commands::downloads::import_download_links,

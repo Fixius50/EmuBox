@@ -41,7 +41,12 @@ HTTP o BitTorrent emite `download.transfer` al comenzar, terminar, cambiar de
 fase y como maximo cada cinco segundos mientras progresa. Registra proveedor,
 fase y porcentaje, nunca titulo, ruta, URL, fuente ni credenciales. Distingue
 transferencia, verificacion y preparacion para compararlas con las muestras de
-frames y recursos en el mismo intervalo. Los proveedores de tiendas
+frames y recursos en el mismo intervalo.
+Al salir un sandbox de juego, `game.exit` registra PID, emulador, duracion,
+codigo de salida o senal y recoge al hijo incluso sin consultas IPC. Un
+`operation.result` exitoso de `game.launch` solo confirma el inicio, no que el
+juego siguiera abierto. No se registran titulo, ROM ni stderr del juego.
+Los proveedores de tiendas
 emiten `operation.started`, `connection.opened`, `connection.connected`,
 `sync.completed`, `connection.disconnected` y `operation.failed`, con proveedor
 y contadores de juegos importados/instalados cuando corresponde. Nunca incluyen
@@ -137,6 +142,7 @@ node scripts/logs.mjs --source catalog --minutes 10 --json
 node scripts/logs.mjs --source os.kernel --since 2026-09-16T18:00:00Z
 node scripts/logs.mjs --source stores --minutes 10 --json
 node scripts/logs.mjs --source stores --event sync.completed
+node scripts/logs.mjs --source game.launch --event game.exit --minutes 10
 node scripts/logs.mjs --source download --event download.transfer --minutes 10
 ```
 

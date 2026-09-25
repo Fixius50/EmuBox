@@ -43,7 +43,7 @@ const VIRTUAL_KEYBOARD_KEYS: readonly VirtualKeyboardKey[] = [
 
 export function useXmbLibrary(props: XmbLibraryProps) {
   const [position, setPosition] = createSignal<XmbPosition>({
-    category: 1,
+    category: 3,
     row: 0,
     expanded: false,
     game: 0,
@@ -70,9 +70,9 @@ export function useXmbLibrary(props: XmbLibraryProps) {
     }
     return [
       { id: "settings", title: "Ajustes", kind: "settings" },
-      { id: "all", title: "Todos los juegos", kind: "all" },
       { id: "favorites", title: "Favoritos", kind: "favorites" },
       { id: "installed", title: "Instalados", kind: "installed" },
+      { id: "all", title: "Todos los juegos", kind: "all" },
       ...[...platforms]
         .sort(([, left], [, right]) =>
           left.localeCompare(right, "es", { sensitivity: "base" }),
@@ -82,7 +82,7 @@ export function useXmbLibrary(props: XmbLibraryProps) {
   });
   const categoryIndex = createMemo(() => position().category);
   const category = createMemo(
-    () => categories()[categoryIndex()] || categories()[1],
+    () => categories()[categoryIndex()] || categories()[3],
   );
   const filtered = createMemo(() => {
     const current = category();

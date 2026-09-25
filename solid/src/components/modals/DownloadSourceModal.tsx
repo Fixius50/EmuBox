@@ -9,7 +9,7 @@ import {
   onCleanup,
 } from "solid-js";
 import { Dialog } from "@kobalte/core/dialog";
-import { Download, Heart, Play, Pause, X, Square, RotateCw, Check } from "lucide-solid";
+import { Download, Heart, Play, Pause, X, Square, RotateCw, Check, ChevronDown, Trash2 } from "lucide-solid";
 import type { LibraryStore } from "@stores/library.store";
 import type { Game } from "@contracts/game.types";
 import type { InputAction } from "@contracts/input.types";
@@ -48,6 +48,8 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
   );
   const detailsGame = () => variant() || game();
   const [panel, setPanel] = createSignal<"sources" | "details" | "files">("sources");
+  const [expandedRelease, setExpandedRelease] = createSignal<number | null>(0);
+  createEffect(on(() => props.store.releaseIndex(), index => setExpandedRelease(index)));
   const [localFiles, setLocalFiles] = createSignal<string[]>([]);
   const [localIndex, setLocalIndex] = createSignal(0);
   const [localLoading, setLocalLoading] = createSignal(false);
@@ -85,6 +87,8 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
   };
   const [coverFailed, setCoverFailed] = createSignal(false);
   const [favoriteError, setFavoriteError] = createSignal("");
+  const [actionError, setActionError] = createSignal("");
+  const [actionBusy, setActionBusy] = createSignal(false);
   const favorite = () =>
     props.store
       .catalogGames()
@@ -108,6 +112,26 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
       setFavoriteError("No se pudo actualizar el favorito.");
     }
   };
+  const manageJob = async (action: 'retry' | 'delete' | 'uninstall') => {
+    const job = currentJob();
+    const entry = detailsGame();
+    if (actionBusy() || !entry || (action !== 'uninstall' && job?.status !== 'cancelled')) return;
+    if (action === 'delete' && !window.confirm(`¿Borrar la descarga cancelada de ${entry.title} y sus archivos temporales?`)) return;
+    if (action === 'uninstall' && !window.confirm(`¿Desinstalar ${entry.title}? Se eliminará su paquete gestionado y los archivos que contiene.`)) return;
+    setActionBusy(true);
+    setActionError('');
+    try {
+      if (action === 'uninstall') await props.store.uninstallGame(entry.id);
+      else if (action === 'delete') await props.store.deleteCancelled(job!);
+      else {
+        await props.store.retryCancelled(job!);
+        const error = props.store.downloadError();
+        if (error?.gameId === job!.gameId) throw new Error(error.message);
+      }
+    } catch (error) {
+      setActionError(typeof error === 'string' ? error : error instanceof Error ? error.message : 'No se pudo completar la operacion.');
+    } finally { setActionBusy(false); }
+  };
   const host = (uri: string) => {
     try {
       const url = new URL(uri);
@@ -122,7 +146,9 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
       () => {
         if (game()) returnGameId = game()!.id;
         setPanel("sources");
+        setExpandedRelease(props.store.releaseIndex());
         setFavoriteError("");
+        setActionError("");
         setCoverFailed(false);
         if (details) details.scrollTop = 0;
       },
@@ -131,7 +157,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
   createEffect(() => {
     const index = props.store.sourceIndex();
     if (panel() === "sources")
-      list
+      (list || releaseList)
         ?.querySelector(`[data-source-index="${index}"]`)
         ?.scrollIntoView({ block: "nearest" });
   });
@@ -153,7 +179,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
         ),
       ),
     );
-    list
+    (list || releaseList)
       ?.querySelector<HTMLInputElement>(
         `[data-source-index="${props.store.sourceIndex()}"] input`,
       )
@@ -161,6 +187,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
   };
   const moveRelease = (step: number) => {
     props.store.selectRelease(props.store.releaseIndex() + step);
+    setExpandedRelease(props.store.releaseIndex());
   };
   createEffect(() => {
     const index = props.store.releaseIndex();
@@ -174,12 +201,11 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
     } else if (target === "details") {
       details?.focus({ preventScroll: true });
       details?.scrollIntoView({ block: "nearest" });
-    } else
-      list
-        ?.querySelector<HTMLInputElement>(
-          `[data-source-index="${props.store.sourceIndex()}"] input`,
-        )
-        ?.focus({ preventScroll: true });
+    } else {
+      const sourceInput = list?.querySelector<HTMLInputElement>(`[data-source-index="${props.store.sourceIndex()}"] input`);
+      if (sourceInput) sourceInput.focus({ preventScroll: true });
+      else releaseList?.querySelector<HTMLButtonElement>(`[data-release-index="${props.store.releaseIndex()}"]`)?.focus({ preventScroll: true });
+    }
   };
   const controller = (action: InputAction) => {
     if (!game()) return;
@@ -204,7 +230,9 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
     else if (
       action === "BUTTON_A" &&
       panel() === "sources" &&
+      expandedRelease() !== null &&
       selected()?.downloadable &&
+      !detailsGame()?.installed &&
       !busy()
     )
       props.onConfirm();
@@ -299,20 +327,6 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                   <Dialog.Description>
                     {detailsGame()?.installed ? "Instalado" : "No instalado"}
                   </Dialog.Description>
-                  <button
-                    class="game-case-favorite"
-                    aria-pressed={Boolean(favorite())}
-                    aria-label="Alternar favorito"
-                    title="Alternar favorito"
-                    onClick={() => {
-                      void toggleFavorite();
-                    }}
-                  >
-                    <Heart
-                      size={18}
-                      fill={favorite() ? "currentColor" : "none"}
-                    />
-                  </button>
                 </div>
               </header>
               <Show when={props.store.releaseOptions().length > 0}>
@@ -321,102 +335,67 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                     <h3>Versiones</h3>
                     <span>{props.store.releaseOptions().length}</span>
                   </div>
-                  <div class="game-release-track" role="group" aria-label="Versiones del juego" ref={releaseList}>
+                  <div class="game-release-list" ref={releaseList}>
                     <For each={props.store.releaseOptions()}>
                       {(release, index) => (
-                        <button
-                          aria-pressed={props.store.releaseIndex() === index()}
-                          data-release-index={index()}
-                          classList={{ selected: props.store.releaseIndex() === index() }}
-                          onClick={() => props.store.selectRelease(index())}
-                          onKeyDown={(event) => {
-                            if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              moveRelease(event.key === "ArrowRight" ? 1 : -1);
-                            }
-                          }}
-                        >
-                          <strong>{release.title}</strong>
-                          <small>{release.region || "Region no indicada"}</small>
-                          <small>{release.downloadableSourceCount}/{release.sourceCount} fuentes compatibles</small>
-                          <Show when={release.installed}><Check size={15} aria-label="Instalada" /></Show>
-                        </button>
+                        <section class="game-release-item">
+                          <button
+                            type="button"
+                            aria-expanded={expandedRelease() === index()}
+                            data-release-index={index()}
+                            classList={{ selected: props.store.releaseIndex() === index() }}
+                            onClick={() => {
+                              if (expandedRelease() === index()) setExpandedRelease(null);
+                              else { props.store.selectRelease(index()); setExpandedRelease(index()); }
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                moveRelease(event.key === "ArrowRight" ? 1 : -1);
+                              }
+                            }}
+                          >
+                            <span><strong>{release.title}</strong><small>{release.region || "Region no indicada"} · {release.downloadableSourceCount}/{release.sourceCount} fuentes compatibles</small></span>
+                            <Show when={release.installed}><Check size={16} aria-label="Instalada" /></Show>
+                            <ChevronDown size={18} aria-hidden="true" />
+                          </button>
+                          <Show when={expandedRelease() === index()}>
+                            <div class="game-release-sources">
+                              <Show when={props.store.sourcesLoading()}><p class="game-case-state" role="status">Consultando fuentes...</p></Show>
+                              <Show when={props.store.sourcesError()}><p class="game-case-state" role="alert">{props.store.sourcesError()}</p></Show>
+                              <Show when={!props.store.sourcesLoading() && !props.store.sourcesError() && !props.store.sourceOptions().length}>
+                                <p class="game-case-state" role="status">No hay fuentes registradas.</p>
+                              </Show>
+                              <div class="download-source-list" role="radiogroup" aria-label={`Fuentes de ${release.title}`} ref={list}>
+                                <For each={props.store.sourceOptions()}>
+                                  {(source, sourceIndex) => (
+                                    <label class={`download-source-option ${props.store.sourceIndex() === sourceIndex() ? "selected" : ""}`} data-source-index={sourceIndex()}>
+                                      <input type="radio" name="download-source" checked={props.store.sourceIndex() === sourceIndex()} onChange={() => props.store.setSourceIndex(sourceIndex())} />
+                                      <span>
+                                        <strong>{source.name}</strong>
+                                        <span class="game-case-source-meta">{host(source.uri)} · {labels[source.access]}</span>
+                                        <Show when={source.sizeBytes}><span class="game-case-source-meta">{((source.sizeBytes ?? 0) / 1024 / 1024).toFixed(1)} MiB</span></Show>
+                                        <Show when={source.reason}><span class="download-source-reason">{source.reason}</span></Show>
+                                      </span>
+                                    </label>
+                                  )}
+                                </For>
+                              </div>
+                            </div>
+                          </Show>
+                        </section>
                       )}
                     </For>
                   </div>
                 </div>
               </Show>
-              <div class="game-case-section-label">
-                <h3>Fuentes de la version</h3>
-                <span>{props.store.sourceOptions().length} fuentes</span>
-              </div>
-              <Show when={props.store.sourcesLoading()}>
-                <p class="game-case-state" role="status">
-                  Consultando versiones y fuentes...
-                </p>
-              </Show>
-              <Show when={props.store.sourcesError()}>
-                <p class="game-case-state" role="alert">
-                  {props.store.sourcesError()}
-                </p>
-              </Show>
-              <Show
-                when={
-                  !props.store.sourcesLoading() &&
-                  !props.store.sourcesError() &&
-                  props.store.sourceOptions().length === 0
-                }
-              >
-                <p class="game-case-state" role="status">
-                  No hay fuentes registradas.
-                </p>
-              </Show>
-              <div
-                class="download-source-list"
-                role="radiogroup"
-                aria-label="Fuentes de la version"
-                ref={list}
-              >
-                <For each={props.store.sourceOptions()}>
-                  {(source, index) => (
-                    <label
-                      class={`download-source-option ${props.store.sourceIndex() === index() ? "selected" : ""}`}
-                      data-source-index={index()}
-                    >
-                      <input
-                        type="radio"
-                        name="download-source"
-                        checked={props.store.sourceIndex() === index()}
-                        onChange={() => props.store.setSourceIndex(index())}
-                      />
-                      <span>
-                        <strong>{source.name}</strong>
-                        <span class="game-case-source-meta">
-                          {host(source.uri)} · {labels[source.access]}
-                        </span>
-                        <Show when={source.sizeBytes}>
-                          <span class="game-case-source-meta">
-                            {((source.sizeBytes ?? 0) / 1024 / 1024).toFixed(1)}{" "}
-                            MiB
-                          </span>
-                        </Show>
-                        <Show when={source.reason}>
-                          <span class="download-source-reason">
-                            {source.reason}
-                          </span>
-                        </Show>
-                      </span>
-                    </label>
-                  )}
-                </For>
-              </div>
               <Show when={favoriteError()}>
                 <p class="game-case-state" role="alert">
                   {favoriteError()}
                 </p>
               </Show>
-              <footer class="download-source-actions">
+              <div class="download-source-actions game-case-job-actions">
                 <Show when={currentJob()}>{job => <>
                   <Show when={job().status === 'downloading' || job().status === 'queued'}>
                     <button title="Pausar descarga" aria-label="Pausar descarga" onClick={() => void props.store.controlDownload(job(), 'pause')}><Pause size={18} /></button>
@@ -428,35 +407,12 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                   <Show when={job().status === 'downloaded'}>
                     <button title="Reintentar preparacion local" aria-label="Reintentar preparacion local" onClick={() => void props.store.controlDownload(job(), 'resume')}><RotateCw size={18} /></button>
                   </Show>
+                  <Show when={job().status === 'cancelled'}>
+                    <button title="Reintentar descarga" aria-label="Reintentar descarga" disabled={actionBusy()} onClick={() => void manageJob('retry')}><RotateCw size={18} /></button>
+                    <button title="Borrar descarga cancelada" aria-label="Borrar descarga cancelada" disabled={actionBusy()} onClick={() => void manageJob('delete')}><Trash2 size={18} /></button>
+                  </Show>
                 </>}</Show>
-                <button
-                  class="game-case-download"
-                  disabled={
-                    !selected()?.downloadable ||
-                    props.store.sourcesLoading() ||
-                    busy()
-                  }
-                  onClick={props.onConfirm}
-                >
-                  <Download size={18} />
-                  {busy() ? (currentJob()?.phase === 'seeding' ? "Compartiendo..." : currentJob()?.phase === 'preparing' ? "Preparando..." : "Descargando...") : "Descargar seleccionada"}
-                </button>
-                <Show when={detailsGame()?.installed && props.onPlay}>
-                  <button
-                    class="game-case-play"
-                    disabled={Boolean(props.playBlockReason)}
-                    title={props.playBlockReason || "Jugar"}
-                    onClick={() => {
-                      const current = detailsGame();
-                      if (current && !props.playBlockReason)
-                        props.onPlay?.(current);
-                    }}
-                  >
-                    <Play size={18} />
-                    Jugar
-                  </button>
-                </Show>
-              </footer>
+              </div>
               <Show when={localLoading()}><p class="game-case-state" role="status">Consultando archivos locales...</p></Show>
               <Show when={localFiles().length}>
                 <form class="download-local-files download-source-actions" onFocusIn={() => setPanel('files')} onSubmit={event => { event.preventDefault(); void chooseLocal(); }}>
@@ -471,6 +427,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
               <Show when={currentJob()}>{job => <p class="game-case-state" role="status">{job().provider || 'Proveedor'} · {phases[job().phase || ''] || job().status} · {Math.round(job().progress * 100)}%<Show when={job().status === 'downloaded'}> · {job().error}</Show></p>}</Show>
               <Show when={currentJob()?.status === 'downloaded'}><span class="download-source-uri">{currentJob()?.destinationPath}</span></Show>
               <Show when={props.store.downloadError()?.gameId === game()?.id}><p class="game-case-state" role="alert">{props.store.downloadError()?.message}</p></Show>
+              <Show when={actionError()}><p class="game-case-state" role="alert">{actionError()}</p></Show>
               <Show when={detailsGame()?.installed && props.playBlockReason}>
                 <p class="game-case-state" role="status">
                   {props.playBlockReason}
@@ -486,10 +443,10 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
               ref={details}
               onFocusIn={() => setPanel("details")}
             >
-              <Show when={game()?.backdropImage}>
+              <Show when={game()?.coverImage && !coverFailed()}>
                 <img
                   class="game-case-backdrop"
-                  src={game()?.backdropImage}
+                  src={game()?.coverImage}
                   alt=""
                   onError={(event) => {
                     event.currentTarget.hidden = true;
@@ -567,6 +524,36 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                 </Show>
               </div>
             </div>
+            <footer class="download-source-actions game-case-footer">
+              <button
+                class="game-case-favorite"
+                aria-pressed={Boolean(favorite())}
+                aria-label="Alternar favorito"
+                title="Alternar favorito"
+                disabled={actionBusy()}
+                onClick={() => void toggleFavorite()}
+              >
+                <Heart size={18} fill={favorite() ? "currentColor" : "none"} />
+              </button>
+              <Show when={detailsGame()?.installed} fallback={
+                <button class="game-case-download" disabled={expandedRelease() === null || !selected()?.downloadable || props.store.sourcesLoading() || busy() || actionBusy()} onClick={props.onConfirm}>
+                  <Download size={18} />
+                  {busy() ? (currentJob()?.phase === 'seeding' ? "Compartiendo..." : currentJob()?.phase === 'preparing' ? "Preparando..." : `Descargando ${Math.round((currentJob()?.progress || 0) * 100)} %`) : "Descargar seleccionada"}
+                </button>
+              }>
+                <button class="game-case-uninstall" disabled={actionBusy() || busy()} onClick={() => void manageJob('uninstall')}>
+                  <Trash2 size={18} /> Desinstalar
+                </button>
+              </Show>
+              <Show when={detailsGame()?.installed && props.onPlay}>
+                <button class="game-case-play" disabled={Boolean(props.playBlockReason) || actionBusy()} title={props.playBlockReason || "Jugar"} onClick={() => {
+                  const current = detailsGame();
+                  if (current && !props.playBlockReason) props.onPlay?.(current);
+                }}>
+                  <Play size={18} /> Jugar
+                </button>
+              </Show>
+            </footer>
           </Dialog.Content>
         </div>
       </Dialog.Portal>

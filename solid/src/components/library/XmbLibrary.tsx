@@ -17,11 +17,15 @@ import {
   Settings2,
 } from "lucide-solid";
 import type { XmbLibraryProps } from "@contracts/xmb.types";
+import type { Game } from "@contracts/game.types";
 import { useXmbLibrary } from "@hooks/useXmbLibrary";
 import { ConsoleHardwareVisual } from "@components/common/ConsoleHardwareVisual";
 import { catalogTitle } from "@services/library/catalog-groups";
+import { xmbDownloadStatus } from "@services/library/xmb-navigation";
 
 export function XmbLibrary(props: XmbLibraryProps) {
+  const downloadStatus = (entry: Game) =>
+    xmbDownloadStatus(entry, props.downloadJobs, props.downloadingIds);
   const {
     position,
     query,
@@ -329,7 +333,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                     <span>
                       <strong>{entry.game.title}</strong>
                       <small>{entry.game.platformName}</small>
-                      <small>{props.downloadingIds.has(entry.game.id) ? 'Descargando' : entry.game.installed ? 'Instalada' : 'Sin instalar'}</small>
+                      <small>{downloadStatus(entry.game)}</small>
                     </span>
                   </button>
                   );
@@ -427,11 +431,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                   <div>
                     <dt>Estado</dt>
                     <dd>
-                      {props.downloadingIds.has(game().id)
-                        ? "Descargando"
-                        : game().installed
-                          ? "Instalado"
-                          : "No instalado"}
+                      {downloadStatus(game())}
                     </dd>
                   </div>
                   <div>

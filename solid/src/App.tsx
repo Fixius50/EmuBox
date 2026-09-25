@@ -352,6 +352,7 @@ const NativeApp: Component = () => {
           games={libraryStore.catalogGames()}
           platforms={systemStore.platforms()}
           downloadingIds={libraryStore.catalogDownloadingIds()}
+          downloadJobs={libraryStore.downloadJobs()}
           loading={Boolean(startupStatus()) || libraryStore.isLoading()}
           loadingMessage={startupStatus() || 'Actualizando biblioteca...'}
           loadError={libraryStore.loadError() || startupError()}
@@ -383,6 +384,7 @@ const NativeApp: Component = () => {
           settings={systemStore.settings()}
           emulators={systemStore.emulators()}
           storeBackend={backend}
+          libraryStore={libraryStore}
           activeTab={activeSettingsTab()}
           focusArea={settingsFocusArea()}
           focusedRowIndex={settingsRowIndex()}

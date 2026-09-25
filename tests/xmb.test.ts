@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   moveXmb,
+  xmbDownloadStatus,
   xmbFolders,
   type XmbPosition,
 } from "../solid/src/services/library/xmb-navigation";
 import { groupCatalog } from "../solid/src/services/library/catalog-groups";
 import type { Game } from "../solid/src/types/game.types";
+import type { DownloadJob } from "../solid/src/types/download.types";
 import { createRoot, createSignal } from "solid-js";
 import { useXmbLibrary } from "../solid/src/hooks/useXmbLibrary";
 import type { InputAction } from "../solid/src/types/input.types";
@@ -60,6 +62,24 @@ const fixtures = [
       releaseYear: 2000,
     }) as Game,
 );
+test("XMB: download label follows progress and preparation phases without scanning games", () => {
+  const job: DownloadJob = {
+    id: 'job-one', gameId: fixtures[0].id, sourceId: 'source-one', platform: 'ps1',
+    destinationPath: '/fixture', status: 'queued', progress: 0,
+    downloadedBytes: 0, speedBytesPerSecond: 0,
+  };
+  assert.equal(xmbDownloadStatus(fixtures[0], [job], new Set()), 'En cola 0 %');
+  job.status = 'downloading';
+  job.progress = 0.42;
+  assert.equal(xmbDownloadStatus(fixtures[0], [job], new Set()), 'Descargando 42 %');
+  job.phase = 'verifying';
+  job.progress = 1;
+  assert.equal(xmbDownloadStatus(fixtures[0], [job], new Set()), 'Verificando 100 %');
+  job.phase = 'preparing';
+  assert.equal(xmbDownloadStatus(fixtures[0], [job], new Set()), 'Preparando 100 %');
+  assert.equal(xmbDownloadStatus(fixtures[1], [job], new Set([fixtures[1].id])), 'Iniciando descarga');
+  assert.equal(xmbDownloadStatus({ ...fixtures[1], installed: true }, [], new Set()), 'Instalada');
+});
 test("XMB: folders preserve platforms and original variants", () => {
   const folders = xmbFolders(groupCatalog(fixtures));
   assert.equal(folders.length, 1);
@@ -143,7 +163,7 @@ test("XMB: wheel navigates vertical folders and horizontal categories/versions",
         { ...fixtures[0], id: "edition-b", canonicalId: "fixture" },
         { ...fixtures[0], id: "other", title: "Other" },
       ]),
-      platforms: [], loading: false, downloadingIds: new Set(),
+      platforms: [], loading: false, downloadingIds: new Set(), downloadJobs: [],
       inputStatus: { isConnected: false, deviceName: "", source: "keyboard" },
       onOpenGame: () => {}, onOpenSettings: () => {}, onFavorite: () => {}, onMove: () => {},
       onControllerReady: () => {},
@@ -151,6 +171,9 @@ test("XMB: wheel navigates vertical folders and horizontal categories/versions",
   }));
   try {
     const { library } = model;
+    assert.deepEqual(library.categories().slice(0, 4).map(category => category.id),
+      ["settings", "favorites", "installed", "all"]);
+    assert.equal(library.category().id, "all");
     assert.equal(library.scrollWheel("folders", 20, 0), true);
     assert.equal(library.position().row, 0);
     library.scrollWheel("folders", 40, 0);
@@ -160,9 +183,9 @@ test("XMB: wheel navigates vertical folders and horizontal categories/versions",
     library.scrollWheel("folders", -4, 1);
     assert.equal(library.position().row, 1);
     library.scrollWheel("categories", 100, 0);
-    assert.equal(library.position().category, 2);
+    assert.equal(library.position().category, 4);
     library.scrollWheel("categories", -100, 0);
-    assert.equal(library.position().category, 1);
+    assert.equal(library.position().category, 3);
     library.navigate("enter");
     library.navigate("enter");
     assert.equal(library.position().expanded, true);
@@ -252,6 +275,7 @@ test("XMB: controller handles search, settings, empty catalogs and cleanup", () 
       platforms: [],
       loading: false,
       downloadingIds: new Set(),
+      downloadJobs: [],
       inputStatus: {
         isConnected: true,
         deviceName: "Fixture",
@@ -328,7 +352,7 @@ test("XMB: virtual keyboard opens only without a keyboard input source", () => {
   let controller: ((action: InputAction) => void) | null = null;
   const runtime = createRoot((dispose) => {
     const model = useXmbLibrary({
-      games: groupCatalog(fixtures), platforms: [], loading: false, downloadingIds: new Set(),
+      games: groupCatalog(fixtures), platforms: [], loading: false, downloadingIds: new Set(), downloadJobs: [],
       inputStatus: { isConnected: true, deviceName: "Fixture pad", source: "gamepad" },
       onOpenGame: () => {}, onOpenSettings: () => {}, onFavorite: () => {}, onMove: () => {},
       onControllerReady: handler => { controller = handler; },

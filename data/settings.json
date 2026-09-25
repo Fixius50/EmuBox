@@ -19,6 +19,7 @@
     "theme": "obsidian-cyan",
     "showFps": true,
     "seedCompletedTorrents": false,
+    "autoInstallDownloads": true,
     "virtualization": false
   }
 }

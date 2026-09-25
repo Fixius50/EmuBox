@@ -71,6 +71,13 @@ export function useSettingsController(
           };
           systemStore.updateSettings(clone);
           soundFx.playSelect();
+        } else if (row === 1) {
+          clone.system = {
+            ...clone.system,
+            autoInstallDownloads: !(clone.system?.autoInstallDownloads ?? true),
+          };
+          systemStore.updateSettings(clone);
+          soundFx.playSelect();
         }
         break;
 

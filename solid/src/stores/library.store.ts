@@ -238,6 +238,20 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
         await refreshJobs();
       } catch (error) { setDownloadError({ gameId: job.gameId, message: error instanceof Error ? error.message : 'No se pudo cambiar el estado de la descarga' }); }
     },
+    retryCancelled: async (job: DownloadJob) => {
+      if (job.status !== 'cancelled') return;
+      await downloadGame(job.gameId, job.sourceId);
+    },
+    deleteCancelled: async (job: DownloadJob) => {
+      await backend.deleteCancelledDownload(job.id);
+      await refreshJobs();
+      if (downloadError()?.gameId === job.gameId) setDownloadError(null);
+    },
+    uninstallGame: async (gameId: string) => {
+      await backend.uninstallGame(gameId);
+      closeSources();
+      await Promise.all([loadGames(), refreshJobs()]);
+    },
     catalogGames, catalogDownloadingIds,
     confirmSource: async () => {
       const source = sourceOptions()[sourceIndex()];

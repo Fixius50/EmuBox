@@ -58,6 +58,8 @@ test("Native: absent runtime rejects operations without fabricated results", asy
     () => backend.getDownloadJobs(),
     () => backend.openJackett(),
     () => backend.getDownloadCandidates("unavailable"),
+    () => backend.deleteCancelledDownload("unavailable"),
+    () => backend.uninstallGame("unavailable"),
     () => backend.selectDownloadCandidate("unavailable", "disc.iso"),
     () => backend.launchGame("unavailable"),
     () => backend.recordFrontendEvents([]),

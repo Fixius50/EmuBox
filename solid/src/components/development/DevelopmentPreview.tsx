@@ -24,6 +24,7 @@ export default function DevelopmentPreview() {
             games={preview.library.catalogGames()}
             platforms={preview.system.platforms()}
             downloadingIds={preview.library.catalogDownloadingIds()}
+            downloadJobs={preview.library.downloadJobs()}
             loading={preview.library.isLoading()}
             inputStatus={preview.inputStatus()}
             onOpenGame={(game) => {
@@ -41,6 +42,7 @@ export default function DevelopmentPreview() {
             settings={preview.system.settings()}
             emulators={preview.system.emulators()}
             storeBackend={preview.backend}
+            libraryStore={preview.library}
             activeTab={preview.activeTab()}
             focusArea={preview.focusArea()}
             focusedRowIndex={preview.row()}

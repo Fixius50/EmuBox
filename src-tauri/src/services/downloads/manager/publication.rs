@@ -13,7 +13,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-fn validated_package(job: &DownloadJob) -> Result<PublishedDownload, EmuBoxError> {
+pub(super) fn validated_package(job: &DownloadJob) -> Result<PublishedDownload, EmuBoxError> {
     let destination = Path::new(&job.destination_path);
     let package: PublishedDownload =
         serde_json::from_slice(&fs::read(destination.join(".emubox-managed")).map_err(io_error)?)
@@ -157,6 +157,7 @@ pub(super) fn prepare_published(
     package: &mut PublishedDownload,
     files: &[PathBuf],
     control: &TransferControl,
+    auto_install: bool,
 ) -> Result<(), EmuBoxError> {
     if package.installation.is_some() || candidate_paths(job, package).len() > 1 {
         let _guard = active().lock().map_err(io_error)?;
@@ -233,12 +234,12 @@ pub(super) fn prepare_published(
                     .strip_prefix(destination)
                     .map_err(io_error)?
                     .to_path_buf();
-                if Some(path) == target.as_ref() {
+                if auto_install && Some(path) == target.as_ref() {
                     package.launch = Some(relative.clone());
                 }
                 package.files.push(relative);
             }
-        } else if let Some(target) = target {
+        } else if let Some(target) = target.filter(|_| auto_install) {
             package.launch = Some(
                 target
                     .strip_prefix(destination)

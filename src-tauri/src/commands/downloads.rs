@@ -176,6 +176,16 @@ pub fn cancel_download(id: String) -> Result<DownloadJob, EmuBoxError> {
 }
 
 #[tauri::command]
+pub fn delete_cancelled_download(id: String) -> Result<(), EmuBoxError> {
+    crate::services::download_manager::delete_cancelled(&id)
+}
+
+#[tauri::command]
+pub fn uninstall_game(game_id: String) -> Result<(), EmuBoxError> {
+    crate::services::download_manager::uninstall(&game_id)
+}
+
+#[tauri::command]
 pub fn get_download_candidates(id: String) -> Result<Vec<String>, EmuBoxError> {
     crate::services::download_manager::candidates(&id)
 }

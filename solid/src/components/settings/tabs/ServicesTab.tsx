@@ -1,6 +1,6 @@
 import { createResource, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import type { Component } from 'solid-js';
-import { ExternalLink, Pause, Play, RefreshCw, Square } from 'lucide-solid';
+import { ExternalLink, Pause, Play, RefreshCw, RotateCw, Square, Trash2 } from 'lucide-solid';
 import type { DownloadJob } from '@contracts/download.types';
 import type { ServicesTabProps } from '@contracts/settings.types';
 import { SettingSwitch } from '../SettingSwitch';
@@ -27,11 +27,35 @@ export const ServicesTab: Component<ServicesTabProps> = (props) => {
     setJobError('');
     try {
       if (action === 'pause') await props.backend.pauseDownload(job.id);
+      else if (action === 'resume' && props.libraryStore) {
+        await props.libraryStore.controlDownload(job, 'resume');
+        const error = props.libraryStore.downloadError();
+        if (error?.gameId === job.gameId) throw new Error(error.message);
+      }
       else if (action === 'resume') await props.backend.resumeDownload(job.id);
       else await props.backend.cancelDownload(job.id);
       await refetch();
+      await props.libraryStore?.refreshJobs();
     } catch (error) {
       setJobError(typeof error === 'string' ? error : error instanceof Error ? error.message : 'No se pudo modificar el torrent.');
+    } finally {
+      setJobBusy(null);
+    }
+  };
+  const cancelledJob = async (job: DownloadJob, action: 'retry' | 'delete') => {
+    if (!props.libraryStore || jobBusy() || job.status !== 'cancelled') return;
+    if (action === 'delete' && !window.confirm(`¿Borrar el trabajo cancelado de ${job.gameId} y sus archivos temporales?`)) return;
+    setJobBusy(job.id);
+    setJobError('');
+    try {
+      if (action === 'retry') {
+        await props.libraryStore.retryCancelled(job);
+        const error = props.libraryStore.downloadError();
+        if (error?.gameId === job.gameId) throw new Error(error.message);
+      } else await props.libraryStore.deleteCancelled(job);
+      await refetch();
+    } catch (error) {
+      setJobError(typeof error === 'string' ? error : error instanceof Error ? error.message : 'No se pudo modificar el trabajo.');
     } finally {
       setJobBusy(null);
     }
@@ -68,6 +92,18 @@ export const ServicesTab: Component<ServicesTabProps> = (props) => {
             });
           }}
         />
+        <SettingSwitch
+          title="Instalar descargas automaticamente"
+          description="Selecciona el archivo de lanzamiento solo cuando el paquete tiene un candidato inequívoco."
+          checked={props.settings?.system?.autoInstallDownloads ?? true}
+          isFocused={props.isRowFocused(1)}
+          onChange={(value) => {
+            props.onSelectContentArea?.();
+            props.onUpdateSettings((settings) => {
+              settings.system = { ...settings.system, autoInstallDownloads: value };
+            });
+          }}
+        />
       </div>
       <section class="settings-information" aria-label="Servicios de descarga locales">
         <h4>Servicios de descarga</h4>
@@ -98,6 +134,10 @@ export const ServicesTab: Component<ServicesTabProps> = (props) => {
                 </Show>
                 <Show when={!['completed', 'downloaded', 'cancelled'].includes(job.status)}>
                   <button title="Cancelar torrent" aria-label={`Cancelar ${job.gameId}`} disabled={Boolean(jobBusy())} onClick={() => void controlJob(job, 'cancel')}><Square size={18} /></button>
+                </Show>
+                <Show when={job.status === 'cancelled' && props.libraryStore}>
+                  <button title="Reintentar descarga" aria-label={`Reintentar ${job.gameId}`} disabled={Boolean(jobBusy())} onClick={() => void cancelledJob(job, 'retry')}><RotateCw size={18} /></button>
+                  <button title="Borrar trabajo cancelado" aria-label={`Borrar ${job.gameId}`} disabled={Boolean(jobBusy())} onClick={() => void cancelledJob(job, 'delete')}><Trash2 size={18} /></button>
                 </Show>
               </div>
             </div>

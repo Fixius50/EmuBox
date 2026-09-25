@@ -32,6 +32,11 @@ pub(super) fn run(
         "{:x}",
         Sha256::digest(serde_json::to_vec(source).map_err(io_error)?)
     );
+    let auto_install = crate::services::config_service::get_settings()
+        .ok()
+        .and_then(|settings| settings.system)
+        .and_then(|system| system.get("autoInstallDownloads").and_then(|value| value.as_bool()))
+        .unwrap_or(true);
     if destination.exists() {
         let mut package: PublishedDownload = serde_json::from_slice(
             &fs::read(destination.join(".emubox-managed")).map_err(io_error)?,
@@ -61,7 +66,7 @@ pub(super) fn run(
             .collect();
         crate::services::download_preparation::verify(&files, &destination, None, control)?;
         if package.launch.is_none() {
-            return prepare_published(job, source, &destination, &mut package, &files, control);
+            return prepare_published(job, source, &destination, &mut package, &files, control, auto_install);
         }
         let _guard = active().lock().map_err(io_error)?;
         if !control.interrupted() {
@@ -211,7 +216,7 @@ pub(super) fn run(
         fs::File::open(&published_file)
             .and_then(|file| file.sync_all())
             .map_err(io_error)?;
-        if target.as_ref() == Some(file) {
+        if auto_install && target.as_ref() == Some(file) {
             launch = Some(relative.clone());
         }
         published.push(relative);

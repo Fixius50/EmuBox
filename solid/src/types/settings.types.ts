@@ -103,6 +103,7 @@ export interface SystemTabProps {
 export interface ServicesTabProps {
   settings?: SystemSettings;
   backend?: IEmuBoxBackend;
+  libraryStore?: import('@stores/library.store').LibraryStore;
   isRowFocused: (row: number) => boolean;
   onSelectContentArea?: () => void;
   onUpdateSettings: (updater: (s: SystemSettings) => void) => void;
@@ -137,6 +138,7 @@ export interface SettingsViewProps {
   settings?: SystemSettings;
   emulators?: Emulator[];
   storeBackend?: IEmuBoxBackend;
+  libraryStore?: import('@stores/library.store').LibraryStore;
   activeTab?: string;
   focusArea?: "sidebar" | "content";
   focusedRowIndex?: number;

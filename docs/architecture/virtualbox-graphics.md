@@ -104,6 +104,14 @@ activo; en caso contrario selecciona un modo estandar o el preferido, sin usar
 El caso [labwc #2576](https://github.com/labwc/labwc/issues/2576) afecta al
 despertar de blanking en otra plataforma; aqui DPMS estaba encendido. La medida
 elimina un riesgo, pero no demuestra que sea la causa del negro o iluminado.
+Tras reiniciar con esa medida, el usuario confirmo que el sintoma persistia. A
+las 12:10 la salida seguia en su modo estandar 1456x817@60, DPMS encendido, sin
+descargas activas ni errores nuevos de DRM/oom. Los callbacks de WebKit seguian
+llegando a 16-26 ms. Una captura Wayland a las 12:11 ya tenia luminancia media
+35/255 y texto visible, frente a capturas anteriores de Wayland y VirtualBox
+casi negras (media 2/255). La presentacion cambia de estado sin modeset visible;
+el sincronizador redundante no era explicacion suficiente. No añadir mas cambios
+de modo, CSS o WebKit sin una captura sincronizada con la percepcion del usuario.
 
 `configure_emubox_presentation` configura solo Cage con vmwgfx:
 `WLR_SCENE_DEBUG_DAMAGE=rerender` fuerza redibujar todo el cuadro en cada
@@ -303,6 +311,40 @@ de VirtualBox. El código EmuBox no puede concederse ese acceso desde el invitad
 
 ## Comprobar el anfitrión
 
+### Opciones de Pantalla de VirtualBox
+
+En Configuracion > Pantalla, VirtualBox separa tres pestañas. No son presets
+intercambiables ni deben cambiarse todas a la vez para investigar un bloqueo.
+El inventario corresponde a las opciones documentadas de VirtualBox; las
+disponibles y sus limites concretos dependen de la version, del anfitrion y
+del sistema invitado.
+
+| Pestaña | Ajuste | Alcance |
+| --- | --- | --- |
+| Pantalla | Memoria de video (VRAM, `--vram`) | Memoria de la tarjeta virtual, en MiB; la resolucion, profundidad de color, numero de pantallas y aceleracion determinan la necesaria. |
+| Pantalla | Numero de monitores (`--monitor-count`) | Hasta ocho pantallas virtuales; la pantalla completa en varios monitores exige pantallas fisicas suficientes. |
+| Pantalla | Factor de escala | Amplia la imagen en la ventana del anfitrion, globalmente o por monitor (hasta 200 % en la interfaz documentada); no aumenta la resolucion del invitado ni la VRAM. |
+| Pantalla | Controlador grafico (`--graphicscontroller`) | `vmsvga` (Linux, recomendado aqui), `vboxsvga` (Windows moderno), `vboxvga` (invitados antiguos, sin 3D) o `none` (sin adaptador grafico). |
+| Pantalla | Aceleracion 3D (`--accelerate-3d=on|off`) | Requiere controlador compatible y soporte en el invitado; desactivarla es el experimento reversible propuesto, no una reparacion demostrada. |
+| Pantalla | Aceleracion de video 2D (`--accelerate-2d-video=on|off`) | Opcion heredada para ciertas combinaciones de invitado Windows y Guest Additions; no aporta aceleracion 2D al Linux de esta VM y puede no aparecer en la GUI. |
+| Pantalla remota | Servidor VRDE, puerto, direccion de escucha, autenticacion, conexiones multiples y reutilizacion de conexion | Consola remota RDP del anfitrion; requiere el componente VRDE y debe configurarse con autenticacion y acceso de red adecuados. No cambia la GPU ni el canal SSH. |
+| Pantalla remota (avanzado) | Modulo VRDE, canal de video, calidad de redireccion y propiedades de seguridad | Opciones adicionales de `VBoxManage modifyvm --vrde-*`; la redireccion de video o 3D por VRDE no equivale a activar 3D en el adaptador virtual. |
+| Grabacion | Activacion, modo (video/audio/ambos), ruta, pantallas, tamaño del cuadro, FPS, calidad de video/audio y limites de tiempo/tamaño | Graba la sesion de la VM; puede añadir carga al anfitrion y no mejora la salida grafica del invitado. |
+
+`VBoxManage showvminfo "Arch GAMING" --machinereadable` muestra los valores
+guardados (entre ellos controlador, VRAM, monitores, 3D, 2D, VRDE y grabacion).
+`VBoxManage controlvm` permite ajustar modos o disposicion de pantallas en
+ejecucion (`setvideomodehint`, `setscreenlayout`) si el invitado lo admite;
+son distintos de los ajustes persistentes de hardware. La resolucion de
+arranque EFI (`VBoxInternal2/EfiGraphicsResolution`) solo aplica si se usa EFI.
+La escala de ventana y el limite de resolucion del invitado son preferencias
+de visualizacion del anfitrion, no alternativas a la aceleracion 3D. No
+confundir grabacion o VRDE con el renderizador de Cage/EmuBox.
+
+Fuentes: [ajustes de pantalla, pantalla remota y grabacion](https://www.virtualbox.org/manual/ch03.html#settings-display),
+[opciones de `modifyvm`](https://www.virtualbox.org/manual/ch08.html#vboxmanage-modifyvm)
+y [modos de pantalla en ejecucion](https://www.virtualbox.org/manual/ch08.html#vboxmanage-controlvm).
+
 Solo si hace falta cambiar la configuración, apagar la VM de forma ordenada
 (no dejarla en estado guardado) y abrir Configuración > Pantalla en VirtualBox:
 
@@ -320,6 +362,16 @@ qué GPU física está usando VirtualBox hay que comprobar el proceso en el anfi
 
 La VM observada ya ofrece SVGA3D: no se necesita cambiar drivers ni forzar Vulkan
 para reconocer su aceleración OpenGL. Las opciones del anfitrión no se han tocado.
+
+Para comparar estabilidad sin 3D, desde el anfitrion y en una ventana de
+mantenimiento: guardar la salida de `VBoxManage showvminfo "Arch GAMING"
+--machinereadable`, apagar ordenadamente y verificar que la VM este en estado
+`poweroff` (no `saved`). Cambiar solo `--accelerate-3d=off` con
+`VBoxManage modifyvm "Arch GAMING" --accelerate-3d=off`, arrancar y comparar
+con el mismo uso y tiempo de observacion. Para revertir, volver a apagar
+ordenadamente y restaurar el valor original de `--accelerate-3d`, sin tocar
+controlador, VRAM ni monitores. No ejecutar `modifyvm` desde el invitado ni
+con la VM en marcha; perderia la conexion SSH durante el apagado.
 
 ## Verificación en el invitado
 
