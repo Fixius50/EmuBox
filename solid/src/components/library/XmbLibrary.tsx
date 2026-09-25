@@ -1,4 +1,4 @@
-import { For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import {
   ArrowLeft,
   ChevronDown,
@@ -19,6 +19,7 @@ import {
 import type { XmbLibraryProps } from "@contracts/xmb.types";
 import { useXmbLibrary } from "@hooks/useXmbLibrary";
 import { ConsoleHardwareVisual } from "@components/common/ConsoleHardwareVisual";
+import { catalogTitle } from "@services/library/catalog-groups";
 
 export function XmbLibrary(props: XmbLibraryProps) {
   const {
@@ -43,6 +44,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
     chooseCategory,
     chooseRow,
     chooseGame,
+    scrollWheel,
     search,
     openSearch,
     closeVirtualKeyboard,
@@ -68,6 +70,16 @@ export function XmbLibrary(props: XmbLibraryProps) {
           (event.key === "Enter" && event.target instanceof HTMLButtonElement)
         )
           event.stopPropagation();
+      }}
+      onWheel={(event) => {
+        const target = event.target;
+        if (event.ctrlKey || !(target instanceof Element) || target.closest(".xmb-detail-scroll, .xmb-settings-panel, .xmb-virtual-keyboard, input, textarea, select")) return;
+        const horizontal = event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY);
+        const surface = target.closest(".xmb-category-rail") ? "categories"
+          : target.closest(".xmb-game-shelf") ? "versions"
+          : horizontal ? position().expanded ? "versions" : "categories" : "folders";
+        const delta = horizontal && event.deltaX ? event.deltaX : event.deltaY;
+        if (scrollWheel(surface, delta, event.deltaMode)) event.preventDefault();
       }}
     >
       <div class="xmb-atmosphere" aria-hidden="true">
@@ -280,7 +292,9 @@ export function XmbLibrary(props: XmbLibraryProps) {
               </header>
               <div class="xmb-version-track">
               <For each={gameWindow()}>
-                {(entry) => (
+                {(entry) => {
+                  const [imageFailed, setImageFailed] = createSignal(false);
+                  return (
                   <button
                     id={`shelf-card-${entry.game.id}`}
                     class="xmb-game-tile"
@@ -291,7 +305,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                     onClick={() => chooseGame(entry.index)}
                   >
                     <Show
-                      when={entry.game.coverImage}
+                      when={entry.game.coverImage && !imageFailed()}
                       fallback={
                         <ConsoleHardwareVisual
                           platformId={entry.game.platform}
@@ -303,9 +317,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                         src={entry.game.coverImage}
                         alt=""
                         loading="lazy"
-                        onError={(event) => {
-                          event.currentTarget.style.visibility = "hidden";
-                        }}
+                        onError={() => setImageFailed(true)}
                       />
                     </Show>
                     <span>
@@ -314,7 +326,8 @@ export function XmbLibrary(props: XmbLibraryProps) {
                       <small>{props.downloadingIds.has(entry.game.id) ? 'Descargando' : entry.game.installed ? 'Instalada' : 'Sin instalar'}</small>
                     </span>
                   </button>
-                )}
+                  );
+                }}
               </For>
               </div>
             </section>
@@ -367,7 +380,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                   </Show>
                 </div>
                 <div class="xmb-title-line">
-                  <h2>{game().canonicalTitle || game().title}</h2>
+                  <h2>{catalogTitle(game().canonicalTitle || game().title)}</h2>
                   <button
                     class="xmb-icon-button"
                     title="Alternar favorito"

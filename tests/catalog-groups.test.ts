@@ -42,6 +42,17 @@ assert.equal(catalogTitle('Fixture Claws for Alarm'), 'Fixture Claws for Alarm')
 assert.equal(groupCatalog(variants).length, 4);
 assert.equal(groupCatalog([...variants].reverse()).find(entry => entry.title === 'Fixture' && entry.platform === 'ps2')?.id, 'one');
 assert.equal(groupCatalog([game, { ...variants[1], installed: true, romPath: '/fixture/two.iso' }])[0].id, 'two');
+const enriched = groupCatalog([
+  { ...game, id: 'cover', coverImage: 'https://example.invalid/cover.png', genre: 'Accion' },
+  { ...game, id: 'description', description: 'Descripcion disponible', developer: 'Estudio' },
+  { ...game, id: 'installed', installed: true, romPath: '/fixture/game.iso', publisher: 'Editor' },
+])[0];
+assert.equal(enriched.id, 'installed');
+assert.equal(enriched.coverImage, 'https://example.invalid/cover.png');
+assert.equal(enriched.description, 'Descripcion disponible');
+assert.equal(enriched.genre, 'Accion');
+assert.equal(enriched.developer, 'Estudio');
+assert.equal(enriched.publisher, 'Editor');
 const canonical = groupCatalog([
   { ...game, id: 'mario-package-a', title: '#Mario Bros. (USA)', canonicalId: 'libretro-mario', canonicalTitle: 'Mario Bros.' },
   { ...game, id: 'mario-package-b', title: '^^Mario Bros. [Rev A]', canonicalId: 'libretro-mario', canonicalTitle: 'Mario Bros.', installed: true, romPath: '/fixture/mario.nes' },
@@ -50,6 +61,7 @@ assert.equal(canonical.length, 1);
 assert.equal(canonical[0].id, 'mario-package-b');
 assert.equal(canonical[0].title, 'Mario Bros.');
 assert.equal(canonical[0].variants.length, 2);
+assert.equal(groupCatalog([{ ...game, canonicalId: 'sims', canonicalTitle: 'The Sims 4 Free Download' }])[0].title, 'The Sims 4');
 assert.equal(groupCatalog([
   { ...game, canonicalId: 'same-canonical', title: 'Fixture (1993)', releaseYear: 1993 },
   { ...game, id: 'second-release', canonicalId: 'same-canonical', title: 'Fixture (1994)', releaseYear: 1994 },

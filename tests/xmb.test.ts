@@ -62,16 +62,118 @@ const fixtures = [
 );
 test("XMB: folders preserve platforms and original variants", () => {
   const folders = xmbFolders(groupCatalog(fixtures));
-  assert.equal(folders.length, 2);
-  assert.equal(folders[0].games.length, 2);
+  assert.equal(folders.length, 1);
+  assert.equal(folders[0].games.length, 3);
   assert.deepEqual(
     folders[0].games.flatMap((game) =>
       game.variants.map((variant) => variant.id),
     ),
-    ["ps1-one", "ps2-one"],
+    ["ps1-one", "ps2-one", "ps2-two"],
   );
-  assert.equal(folders[1].title, "Example 2");
+  assert.equal(folders[0].title, "Example");
+  assert.equal(folders[0].games[2].title, "Example 2");
+  assert.equal(xmbFolders(groupCatalog([fixtures[2]])).at(0)?.title, "Example 2");
   assert.deepEqual(xmbFolders([]), []);
+});
+
+test("XMB: unrelated canonical identities remain separate", () => {
+  const folders = xmbFolders(groupCatalog([
+    { ...fixtures[0], canonicalId: "first" },
+    { ...fixtures[0], id: "another", canonicalId: "second" },
+  ]));
+  assert.equal(folders.length, 2);
+});
+
+test("XMB: multiple sequels share a folder without a base game", () => {
+  const folders = xmbFolders(groupCatalog([
+    { ...fixtures[0], title: "The Sims 2", canonicalId: "sims-2" },
+    { ...fixtures[0], id: "four", title: "The Sims 4 Free Download", canonicalId: "sims-4", canonicalTitle: "The Sims 4 Free Download" },
+    { ...fixtures[0], id: "edition", title: "The Sims 2: Complete Edition", canonicalId: "sims-2-edition" },
+    { ...fixtures[0], id: "alone", title: "Portal 2", canonicalId: "portal-2" },
+  ]));
+  assert.equal(folders.length, 2);
+  assert.equal(folders[0].title, "The Sims");
+  assert.deepEqual(folders[0].games.map(game => game.title), ["The Sims 2", "The Sims 4", "The Sims 2: Complete Edition"]);
+  assert.equal(folders[1].title, "Portal 2");
+});
+
+test("XMB: subtitled games share their franchise without merging releases", () => {
+  const folders = xmbFolders(groupCatalog([
+    { ...fixtures[0], title: "The Legend of Zelda: Breath of the Wild", canonicalId: "zelda-botw" },
+    { ...fixtures[0], id: "tears", title: "The Legend of Zelda: Tears of the Kingdom", canonicalId: "zelda-totk" },
+  ]));
+  assert.equal(folders.length, 1);
+  assert.equal(folders[0].title, "The Legend of Zelda");
+  assert.deepEqual(folders[0].games.map(game => game.canonicalId), ["zelda-botw", "zelda-totk"]);
+});
+
+test("XMB: 007 releases and package variants share one horizontal folder", () => {
+  const folders = xmbFolders(groupCatalog([
+    { ...fixtures[0], id: "bond-base", title: "007 First Light", platform: "pc", matchMethod: "local-title", canonicalId: "bond-base" },
+    { ...fixtures[0], id: "bond-update", title: "007 First Light (v1.1.0) [Pre-Instalado]", platform: "pc", matchMethod: "local-title", canonicalId: "bond-update" },
+    { ...fixtures[0], id: "bond-ps1", title: "007 - Tomorrow Never Dies [SLUS-00975] [Vector] [RUS]", canonicalId: "bond-ps1" },
+    { ...fixtures[0], id: "bond-dotted", title: "007.Legends-PLAZA", platform: "pc", canonicalId: "bond-dotted" },
+    { ...fixtures[0], id: "other", title: "008 First Light", canonicalId: "other" },
+  ]));
+  assert.equal(folders.length, 2);
+  assert.equal(folders[0].title, "007");
+  assert.deepEqual(folders[0].games.map(game => game.id), ["bond-base", "bond-update", "bond-ps1", "bond-dotted"]);
+  assert.equal(folders[1].title, "008 First Light");
+});
+
+test("XMB: local package suffixes share one folder without changing catalog IDs", () => {
+  const titles = ["1 Trait Escape", "1 Trait Escape Free Download (Build 17471495)",
+    "1 Trait Escape Free Download (v1.15)", "1 Trait Escape [P2P]",
+    "1 Trait Escape- Free Download (TENOKE)", "1 Trait Escape-TENOKE"];
+  const folders = xmbFolders(groupCatalog(titles.map((title, index) => ({
+    ...fixtures[0], id: `trait-${index}`, platform: "pc" as const, title,
+    canonicalId: `local-${index}`, canonicalTitle: title, matchMethod: "local-title",
+  }))));
+  assert.equal(folders.length, 1);
+  assert.equal(folders[0].title, "1 Trait Escape");
+  assert.deepEqual(folders[0].games.map(game => game.id), titles.map((_, index) => `trait-${index}`));
+});
+
+test("XMB: wheel navigates vertical folders and horizontal categories/versions", () => {
+  const model = createRoot((dispose) => ({
+    dispose,
+    library: useXmbLibrary({
+      games: groupCatalog([
+        { ...fixtures[0], id: "edition-a", canonicalId: "fixture" },
+        { ...fixtures[0], id: "edition-b", canonicalId: "fixture" },
+        { ...fixtures[0], id: "other", title: "Other" },
+      ]),
+      platforms: [], loading: false, downloadingIds: new Set(),
+      inputStatus: { isConnected: false, deviceName: "", source: "keyboard" },
+      onOpenGame: () => {}, onOpenSettings: () => {}, onFavorite: () => {}, onMove: () => {},
+      onControllerReady: () => {},
+    }),
+  }));
+  try {
+    const { library } = model;
+    assert.equal(library.scrollWheel("folders", 20, 0), true);
+    assert.equal(library.position().row, 0);
+    library.scrollWheel("folders", 40, 0);
+    assert.equal(library.position().row, 1);
+    library.scrollWheel("folders", 100, 0);
+    assert.equal(library.position().row, 2);
+    library.scrollWheel("folders", -4, 1);
+    assert.equal(library.position().row, 1);
+    library.scrollWheel("categories", 100, 0);
+    assert.equal(library.position().category, 2);
+    library.scrollWheel("categories", -100, 0);
+    assert.equal(library.position().category, 1);
+    library.navigate("enter");
+    library.navigate("enter");
+    assert.equal(library.position().expanded, true);
+    library.scrollWheel("versions", 100, 0);
+    assert.equal(library.position().game, 1);
+    library.scrollWheel("versions", -100, 0);
+    assert.equal(library.position().game, 0);
+    assert.equal(library.scrollWheel("versions", 0, 0), false);
+  } finally {
+    model.dispose();
+  }
 });
 
 test("XMB: canonical versions are built lazily and cached", () => {
@@ -83,6 +185,9 @@ test("XMB: canonical versions are built lazily and cached", () => {
         canonicalId: "canonical-example",
         canonicalTitle: "Example",
         releaseTitle: "Example (USA)",
+        coverImage: "https://example.invalid/example.png",
+        description: "Descripcion disponible",
+        genre: "Aventura",
       },
       {
         ...fixtures[0],
@@ -106,6 +211,9 @@ test("XMB: canonical versions are built lazily and cached", () => {
     ["edition-eu", "edition-us"],
   );
   assert.equal(canonicalFolders[0].games[0].installed, true);
+  assert.equal(canonicalFolders[0].games[0].coverImage, "https://example.invalid/example.png");
+  assert.equal(canonicalFolders[0].games[0].description, "Descripcion disponible");
+  assert.equal(canonicalFolders[0].games[0].genre, "Aventura");
   let versionReads = 0;
   const lazyFolder = xmbFolders([
     {
@@ -165,7 +273,7 @@ test("XMB: controller handles search, settings, empty catalogs and cleanup", () 
   };
   try {
     const { model } = runtime;
-    assert.equal(model.rows(), 2);
+    assert.equal(model.rows(), 1);
     const grouped = model.folders();
     dispatch("NAV_DOWN");
     dispatch("BUTTON_A");

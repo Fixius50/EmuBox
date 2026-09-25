@@ -55,6 +55,8 @@ export function useXmbLibrary(props: XmbLibraryProps) {
   const [virtualKeyboardIndex, setVirtualKeyboardIndex] = createSignal(0);
   let searchInput: HTMLInputElement | undefined;
   let detailPanel: HTMLDivElement | undefined;
+  let wheelSurface: "categories" | "folders" | "versions" | undefined;
+  let wheelDistance = 0;
 
   const categories = createMemo(() => {
     const platforms = new Map(
@@ -179,6 +181,25 @@ export function useXmbLibrary(props: XmbLibraryProps) {
     if (!game) return;
     if (index === position().game) props.onOpenGame(game);
     else setPosition((previous) => ({ ...previous, game: index }));
+  };
+  const scrollWheel = (surface: "categories" | "folders" | "versions", delta: number, mode: number) => {
+    if (!Number.isFinite(delta) || delta === 0 || virtualKeyboardOpen()) return false;
+    const distance = delta * (mode === 1 ? 16 : mode === 2 ? 300 : 1);
+    if (wheelSurface !== surface || Math.sign(wheelDistance) !== Math.sign(distance)) wheelDistance = 0;
+    wheelSurface = surface;
+    wheelDistance += distance;
+    if (Math.abs(wheelDistance) < 50) return true;
+    const forward = wheelDistance > 0;
+    wheelDistance = 0;
+    if (surface === "categories") {
+      const next = Math.max(0, Math.min(categories().length - 1, position().category + (forward ? 1 : -1)));
+      if (next !== position().category) chooseCategory(next);
+    } else if (surface === "versions") {
+      if (position().expanded) navigate(forward ? "right" : "left");
+    } else {
+      navigate(forward ? "down" : "up");
+    }
+    return true;
   };
   const search = (value: string) => {
     setQuery(value);
@@ -343,6 +364,7 @@ export function useXmbLibrary(props: XmbLibraryProps) {
     chooseCategory,
     chooseRow,
     chooseGame,
+    scrollWheel,
     search,
     openSearch,
     closeVirtualKeyboard,

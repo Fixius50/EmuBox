@@ -12,6 +12,8 @@ export function catalogTitle(title: string): string {
     .replace(/\s*[-–—]\s*(?:fitgirl|dodi|skidrow|elamigos|p2p)\s*$/i, '')
     .replace(/\s*[-–—]\s*build\s+\d+(?:\s*\+\s*[^+]+\s+DLC)?\s*$/i, '')
     .replace(/\s+\+\s+(?:\d+\s+)?DLCs?\s*$/i, '')
+    .replace(/(?:\s*\((?:tenoke|rune|plaza)\)|\s*[-–—]\s*(?:tenoke|rune|plaza))\s*$/i, '')
+    .replace(/\s*[-–—]\s*$/, '')
     .replace(/\s+/g, ' ').trim();
   return cleaned || title.trim();
 }
@@ -44,13 +46,12 @@ export function groupCatalog(games: Game[]): CatalogGroup[] {
   return variants.map(entries => {
     const sorted = [...entries].sort((left, right) => left.id.localeCompare(right.id));
     const representative = sorted.find(game => game.installed) || sorted[0];
-    const metadata = [...sorted].sort((left, right) =>
-      Number(Boolean(right.coverImage)) + Number(Boolean(right.description)) -
-      Number(Boolean(left.coverImage)) - Number(Boolean(left.description)))[0];
-    return { ...metadata, ...representative,
-      title: representative.canonicalTitle || catalogTitle(representative.title),
-      coverImage: representative.coverImage || metadata.coverImage,
-      description: representative.description || metadata.description,
+    const available = (field: 'coverImage' | 'description' | 'genre' | 'developer' | 'publisher') =>
+      representative[field] || sorted.find(game => game[field])?.[field] || '';
+    return { ...representative,
+      title: catalogTitle(representative.canonicalTitle || representative.title),
+      coverImage: available('coverImage'), description: available('description'),
+      genre: available('genre'), developer: available('developer'), publisher: available('publisher'),
       favorite: sorted.some(game => game.favorite), variants: sorted };
   });
 }
