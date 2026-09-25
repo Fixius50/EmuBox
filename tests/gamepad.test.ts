@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { GamepadProvider } from '../solid/src/services/input/gamepad.provider';
 import { InputManager } from '../solid/src/services/input/input.manager';
+import { downloadModalJobCommand } from '../solid/src/components/modals/DownloadSourceModal';
 import type { InputAction, InputDeviceStatus, IInputProvider } from '../solid/src/types/input.types';
 
 const buttons = Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 }));
@@ -73,3 +74,18 @@ emitAction('BUTTON_Y');
 assert.deepEqual(actionSource, activeGamepad);
 manager.destroy();
 console.log('Input source: the last action retains its originating provider.');
+
+for (const [status, start, select] of [
+  ['queued', 'pause', 'cancel'],
+  ['downloading', 'pause', 'cancel'],
+  ['paused', 'resume', 'cancel'],
+  ['failed', 'resume', 'cancel'],
+  ['downloaded', 'resume', null],
+  ['cancelled', 'retry', 'delete'],
+  ['completed', null, null],
+] as const) {
+  assert.equal(downloadModalJobCommand('BUTTON_START', status), start);
+  assert.equal(downloadModalJobCommand('BUTTON_SELECT', status), select);
+}
+assert.equal(downloadModalJobCommand('BUTTON_SELECT'), null);
+assert.equal(downloadModalJobCommand('BUTTON_A', 'cancelled'), null);

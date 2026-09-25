@@ -424,6 +424,7 @@ const NativeApp: Component = () => {
 
       <DownloadSourceModal
         store={libraryStore}
+        inputStatus={inputStatus()}
         onConfirm={confirmSource}
         onControllerReady={(handler) => {
           sourceController = handler;

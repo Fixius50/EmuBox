@@ -56,6 +56,7 @@ export default function DevelopmentPreview() {
         </div>
         <DownloadSourceModal
           store={preview.library}
+          inputStatus={preview.inputStatus()}
           onConfirm={preview.blockedAction}
           onPlay={preview.blockedAction}
           playBlockReason="Ejecucion deshabilitada en la previsualizacion"

@@ -11,8 +11,9 @@ import {
 import { Dialog } from "@kobalte/core/dialog";
 import { Download, Heart, Play, Pause, X, Square, RotateCw, Check, ChevronDown, Trash2 } from "lucide-solid";
 import type { LibraryStore } from "@stores/library.store";
+import type { DownloadJob } from "@contracts/download.types";
 import type { Game } from "@contracts/game.types";
-import type { InputAction } from "@contracts/input.types";
+import type { InputAction, InputDeviceStatus } from "@contracts/input.types";
 import { ConsoleHardwareVisual } from "@components/common/ConsoleHardwareVisual";
 
 const labels = {
@@ -31,6 +32,7 @@ const phases: Record<string, string> = {
 
 interface DownloadSourceModalProps {
   store: LibraryStore;
+  inputStatus: InputDeviceStatus;
   onConfirm: () => void;
   onPlay?: (game: Game) => void;
   playBlockReason?: string | null;
@@ -38,7 +40,25 @@ interface DownloadSourceModalProps {
   onControllerReady?: (handler: ((action: InputAction) => void) | null) => void;
 }
 
+function PadHint(props: { button: 'A' | 'B' | 'X' | 'Y' | 'LB' | 'RB' | 'LT' | 'RT' | 'START' | 'SELECT' | 'DPAD'; visible: boolean }) {
+  return <Show when={props.visible}><span class={`game-case-pad-hint game-case-pad-${props.button.toLowerCase()}`} aria-hidden="true">{props.button}</span></Show>;
+}
+
+export function downloadModalJobCommand(action: InputAction, status?: DownloadJob['status']) {
+  if (action === 'BUTTON_START') {
+    if (status === 'cancelled') return 'retry';
+    if (status === 'downloading' || status === 'queued') return 'pause';
+    if (status === 'paused' || status === 'failed' || status === 'downloaded') return 'resume';
+  }
+  if (action === 'BUTTON_SELECT') {
+    if (status === 'cancelled') return 'delete';
+    if (status === 'downloading' || status === 'queued' || status === 'paused' || status === 'failed') return 'cancel';
+  }
+  return null;
+}
+
 export function DownloadSourceModal(props: DownloadSourceModalProps) {
+  const padActive = () => props.inputStatus.isConnected && props.inputStatus.source !== 'keyboard';
   const selected = () => props.store.sourceOptions()[props.store.sourceIndex()];
   const selectedRelease = () => props.store.releaseOptions()[props.store.releaseIndex()];
   const game = () => props.store.sourceGame();
@@ -86,6 +106,14 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
     } finally { setLocalSaving(false); }
   };
   const [coverFailed, setCoverFailed] = createSignal(false);
+  const [artworkFallback, setArtworkFallback] = createSignal(false);
+  const [artworkUnavailable, setArtworkUnavailable] = createSignal(false);
+  const backdrop = () => detailsGame()?.backdropImage || game()?.backdropImage;
+  const artwork = () => artworkFallback() ? backdrop() : detailsGame()?.coverImage || game()?.coverImage || backdrop();
+  createEffect(on(() => `${game()?.id || ''}:${selectedRelease()?.id || ''}`, () => {
+    setArtworkFallback(false);
+    setArtworkUnavailable(false);
+  }));
   const [favoriteError, setFavoriteError] = createSignal("");
   const [actionError, setActionError] = createSignal("");
   const [actionBusy, setActionBusy] = createSignal(false);
@@ -115,7 +143,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
   const manageJob = async (action: 'retry' | 'delete' | 'uninstall') => {
     const job = currentJob();
     const entry = detailsGame();
-    if (actionBusy() || !entry || (action !== 'uninstall' && job?.status !== 'cancelled')) return;
+    if (actionBusy() || !entry || (action === 'uninstall' && (!entry.installed || busy())) || (action !== 'uninstall' && job?.status !== 'cancelled')) return;
     if (action === 'delete' && !window.confirm(`¿Borrar la descarga cancelada de ${entry.title} y sus archivos temporales?`)) return;
     if (action === 'uninstall' && !window.confirm(`¿Desinstalar ${entry.title}? Se eliminará su paquete gestionado y los archivos que contiene.`)) return;
     setActionBusy(true);
@@ -189,6 +217,18 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
     props.store.selectRelease(props.store.releaseIndex() + step);
     setExpandedRelease(props.store.releaseIndex());
   };
+  const downloadSelected = () => {
+    if (expandedRelease() !== null && selected()?.downloadable && !props.store.sourcesLoading() && !detailsGame()?.installed && !busy() && !actionBusy())
+      props.onConfirm();
+  };
+  const playSelected = () => {
+    const entry = detailsGame();
+    if (entry?.installed && !props.playBlockReason && !actionBusy()) props.onPlay?.(entry);
+  };
+  const controlJob = (action: 'pause' | 'resume' | 'cancel') => {
+    const job = currentJob();
+    if (job && !actionBusy()) void props.store.controlDownload(job, action);
+  };
   createEffect(() => {
     const index = props.store.releaseIndex();
     releaseList?.querySelector(`[data-release-index="${index}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -214,28 +254,29 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
     else if (action === "NAV_LEFT") focusPanel("sources");
     else if (action === "NAV_UP" || action === "NAV_DOWN")
       move(action === "NAV_DOWN" ? 1 : -1);
-    else if (action === "BUTTON_X") void toggleFavorite();
-    else if (action === 'BUTTON_LB' && panel() === 'sources' && props.store.releaseOptions().length > 1) moveRelease(-1);
-    else if (action === 'BUTTON_RB' && panel() === 'sources' && props.store.releaseOptions().length > 1) moveRelease(1);
-    else if (action === 'BUTTON_LB' && localFiles().length) focusPanel('files');
-    else if (action === 'BUTTON_LB' && currentJob()) void props.store.controlDownload(currentJob()!, 'pause');
-    else if (action === 'BUTTON_A' && panel() === 'files') void chooseLocal();
-    else if (action === 'BUTTON_RB' && ['paused', 'failed', 'downloaded'].includes(currentJob()?.status || '')) void props.store.controlDownload(currentJob()!, 'resume');
-    else if (
-      action === "BUTTON_Y" &&
-      detailsGame()?.installed &&
-      !props.playBlockReason
-    )
-      props.onPlay?.(detailsGame()!);
-    else if (
-      action === "BUTTON_A" &&
-      panel() === "sources" &&
-      expandedRelease() !== null &&
-      selected()?.downloadable &&
-      !detailsGame()?.installed &&
-      !busy()
-    )
-      props.onConfirm();
+    else if (action === "BUTTON_X" && !actionBusy()) void toggleFavorite();
+    else if (action === "BUTTON_Y") playSelected();
+    else if (action === 'BUTTON_LB') moveRelease(-1);
+    else if (action === 'BUTTON_RB') moveRelease(1);
+    else if (action === 'BUTTON_LT') {
+      if (localFiles().length) focusPanel('files');
+      else if (panel() === 'sources') move(-1);
+    } else if (action === 'BUTTON_RT') {
+      if (detailsGame()?.installed) void manageJob('uninstall');
+      else if (panel() === 'sources') move(1);
+    } else if (action === 'BUTTON_START' || action === 'BUTTON_SELECT') {
+      const command = downloadModalJobCommand(action, currentJob()?.status);
+      if (command === 'retry' || command === 'delete') void manageJob(command);
+      else if (command) controlJob(command);
+    } else if (action === 'BUTTON_A') {
+      if (panel() === 'files') void chooseLocal();
+      else if (panel() === 'sources') {
+        if (document.activeElement?.hasAttribute('data-release-index')) {
+          setExpandedRelease(index => index === props.store.releaseIndex() ? null : props.store.releaseIndex());
+        } else if (expandedRelease() === null) setExpandedRelease(props.store.releaseIndex());
+        else downloadSelected();
+      }
+    }
   };
   onMount(() => props.onControllerReady?.(controller));
   onCleanup(() => { localRequest++; props.onControllerReady?.(null); });
@@ -270,6 +311,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
             onKeyDown={(event) => {
               event.stopPropagation();
               if (event.target instanceof HTMLSelectElement && event.key !== "Escape") return;
+              if (event.target instanceof HTMLButtonElement && (event.key === 'Enter' || event.key === ' ')) return;
               if (event.key === "Escape") {
                 event.preventDefault();
                 props.store.closeSources();
@@ -285,6 +327,18 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
               } else if (event.key.toLowerCase() === "y") {
                 event.preventDefault();
                 controller("BUTTON_Y");
+              } else if (['x', 'f'].includes(event.key.toLowerCase())) {
+                event.preventDefault();
+                controller('BUTTON_X');
+              } else if (event.key === 'F1' || event.key.toLowerCase() === 'r') {
+                event.preventDefault();
+                controller('BUTTON_START');
+              } else if (event.key === 'Delete') {
+                event.preventDefault();
+                controller('BUTTON_SELECT');
+              } else if (event.key === 'PageUp' || event.key === 'PageDown') {
+                event.preventDefault();
+                controller(event.key === 'PageUp' ? 'BUTTON_LB' : 'BUTTON_RB');
               } else if (
                 event.key === "Enter" &&
                 event.target instanceof HTMLInputElement
@@ -301,6 +355,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
               title="Cerrar ficha"
             >
               <X size={20} />
+              <PadHint button="B" visible={padActive()} />
             </Dialog.CloseButton>
             <div class="game-case-left" onFocusIn={event => { if (!(event.target as HTMLElement).closest('.download-local-files')) setPanel("sources"); }}>
               <header class="game-case-summary">
@@ -327,13 +382,61 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                   <Dialog.Description>
                     {detailsGame()?.installed ? "Instalado" : "No instalado"}
                   </Dialog.Description>
+                  <div class="download-source-actions game-case-main-actions">
+                    <button
+                      class="game-case-favorite"
+                      aria-pressed={Boolean(favorite())}
+                      aria-label="Alternar favorito"
+                      title="Alternar favorito"
+                      disabled={actionBusy()}
+                      onClick={() => void toggleFavorite()}
+                    >
+                      <Heart size={18} fill={favorite() ? "currentColor" : "none"} />
+                      <PadHint button="X" visible={padActive()} />
+                    </button>
+                    <Show when={detailsGame()?.installed} fallback={
+                      <button class="game-case-download" disabled={expandedRelease() === null || !selected()?.downloadable || props.store.sourcesLoading() || busy() || actionBusy()} onClick={downloadSelected}>
+                        <Download size={18} />
+                        {busy() ? (currentJob()?.phase === 'seeding' ? "Compartiendo..." : currentJob()?.phase === 'preparing' ? "Preparando..." : `Descargando ${Math.round((currentJob()?.progress || 0) * 100)} %`) : "Descargar seleccionada"}
+                        <PadHint button="A" visible={padActive()} />
+                      </button>
+                    }>
+                      <button class="game-case-uninstall" disabled={actionBusy() || busy()} onClick={() => void manageJob('uninstall')}>
+                        <Trash2 size={18} /> Desinstalar <PadHint button="SELECT" visible={padActive()} />
+                      </button>
+                    </Show>
+                    <Show when={detailsGame()?.installed && props.onPlay}>
+                      <button class="game-case-play" disabled={Boolean(props.playBlockReason) || actionBusy()} title={props.playBlockReason || "Jugar"} onClick={playSelected}>
+                        <Play size={18} /> Jugar <PadHint button="Y" visible={padActive()} />
+                      </button>
+                    </Show>
+                  </div>
+                  <div class="download-source-actions game-case-job-actions">
+                    <Show when={currentJob()}>{job => <>
+                      <Show when={job().status === 'downloading' || job().status === 'queued'}>
+                        <button title="Pausar descarga" aria-label="Pausar descarga" onClick={() => controlJob('pause')}><Pause size={18} /><PadHint button="START" visible={padActive()} /></button>
+                        <button title="Cancelar descarga" aria-label="Cancelar descarga" onClick={() => controlJob('cancel')}><Square size={18} /><PadHint button="SELECT" visible={padActive()} /></button>
+                      </Show>
+                      <Show when={job().status === 'paused' || job().status === 'failed'}>
+                        <button title="Reanudar descarga" aria-label="Reanudar descarga" onClick={() => controlJob('resume')}><Play size={18} /><PadHint button="START" visible={padActive()} /></button>
+                        <button title="Cancelar descarga" aria-label="Cancelar descarga" onClick={() => controlJob('cancel')}><Square size={18} /><PadHint button="SELECT" visible={padActive()} /></button>
+                      </Show>
+                      <Show when={job().status === 'downloaded'}>
+                        <button title="Reintentar preparacion local" aria-label="Reintentar preparacion local" onClick={() => controlJob('resume')}><RotateCw size={18} /><PadHint button="START" visible={padActive()} /></button>
+                      </Show>
+                      <Show when={job().status === 'cancelled'}>
+                        <button title="Reintentar descarga" aria-label="Reintentar descarga" disabled={actionBusy()} onClick={() => void manageJob('retry')}><RotateCw size={18} /><PadHint button="START" visible={padActive()} /></button>
+                        <button title="Borrar descarga cancelada" aria-label="Borrar descarga cancelada" disabled={actionBusy()} onClick={() => void manageJob('delete')}><Trash2 size={18} /><PadHint button="SELECT" visible={padActive()} /></button>
+                      </Show>
+                    </>}</Show>
+                  </div>
                 </div>
               </header>
               <Show when={props.store.releaseOptions().length > 0}>
                 <div class="game-release-selector" aria-label="Versiones disponibles">
                   <div class="game-case-section-label">
                     <h3>Versiones</h3>
-                    <span>{props.store.releaseOptions().length}</span>
+                    <span class="game-case-heading-hints">{props.store.releaseOptions().length} <PadHint button="LB" visible={padActive()} /><PadHint button="RB" visible={padActive()} /></span>
                   </div>
                   <div class="game-release-list" ref={releaseList}>
                     <For each={props.store.releaseOptions()}>
@@ -358,10 +461,12 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                           >
                             <span><strong>{release.title}</strong><small>{release.region || "Region no indicada"} · {release.downloadableSourceCount}/{release.sourceCount} fuentes compatibles</small></span>
                             <Show when={release.installed}><Check size={16} aria-label="Instalada" /></Show>
+                            <PadHint button="A" visible={padActive()} />
                             <ChevronDown size={18} aria-hidden="true" />
                           </button>
                           <Show when={expandedRelease() === index()}>
                             <div class="game-release-sources">
+                              <Show when={padActive()}><div class="game-case-heading-hints" aria-hidden="true"><PadHint button="DPAD" visible={true} /><PadHint button="LT" visible={true} /><PadHint button="RT" visible={!detailsGame()?.installed} /></div></Show>
                               <Show when={props.store.sourcesLoading()}><p class="game-case-state" role="status">Consultando fuentes...</p></Show>
                               <Show when={props.store.sourcesError()}><p class="game-case-state" role="alert">{props.store.sourcesError()}</p></Show>
                               <Show when={!props.store.sourcesLoading() && !props.store.sourcesError() && !props.store.sourceOptions().length}>
@@ -395,32 +500,14 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                   {favoriteError()}
                 </p>
               </Show>
-              <div class="download-source-actions game-case-job-actions">
-                <Show when={currentJob()}>{job => <>
-                  <Show when={job().status === 'downloading' || job().status === 'queued'}>
-                    <button title="Pausar descarga" aria-label="Pausar descarga" onClick={() => void props.store.controlDownload(job(), 'pause')}><Pause size={18} /></button>
-                    <button title="Cancelar descarga" aria-label="Cancelar descarga" onClick={() => void props.store.controlDownload(job(), 'cancel')}><Square size={18} /></button>
-                  </Show>
-                  <Show when={job().status === 'paused' || job().status === 'failed'}>
-                    <button title="Reanudar descarga" aria-label="Reanudar descarga" onClick={() => void props.store.controlDownload(job(), 'resume')}><Play size={18} /></button>
-                  </Show>
-                  <Show when={job().status === 'downloaded'}>
-                    <button title="Reintentar preparacion local" aria-label="Reintentar preparacion local" onClick={() => void props.store.controlDownload(job(), 'resume')}><RotateCw size={18} /></button>
-                  </Show>
-                  <Show when={job().status === 'cancelled'}>
-                    <button title="Reintentar descarga" aria-label="Reintentar descarga" disabled={actionBusy()} onClick={() => void manageJob('retry')}><RotateCw size={18} /></button>
-                    <button title="Borrar descarga cancelada" aria-label="Borrar descarga cancelada" disabled={actionBusy()} onClick={() => void manageJob('delete')}><Trash2 size={18} /></button>
-                  </Show>
-                </>}</Show>
-              </div>
               <Show when={localLoading()}><p class="game-case-state" role="status">Consultando archivos locales...</p></Show>
               <Show when={localFiles().length}>
                 <form class="download-local-files download-source-actions" onFocusIn={() => setPanel('files')} onSubmit={event => { event.preventDefault(); void chooseLocal(); }}>
-                  <label for="download-launch-file">Archivo de lanzamiento</label>
+                  <label for="download-launch-file">Archivo de lanzamiento <PadHint button="LT" visible={padActive()} /></label>
                   <select id="download-launch-file" ref={localSelect} value={localFiles()[localIndex()] || ''} disabled={localSaving()} onChange={event => setLocalIndex(localFiles().indexOf(event.currentTarget.value))}>
                     <For each={localFiles()}>{path => <option value={path}>{path}</option>}</For>
                   </select>
-                  <button type="submit" title="Usar archivo seleccionado" aria-label="Usar archivo seleccionado" disabled={localSaving() || localLoading()}><Check size={18} /></button>
+                  <button type="submit" title="Usar archivo seleccionado" aria-label="Usar archivo seleccionado" disabled={localSaving() || localLoading()}><Check size={18} /><PadHint button="A" visible={padActive()} /></button>
                 </form>
               </Show>
               <Show when={localError()}><p class="game-case-state" role="alert">{localError()}</p></Show>
@@ -443,13 +530,14 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
               ref={details}
               onFocusIn={() => setPanel("details")}
             >
-              <Show when={game()?.coverImage && !coverFailed()}>
+              <Show when={artwork() && !artworkUnavailable()}>
                 <img
                   class="game-case-backdrop"
-                  src={game()?.coverImage}
+                  src={artwork()}
                   alt=""
-                  onError={(event) => {
-                    event.currentTarget.hidden = true;
+                  onError={() => {
+                    if (!artworkFallback() && backdrop() && artwork() !== backdrop()) setArtworkFallback(true);
+                    else setArtworkUnavailable(true);
                   }}
                 />
               </Show>
@@ -524,36 +612,6 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                 </Show>
               </div>
             </div>
-            <footer class="download-source-actions game-case-footer">
-              <button
-                class="game-case-favorite"
-                aria-pressed={Boolean(favorite())}
-                aria-label="Alternar favorito"
-                title="Alternar favorito"
-                disabled={actionBusy()}
-                onClick={() => void toggleFavorite()}
-              >
-                <Heart size={18} fill={favorite() ? "currentColor" : "none"} />
-              </button>
-              <Show when={detailsGame()?.installed} fallback={
-                <button class="game-case-download" disabled={expandedRelease() === null || !selected()?.downloadable || props.store.sourcesLoading() || busy() || actionBusy()} onClick={props.onConfirm}>
-                  <Download size={18} />
-                  {busy() ? (currentJob()?.phase === 'seeding' ? "Compartiendo..." : currentJob()?.phase === 'preparing' ? "Preparando..." : `Descargando ${Math.round((currentJob()?.progress || 0) * 100)} %`) : "Descargar seleccionada"}
-                </button>
-              }>
-                <button class="game-case-uninstall" disabled={actionBusy() || busy()} onClick={() => void manageJob('uninstall')}>
-                  <Trash2 size={18} /> Desinstalar
-                </button>
-              </Show>
-              <Show when={detailsGame()?.installed && props.onPlay}>
-                <button class="game-case-play" disabled={Boolean(props.playBlockReason) || actionBusy()} title={props.playBlockReason || "Jugar"} onClick={() => {
-                  const current = detailsGame();
-                  if (current && !props.playBlockReason) props.onPlay?.(current);
-                }}>
-                  <Play size={18} /> Jugar
-                </button>
-              </Show>
-            </footer>
           </Dialog.Content>
         </div>
       </Dialog.Portal>
