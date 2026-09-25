@@ -9,7 +9,7 @@ import {
   onCleanup,
 } from "solid-js";
 import { Dialog } from "@kobalte/core/dialog";
-import { Download, Heart, Play, Pause, X, Square, RotateCw, Check, ChevronDown, Trash2 } from "lucide-solid";
+import { Download, Heart, Play, Pause, X, Square, RotateCw, Check, ChevronDown, Trash2, Move } from "lucide-solid";
 import type { LibraryStore } from "@stores/library.store";
 import type { DownloadJob } from "@contracts/download.types";
 import type { Game } from "@contracts/game.types";
@@ -41,7 +41,7 @@ interface DownloadSourceModalProps {
 }
 
 function PadHint(props: { button: 'A' | 'B' | 'X' | 'Y' | 'LB' | 'RB' | 'LT' | 'RT' | 'START' | 'SELECT' | 'DPAD'; visible: boolean }) {
-  return <Show when={props.visible}><span class={`game-case-pad-hint game-case-pad-${props.button.toLowerCase()}`} aria-hidden="true">{props.button}</span></Show>;
+  return <Show when={props.visible}><span class={`game-case-pad-hint game-case-pad-${props.button.toLowerCase()}`} aria-hidden="true">{props.button === 'DPAD' ? <Move size={14} /> : props.button}</span></Show>;
 }
 
 export function downloadModalJobCommand(action: InputAction, status?: DownloadJob['status']) {
@@ -402,7 +402,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                       </button>
                     }>
                       <button class="game-case-uninstall" disabled={actionBusy() || busy()} onClick={() => void manageJob('uninstall')}>
-                        <Trash2 size={18} /> Desinstalar <PadHint button="SELECT" visible={padActive()} />
+                        <Trash2 size={18} /> Desinstalar <PadHint button="RT" visible={padActive()} />
                       </button>
                     </Show>
                     <Show when={detailsGame()?.installed && props.onPlay}>
@@ -466,7 +466,7 @@ export function DownloadSourceModal(props: DownloadSourceModalProps) {
                           </button>
                           <Show when={expandedRelease() === index()}>
                             <div class="game-release-sources">
-                              <Show when={padActive()}><div class="game-case-heading-hints" aria-hidden="true"><PadHint button="DPAD" visible={true} /><PadHint button="LT" visible={true} /><PadHint button="RT" visible={!detailsGame()?.installed} /></div></Show>
+                              <Show when={padActive()}><div class="game-case-heading-hints" aria-hidden="true"><PadHint button="DPAD" visible={true} /><PadHint button="LT" visible={!localFiles().length} /><PadHint button="RT" visible={!detailsGame()?.installed} /></div></Show>
                               <Show when={props.store.sourcesLoading()}><p class="game-case-state" role="status">Consultando fuentes...</p></Show>
                               <Show when={props.store.sourcesError()}><p class="game-case-state" role="alert">{props.store.sourcesError()}</p></Show>
                               <Show when={!props.store.sourcesLoading() && !props.store.sourcesError() && !props.store.sourceOptions().length}>
