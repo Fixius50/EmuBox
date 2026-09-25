@@ -14,6 +14,7 @@ import { SettingsSidebar } from "./SettingsSidebar";
 import { SystemTab } from "./tabs/SystemTab";
 import { AudioTab } from "./tabs/AudioTab";
 import { GamepadTab } from "./tabs/GamepadTab";
+import { ServicesTab } from "./tabs/ServicesTab";
 import { StoresTab } from "./tabs/StoresTab";
 import { useDisplayInfo } from "@hooks/useDisplayInfo";
 
@@ -124,6 +125,16 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
             <Match when={currentTab() === "gamepad"}>
               <GamepadTab
                 settings={props.settings}
+                isRowFocused={isRowFocused}
+                onSelectContentArea={props.onSelectContentArea}
+                onUpdateSettings={handleUpdate}
+              />
+            </Match>
+
+            <Match when={currentTab() === "services"}>
+              <ServicesTab
+                settings={props.settings}
+                backend={props.storeBackend}
                 isRowFocused={isRowFocused}
                 onSelectContentArea={props.onSelectContentArea}
                 onUpdateSettings={handleUpdate}

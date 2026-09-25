@@ -198,12 +198,16 @@ de reiniciar la sesion para aplicar la migracion.
 
 ### Jackett
 
-Jackett no es un motor de descarga. La ficha ofrece busqueda explicita para el
-juego/version y categorias consola/PC; devuelve hasta 50 candidatos magnet de los
-indexadores configurados. Se revisa y anade una fuente antes de pulsar Descargar.
-No se importan automaticamente resultados, ni se confunde busqueda textual con
-identificacion canonica. Resultados caducan a diez minutos y pertenecen a una version.
-Los enlaces privados sin magnet no se exponen como una via de descarga alternativa.
+Jackett no es un motor de descarga ni una interfaz para gestionar los torrents de
+qBittorrent. Desde Ajustes > Servicios se abre su web local en una ventana
+separada para teclado y raton. La ventana solo navega dentro de 127.0.0.1:9117,
+rechaza popups y no recibe capacidades IPC. Si el servicio no esta instalado o no
+responde, Ajustes muestra un error sin abrir una web remota. La ficha de juego ya
+no presenta busquedas Jackett; las fuentes guardadas y el proveedor qBittorrent
+siguen funcionando de forma independiente. Los motores qBittorrent de EmuBox
+tienen un perfil privado y puerto efimero por trabajo; no hay WebUI compartida.
+Ajustes lista los trabajos BitTorrent reales y permite pausarlos, reanudarlos o
+cancelarlos a traves de la API de EmuBox, sin exponer esos puertos ni credenciales.
 
 Para instalar el servicio gestionado:
 
@@ -218,22 +222,25 @@ Para instalar el servicio gestionado:
 2. Jackett queda en `/opt/jackett`, propiedad root, sin escritura de grupo/otros.
 	Una instalacion existente no se sobrescribe. No se ejecutan scripts remotos.
 3. Se configura `emubox-jackett.service`, sin reiniciar TTY1.
-4. Accede localmente a `http://127.0.0.1:9117` y configura indexadores autorizados.
+4. Abre Jackett desde Ajustes (o accede localmente a `http://127.0.0.1:9117`) y configura indexadores autorizados.
 	Desde otra maquina usa un tunel SSH local, no expongas 9117 en la LAN/Internet.
 
 El instalador guarda la contraseña administrativa en
 `/var/lib/emubox/jackett/admin-password` y la clave API en
-`/var/lib/emubox/jackett/Jackett/ServerConfig.json`. Consulta la contraseña
-directamente en tu terminal; no la pegues en el chat. EmuBox solo lee el archivo
-local privado. No acepta endpoints remotos ni claves por IPC. Jackett se ejecuta
+`/var/lib/emubox/jackett/Jackett/ServerConfig.json`. Al abrir Jackett desde
+Ajustes, EmuBox lee la contraseña protegida y envia el formulario de login una
+sola vez desde su ventana WebView local. No desactiva `AdminPassword`, no pone la
+clave en la URL, logs ni IPC, y no reintenta en bucle si se cambia manualmente.
+Otros navegadores siguen requiriendo la contraseña: consultala directamente en
+tu terminal, no la pegues en el chat. No acepta endpoints remotos ni claves por
+IPC. Jackett se ejecuta
 con usuario dedicado, sin home personal, filesystem protegido y escritura solo en
 su directorio. Las actualizaciones automaticas y acceso externo quedan desactivados.
 
 No se configuran trackers, FlareSolverr, proxies ni servicios de pago de forma
-automatica. No tener indexadores devuelve lista vacia; errores de servicio o API
-se muestran como errores, no como resultados vacios fabricados. API timeout 30s,
-respuesta 2 MiB; una consulta simultanea como maximo. Configurar Jackett requiere
-el servicio instalado: la presencia del boton no demuestra disponibilidad.
+automatica. Configurar Jackett requiere el servicio instalado: la presencia del
+boton no demuestra disponibilidad ni conecta Jackett a las sesiones privadas de
+qBittorrent. No introduzcas contrasenas en el chat.
 
 ## Integridad, staging e instalacion
 

@@ -30,6 +30,13 @@ Steam, Epic y GOG exponen consultas IPC de proveedores/cuentas/entitlements y re
 
 Los flujos de conexion, sincronizacion y desconexion estan implementados por proveedor. Su aceptacion con cuentas reales y los adaptadores instalados debe verificarse en el equipo objetivo; las pruebas locales no la certifican.
 
+Los botones Abrir Epic, GOG y Steam de Ajustes abren ventanas WebView nativas con
+origen HTTPS restringido a la tienda correspondiente, sin capacidades IPC y sin
+popups externos. GOG sigue obteniendo su URL de autorizacion desde el runtime
+local de gogdl, ahora sin invocar un navegador externo. Redirecciones a servicios
+de identidad de terceros fuera de los dominios permitidos no se admiten; no se
+han probado sesiones reales ni completado CAPTCHA/MFA automaticamente.
+
 ### Epic mediante Legendary
 
 `scripts/setup-store-adapters.sh epic` instala `legendary-gl` versionada en un venv bajo `/var/lib/emubox/stores/epic/runtime`. EmuBox abre el inicio oficial de Epic y recibe una vez el codigo de autorizacion a traves del formulario de Tiendas. El codigo no se registra, no se incluye en argumentos de proceso y no se persiste en SQLite.

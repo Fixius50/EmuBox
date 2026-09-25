@@ -63,6 +63,17 @@ export function useSettingsController(
         }
         break;
 
+      case "services":
+        if (row === 0) {
+          clone.system = {
+            ...clone.system,
+            seedCompletedTorrents: !clone.system?.seedCompletedTorrents,
+          };
+          systemStore.updateSettings(clone);
+          soundFx.playSelect();
+        }
+        break;
+
       case "audio":
         if (row === 2) {
           clone.audio.uiSoundEffects = !clone.audio.uiSoundEffects;

@@ -57,6 +57,12 @@ test("Settings: tabs, volume and back navigation", () => {
   assert.equal(settingsTab, "stores");
   settingsAction("BUTTON_RB");
   assert.equal(settingsTab, "system");
+  settingsTab = "gamepad";
+  settingsAction("BUTTON_RB");
+  assert.equal(settingsTab, "services");
+  settingsAction("BUTTON_RB");
+  assert.equal(settingsTab, "stores");
+  settingsTab = "system";
   settingsArea = "content";
   settingsRow = 0;
   settingsAction("NAV_DOWN");
@@ -85,6 +91,28 @@ test("Settings: tabs, volume and back navigation", () => {
     true,
     "Up from the first control returns to categories",
   );
+});
+
+test("Settings: services toggles torrent seeding without changing display", () => {
+  const backend = new TauriBackendService();
+  let saved = false;
+  backend.saveSettings = async (settings) => { saved = settings.system?.seedCompletedTorrents ?? false; return true; };
+  const store = createSystemStore(backend);
+  store.setSettings({
+    display: { vsync: true, crtShader: "none" },
+    audio: { masterVolume: 80, uiSoundEffects: false, backgroundMusic: false, audioLatencyMs: 50 },
+    gamepad: { deadzone: 0.2, vibration: false, swapSouthEastButtons: false },
+    library: { datasetLimit: 0, showMissingCovers: true, defaultPlatform: "all" },
+    system: { seedCompletedTorrents: false },
+  });
+  const controller = useSettingsController({
+    systemStore: store, soundFx: new SoundFxService(),
+    activeSettingsTab: () => "services", settingsRowIndex: () => 0,
+  });
+  controller.handleToggleCurrentSetting();
+  assert.equal(store.settings()?.system?.seedCompletedTorrents, true);
+  assert.equal(store.settings()?.display.vsync, true);
+  assert.equal(saved, true);
 });
 
 test("Settings: emulator persistence, reload and rejected writes", async () => {

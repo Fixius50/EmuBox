@@ -83,6 +83,7 @@ macro_rules! emubox_ipc_handler {
             crate::commands::downloads::import_and_start_downloads,
             crate::commands::downloads::download_game,
             crate::commands::downloads::get_download_sources,
+            crate::commands::downloads::open_jackett,
             crate::commands::downloads::search_jackett,
             crate::commands::downloads::select_jackett_result,
         ]

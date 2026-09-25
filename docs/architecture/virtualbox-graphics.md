@@ -347,13 +347,17 @@ habian heredado esas variables. Repintar toda la salida de Cage no garantiza que
 el cuadro recibido desde WebKit sea correcto. No se encontro un filtro CSS
 `brightness()` que explicase el cambio global al hacer clic.
 
-La politica actual de vmwgfx usa `WEBKIT_DISABLE_DMABUF_RENDERER=0` junto a
-`WEBKIT_DMABUF_RENDERER_FORCE_SHM=1`: conserva disponible la composicion GL de
-WebKit pero entrega sus cuadros mediante memoria compartida, sin importar buffers
-DMA-BUF en GTK. La copia/readback tiene coste de CPU y ancho de banda; no significa
-forzar llvmpipe, Pixman ni desactivar OpenGL para Cage o los emuladores.
-Los overrides explicitos de ambas variables se respetan, incluidas las opciones
-antiguas; el log de arranque muestra los valores solicitados para poder comprobarlo.
+El usuario volvio a observar un aumento repentino del brillo y una pagina local
+de Jackett mal presentada tras abrir otro WebView. Ya habia persistido el defecto
+con `WEBKIT_DISABLE_DMABUF_RENDERER=1`, por lo que repetir solo ese cambio no
+constituye una solucion. Se probo tambien desactivar la composicion WebKit con
+`WEBKIT_DISABLE_COMPOSITING_MODE=1` solo para vmwgfx; el usuario confirmo que
+el problema persistia, por lo que se retiro para no anadir coste de CPU.
+La politica vuelve a `WEBKIT_DISABLE_DMABUF_RENDERER=0` y
+`WEBKIT_DMABUF_RENDERER_FORCE_SHM=1`, conservando Cage/GLES2 y los overrides
+explicitos del transporte. La RAM libre y las muestras de proceso no muestran
+presion de memoria ni crecimiento continuo de WebKit. Sigue sin determinarse
+la causa del iluminado; no marcarlo como resuelto.
 
 Se corrigio tambien la politica de filtros: una GPU virtual acelerada ya no
 recomienda blur, y `data-blur-mode="software"` ahora controla las variables CSS.
@@ -380,8 +384,9 @@ detectada. El arranque limpia variables heredadas que forzaban Mesa/software,
 Pixman o desactivaban composicion WebKit antes de sondear. Software confirmado o
 fallback explicito con diagnostico indeterminado permite Cage/Pixman,
 `LIBGL_ALWAYS_SOFTWARE=1` y `WEBKIT_DISABLE_COMPOSITING_MODE=1`.
-El antiguo workaround `WEBKIT_DISABLE_DMABUF_RENDERER=1` se sustituye por el
-transporte SHM descrito arriba para `vmwgfx`. Revisar VirtualBox, Guest Additions y driver del
+Ni `WEBKIT_DISABLE_DMABUF_RENDERER=1` ni la desactivacion de composicion WebKit
+cerraron el fallo. Se mantiene el transporte SHM previo para `vmwgfx`.
+Revisar VirtualBox, Guest Additions y driver del
 anfitrion si persiste la corrupcion; detectar capacidad no certifica estabilidad.
 
 ```bash

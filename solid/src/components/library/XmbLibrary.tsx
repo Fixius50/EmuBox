@@ -287,7 +287,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
               aria-label="Versiones del juego"
             >
               <header class="xmb-version-heading">
-                <strong>Versiones</strong>
+                <strong title={folder()?.title}>{folder()?.title}</strong>
                 <span>{position().game + 1} / {folder()?.games.length || 0}</span>
               </header>
               <div class="xmb-version-track">
@@ -304,6 +304,12 @@ export function XmbLibrary(props: XmbLibraryProps) {
                     title={entry.game.title}
                     onClick={() => chooseGame(entry.index)}
                   >
+                    <Show when={entry.index === position().game && entry.index > 0}>
+                      <ChevronLeft class="xmb-more-left" size={18} aria-hidden="true" />
+                    </Show>
+                    <Show when={entry.index === position().game && entry.index < (folder()?.games.length || 0) - 1}>
+                      <ChevronRight class="xmb-more-right" size={18} aria-hidden="true" />
+                    </Show>
                     <Show
                       when={entry.game.coverImage && !imageFailed()}
                       fallback={

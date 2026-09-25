@@ -221,6 +221,7 @@ export interface IEmuBoxBackend {
   selectDownloadCandidate(id: string, path: string): Promise<DownloadJob>;
   downloadGame(gameId: string, sourceId?: string): Promise<DownloadJob>;
   getDownloadSources(gameId: string): Promise<import('./download.types').DownloadSourceOption[]>;
+  openJackett(): Promise<void>;
   searchJackett(gameId: string): Promise<import('./download.types').JackettResult[]>;
   selectJackettResult(gameId: string, resultId: string): Promise<DownloadSource>;
   importDownloadLinks(): Promise<DownloadSource[]>;

@@ -36,7 +36,12 @@ con el mismo `operationId`; `operation.result` incluye exito/error. El fin de un
 span solo significa salida de la funcion, no exito de la operacion.
 
 Estan instrumentados arranque, escaneo, lectura de biblioteca, indice local,
-base maestra, manifiestos, lanzamiento y proveedores de tiendas. Estos ultimos
+base maestra, manifiestos, lanzamiento y proveedores de tiendas. La transferencia
+HTTP o BitTorrent emite `download.transfer` al comenzar, terminar, cambiar de
+fase y como maximo cada cinco segundos mientras progresa. Registra proveedor,
+fase y porcentaje, nunca titulo, ruta, URL, fuente ni credenciales. Distingue
+transferencia, verificacion y preparacion para compararlas con las muestras de
+frames y recursos en el mismo intervalo. Los proveedores de tiendas
 emiten `operation.started`, `connection.opened`, `connection.connected`,
 `sync.completed`, `connection.disconnected` y `operation.failed`, con proveedor
 y contadores de juegos importados/instalados cuando corresponde. Nunca incluyen
@@ -132,6 +137,7 @@ node scripts/logs.mjs --source catalog --minutes 10 --json
 node scripts/logs.mjs --source os.kernel --since 2026-09-16T18:00:00Z
 node scripts/logs.mjs --source stores --minutes 10 --json
 node scripts/logs.mjs --source stores --event sync.completed
+node scripts/logs.mjs --source download --event download.transfer --minutes 10
 ```
 
 No hay eventos retroactivos de UI para incidentes anteriores al despliegue. Tras

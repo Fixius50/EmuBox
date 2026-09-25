@@ -1,7 +1,7 @@
 import { Component, For } from "solid-js";
 import { SETTINGS_TABS } from "@contracts/settings.types";
 import type { SettingsSidebarProps } from "@contracts/settings.types";
-import { Gamepad2, Monitor, Settings2, Store, Volume2 } from "lucide-solid";
+import { Gamepad2, Monitor, Settings2, Store, Volume2, Server } from "lucide-solid";
 
 export const SettingsSidebar: Component<SettingsSidebarProps> = (props) => {
   return (
@@ -23,6 +23,8 @@ export const SettingsSidebar: Component<SettingsSidebarProps> = (props) => {
                   <Volume2 size={21} />
                 ) : tab.id === "gamepad" ? (
                   <Gamepad2 size={21} />
+                ) : tab.id === "services" ? (
+                  <Server size={21} />
                 ) : tab.id === "stores" ? (
                   <Store size={21} />
                 ) : (

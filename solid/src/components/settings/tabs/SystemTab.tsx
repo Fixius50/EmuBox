@@ -24,22 +24,6 @@ export const SystemTab: Component<SystemTabProps> = (props) => {
             });
           }}
         />
-        <SettingSwitch
-          title="Compartir torrents completados"
-          description="Continua subiendo hasta alcanzar ratio 1:1, con limite de 64 KiB/s. Se aplica a descargas nuevas."
-          checked={props.settings?.system?.seedCompletedTorrents ?? false}
-          isFocused={props.isRowFocused(1)}
-          onChange={(val) => {
-            props.onSelectContentArea?.();
-            props.onUpdateSettings((settings) => {
-              settings.system = {
-                ...settings.system,
-                seedCompletedTorrents: val,
-              };
-            });
-          }}
-        />
-
       </div>
       <section class="settings-information" aria-label="Informacion del sistema">
         <h4>Informacion del sistema</h4>

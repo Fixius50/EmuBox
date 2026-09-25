@@ -10,7 +10,7 @@ use crate::{
 };
 use rusqlite::params;
 use sha2::{Digest, Sha256};
-use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
+use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf, time::{Duration, Instant}};
 
 pub(super) fn run(
     job: &DownloadJob,
@@ -101,6 +101,9 @@ pub(super) fn run(
             })
             .unwrap_or(false);
     let progress_connection = DatabaseService::get_connection()?;
+            let mut last_sample = Instant::now();
+            let mut last_phase = String::new();
+            crate::services::infrastructure::telemetry::event(log::Level::Info, "download", "download.transfer", "Transferencia iniciada", serde_json::json!({"provider": provider.as_str(), "phase": "starting"}));
     let transfer = crate::services::download_providers::provider(provider, seed_completed_torrents)
         .transfer(
             &TransferRequest {
@@ -121,6 +124,11 @@ pub(super) fn run(
                         })
                         .unwrap_or(0.0)
                 };
+                if last_phase != progress.phase || last_sample.elapsed() >= Duration::from_secs(5) {
+                    crate::services::infrastructure::telemetry::event(log::Level::Info, "download", "download.transfer", "Progreso de transferencia", serde_json::json!({"provider": provider.as_str(), "phase": progress.phase, "percent": (ratio * 100.0).round() as u8}));
+                    last_phase = progress.phase.to_string();
+                    last_sample = Instant::now();
+                }
                 progress_connection
                     .prepare_cached("UPDATE download_execution SET phase=?1 WHERE job_id=?2")
                     .map_err(io_error)?
@@ -133,7 +141,9 @@ pub(super) fn run(
                     .map_err(io_error)?;
                 Ok(())
             },
-        )?;
+        );
+    crate::services::infrastructure::telemetry::event(log::Level::Info, "download", "download.transfer", "Transferencia terminada", serde_json::json!({"provider": provider.as_str(), "phase": if transfer.is_err() { "error" } else if control.interrupted() { "interrupted" } else { "finished" }}));
+    let transfer = transfer?;
     drop(progress_connection);
     let TransferOutcome::Complete(files) = transfer else {
         return Ok(());
@@ -144,6 +154,7 @@ pub(super) fn run(
             params![job.id],
         )
         .map_err(io_error)?;
+    crate::services::infrastructure::telemetry::event(log::Level::Info, "download", "download.transfer", "Verificando descarga", serde_json::json!({"provider": provider.as_str(), "phase": "verifying"}));
     crate::services::download_preparation::verify(
         &files,
         &root,
@@ -159,6 +170,7 @@ pub(super) fn run(
             params![job.id],
         )
         .map_err(io_error)?;
+    crate::services::infrastructure::telemetry::event(log::Level::Info, "download", "download.transfer", "Preparando descarga", serde_json::json!({"provider": provider.as_str(), "phase": "preparing"}));
     let mut installation = None;
     let (files, preparation_reason) =
         match crate::services::download_preparation::prepare(&files, &root, control) {

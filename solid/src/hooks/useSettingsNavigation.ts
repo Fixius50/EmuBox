@@ -58,7 +58,7 @@ export function useSettingsNavigation(options: UseSettingsNavigationOptions) {
       return;
     }
     const count =
-      tab === "system"
+      tab === "system" || tab === "services"
         ? 1
           : tab === "gamepad"
             ? 6

@@ -8,7 +8,6 @@ use std::{
     io::Write,
     os::unix::fs::{OpenOptionsExt, PermissionsExt},
     path::{Component, Path, PathBuf},
-    process::{Command, Stdio},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
@@ -52,15 +51,6 @@ struct Player {
 pub(super) fn start_authorization() -> Result<(), EmuBoxError> {
     let root = steam_root()?;
     private_dir(&root)?;
-    Command::new("/usr/bin/xdg-open")
-        .arg("https://steamcommunity.com/dev/apikey")
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|_| {
-            EmuBoxError::ProcessFailed("No se pudo abrir la autorizacion de Steam".into())
-        })?;
     set_state("authorization_required", None, None)
 }
 

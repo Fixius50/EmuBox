@@ -79,10 +79,10 @@ impl StoreService {
         Ok(())
     }
 
-    pub fn start_gog_authorization() -> Result<(), EmuBoxError> {
-        operation("gog", "connect.open", gog::start_authorization)?;
+    pub fn start_gog_authorization() -> Result<String, EmuBoxError> {
+        let url = operation("gog", "connect.open", gog::start_authorization)?;
         store_event("gog", "connection.opened", Level::Info, json!({}));
-        Ok(())
+        Ok(url)
     }
 
     pub fn complete_gog_authorization(code: String) -> Result<(), EmuBoxError> {

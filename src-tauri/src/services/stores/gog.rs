@@ -18,23 +18,29 @@ struct Credentials {
     user_id: String,
 }
 
-pub(super) fn start_authorization() -> Result<(), EmuBoxError> {
+pub(super) fn start_authorization() -> Result<String, EmuBoxError> {
     let root = gog_root()?;
     private_dir(&root)?;
     require_gogdl()?;
-    let script = "import os,webbrowser; from urllib.parse import parse_qs,quote,urlparse; from gogdl.auth import CLIENT_ID,CODE_URL; redirect=parse_qs(urlparse(CODE_URL).query)['redirect_uri'][0]; webbrowser.open('https://auth.gog.com/auth?client_id={}&redirect_uri={}&response_type=code'.format(quote(CLIENT_ID,safe=''),quote(redirect,safe='')))";
-    Command::new(root.join("runtime/bin/python"))
+    let script = "from urllib.parse import parse_qs,quote,urlparse; from gogdl.auth import CLIENT_ID,CODE_URL; redirect=parse_qs(urlparse(CODE_URL).query)['redirect_uri'][0]; print('https://auth.gog.com/auth?client_id={}&redirect_uri={}&response_type=code'.format(quote(CLIENT_ID,safe=''),quote(redirect,safe='')))";
+    let output = Command::new("timeout")
+        .args(["--kill-after=1s", "5s"])
+        .arg(root.join("runtime/bin/python"))
         .args(["-c", script])
         .env("HOME", root.join("home"))
         .env("GOGDL_CONFIG_PATH", root.join("config"))
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|_| {
-            EmuBoxError::ProcessFailed("No se pudo abrir la autorizacion de GOG".into())
-        })?;
-    set_state("authorization_required", None, None)
+        .output()
+        .map_err(|_| EmuBoxError::ProcessFailed("No se pudo preparar la autorizacion de GOG".into()))?;
+    if !output.status.success() || output.stdout.len() > 2048 {
+        return Err(EmuBoxError::ProcessFailed("GOG no proporciono una URL de autorizacion valida".into()));
+    }
+    let url = String::from_utf8(output.stdout)
+        .map_err(|_| EmuBoxError::ProcessFailed("URL GOG no es UTF-8".into()))?
+        .trim()
+        .to_string();
+    set_state("authorization_required", None, None)?;
+    Ok(url)
 }
 
 pub(super) fn complete_authorization(code: String) -> Result<(), EmuBoxError> {

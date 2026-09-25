@@ -17,15 +17,6 @@ pub(super) fn start_authorization() -> Result<(), EmuBoxError> {
     let root = epic_root()?;
     private_dir(&root)?;
     require_legendary()?;
-    Command::new("/usr/bin/xdg-open")
-        .arg("https://legendary.gl/epiclogin")
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|_| {
-            EmuBoxError::ProcessFailed("No se pudo abrir la autorizacion de Epic".into())
-        })?;
     set_state("authorization_required", None, None)?;
     Ok(())
 }

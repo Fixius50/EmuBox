@@ -188,6 +188,10 @@ export class TauriBackendService implements IEmuBoxBackend {
     return this.invoke('get_canonical_game_options', { id });
   }
 
+  public async openJackett(): Promise<void> {
+    return this.invoke('open_jackett');
+  }
+
   public async searchJackett(gameId: string): Promise<import('@contracts/download.types').JackettResult[]> {
     return this.invoke('search_jackett', { gameId });
   }

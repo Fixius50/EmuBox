@@ -1018,6 +1018,14 @@
 
   & span {
     font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+
+  & strong {
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 .xmb-version-track {
@@ -1053,6 +1061,21 @@
     border-color: var(--xmb-accent);
     background: #23403f;
     color: white !important;
+  }
+
+  & .xmb-more-left,
+  & .xmb-more-right {
+    position: absolute;
+    inset-block-start: 2rem;
+    color: var(--xmb-accent);
+    filter: drop-shadow(0 0 0.25rem #111c21);
+  }
+
+  & .xmb-more-left {
+    inset-inline-start: -0.75rem;
+  }
+  & .xmb-more-right {
+    inset-inline-end: -0.75rem;
   }
 
   & img {
