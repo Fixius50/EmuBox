@@ -65,8 +65,6 @@ find_active_drm_output() {
   echo "Virtual-1:/sys/class/drm/card0-Virtual-1/modes"
 }
 
-LAST_APPLIED=""
-
 sync_drm_to_wayland() {
   local output_info
   output_info="$(find_active_drm_output)"
@@ -83,21 +81,32 @@ sync_drm_to_wayland() {
       local h="${BASH_REMATCH[2]}"
       local target="${w}x${h}"
 
-      if [[ "$target" != "$LAST_APPLIED" && "$w" -gt 320 && "$h" -gt 240 ]]; then
-        # 1. Intentar aplicar como modo personalizado (resoluciones arbitrarias de VM)
-        if ! wlr-randr --output "$connector" --custom-mode "${w}x${h}@60" 2>/dev/null; then
-          # 2. Fallback a modo estándar (hardware físico / monitores fijos)
-          wlr-randr --output "$connector" --mode "${target}" 2>/dev/null || \
-          wlr-randr --output "$connector" --preferred 2>/dev/null || true
+      if [[ "$w" -gt 320 && "$h" -gt 240 ]]; then
+        local current
+        if ! current="$(wlr-randr --json | node -e '
+let data = "";
+process.stdin.on("data", chunk => data += chunk);
+process.stdin.on("end", () => {
+  try {
+    const output = JSON.parse(data).find(item => item.name === process.argv[1]);
+    if (!output?.enabled) throw new Error("Salida Wayland no disponible");
+    const modes = output.modes.filter(item => item.width === Number(process.argv[2]) && item.height === Number(process.argv[3]));
+    console.log(modes.some(item => item.current) ? "current" : modes.length ? "mode" : "preferred");
+  } catch (error) { console.error(error.message); process.exitCode = 1; }
+})' "$connector" "$w" "$h")"; then
+          printf '[DRM] No se pudo consultar el modo actual de %s\n' "$connector" >&2
+          return 1
         fi
-        LAST_APPLIED="$target"
+        if [[ "$current" == mode ]]; then
+          wlr-randr --output "$connector" --mode "$target" || \
+            wlr-randr --output "$connector" --preferred
+        elif [[ "$current" == preferred ]]; then
+          wlr-randr --output "$connector" --preferred
+        fi
       fi
     fi
   fi
 }
-
-# Sincronización inicial al levantar la sesión
-sync_drm_to_wayland
 
 # 3. Bucle reactivo puro bloqueado en el socket de udev (0% CPU)
 udevadm monitor --property --subsystem-match=drm 2>/dev/null | while read -r line; do

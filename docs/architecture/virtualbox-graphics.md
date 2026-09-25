@@ -94,6 +94,17 @@ completos y siguen actualizandose sin depender del movimiento del raton.
 El problema observado es compatible con regiones de actualizacion incompletas;
 esa es una hipotesis, no una causa demostrada en todas las capas.
 
+El sincronizador `scripts/emubox-drm-sync.sh` intentaba al aparecer el socket
+Wayland aplicar con `--custom-mode` la primera resolucion que DRM ya anunciaba.
+En esta VM esa resolucion (1456x817) ya era el modo `preferred,current` de Cage:
+el modeset de arranque era redundante. Ahora solo atiende hotplug, consulta el
+estado estructurado de `wlr-randr --json` y omite el cambio si el modo ya esta
+activo; en caso contrario selecciona un modo estandar o el preferido, sin usar
+`--custom-mode`. Los errores de `wlr-randr` quedan visibles en el log de sesion.
+El caso [labwc #2576](https://github.com/labwc/labwc/issues/2576) afecta al
+despertar de blanking en otra plataforma; aqui DPMS estaba encendido. La medida
+elimina un riesgo, pero no demuestra que sea la causa del negro o iluminado.
+
 `configure_emubox_presentation` configura solo Cage con vmwgfx:
 `WLR_SCENE_DEBUG_DAMAGE=rerender` fuerza redibujar todo el cuadro en cada
 actualizacion, y `WLR_SCENE_DISABLE_DIRECT_SCANOUT=1` mantiene la composicion
@@ -358,6 +369,17 @@ La politica vuelve a `WEBKIT_DISABLE_DMABUF_RENDERER=0` y
 explicitos del transporte. La RAM libre y las muestras de proceso no muestran
 presion de memoria ni crecimiento continuo de WebKit. Sigue sin determinarse
 la causa del iluminado; no marcarlo como resuelto.
+
+El 25 de septiembre, durante otro aviso de iluminacion, las capturas del invitado
+(screencopy Wayland) y del anfitrion (VirtualBox screenshot) coincidieron en
+1456x817: casi todos los pixeles tenian luminancia inferior a 8/255 y ninguno
+superaba 9/255. EmuBox seguia enfocado y sus callbacks rAF llegaban cada 16-20 ms;
+no habia descargas activas, OOM, errores DRM nuevos ni presion de RAM/E/S.
+Una escena wlroots/GLES2 headless en renderD128 verifico 8 cuadros completos y
+49152 pixeles, pero no prueba DRM fisico ni el buffer entregado por WebKit.
+El usuario no pudo confirmar si su monitor estaba negro o iluminado justo en
+esas dos capturas: no atribuir el frame negro al episodio de brillo sin esa
+comparacion sincronizada. La sospecha de torrents no explica ese instante.
 
 Se corrigio tambien la politica de filtros: una GPU virtual acelerada ya no
 recomienda blur, y `data-blur-mode="software"` ahora controla las variables CSS.

@@ -85,7 +85,7 @@ fi
 # Iniciar sincronizador reactivo de resolución DRM en segundo plano si existe cage
 SYNC_PID=""
 if [[ -f "${SCRIPT_DIR}/emubox-drm-sync.sh" && -x "$(command -v cage 2>/dev/null || true)" ]]; then
-  bash "${SCRIPT_DIR}/emubox-drm-sync.sh" >/dev/null 2>&1 &
+  bash "${SCRIPT_DIR}/emubox-drm-sync.sh" >/dev/null &
   SYNC_PID=$!
   trap '[[ -n "${SYNC_PID:-}" ]] && kill -TERM "$SYNC_PID" 2>/dev/null || true' EXIT INT TERM
 fi

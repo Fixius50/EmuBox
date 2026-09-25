@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/installer/lib/graphics.sh"
+! grep -q -- '--custom-mode' scripts/emubox-drm-sync.sh
+! grep -q '^sync_drm_to_wayland$' scripts/emubox-drm-sync.sh
 ( unset SVGA_NO_LOGGING; configure_emubox_host_logging oracle; [[ "$SVGA_NO_LOGGING" == 1 ]] )
 ( unset SVGA_NO_LOGGING; configure_emubox_host_logging vmware; [[ ! -v SVGA_NO_LOGGING ]] )
 ( unset SVGA_NO_LOGGING; configure_emubox_host_logging none; [[ ! -v SVGA_NO_LOGGING ]] )
