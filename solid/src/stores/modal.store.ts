@@ -1,8 +1,7 @@
 import { createSignal } from 'solid-js';
 import type { Game } from '@contracts/game.types';
-import type { SpatialNavigatorService } from '@services/navigation/spatial-navigator.service';
 
-export function createModalStore(navigator?: SpatialNavigatorService) {
+export function createModalStore() {
   const [isDetailsOpen, setIsDetailsOpen] = createSignal<boolean>(false);
   const [isConfirmLaunchOpen, setIsConfirmLaunchOpen] = createSignal<boolean>(false);
   const [isEmulatorSelectorOpen, setIsEmulatorSelectorOpen] = createSignal<boolean>(false);
@@ -13,23 +12,19 @@ export function createModalStore(navigator?: SpatialNavigatorService) {
   const openGameDetails = (game: Game) => {
     setSelectedGame(game);
     setIsDetailsOpen(true);
-    navigator?.pushContainer('modal', true);
   };
 
   const closeGameDetails = () => {
     setIsDetailsOpen(false);
-    navigator?.popContainer();
   };
 
   const openConfirmLaunch = (game: Game) => {
     setSelectedGame(game);
     setIsConfirmLaunchOpen(true);
-    navigator?.pushContainer('confirm-launch', true);
   };
 
   const closeConfirmLaunch = () => {
     setIsConfirmLaunchOpen(false);
-    navigator?.popContainer();
   };
 
   const openEmulatorSelector = (game: Game) => {

@@ -6,8 +6,8 @@ use crate::models::{
 use crate::services::SystemService;
 
 #[tauri::command]
-pub fn get_system_info() -> Result<SystemInfo, EmuBoxError> {
-    SystemService::get_system_info()
+pub async fn get_system_info() -> Result<SystemInfo, EmuBoxError> {
+    super::blocking(SystemService::get_system_info).await
 }
 
 #[tauri::command]
@@ -16,38 +16,38 @@ pub async fn get_hardware_info() -> Result<HardwareInfo, EmuBoxError> {
 }
 
 #[tauri::command]
-pub fn get_display_info() -> Result<DisplayInfo, EmuBoxError> {
-    SystemService::get_display_info()
+pub async fn get_display_info() -> Result<DisplayInfo, EmuBoxError> {
+    super::blocking(SystemService::get_display_info).await
 }
 
 #[tauri::command]
-pub fn get_audio_info() -> Result<AudioInfo, EmuBoxError> {
-    SystemService::get_audio_info()
+pub async fn get_audio_info() -> Result<AudioInfo, EmuBoxError> {
+    super::blocking(SystemService::get_audio_info).await
 }
 
 #[tauri::command]
-pub fn first_run_detection() -> Result<FirstRunDetectionResult, EmuBoxError> {
-    SystemService::first_run_detection()
+pub async fn first_run_detection() -> Result<FirstRunDetectionResult, EmuBoxError> {
+    super::blocking(SystemService::first_run_detection).await
 }
 
 #[tauri::command]
-pub fn get_config() -> Result<EmuBoxConfig, EmuBoxError> {
-    SystemService::get_config()
+pub async fn get_config() -> Result<EmuBoxConfig, EmuBoxError> {
+    super::blocking(SystemService::get_config).await
 }
 
 #[tauri::command]
-pub fn save_config(config: EmuBoxConfig) -> Result<(), EmuBoxError> {
-    SystemService::save_config(config)
+pub async fn save_config(config: EmuBoxConfig) -> Result<(), EmuBoxError> {
+    super::blocking(move || SystemService::save_config(config)).await
 }
 
 #[tauri::command]
-pub fn get_settings() -> Result<SystemSettings, EmuBoxError> {
-    SystemService::get_settings()
+pub async fn get_settings() -> Result<SystemSettings, EmuBoxError> {
+    super::blocking(SystemService::get_settings).await
 }
 
 #[tauri::command]
-pub fn save_settings(settings: SystemSettings) -> Result<bool, EmuBoxError> {
-    SystemService::save_settings(settings)
+pub async fn save_settings(settings: SystemSettings) -> Result<bool, EmuBoxError> {
+    super::blocking(move || SystemService::save_settings(settings)).await
 }
 
 #[tauri::command]

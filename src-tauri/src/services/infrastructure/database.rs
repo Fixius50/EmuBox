@@ -12,6 +12,7 @@ use std::sync::Mutex;
 pub struct DatabaseService;
 
 static CONNECTION_SETUP: Mutex<()> = Mutex::new(());
+static SCHEMA_INITIALIZED: Mutex<bool> = Mutex::new(false);
 
 #[cfg(test)]
 mod tests {
@@ -88,7 +89,13 @@ impl DatabaseService {
             EmuBoxError::StorageUnavailable(format!("Error al configurar pragmas de SQLite: {}", e))
         })?;
 
-        Self::init_schema(&conn)?;
+        let mut schema_initialized = SCHEMA_INITIALIZED.lock().map_err(|error| {
+            EmuBoxError::StorageUnavailable(format!("Inicializacion SQLite interrumpida: {error}"))
+        })?;
+        if !*schema_initialized {
+            Self::init_schema(&conn)?;
+            *schema_initialized = true;
+        }
         Ok(conn)
     }
 

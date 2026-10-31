@@ -1,7 +1,9 @@
 use crate::errors::EmuBoxError;
 use crate::models::{CreateDownloadRequest, DownloadJob, DownloadSource};
 use crate::services::DownloadService;
-use std::{fs, net::{SocketAddr, TcpStream}, os::unix::fs::PermissionsExt, path::Path, sync::atomic::{AtomicBool, Ordering}, time::Duration};
+use std::{fs, net::{SocketAddr, TcpStream}, path::Path, sync::atomic::{AtomicBool, Ordering}, time::Duration};
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use tauri::Manager;
 
 fn jackett_url_allowed(url: &tauri::Url) -> bool {
@@ -12,7 +14,12 @@ fn jackett_password() -> Result<String, EmuBoxError> {
     let path = Path::new("/var/lib/emubox/jackett/admin-password");
     let metadata = fs::symlink_metadata(path)
         .map_err(|_| EmuBoxError::ProcessFailed("No se puede leer la contraseña local de Jackett".into()))?;
-    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 256 || metadata.permissions().mode() & 0o007 != 0 {
+    #[cfg(unix)]
+    let world_accessible = metadata.permissions().mode() & 0o007 != 0;
+    #[cfg(not(unix))]
+    let world_accessible = false;
+
+    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 256 || world_accessible {
         return Err(EmuBoxError::ProcessFailed("Contraseña local de Jackett insegura o demasiado larga".into()));
     }
     let password = fs::read_to_string(path)

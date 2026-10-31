@@ -3,6 +3,7 @@ use crate::errors::EmuBoxError;
 use crate::models::{LaunchGameRequest, LaunchResult, ProcessStatus, RunningGameInfo};
 use crate::services::compatibility_service::CompatibilityService;
 use crate::services::game_service::GameService;
+#[cfg(unix)]
 use std::os::unix::process::ExitStatusExt;
 use std::process::{Child, ExitStatus};
 use std::sync::Mutex;
@@ -59,6 +60,11 @@ impl ProcessService {
     }
 
     fn record_exit(info: &RunningGameInfo, status: ExitStatus) {
+        #[cfg(unix)]
+        let signal = status.signal();
+        #[cfg(not(unix))]
+        let signal: Option<i32> = None;
+
         crate::services::infrastructure::telemetry::event(
             if status.success() { log::Level::Info } else { log::Level::Warn },
             "game.launch",
@@ -69,7 +75,7 @@ impl ProcessService {
                 "emulatorId": info.emulator_id,
                 "elapsedSecs": Self::now_epoch_secs().saturating_sub(info.start_time),
                 "exitCode": status.code(),
-                "signal": status.signal(),
+                "signal": signal,
             }),
         );
     }

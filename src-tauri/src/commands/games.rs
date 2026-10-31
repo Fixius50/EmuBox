@@ -18,8 +18,8 @@ pub async fn get_games(filter: Option<GameFilter>) -> Result<Vec<Game>, EmuBoxEr
 }
 
 #[tauri::command]
-pub fn get_game_by_id(id: String) -> Result<Option<Game>, EmuBoxError> {
-    GameService::get_game_by_id(id)
+pub async fn get_game_by_id(id: String) -> Result<Option<Game>, EmuBoxError> {
+    super::blocking(move || GameService::get_game_by_id(id)).await
 }
 
 #[tauri::command]
@@ -57,8 +57,8 @@ pub async fn scan_games(request: Option<ScanGamesRequest>) -> Result<ScanGamesRe
 }
 
 #[tauri::command]
-pub fn get_platforms() -> Result<Vec<Platform>, EmuBoxError> {
-    let result = GameService::get_platforms();
+pub async fn get_platforms() -> Result<Vec<Platform>, EmuBoxError> {
+    let result = super::blocking(GameService::get_platforms).await;
     if let Err(e) = &result {
         eprintln!("[IPC] get_platforms FALLÓ: {}", e);
     }
@@ -66,6 +66,6 @@ pub fn get_platforms() -> Result<Vec<Platform>, EmuBoxError> {
 }
 
 #[tauri::command]
-pub fn toggle_favorite(game_id: String) -> Result<bool, EmuBoxError> {
-    GameService::toggle_favorite(game_id)
+pub async fn toggle_favorite(game_id: String) -> Result<bool, EmuBoxError> {
+    super::blocking(move || GameService::toggle_favorite(game_id)).await
 }

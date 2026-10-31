@@ -11,6 +11,7 @@ use std::{
     collections::HashMap,
     fs,
     io::Read,
+    #[cfg(unix)]
     os::unix::fs::MetadataExt,
     sync::{Mutex, OnceLock},
     time::{Duration, Instant},
@@ -45,10 +46,15 @@ fn configuration() -> Result<Config, EmuBoxError> {
     let metadata = fs::symlink_metadata(path).map_err(|_| {
         error("Jackett no configurado; ejecuta el instalador local de servicios de busqueda")
     })?;
+    #[cfg(unix)]
+    let world_accessible = metadata.mode() & 0o007 != 0;
+    #[cfg(not(unix))]
+    let world_accessible = false;
+
     if !metadata.is_file()
         || metadata.file_type().is_symlink()
         || metadata.len() > 65536
-        || metadata.mode() & 0o007 != 0
+        || world_accessible
     {
         return Err(error(
             "Configuracion Jackett debe ser privada, regular y menor de 64 KiB",

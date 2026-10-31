@@ -1,7 +1,19 @@
 use crate::errors::EmuBoxError;
-use std::{fs, io::Read, path::Path, time::Duration};
+use std::{fs, io::Read, path::Path, sync::OnceLock, time::Duration};
 
 const ONEFICHIER_TOKEN: &str = "/etc/emubox/credentials/1fichier.token";
+static ONEFICHIER_CLIENT: OnceLock<reqwest::blocking::Client> = OnceLock::new();
+
+fn onefichier_client() -> Result<&'static reqwest::blocking::Client, EmuBoxError> {
+    ONEFICHIER_CLIENT.get_or_try_init(|| {
+        reqwest::blocking::Client::builder()
+            .connect_timeout(Duration::from_secs(10))
+            .timeout(Duration::from_secs(20))
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .map_err(|_| configuration_error("No se pudo iniciar el cliente API 1fichier"))
+    })
+}
 
 fn require_account_opt_in(value: Option<&str>) -> Result<(), EmuBoxError> {
     if value != Some("1") {
@@ -132,12 +144,7 @@ fn resolve_onefichier(uri: &str) -> Result<String, EmuBoxError> {
             .as_deref(),
     )?;
     let token = private_token(Path::new(ONEFICHIER_TOKEN))?;
-    let client = reqwest::blocking::Client::builder()
-        .connect_timeout(Duration::from_secs(10))
-        .timeout(Duration::from_secs(20))
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .map_err(|_| configuration_error("No se pudo iniciar el cliente API 1fichier"))?;
+    let client = onefichier_client()?;
     let body = serde_json::to_vec(&serde_json::json!({"url": uri, "cdn": 0, "no_ssl": 0}))
         .map_err(|_| configuration_error("Solicitud API invalida"))?;
     let response = client

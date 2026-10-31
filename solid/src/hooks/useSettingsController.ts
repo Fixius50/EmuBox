@@ -1,8 +1,53 @@
-import type { Emulator } from "@contracts/game.types";
+import type { Emulator, SystemSettings } from "@contracts/game.types";
 import type {
   UseSettingsControllerOptions,
   UseSettingsControllerReturn,
 } from "@contracts/settings.types";
+import type { SoundFxService } from "@services/audio/sound-fx.service";
+
+type SettingToggleHandler = (
+  settings: SystemSettings,
+  context: { soundFx: SoundFxService; triggerVibrationTest: (padIndex: number) => void; rowIndex: number }
+) => SystemSettings | void;
+
+const SETTING_TOGGLES: Record<string, Record<number, SettingToggleHandler>> = {
+  system: {
+    0: (s, { soundFx }) => {
+      soundFx.playSelect();
+      return { ...s, display: { ...s.display, vsync: !s.display.vsync } };
+    },
+  },
+  services: {
+    0: (s, { soundFx }) => {
+      soundFx.playSelect();
+      return {
+        ...s,
+        system: { ...s.system, seedCompletedTorrents: !s.system?.seedCompletedTorrents },
+      };
+    },
+    1: (s, { soundFx }) => {
+      soundFx.playSelect();
+      return {
+        ...s,
+        system: { ...s.system, autoInstallDownloads: !(s.system?.autoInstallDownloads ?? true) },
+      };
+    },
+  },
+  audio: {
+    2: (s, { soundFx }) => {
+      const next = !s.audio.uiSoundEffects;
+      soundFx.setEnabled(next);
+      soundFx.playSelect();
+      return { ...s, audio: { ...s.audio, uiSoundEffects: next } };
+    },
+  },
+  gamepad: {
+    0: (s, { soundFx }) => {
+      soundFx.playSelect();
+      return { ...s, gamepad: { ...s.gamepad, vibration: !s.gamepad.vibration } };
+    },
+  },
+};
 
 export function useSettingsController(
   options: UseSettingsControllerOptions,
@@ -41,98 +86,43 @@ export function useSettingsController(
     }
   };
 
-  // Main Action Toggle Handler with switch
+  // Main Action Toggle Handler (Schema / Dictionary based)
   const handleToggleCurrentSetting = () => {
     const settings = systemStore.settings();
     if (!settings) return;
 
     const tab = activeSettingsTab();
     const row = settingsRowIndex();
-    const clone = JSON.parse(JSON.stringify(settings));
 
-    switch (tab) {
-      case "system":
-        switch (row) {
-          case 0:
-            clone.display.vsync = !clone.display.vsync;
-            systemStore.updateSettings(clone);
-            soundFx.playSelect();
-            break;
-          default:
-            break;
-        }
-        break;
+    const handler = SETTING_TOGGLES[tab]?.[row];
+    if (handler) {
+      const updated = handler(settings, { soundFx, triggerVibrationTest, rowIndex: row });
+      if (updated) systemStore.updateSettings(updated);
+      return;
+    }
 
-      case "services":
-        if (row === 0) {
-          clone.system = {
-            ...clone.system,
-            seedCompletedTorrents: !clone.system?.seedCompletedTorrents,
-          };
-          systemStore.updateSettings(clone);
-          soundFx.playSelect();
-        } else if (row === 1) {
-          clone.system = {
-            ...clone.system,
-            autoInstallDownloads: !(clone.system?.autoInstallDownloads ?? true),
-          };
-          systemStore.updateSettings(clone);
-          soundFx.playSelect();
-        }
-        break;
-
-      case "audio":
-        if (row === 2) {
-          clone.audio.uiSoundEffects = !clone.audio.uiSoundEffects;
-          soundFx.setEnabled(clone.audio.uiSoundEffects);
-          systemStore.updateSettings(clone);
-          soundFx.playSelect();
-        }
-        break;
-
-      case "gamepad":
-        switch (row) {
-          case 0:
-            clone.gamepad.vibration = !clone.gamepad.vibration;
-            systemStore.updateSettings(clone);
-            soundFx.playSelect();
-            break;
-          default:
-            if (row >= 2) {
-              triggerVibrationTest(row - 2);
-              soundFx.playSelect();
-            }
-            break;
-        }
-        break;
-
-      default:
-        break;
+    if (tab === "gamepad" && row >= 2) {
+      triggerVibrationTest(row - 2);
+      soundFx.playSelect();
     }
   };
 
-  // Slider adjustments with switch
+  // Slider adjustments
   const handleAdjustCurrentSlider = (delta: number) => {
     const settings = systemStore.settings();
     if (!settings) return;
 
     const tab = activeSettingsTab();
     const row = settingsRowIndex();
-    const clone = JSON.parse(JSON.stringify(settings));
 
-    switch (tab) {
-      case "audio":
-        if (row === 3) {
-          clone.audio.masterVolume = Math.min(
-            100,
-            Math.max(0, clone.audio.masterVolume + delta),
-          );
-          systemStore.updateSettings(clone);
-          soundFx.playMove();
-        }
-        break;
-      default:
-        break;
+    if (tab === "audio" && row === 3) {
+      const current = settings.audio.masterVolume ?? 80;
+      const nextVolume = Math.min(100, Math.max(0, current + delta));
+      systemStore.updateSettings({
+        ...settings,
+        audio: { ...settings.audio, masterVolume: nextVolume },
+      });
+      soundFx.playMove();
     }
   };
 

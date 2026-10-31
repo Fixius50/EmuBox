@@ -31,6 +31,7 @@ import type { StoreAccount, StoreEntitlement, StoreProviderInfo, StoreSyncResult
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { StartupData, StartupReport } from '@contracts/startup.types';
 import { recordUiEvent, type FrontendLogEvent } from '@services/system/telemetry';
+import { EmuBoxError } from '@contracts/errors.types';
 
 /**
  * Tauri IPC Backend Implementation.
@@ -53,6 +54,11 @@ export class TauriBackendService implements IEmuBoxBackend {
       return result;
     } catch (error) {
       if (cmd !== 'record_frontend_events') recordUiEvent('ipc.complete', { command: cmd, durationMs: Math.round(performance.now() - started), success: false }, 'error');
+      if (error && typeof error === 'object' && 'code' in error && 'details' in error) {
+        const payload = error as { code: string; details: unknown };
+        const detailsStr = typeof payload.details === 'string' ? payload.details : JSON.stringify(payload.details);
+        throw new EmuBoxError(payload.code as any, detailsStr, payload.details as any);
+      }
       throw error;
     }
   }

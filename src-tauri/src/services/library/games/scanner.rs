@@ -166,20 +166,12 @@ impl GameService {
         {
             return Ok(());
         }
-        let ps4_folder = plat.id == "ps4"
-            && dir.join("eboot.bin").is_file()
-            && dir.join("sce_sys/param.sfo").is_file();
-        if (plat.id == "ps3" && dir.join("PS3_GAME").is_dir()) || ps4_folder {
+        if let Some(rom_path) = plat.detect_folder_game(dir) {
             *scanned += 1;
             let title = dir
                 .file_name()
                 .and_then(|name| name.to_str())
                 .unwrap_or("Unknown");
-            let rom_path = if ps4_folder {
-                dir.join("eboot.bin")
-            } else {
-                dir.to_path_buf()
-            };
             if Self::register_scanned_game(conn, plat, &rom_path, title, 0)? {
                 *updated += 1;
             } else {

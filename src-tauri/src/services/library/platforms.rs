@@ -11,6 +11,20 @@ pub struct PlatformSpec {
     pub extensions: &'static [&'static str],
 }
 
+impl PlatformSpec {
+    pub fn detect_folder_game(&self, dir: &std::path::Path) -> Option<std::path::PathBuf> {
+        match self.id {
+            "ps4" if dir.join("eboot.bin").is_file() && dir.join("sce_sys/param.sfo").is_file() => {
+                Some(dir.join("eboot.bin"))
+            }
+            "ps3" if dir.join("PS3_GAME").is_dir() => {
+                Some(dir.to_path_buf())
+            }
+            _ => None,
+        }
+    }
+}
+
 pub const PLATFORM_SPECS: &[PlatformSpec] = &[
     PlatformSpec {
         id: "nes",

@@ -51,11 +51,15 @@ impl DownloadProvider for HttpProvider {
         request: &TransferRequest<'_>,
         progress: &mut dyn FnMut(TransferProgress) -> Result<(), EmuBoxError>,
     ) -> Result<TransferOutcome, EmuBoxError> {
-        tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(io_error)?
-            .block_on(transfer(request, progress))
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            tokio::task::block_in_place(|| handle.block_on(transfer(request, progress)))
+        } else {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(io_error)?
+                .block_on(transfer(request, progress))
+        }
     }
 }
 
