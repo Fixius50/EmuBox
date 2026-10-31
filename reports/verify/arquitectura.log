@@ -1,0 +1,7 @@
+
+> emubox@1.0.0 arch:check
+> node scripts/architecture-check.mjs && node scripts/docs-check.mjs && node scripts/ipc-contract-check.mjs
+
+Arquitectura válida: 37 rutas críticas presentes.
+Documentacion: 19 Markdown con enlaces locales validos.
+Contrato IPC valido: 86 comandos Rust, 86 registrados, 83 invocados desde frontend.

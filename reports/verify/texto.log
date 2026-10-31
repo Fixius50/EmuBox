@@ -1,0 +1,9 @@
+
+> emubox@1.0.0 quality:text
+> npm run mojibake:check
+
+
+> emubox@1.0.0 mojibake:check
+> node scripts/mojibake-check.mjs
+
+No se detectó texto mal codificado.

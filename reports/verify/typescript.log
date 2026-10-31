@@ -1,0 +1,4 @@
+
+> emubox@1.0.0 typecheck
+> node ./node_modules/typescript/bin/tsc --project ./tsconfig.json --noEmit --pretty false
+

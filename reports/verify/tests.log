@@ -1,0 +1,66 @@
+
+> emubox@1.0.0 test
+> node --import tsx --conditions=browser --test --test-concurrency=4 tests/*.test.ts tests/build-cache.test.mjs tests/telemetry.test.mjs tests/styles.test.mjs
+
+Build cache: content/environment/additions invalidate; timestamps do not.
+✔ tests\build-cache.test.mjs (405.5841ms)
+Catalog groups: packages combined, platforms/editions preserved, original download IDs retained
+✔ tests\catalog-groups.test.ts (366.7326ms)
+✔ Preview: sample data is isolated, local and has no download sources (52.8603ms)
+✔ Preview: edits and favorites exist only in the current instance (1.8906ms)
+✔ Settings: adaptive display and performance values are never persisted (1.4993ms)
+✔ Preview: native operations remain unavailable (6.6743ms)
+✔ Preview: entry remains development-only and native runtime takes precedence (0.9393ms)
+✔ Preview: audio uses the backend contract without capture and resets disconnected selections (8.608ms)
+D-pad/stick: one action per direction, controlled hold repeat and release: OK
+Input source: the last action retains its originating provider.
+✔ tests\gamepad.test.ts (10471.7985ms)
+Graphics policy: native GPU and accelerated VM preferred, CPU fallback independent of architecture
+✔ tests\graphics-policy.test.ts (362.764ms)
+Library: real grouping and native errors, no fabricated downloads or sources.
+✔ tests\library.test.ts (484.8199ms)
+✔ Native: event ACL is local and limited to subscriptions (8.8024ms)
+✔ Native: absent runtime rejects operations without fabricated results (4.743ms)
+✔ Native: frontend commands are registered and generic shell is absent (62.1799ms)
+✔ Telemetry: bounded batches, dropped events, concurrency and cleanup (0.6646ms)
+✔ Telemetry: frame probes neither loop permanently nor overlap (0.6198ms)
+✔ Startup: ordering, native errors, cancellation, timeout and cleanup (13.098ms)
+✔ Settings: tabs, volume and back navigation (2.0752ms)
+✔ Settings: services toggles torrent seeding without changing display (2.5008ms)
+✔ Settings: emulator persistence, reload and rejected writes (5.5967ms)
+✔ Settings: modal waits, rejects duplicate actions and allows retry (12.1588ms)
+✔ Settings: maintenance controller bounds and cleanup (1.4774ms)
+✔ CSS: animations.css uses relative units, explicit transitions and defined tokens (8.0954ms)
+✔ CSS: base.css uses relative units, explicit transitions and defined tokens (1.318ms)
+✔ CSS: console-hardware.css uses relative units, explicit transitions and defined tokens (0.5277ms)
+✔ CSS: development-preview.css uses relative units, explicit transitions and defined tokens (0.4971ms)
+✔ CSS: emulator-selector.css uses relative units, explicit transitions and defined tokens (1.3554ms)
+✔ CSS: index.css uses relative units, explicit transitions and defined tokens (0.6874ms)
+✔ CSS: modals.css uses relative units, explicit transitions and defined tokens (1.0233ms)
+✔ CSS: settings.css uses relative units, explicit transitions and defined tokens (3.8433ms)
+✔ CSS: source-selector.css uses relative units, explicit transitions and defined tokens (3.0005ms)
+✔ CSS: variables.css uses relative units, explicit transitions and defined tokens (1.1721ms)
+✔ CSS: xmb.css uses relative units, explicit transitions and defined tokens (5.1149ms)
+✔ CSS: style entry imports each shared sheet once and motion policy last (1.34ms)
+Telemetry reader: rotations, bounded selection, source/level/session/time filters and incomplete lines: OK
+✔ tests\telemetry.test.mjs (441.8099ms)
+✔ XMB: movement respects category, row and game bounds (1.7379ms)
+✔ XMB: download label follows progress and preparation phases without scanning games (0.4557ms)
+✔ XMB: folders preserve platforms and original variants (9.1148ms)
+✔ XMB: unrelated canonical identities remain separate (0.6846ms)
+✔ XMB: multiple sequels share a folder without a base game (0.7537ms)
+✔ XMB: subtitled games share their franchise without merging releases (0.4832ms)
+✔ XMB: 007 releases and package variants share one horizontal folder (1.755ms)
+✔ XMB: local package suffixes share one folder without changing catalog IDs (1.1889ms)
+✔ XMB: wheel navigates vertical folders and horizontal categories/versions (52.7932ms)
+✔ XMB: canonical versions are built lazily and cached (1.2434ms)
+✔ XMB: controller handles search, settings, empty catalogs and cleanup (6.3115ms)
+✔ XMB: virtual keyboard opens only without a keyboard input source (3.4806ms)
+ℹ tests 47
+ℹ suites 0
+ℹ pass 47
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10549.7044
