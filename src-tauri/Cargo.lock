@@ -847,9 +847,12 @@ dependencies = [
  "compress-tools",
  "libc",
  "log",
+<<<<<<< Updated upstream
  "notify",
  "reqwest 0.12.28",
  "ring",
+=======
+>>>>>>> Stashed changes
  "rusqlite",
  "serde",
  "serde_json",
@@ -879,6 +882,18 @@ dependencies = [
  "serde_core",
  "typeid",
 ]
+
+[[package]]
+name = "fallible-iterator"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2acce4a10f12dc2fb14a218589d4f1f62ef011b2d0cc4b3cb1bba8e94da14649"
+
+[[package]]
+name = "fallible-streaming-iterator"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
 
 [[package]]
 name = "fallible-iterator"
@@ -2949,6 +2964,7 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< Updated upstream
 name = "ring"
 version = "0.17.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2963,6 +2979,8 @@ dependencies = [
 ]
 
 [[package]]
+=======
+>>>>>>> Stashed changes
 name = "rusqlite"
 version = "0.32.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
