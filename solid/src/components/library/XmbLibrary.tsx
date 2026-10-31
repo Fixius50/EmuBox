@@ -327,6 +327,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                         src={entry.game.coverImage}
                         alt=""
                         loading="lazy"
+                        decoding="async"
                         onError={() => setImageFailed(true)}
                       />
                     </Show>
@@ -385,6 +386,8 @@ export function XmbLibrary(props: XmbLibraryProps) {
                     <img
                       src={game().coverImage}
                       alt={game().title}
+                      loading="lazy"
+                      decoding="async"
                       onError={onCoverError}
                     />
                   </Show>

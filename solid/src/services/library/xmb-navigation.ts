@@ -39,15 +39,24 @@ function packageRoot(title: string): string | undefined {
 
 export function xmbFolders(games: CatalogGroup[]): XmbFolder[] {
   const folders = new Map<string, XmbFolder>();
-  const titles = new Set(games.map(game => game.title.normalize("NFKC").toLowerCase()));
+  const normalizedMap = new Map<string, string>();
+  const getNorm = (raw: string) => {
+    let n = normalizedMap.get(raw);
+    if (!n) {
+      n = raw.normalize("NFKC").toLowerCase();
+      normalizedMap.set(raw, n);
+    }
+    return n;
+  };
+  const titles = new Set(games.map(game => getNorm(game.title)));
   const packages = new Set(games.flatMap(game => {
-    const title = game.title.normalize("NFKC").toLowerCase();
+    const title = getNorm(game.title);
     const root = game.matchMethod === "local-title" && packageRoot(title);
     return root && titles.has(root) ? [root] : [];
   }));
   const candidates = new Map<string, Set<string>>();
   for (const game of games) {
-    const title = game.title.normalize("NFKC").toLowerCase();
+    const title = getNorm(game.title);
     const root = seriesRoot(title);
     if (!root) continue;
     if (!candidates.has(root)) candidates.set(root, new Set());
@@ -55,7 +64,7 @@ export function xmbFolders(games: CatalogGroup[]): XmbFolder[] {
   }
   const series = new Set([...candidates].filter(([root, entries]) => titles.has(root) || entries.size > 1).map(([root]) => root));
   for (const game of games) {
-    const title = game.title.normalize("NFKC").toLowerCase();
+    const title = getNorm(game.title);
     const packageTitle = packageRoot(title);
     let family = game.matchMethod === "local-title" && packageTitle && titles.has(packageTitle) ? packageTitle : title;
     let root = seriesRoot(family);

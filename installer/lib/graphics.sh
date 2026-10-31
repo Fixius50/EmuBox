@@ -50,7 +50,10 @@ configure_emubox_presentation() {
 }
 
 configure_emubox_webkit() {
-  [[ "$1" == vmwgfx ]] || return 0
+  case "$1" in
+    vmwgfx|virtio-gpu|virtio_gpu|vboxvideo|qxl|bochs-drm|virgl) ;;
+    *) return 0 ;;
+  esac
   if [[ ! -v WEBKIT_DISABLE_DMABUF_RENDERER ]]; then
     export WEBKIT_DISABLE_DMABUF_RENDERER=0
   fi
