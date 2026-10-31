@@ -1,0 +1,157 @@
+npm notice run emubox@1.0.0 verify
+npm notice run node scripts/verify.mjs
+[verify] Se comprueban archivos guardados del proyecto, abiertos o cerrados en VS Code.
+
+[verify] Dependencias
+Todas las dependencias resuelven correctamente.
+
+[verify] TypeScript
+npm notice run emubox@1.0.0 typecheck
+npm notice run node ./node_modules/typescript/bin/tsc --project ./tsconfig.json --noEmit --pretty false
+
+
+[verify] Cobertura TypeScript
+Cobertura TypeScript: 108 archivos incluidos; no depende del editor.
+Detectados error de tipos y jsx-runtime ausente en archivos nunca abiertos en VS Code.
+
+npm notice run emubox@1.0.0 test:validator
+npm notice run node tests/validator.test.mjs
+
+
+[verify] ESLint
+npm notice run emubox@1.0.0 lint
+npm notice run eslint .
+
+
+[verify] Prettier
+Checking formatting...
+All matched files use Prettier code style!
+
+npm notice run emubox@1.0.0 format:check
+npm notice run prettier --check eslint.config.mjs scripts/verify.mjs package.json tsconfig.json
+
+
+[verify] Arquitectura
+Arquitectura válida: 9 rutas críticas presentes.
+
+npm notice run emubox@1.0.0 arch:check
+npm notice run node scripts/architecture-check.mjs
+
+
+[verify] Texto
+No se detectó texto mal codificado.
+
+npm notice run emubox@1.0.0 quality:text
+npm notice run npm run mojibake:check
+npm notice run emubox@1.0.0 mojibake:check
+npm notice run node scripts/mojibake-check.mjs
+
+
+[verify] Tests
+===============================================================================
+   EMUBOX: SUITE DE PRUEBAS DE ARQUITECTURA, SERVICIOS Y CONTRATOS             
+===============================================================================
+
+TEST 1: Abstracción de InputProviders e InputManager...
+  ✓ [PASS] InputManager reporta estado de conexión activo
+  ✓ [PASS] InputManager recibió las 3 acciones semánticas de Tauri IPC
+  ✓ [PASS] Acción 1 es BUTTON_A (Select/Play)
+  ✓ [PASS] Acción 2 es BUTTON_X (Favorite)
+  ✓ [PASS] Acción 3 es BUTTON_START (Menu)
+
+TEST 2: Backend Desacoplado & Operaciones sobre 10.000 Juegos...
+  ✓ [PASS] Filtrado por plataforma SNES obtenido: 1238 juegos
+  ✓ [PASS] Filtrado sobre 10k items completado en 0.61ms (<15ms)
+  ✓ [PASS] Búsqueda de 'Chrono' encontrada: 611 resultados
+  ✓ [PASS] Toggle favorito completado con estado: false
+  ✓ [PASS] Lanzamiento de juego simulado con éxito (PID: 32272)
+
+TEST 3: Nuevos Contratos de Backend (Configuración, Sistema, CRUD Emuladores)...
+  ✓ [PASS] SystemInfo obtenido: 16 cores, Arch: x86_64
+  ✓ [PASS] First Run Detection validado: Vulkan=true
+  ✓ [PASS] EmuBoxConfig versionado (v1) leído correctamente
+  ✓ [PASS] EmuBoxConfig incluye configuración de Auto-Update activo
+  ✓ [PASS] EmuBoxConfig guardado y persistido correctamente (Volumen: 90%)
+  ✓ [PASS] GamepadStatus consultado: 1 dispositivos activos
+  ✓ [PASS] CRUD Emuladores: Motor añadido con éxito (10 emuladores)
+  ✓ [PASS] CRUD Emuladores: Motor eliminado con éxito (9 emuladores)
+
+TEST 4: Capa de Servicios de Dominio (Domain Services Layer)...
+  ✓ [PASS] GameService filtró juegos por plataforma correctamente (1238 juegos)
+  ✓ [PASS] GameService: scanGames() ejecutado con éxito (Total: 10000)
+  ✓ [PASS] GameService: Escaneo idempotente comprobado (0 duplicados en escaneo repetido)
+  ✓ [PASS] GameService: Normalización de título limpia correctamente tags de dump ('Gran Turismo 4')
+  ✓ [PASS] GameService: Reconocimiento de extensiones válidas y filtrado de no-ROMs correcto
+  ✓ [PASS] EmulatorService devolvió emuladores para PS1 (DuckStation (Vulkan - Standalone))
+  ✓ [PASS] SystemService devolvió GPU Vendor: generic
+  ✓ [PASS] StorageService reportó unidades montadas: EmuBox System SSD
+  ✓ [PASS] Storage locations usan rutas canónicas del appliance y no XDG legacy
+  ✓ [PASS] Storage locations apuntan a /var/lib/emubox/games
+  ✓ [PASS] Cache de shaders usa /var/cache/emubox/shaders
+  ✓ [PASS] ProcessService comprobó estado de proceso: running=true
+  ✓ [PASS] PathService resolvió ruta del appliance: /var/lib/emubox/games/ps2
+  ✓ [PASS] BiosScannerService detectó 2 BIOS requeridas
+  ✓ [PASS] Compatibilidad: Asociación creada y recuperada para Castlevania: Symphony of the Night
+  ✓ [PASS] Compatibilidad: Modificación de prioridad (25) y customArgs (-widescreen) persistida
+  ✓ [PASS] Compatibilidad: Múltiples asociaciones N:M ordenadas con isDefault=true en primera posición
+  ✓ [PASS] Compatibilidad: ExecutionTarget resuelto con éxito usando asociación específica, args y config
+  ✓ [PASS] Compatibilidad: Asociación con enabled=false ignorada correctamente en la resolución
+  ✓ [PASS] Compatibilidad: Asociaciones eliminadas correctamente
+  ✓ [PASS] CompatibilityService encontró 1 emuladores compatibles para Castlevania: Symphony of the Night
+  ✓ [PASS] EmuBoxError estructurado validado
+
+TEST 5: Actualización Desacoplada OTA & Auto-Update...
+  ✓ [PASS] OTA Check detectó actualización disponible (v1.0.1)
+  ✓ [PASS] OTA Apply ejecutó instalación atómica en /opt/emubox/releases/
+
+TEST 6: Motor de Navegación Espacial 2D y Jerarquía de Contenedores...
+  ✓ [PASS] Foco inicial asignado al primer ítem del grid
+  ✓ [PASS] D-pad Derecha -> game-card-1
+  ✓ [PASS] D-pad Abajo -> game-card-8 (fila siguiente)
+  ✓ [PASS] Foco atrapado en el primer botón del modal (btn-play-game)
+  ✓ [PASS] Navegación vertical dentro del modal -> btn-fav-game
+  ✓ [PASS] Foco restaurado automáticamente a la tarjeta previa (game-card-8)
+
+TEST 7: Detección Gráfica Inteligente & Pipeline GPU vs CPU Fallback...
+  ✓ [PASS] Pipeline detectado: accelerated
+  ✓ [PASS] Sondeo gráfico ultra-rápido: 0.05ms (<50ms)
+  ✓ [PASS] Modo forzado cpu-compatible asignado con éxito
+  ✓ [PASS] Aceleración de GPU desactivada en fallback
+  ✓ [PASS] Filtros de blur desactivados en favor de superficies sólidas (0 CPU overhead)
+  ✓ [PASS] Modo forzado GPU acelerada asignado con éxito
+  ✓ [PASS] Aceleración GPU activa en hardware directo
+  ✓ [PASS] Desenfoques volumétricos y resplandores habilitados en GPU
+
+TEST 8: Viewport Reactivo & Redimensionado en Caliente...
+  ✓ [PASS] Ancho reactivo inicial obtenido: 1920px
+  ✓ [PASS] Alto reactivo inicial obtenido: 1080px
+  ✓ [PASS] Relación de aspecto reactiva calculada: 1.78
+  ✓ [PASS] Factor de escala reactivo calculado: 1.00
+
+TEST 9: Terminal Integrada, Diagnóstico de Red & Ejecución de Comandos...
+  ✓ [PASS] executeCommand('ip addr') devolvió interfaz de red válida
+  ✓ [PASS] executeCommand('systemctl status sshd') devolvió estado del servicio SSH
+
+TEST 10: Importación y Procesamiento de Manifiestos con formato { downloads: [...] }...
+  ✓ [PASS] Manifiesto procesado: 2 fuentes registradas
+  ✓ [PASS] Plataforma PS1 inferida y persistida
+  ✓ [PASS] Plataforma PC inferida y persistida
+  ✓ [PASS] Tamaño 450 MB convertido a bytes: 471859200 == 471859200
+  ✓ [PASS] Tamaño 13.58 GB convertido a bytes: 14581413970 == 14581413970
+  ✓ [PASS] Juego registrado en el catálogo desde el manifiesto: Crash Bandicoot: Warped [PS1]
+
+===============================================================================
+   RESULTADO: 68 PRUEBAS PASADAS / 0 FALLADAS                   
+===============================================================================
+
+Library totals, catalog reload, duplicate clicks and download errors: OK
+Source selection: no automatic download and stale responses ignored: OK
+D-pad/stick: one action per direction, controlled hold repeat and release: OK
+
+npm notice run emubox@1.0.0 test
+npm notice run npx tsx tests/vertical-slice.test.ts && tsx tests/library.test.ts && tsx tests/gamepad.test.ts
+npm notice run emubox@1.0.0 npx
+npm notice run 'tsx' tests/vertical-slice.test.ts
+
+
+[verify] Todos los controles pasaron.
