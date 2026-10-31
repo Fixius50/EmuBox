@@ -29,3 +29,12 @@ pub struct DiagnosticReport {
     pub recent_errors: Option<Vec<LogEntry>>,
     pub raw_summary_text: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportSubmissionResult {
+    pub success: bool,
+    pub issue_url: Option<String>,
+    pub local_report_path: String,
+    pub message: String,
+}

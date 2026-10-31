@@ -63,6 +63,7 @@ macro_rules! emubox_ipc_handler {
             crate::commands::diagnostics::get_diagnostics,
             crate::commands::diagnostics::record_frontend_events,
             crate::commands::diagnostics::frontend_probe,
+            crate::commands::diagnostics::submit_diagnostic_report,
             crate::commands::bios::get_bios_requirements,
             crate::commands::bios::scan_bios,
             crate::commands::compatibility::get_game_associations,

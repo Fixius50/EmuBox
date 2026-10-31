@@ -111,3 +111,10 @@ mod tests {
         assert!(record_frontend_events(vec![oversized]).is_err());
     }
 }
+
+#[tauri::command]
+pub fn submit_diagnostic_report(
+    error_context: Option<String>,
+) -> Result<crate::models::ReportSubmissionResult, EmuBoxError> {
+    DiagnosticsService::submit_report(error_context)
+}

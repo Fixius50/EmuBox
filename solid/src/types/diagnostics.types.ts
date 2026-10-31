@@ -25,3 +25,10 @@ export interface DiagnosticReport {
   recentErrors: LogEntry[] | null;
   rawSummaryText: string;
 }
+
+export interface ReportSubmissionResult {
+  success: boolean;
+  issueUrl?: string;
+  localReportPath: string;
+  message: string;
+}
