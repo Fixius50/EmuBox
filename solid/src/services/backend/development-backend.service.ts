@@ -254,4 +254,13 @@ export class DevelopmentBackendService extends TauriBackendService {
     game.favorite = !game.favorite;
     return game.favorite;
   }
+
+  public override async submitDiagnosticReport(_errorContext?: string): Promise<import('@contracts/diagnostics.types').ReportSubmissionResult> {
+    return {
+      success: true,
+      issueUrl: 'https://github.com/Fixius50/EmuBox/issues',
+      localReportPath: '/tmp/preview-report.md',
+      message: 'Reporte simulado en entorno de desarrollo.',
+    };
+  }
 }

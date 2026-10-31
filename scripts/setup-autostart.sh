@@ -166,6 +166,11 @@ if [[ -f "${SCRIPT_DIR}/emubox-drm-sync.sh" ]]; then
   chmod 0755 /usr/local/bin/emubox-drm-sync
 fi
 
+if [[ -f "${SCRIPT_DIR}/emubox-report.sh" ]]; then
+  cp -f "${SCRIPT_DIR}/emubox-report.sh" /usr/local/bin/emubox-report
+  chmod 0755 /usr/local/bin/emubox-report
+fi
+
 # ------------------------------------------------------------
 # 3. Configurar Autologin Único y Limpio en TTY1 (Punto 1)
 # ------------------------------------------------------------
