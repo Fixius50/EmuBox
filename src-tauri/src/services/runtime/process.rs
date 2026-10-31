@@ -65,6 +65,22 @@ impl ProcessService {
         #[cfg(not(unix))]
         let signal: Option<i32> = None;
 
+        let elapsed = Self::now_epoch_secs().saturating_sub(info.start_time);
+        let now = Self::now_epoch_secs();
+        let code = status.code().unwrap_or(-1);
+
+        if let Ok(conn) = crate::services::infrastructure::database::DatabaseService::get_connection() {
+            let _ = conn.execute(
+                "INSERT INTO game_sessions (game_id, emulator_id, started_at, ended_at, duration_seconds, exit_code) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                rusqlite::params![info.game_id, info.emulator_id, info.start_time, now, elapsed, code],
+            );
+            let elapsed_minutes = (elapsed / 60).max(if elapsed > 10 { 1 } else { 0 });
+            let _ = conn.execute(
+                "UPDATE games SET play_time_minutes = play_time_minutes + ?1, last_played_at = ?2 WHERE id = ?3",
+                rusqlite::params![elapsed_minutes, now, info.game_id],
+            );
+        }
+
         crate::services::infrastructure::telemetry::event(
             if status.success() { log::Level::Info } else { log::Level::Warn },
             "game.launch",
@@ -73,7 +89,7 @@ impl ProcessService {
             serde_json::json!({
                 "pid": info.pid,
                 "emulatorId": info.emulator_id,
-                "elapsedSecs": Self::now_epoch_secs().saturating_sub(info.start_time),
+                "elapsedSecs": elapsed,
                 "exitCode": status.code(),
                 "signal": signal,
             }),

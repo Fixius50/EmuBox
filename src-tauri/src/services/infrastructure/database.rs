@@ -100,7 +100,12 @@ impl DatabaseService {
     }
 
     fn init_schema(conn: &Connection) -> Result<(), EmuBoxError> {
-        conn.execute_batch(
+        let current_version: u32 = conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap_or(0);
+
+        if current_version < 1 {
+            conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS systems (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -367,6 +372,50 @@ impl DatabaseService {
         }
         conn.execute_batch("INSERT OR IGNORE INTO store_provider_states(provider,status,authorization_status,updated_at) VALUES ('steam','authorization_required','required',0), ('epic','authorization_required','required',0), ('gog','authorization_required','required',0);")
             .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+
+            conn.execute_batch("PRAGMA user_version = 1;")
+                .map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
+        }
+
+        if current_version < 2 {
+            conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS game_sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    game_id TEXT NOT NULL,
+                    emulator_id TEXT NOT NULL,
+                    started_at INTEGER NOT NULL,
+                    ended_at INTEGER,
+                    duration_seconds INTEGER DEFAULT 0,
+                    exit_code INTEGER,
+                    error_message TEXT,
+                    FOREIGN KEY(game_id) REFERENCES games(id) ON DELETE CASCADE,
+                    FOREIGN KEY(emulator_id) REFERENCES emulators(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_game_sessions_game ON game_sessions(game_id);
+                CREATE INDEX IF NOT EXISTS idx_game_sessions_started ON game_sessions(started_at);
+
+                CREATE TABLE IF NOT EXISTS bios_cache (
+                    filename TEXT NOT NULL,
+                    platform_id TEXT NOT NULL,
+                    file_size INTEGER NOT NULL,
+                    file_mtime INTEGER NOT NULL,
+                    md5 TEXT,
+                    sha1 TEXT,
+                    is_valid INTEGER NOT NULL DEFAULT 0,
+                    checked_at INTEGER NOT NULL,
+                    PRIMARY KEY(filename, platform_id)
+                );
+
+                CREATE TABLE IF NOT EXISTS app_settings_kv (
+                    key TEXT PRIMARY KEY,
+                    value_json TEXT NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );
+
+                PRAGMA user_version = 2;",
+            )
+            .map_err(|e| EmuBoxError::StorageUnavailable(format!("Error en migracion v2 SQLite: {}", e)))?;
+        }
 
         Ok(())
     }

@@ -39,6 +39,10 @@ function exampleGame(
 }
 
 export class DevelopmentBackendService extends TauriBackendService {
+  private vmUrl: string = typeof window !== 'undefined'
+    ? ((window as any).__EMUBOX_VM_URL__ || localStorage.getItem('emubox_vm_url') || 'http://localhost:9191')
+    : 'http://localhost:9191';
+  private vmOnline: boolean = false;
   private games: Game[] = [
     exampleGame("orbita-snes", "Orbita Cero", "snes", true),
     exampleGame("orbita-ps1", "Orbita Cero", "ps1"),
@@ -82,7 +86,30 @@ export class DevelopmentBackendService extends TauriBackendService {
   public override get isTauriEnvironment(): boolean {
     return false;
   }
+  public async probeVm(): Promise<boolean> {
+    if (typeof fetch === 'undefined') return false;
+    try {
+      const res = await fetch(`${this.vmUrl}/health`, { signal: AbortSignal.timeout(800) });
+      this.vmOnline = res.ok;
+      return this.vmOnline;
+    } catch {
+      this.vmOnline = false;
+      return false;
+    }
+  }
+
   public override async getGames(): Promise<Game[]> {
+    if (this.vmOnline) {
+      try {
+        const res = await fetch(`${this.vmUrl}/api/games`, { signal: AbortSignal.timeout(1500) });
+        if (res.ok) {
+          const list = await res.json();
+          if (Array.isArray(list) && list.length > 0) return list;
+        }
+      } catch {
+        this.vmOnline = false;
+      }
+    }
     return structuredClone(this.games);
   }
   public override async getPlatforms(): Promise<Platform[]> {
@@ -138,7 +165,38 @@ export class DevelopmentBackendService extends TauriBackendService {
     };
   }
   public override async getEmulators(): Promise<Emulator[]> {
+    if (this.vmOnline) {
+      try {
+        const res = await fetch(`${this.vmUrl}/api/emulators`, { signal: AbortSignal.timeout(1500) });
+        if (res.ok) {
+          const list = await res.json();
+          if (Array.isArray(list) && list.length > 0) return list;
+        }
+      } catch {
+        this.vmOnline = false;
+      }
+    }
     return structuredClone(this.emulators);
+  }
+
+  public override async launchGame(gameId: string, emulatorId?: string): Promise<any> {
+    if (this.vmOnline) {
+      try {
+        const res = await fetch(`${this.vmUrl}/api/launch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameId, emulatorId }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (res.ok) return await res.json();
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'La Máquina Virtual rechazó el lanzamiento del juego.');
+      } catch (e: any) {
+        if (e.message?.includes('Máquina Virtual')) throw e;
+        this.vmOnline = false;
+      }
+    }
+    throw new Error('EmuBox requiere el runtime nativo Tauri o una Máquina Virtual activa con el bridge iniciado.');
   }
   public override async getDownloadJobs(): Promise<DownloadJob[]> {
     return [];

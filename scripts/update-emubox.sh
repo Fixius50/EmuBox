@@ -57,6 +57,10 @@ cd "${EMUBOX_DIR}"
 echo "[1/5] Verificando estado del árbol de trabajo local..."
 if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
   echo "[AVISO] Existen modificaciones locales no confirmadas en ${EMUBOX_DIR}."
+  if [[ "${1:-}" == "--auto-startup" ]]; then
+    echo "[INFO] Modo auto-startup: omitiendo actualización automática para preservar cambios locales."
+    exit 0
+  fi
   echo "[ERROR] Guarda o confirma tus cambios antes de actualizar." >&2
   exit 1
 fi
@@ -65,6 +69,10 @@ fi
 echo "[2/5] Consultando actualizaciones remotas en GitHub (${BRANCH})..."
 if ! git fetch origin "${BRANCH}"; then
   echo "[ERROR] No se pudo conectar con el repositorio remoto. Verifica la conexión de red." >&2
+  if [[ "${1:-}" == "--auto-startup" ]]; then
+    echo "[INFO] Modo auto-startup: sin conexión a GitHub; continuando con arranque normal."
+    exit 0
+  fi
   exit 1
 fi
 
