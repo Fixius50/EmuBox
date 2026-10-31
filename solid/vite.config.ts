@@ -7,7 +7,17 @@ export default defineConfig({
   plugins: [solidPlugin()],
   server: {
     port: 3001,
-    strictPort: true
+    strictPort: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:9191',
+        changeOrigin: true,
+      },
+      '/health': {
+        target: 'http://localhost:9191',
+        changeOrigin: true,
+      },
+    },
   },
   resolve: {
     alias: {

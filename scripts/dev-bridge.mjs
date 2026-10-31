@@ -86,6 +86,35 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  
+  if (url.pathname === '/api/platforms' && req.method === 'GET') {
+    if (!db) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify([]));
+      return;
+    }
+    try {
+      const rows = db.prepare('SELECT id, name, short_name, manufacturer, generation, release_year, color, icon, default_emulator_id FROM systems').all();
+      const platforms = rows.map(r => ({
+        id: r.id,
+        name: r.name,
+        shortName: r.short_name,
+        manufacturer: r.manufacturer,
+        generation: r.generation,
+        releaseYear: r.release_year,
+        color: r.color,
+        icon: r.icon,
+        defaultEmulatorId: r.default_emulator_id,
+      }));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(platforms));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
   if (url.pathname === '/api/emulators' && req.method === 'GET') {
     if (!db) {
       res.writeHead(200, { 'Content-Type': 'application/json' });

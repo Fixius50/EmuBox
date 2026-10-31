@@ -13,7 +13,13 @@ export default function DevelopmentPreview() {
       <aside class="development-preview-status" role="status">
         <FlaskConical size={16} aria-hidden="true" />
         <strong>DESARROLLO</strong>
-        <span>Datos de ejemplo. Solo en memoria. Sin servicios nativos.</span>
+        <Show when={preview.backend.isVmConnected} fallback={
+          <span>Datos de ejemplo. Solo en memoria. Sin servicios nativos.</span>
+        }>
+          <span style={{ color: "#38bdf8", "font-weight": "600" }}>
+            Conectado a MV ({preview.backend.vmAddress}) • {preview.library.catalogGames().length} juegos cargados
+          </span>
+        </Show>
         <Show when={preview.notice()}>
           <span>{preview.notice()}</span>
         </Show>

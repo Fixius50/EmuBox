@@ -241,14 +241,29 @@ const NativeApp: Component = () => {
       await libraryStore.loadGames(data.games);
       if (disposed || controller.signal.aborted) return;
       soundFx.setEnabled(data.settings.audio.uiSoundEffects);
-      await new Promise<void>(resolve => {
-        frame = requestAnimationFrame(() => { frame = requestAnimationFrame(() => resolve()); });
-      });
+      const nextFrame = (timeoutMs = 150) =>
+        new Promise<void>((resolve) => {
+          let resolved = false;
+          const fallback = setTimeout(() => {
+            if (!resolved) {
+              resolved = true;
+              resolve();
+            }
+          }, timeoutMs);
+          frame = requestAnimationFrame(() => {
+            frame = requestAnimationFrame(() => {
+              if (!resolved) {
+                resolved = true;
+                clearTimeout(fallback);
+                resolve();
+              }
+            });
+          });
+        });
+      await nextFrame();
       if (disposed || controller.signal.aborted) return;
       setStartupReady(true);
-      await new Promise<void>(resolve => {
-        frame = requestAnimationFrame(() => { frame = requestAnimationFrame(() => resolve()); });
-      });
+      await nextFrame();
       if (disposed || controller.signal.aborted) return;
       const report = await backend.startupFrontendReady();
       if (disposed || controller.signal.aborted) return;

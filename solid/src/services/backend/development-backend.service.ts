@@ -98,21 +98,40 @@ export class DevelopmentBackendService extends TauriBackendService {
     }
   }
 
+  public get isVmConnected(): boolean {
+    return this.vmOnline;
+  }
+  public get vmAddress(): string {
+    return this.vmUrl;
+  }
+
   public override async getGames(): Promise<Game[]> {
+    try {
+      const res = await fetch(`${this.vmUrl}/api/games`, { signal: AbortSignal.timeout(800) });
+      if (res.ok) {
+        const list = await res.json();
+        if (Array.isArray(list) && list.length > 0) {
+          this.vmOnline = true;
+          return list;
+        }
+      }
+    } catch {
+      this.vmOnline = false;
+    }
+    return structuredClone(this.games);
+  }
+  public override async getPlatforms(): Promise<Platform[]> {
     if (this.vmOnline) {
       try {
-        const res = await fetch(`${this.vmUrl}/api/games`, { signal: AbortSignal.timeout(1500) });
+        const res = await fetch(`${this.vmUrl}/api/platforms`, { signal: AbortSignal.timeout(800) });
         if (res.ok) {
           const list = await res.json();
           if (Array.isArray(list) && list.length > 0) return list;
         }
       } catch {
-        this.vmOnline = false;
+        // fallback to empty
       }
     }
-    return structuredClone(this.games);
-  }
-  public override async getPlatforms(): Promise<Platform[]> {
     return [];
   }
   public override async getSettings(): Promise<SystemSettings> {
