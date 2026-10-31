@@ -40,8 +40,8 @@ function exampleGame(
 
 export class DevelopmentBackendService extends TauriBackendService {
   private vmUrl: string = typeof window !== 'undefined'
-    ? ((window as any).__EMUBOX_VM_URL__ || localStorage.getItem('emubox_vm_url') || 'http://localhost:9191')
-    : 'http://localhost:9191';
+    ? ((window as any).__EMUBOX_VM_URL__ || localStorage.getItem('emubox_vm_url') || '')
+    : '';
   private vmOnline: boolean = false;
   private games: Game[] = [
     exampleGame("orbita-snes", "Orbita Cero", "snes", true),
@@ -102,7 +102,7 @@ export class DevelopmentBackendService extends TauriBackendService {
     return this.vmOnline;
   }
   public get vmAddress(): string {
-    return this.vmUrl;
+    return this.vmUrl || 'http://localhost:9191';
   }
 
   public override async getGames(): Promise<Game[]> {
@@ -253,14 +253,5 @@ export class DevelopmentBackendService extends TauriBackendService {
     if (!game) throw new Error("Juego de ejemplo no encontrado");
     game.favorite = !game.favorite;
     return game.favorite;
-  }
-
-  public override async submitDiagnosticReport(_errorContext?: string): Promise<import('@contracts/diagnostics.types').ReportSubmissionResult> {
-    return {
-      success: true,
-      issueUrl: 'https://github.com/Fixius50/EmuBox/issues',
-      localReportPath: '/tmp/preview-report.md',
-      message: 'Reporte simulado en entorno de desarrollo.',
-    };
   }
 }

@@ -89,6 +89,12 @@ const server = http.createServer((req, res) => {
   
   if (url.pathname === '/api/platforms' && req.method === 'GET') {
     if (!db) {
+      const fallbackPlatforms = path.join(root, 'data', 'platforms.json');
+      if (fs.existsSync(fallbackPlatforms)) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(fs.readFileSync(fallbackPlatforms, 'utf8'));
+        return;
+      }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify([]));
       return;
@@ -117,6 +123,12 @@ const server = http.createServer((req, res) => {
 
   if (url.pathname === '/api/emulators' && req.method === 'GET') {
     if (!db) {
+      const fallbackEmus = path.join(root, 'data', 'emulators.json');
+      if (fs.existsSync(fallbackEmus)) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(fs.readFileSync(fallbackEmus, 'utf8'));
+        return;
+      }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify([]));
       return;

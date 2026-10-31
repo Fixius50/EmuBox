@@ -26,9 +26,3 @@ export interface DiagnosticReport {
   rawSummaryText: string;
 }
 
-export interface ReportSubmissionResult {
-  success: boolean;
-  issueUrl?: string;
-  localReportPath: string;
-  message: string;
-}

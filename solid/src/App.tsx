@@ -63,19 +63,6 @@ const NativeApp: Component = () => {
   const [startupError, setStartupError] = createSignal('');
   const [startupReady, setStartupReady] = createSignal(false);
   const [startupFailed, setStartupFailed] = createSignal(false);
-  const [reportNotice, setReportNotice] = createSignal('');
-  const [reportSending, setReportSending] = createSignal(false);
-  const triggerErrorReport = async (errText: string) => {
-    setReportSending(true);
-    try {
-      const res = await backend.submitDiagnosticReport(errText);
-      setReportNotice(res.message);
-    } catch {
-      setReportNotice('Reporte guardado en /var/log/emubox/reports/');
-    } finally {
-      setReportSending(false);
-    }
-  };
   const startupStepState = (id: typeof startupSteps[number]['id']) => {
     if (id === 'catalog') return startupHydrating() ? (startupFailed() ? 'error' : 'running') : 'pending';
     return startupReport()?.tasks.find(task => task.id === id)?.state ?? 'pending';
@@ -212,11 +199,9 @@ const NativeApp: Component = () => {
     const controller = new AbortController();
     let frame: number | undefined;
     const failed = (error: unknown) => {
-      const errMsg = startupErrorMessage(error);
-      void triggerErrorReport(errMsg);
-      if (disposed || controller.signal.aborted) return;
       setStartupError(startupErrorMessage(error));
       setStartupFailed(true);
+      setStartupHydrating(false);
       setStartupReady(false);
       controller.abort();
     };
@@ -365,17 +350,9 @@ const NativeApp: Component = () => {
               }}</For>
             </ol>
             <Show when={startupFailed()}>
-              <div class="startup-failure-actions">
-                <button class="startup-exit" onClick={() => { void backend.exitToLinuxShell(); }}>
-                  <LogOut size={17} />Salir a consola
-                </button>
-                <button class="startup-report-action" onClick={() => { void triggerErrorReport(startupError()); }} disabled={reportSending()}>
-                  <Send size={17} />{reportSending() ? 'Enviando...' : 'Reenviar reporte'}
-                </button>
-              </div>
-              <Show when={reportNotice()}>
-                <p class="startup-report-notice">{reportNotice()}</p>
-              </Show>
+              <button class="startup-exit" onClick={() => { void backend.exitToLinuxShell(); }}>
+                <LogOut size={17} />Salir a consola
+              </button>
             </Show>
           </footer>
         </section>

@@ -198,7 +198,6 @@ export interface IEmuBoxBackend {
   getSystemLogs(limit?: number): Promise<LogEntry[]>;
   getEmuBoxLogs(limit?: number): Promise<LogEntry[]>;
   getDiagnostics(): Promise<DiagnosticReport>;
-  submitDiagnosticReport(errorContext?: string): Promise<ReportSubmissionResult>;
 
   // 10. BIOS Scanner
   getBiosRequirements(): Promise<BiosStatus>;

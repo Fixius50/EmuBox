@@ -82,6 +82,7 @@ export function useDevelopmentPreview() {
     row,
     inputStatus,
     notice,
+    setNotice,
     blockedAction,
     navigateSettings,
     changeTab,
