@@ -21,7 +21,7 @@ el titulo canonico y la version seleccionada por separado; identifica si procede
 de Libretro Database o del catalogo local. No se fusionan identidades diferentes
 por parecido ni se divide una identidad canonica por anos del paquete.
 
-`Fuentes de esta version` abre el selector en el `catalogGameId` elegido, incluso
+Seleccionar una tarjeta abre las fuentes en el `catalogGameId` elegido, incluso
 si el backend ordena primero otra variante instalada. Se conservan los nombres
 originales de las fuentes, sin sustituirlos por el nombre del juego. Con varias
 versiones, LB/RB cambia version en el panel de fuentes aunque exista historial;
@@ -38,9 +38,20 @@ como coincidencias maestras.
 Para NES, SNES, GBA, N64, Mega Drive, 3DS, NDS, PSP, PS1, PS2, PS3, GameCube y
 Dreamcast, el proveedor maestro es [Libretro Database](https://github.com/libretro/libretro-database),
 publicado bajo CC BY-SA 4.0. Se importan sus DAT No-Intro/Redump sin credenciales.
-Solo se enlazan coincidencias exactas y unicas de titulo de release (confianza 100)
-o titulo canonico (90); nunca se hace fuzzy matching automatico. Plataformas no
-cubiertas y nombres sin coincidencia reciben una identidad local derivada (60).
+Se priorizan coincidencias completas y unicas del titulo de release (confianza 100)
+o canonico (90). Si el nombre recibido tiene marcas de idioma, region o revision,
+se busca tambien el alias literal de la base publica entre palabras completas:
+solo se acepta cuando el texto restante son anotaciones reconocidas y la identidad
+es unica. No se hace fuzzy matching ni se fusionan ediciones distintas. Plataformas
+no cubiertas y nombres sin coincidencia reciben una identidad local derivada (60).
+Antes de comparar con el DAT se admiten sufijos finales de distribucion conocidos
+(por ejemplo `Free Download`, `[P2P]` o `[GOG]`) solo si el nombre completo no
+coincidio y el alias publico restante es unico. El indice revisa tambien enlaces
+locales antiguos con esos sufijos cuando hay datos publicos, sin cambiar los IDs
+ni las fuentes de las variantes. En PC, que no esta cubierto por esos DAT, esos
+sufijos comparten identidad local y favorito; ediciones como `Deluxe Edition` y
+titulos ambiguos no se fusionan por parecido. Otras marcas de paquete no
+reconocidas todavia pueden conservar carpetas distintas.
 
 La sincronizacion se ejecuta despues de que la UI quede lista. Una fuente correcta
 se comprueba como maximo una vez al dia y usa ETag/Last-Modified; un fallo se

@@ -164,3 +164,80 @@ fn local_variants_upgrade_to_authoritative_identity_without_changing_catalog_ids
         )
         .unwrap();
 }
+
+#[test]
+fn indexed_package_upgrades_after_public_database_is_already_cached() {
+    use crate::{models::game::CatalogEntry, services::GameService};
+    let game_id = "game-db-late-package-fixture";
+    let local_id = "game-db-late-package-local";
+    GameService::get_platforms().unwrap();
+    import_releases("snes", &[Release {
+        title: "Late Package Fixture (USA)".into(),
+        canonical_title: "Late Package Fixture".into(),
+        region: Some("USA".into()),
+        serial: None, crc: Some("A1B2C3D4".into()), md5: None, sha1: None,
+    }]).unwrap();
+    GameService::upsert_catalog_entry(CatalogEntry {
+        id: game_id.into(), title: "[Español] Late Package Fixture (USA) [Rev A]".into(),
+        platform_id: "snes".into(), platform_name: "SNES".into(), release_year: None,
+        genre: None, developer: None, publisher: None, rating: None,
+        cover_image: None, backdrop_image: None, description: None,
+    }).unwrap();
+    let connection = DatabaseService::get_connection().unwrap();
+    connection.execute("INSERT INTO canonical_games(id,authority,authority_id,title,normalized_title,platform_id,updated_at) VALUES(?1,'local-derived',?1,'[Español] Late Package Fixture (USA) [Rev A]','español late package fixture usa rev a','snes',0)", [local_id]).unwrap();
+    connection.execute("INSERT INTO catalog_game_matches(catalog_game_id,canonical_game_id,method,confidence,matched_at) VALUES(?1,?2,'local-title',60,0)", params![game_id, local_id]).unwrap();
+    drop(connection);
+    assert_eq!(ensure_local_index().unwrap(), 1);
+    let connection = DatabaseService::get_connection().unwrap();
+    let (authority, release): (String, Option<String>) = connection.query_row("SELECT canonical.authority,match.release_id FROM catalog_game_matches AS match JOIN canonical_games AS canonical ON canonical.id=match.canonical_game_id WHERE match.catalog_game_id=?1", [game_id], |row| Ok((row.get(0)?, row.get(1)?))).unwrap();
+    assert_eq!(authority, "libretro");
+    assert!(release.is_some());
+    assert_eq!(ensure_local_index().unwrap(), 0);
+    connection.execute("DELETE FROM games WHERE id=?1", [game_id]).unwrap();
+    connection.execute("DELETE FROM canonical_games WHERE id=?1", [local_id]).unwrap();
+    connection.execute("DELETE FROM canonical_games WHERE normalized_title='late package fixture'", []).unwrap();
+}
+
+#[test]
+fn pc_package_variants_share_local_identity_and_preserve_favorites() {
+    use crate::{models::game::CatalogEntry, services::GameService};
+    GameService::get_platforms().unwrap();
+    let ids = ["game-db-pc-base", "game-db-pc-package", "game-db-pc-deluxe"];
+    for (id, title) in [
+        (ids[0], "Grouping Fixture PC"),
+        (ids[1], "Grouping Fixture PC Free Download"),
+        (ids[2], "Grouping Fixture PC Deluxe Edition"),
+    ] {
+        GameService::upsert_catalog_entry(CatalogEntry {
+            id: id.into(), title: title.into(), platform_id: "pc".into(),
+            platform_name: "PC".into(), release_year: None, genre: None,
+            developer: None, publisher: None, rating: None, cover_image: None,
+            backdrop_image: None, description: None,
+        }).unwrap();
+    }
+    ensure_local_index().unwrap();
+    let connection = DatabaseService::get_connection().unwrap();
+    let base_id: String = connection.query_row("SELECT canonical_game_id FROM catalog_game_matches WHERE catalog_game_id=?1", [ids[0]], |row| row.get(0)).unwrap();
+    assert_eq!(connection.query_row("SELECT canonical_game_id FROM catalog_game_matches WHERE catalog_game_id=?1", [ids[1]], |row| row.get::<_, String>(0)).unwrap(), base_id);
+    assert_ne!(connection.query_row("SELECT canonical_game_id FROM catalog_game_matches WHERE catalog_game_id=?1", [ids[2]], |row| row.get::<_, String>(0)).unwrap(), base_id);
+    let old_id = "game-db-pc-old-package";
+    connection.execute("INSERT INTO canonical_games(id,authority,authority_id,title,normalized_title,platform_id,favorite,updated_at) VALUES(?1,'local-derived',?1,'Grouping Fixture PC Free Download','grouping fixture pc free download','pc',1,0)", [old_id]).unwrap();
+    connection.execute("UPDATE catalog_game_matches SET canonical_game_id=?1 WHERE catalog_game_id=?2", params![old_id, ids[1]]).unwrap();
+    connection.execute("INSERT INTO download_sources(id,game_id,name,source_type,uri,available) VALUES('game-db-pc-source',?1,'PC package','http','https://example.invalid/fixture',1)", [ids[1]]).unwrap();
+    drop(connection);
+    assert_eq!(ensure_local_index().unwrap(), 1);
+    let upgraded = GameService::get_game_by_id(ids[1].into()).unwrap().unwrap();
+    assert_eq!(upgraded.id, ids[1]);
+    assert_eq!(upgraded.canonical_id.as_deref(), Some(base_id.as_str()));
+    assert!(upgraded.favorite);
+    let grouped = options(&base_id).unwrap();
+    assert_eq!(grouped.releases.len(), 2);
+    assert_eq!(grouped.sources[0].source.game_id, ids[1]);
+    let connection = DatabaseService::get_connection().unwrap();
+    connection.execute("DELETE FROM download_sources WHERE id='game-db-pc-source'", []).unwrap();
+    for id in ids {
+        connection.execute("DELETE FROM games WHERE id=?1", [id]).unwrap();
+    }
+    connection.execute("DELETE FROM canonical_games WHERE id=?1", [old_id]).unwrap();
+    connection.execute("DELETE FROM canonical_games WHERE platform_id='pc' AND normalized_title LIKE 'grouping fixture pc%'", []).unwrap();
+}

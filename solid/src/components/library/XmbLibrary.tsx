@@ -443,15 +443,6 @@ export function XmbLibrary(props: XmbLibraryProps) {
                   </div>
                 </dl>
               </div>
-              <footer>
-                <button
-                  class="xmb-primary"
-                  onClick={() => props.onOpenGame(game())}
-                >
-                  <Download size={18} />
-                  Fuentes de esta version
-                </button>
-              </footer>
             </aside>
           </>
         )}
