@@ -60,23 +60,4 @@ impl DiagnosticsService {
             ),
         })
     }
-
-            }
-        }
-
-        let mut url = reqwest::Url::parse("https://github.com/Fixius50/EmuBox/issues/new")
-            .unwrap_or_else(|_| reqwest::Url::parse("https://github.com/Fixius50/EmuBox").unwrap());
-        url.query_pairs_mut()
-            .append_pair("title", &issue_title)
-            .append_pair("body", &body);
-        let issue_url = url.to_string();
-        let _ = std::fs::write(target_dir.join("latest-issue.url"), &issue_url);
-
-        Ok(crate::models::ReportSubmissionResult {
-            success: true,
-            issue_url: Some(issue_url),
-            local_report_path: local_path.to_string_lossy().to_string(),
-            message: format!("Reporte guardado en {}", local_path.display()),
-        })
-    }
 }
