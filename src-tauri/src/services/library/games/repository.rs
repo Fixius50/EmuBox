@@ -71,7 +71,19 @@ impl GameService {
             }
         }
 
-        query.push_str(" ORDER BY COALESCE(canonical.title, game.title) ASC, game.title ASC;");
+        query.push_str(" ORDER BY COALESCE(canonical.title, game.title) ASC, game.title ASC");
+
+        if let Some(ref f) = filter {
+            if let Some(limit) = f.limit {
+                query.push_str(" LIMIT ?");
+                param_values.push(Box::new(limit as i64));
+                if let Some(offset) = f.offset {
+                    query.push_str(" OFFSET ?");
+                    param_values.push(Box::new(offset as i64));
+                }
+            }
+        }
+        query.push(';');
 
         let mut stmt = conn
             .prepare(&query)
@@ -83,6 +95,31 @@ impl GameService {
             .query_map(params_slice.as_slice(), row_to_game)
             .map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
 
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))
+    }
+
+    /// Consulta optimizada de arranque de alta velocidad:
+    /// Carga todos los juegos instalados + todos los favoritos + los primeros 250 del catálogo general.
+    /// Evita colapsar la interfaz y la memoria con cientos de miles de entradas en el arranque inicial.
+    pub fn get_startup_games() -> Result<Vec<Game>, EmuBoxError> {
+        let conn = DatabaseService::get_connection()?;
+        let query = format!(
+            "{GAME_SELECT} WHERE game.rom_path IS NOT NULL \
+             OR game.favorite = 1 \
+             OR canonical.favorite = 1 \
+             OR game.id IN (SELECT id FROM games ORDER BY rating DESC, title ASC LIMIT 250) \
+             ORDER BY \
+               CASE WHEN game.rom_path IS NOT NULL THEN 0 ELSE 1 END, \
+               CASE WHEN game.favorite = 1 OR canonical.favorite = 1 THEN 0 ELSE 1 END, \
+               COALESCE(canonical.title, game.title) ASC, game.title ASC;"
+        );
+        let mut stmt = conn
+            .prepare(&query)
+            .map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
+        let rows = stmt
+            .query_map([], row_to_game)
+            .map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))
     }

@@ -31,7 +31,7 @@ pub(super) fn execute(
             Output::Library(
                 settings,
                 GameService::get_platforms()?,
-                GameService::get_games(None)?,
+                GameService::get_startup_games()?,
             )
         }
         Task::Hardware => {

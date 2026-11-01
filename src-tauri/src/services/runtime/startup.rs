@@ -285,7 +285,7 @@ impl Startup {
             report,
             games: match games {
                 Some(games) => games,
-                None => GameService::get_games(None)?,
+                None => GameService::get_startup_games()?,
             },
         })
     }

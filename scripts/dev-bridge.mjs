@@ -57,7 +57,12 @@ const server = http.createServer((req, res) => {
       return;
     }
     try {
-      const rows = db.prepare('SELECT id, title, platform_id, platform_name, release_year, genre, developer, publisher, rating, play_time_minutes, favorite, cover_image, backdrop_image, description, rom_path, file_size_bytes FROM games').all();
+      const rows = db.prepare(`
+        SELECT id, title, platform_id, platform_name, release_year, genre, developer, publisher, rating, play_time_minutes, favorite, cover_image, backdrop_image, description, rom_path, file_size_bytes 
+        FROM games 
+        WHERE rom_path IS NOT NULL OR favorite = 1 OR id IN (SELECT id FROM games ORDER BY rating DESC, title ASC LIMIT 250)
+        ORDER BY CASE WHEN rom_path IS NOT NULL THEN 0 ELSE 1 END, CASE WHEN favorite = 1 THEN 0 ELSE 1 END, title ASC
+      `).all();
       const games = rows.map(r => ({
         id: r.id,
         title: r.title,
