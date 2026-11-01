@@ -847,12 +847,9 @@ dependencies = [
  "compress-tools",
  "libc",
  "log",
-<<<<<<< Updated upstream
  "notify",
  "reqwest 0.12.28",
  "ring",
-=======
->>>>>>> Stashed changes
  "rusqlite",
  "serde",
  "serde_json",
@@ -2964,7 +2961,6 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< Updated upstream
 name = "ring"
 version = "0.17.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2979,8 +2975,6 @@ dependencies = [
 ]
 
 [[package]]
-=======
->>>>>>> Stashed changes
 name = "rusqlite"
 version = "0.32.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
