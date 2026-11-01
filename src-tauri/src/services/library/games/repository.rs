@@ -52,13 +52,13 @@ impl GameService {
         let mut param_values: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
         if let Some(ref f) = filter {
-            if let Some(target_plat) = f.platform {
+            if let Some(ref target_plat) = f.platform {
                 if target_plat != "all" {
                     query.push_str(" AND game.platform_id = ?");
-                    param_values.push(Box::new(target_plat));
+                    param_values.push(Box::new(target_plat.clone()));
                 }
             }
-            if let Some(q) = f.search {
+            if let Some(ref q) = f.search {
                 if !q.trim().is_empty() {
                     query.push_str(" AND game.title LIKE ?");
                     param_values.push(Box::new(format!("%{}%", q.trim())));

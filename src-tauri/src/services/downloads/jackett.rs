@@ -7,12 +7,12 @@ use ring::rand::{SecureRandom, SystemRandom};
 use serde::Deserialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+#[cfg(unix)]
+use std::os::unix::fs::MetadataExt;
 use std::{
     collections::HashMap,
     fs,
     io::Read,
-    #[cfg(unix)]
-    os::unix::fs::MetadataExt,
     sync::{Mutex, OnceLock},
     time::{Duration, Instant},
 };
