@@ -2,17 +2,20 @@ use crate::errors::EmuBoxError;
 use std::{fs, io::Read, path::Path, sync::OnceLock, time::Duration};
 
 const ONEFICHIER_TOKEN: &str = "/etc/emubox/credentials/1fichier.token";
-static ONEFICHIER_CLIENT: OnceLock<reqwest::blocking::Client> = OnceLock::new();
+static ONEFICHIER_CLIENT: OnceLock<Option<reqwest::blocking::Client>> = OnceLock::new();
 
 fn onefichier_client() -> Result<&'static reqwest::blocking::Client, EmuBoxError> {
-    ONEFICHIER_CLIENT.get_or_try_init(|| {
+    let client_opt = ONEFICHIER_CLIENT.get_or_init(|| {
         reqwest::blocking::Client::builder()
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(20))
             .redirect(reqwest::redirect::Policy::none())
             .build()
-            .map_err(|_| configuration_error("No se pudo iniciar el cliente API 1fichier"))
-    })
+            .ok()
+    });
+    client_opt
+        .as_ref()
+        .ok_or_else(|| configuration_error("No se pudo iniciar el cliente API 1fichier"))
 }
 
 fn require_account_opt_in(value: Option<&str>) -> Result<(), EmuBoxError> {

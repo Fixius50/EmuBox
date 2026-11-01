@@ -51,7 +51,7 @@ impl GameService {
         let mut query = format!("{GAME_SELECT} WHERE 1=1");
         let mut param_values: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
-        if let Some(f) = filter {
+        if let Some(ref f) = filter {
             if let Some(target_plat) = f.platform {
                 if target_plat != "all" {
                     query.push_str(" AND game.platform_id = ?");
