@@ -205,17 +205,15 @@ if [[ "$VERBOSE" -eq 1 ]]; then
     sccache --show-stats 2>/dev/null || true
   fi
 else
-  if npx tauri build --no-bundle --target "$TARGET" --config '{"build":{"beforeBuildCommand":""}}' >"${BUILD_CARGO_LOG}" 2>&1; then
+  # En modo estandar, mostrar lineas de progreso de Cargo en tiempo real y guardar en log
+  if npx tauri build --no-bundle --target "$TARGET" --config '{"build":{"beforeBuildCommand":""}}' 2>&1 | tee -a "${BUILD_CARGO_LOG}"; then
     log_ok "Binario nativo Tauri compilado exitosamente con frontend embebido (tauri build)."
-  elif cargo build --release --target "$TARGET" --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" >>"${BUILD_CARGO_LOG}" 2>&1; then
+  elif cargo build --release --target "$TARGET" --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" 2>&1 | tee -a "${BUILD_CARGO_LOG}"; then
     log_ok "Binario nativo Tauri compilado exitosamente mediante Cargo release."
   else
-    CARGO_STATUS=$?
+    CARGO_STATUS=${PIPESTATUS[0]}
     log_error "La compilacion de Tauri ha fallado (codigo ${CARGO_STATUS})."
     log_error "Log completo: ${BUILD_CARGO_LOG}"
-    echo ""
-    echo "Ultimas 40 lineas del error:"
-    tail -n 40 "${BUILD_CARGO_LOG}"
     exit "${CARGO_STATUS}"
   fi
 fi
