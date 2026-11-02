@@ -132,6 +132,16 @@ TAURI_BINARY="${TARGET_DIR}/${TARGET}/release/emubox"
 BUILD_CARGO_LOG="${LOG_DIR}/cargo-build.log"
 : > "${BUILD_CARGO_LOG}"
 
+if command -v sccache >/dev/null 2>&1 && [[ -z "${RUSTC_WRAPPER:-}" ]]; then
+  export RUSTC_WRAPPER="sccache"
+  log_step "Acelerador de compilacion sccache activado."
+fi
+
+if command -v mold >/dev/null 2>&1 && [[ "$(uname -s)" == "Linux" ]]; then
+  export RUSTFLAGS="-C link-arg=-fuse-ld=mold ${RUSTFLAGS:-}"
+  log_step "Enlazador ultra rapido mold activado."
+fi
+
 log_step "Compilando EmuBox Tauri en modo produccion con frontend embebido..."
 
 if npx tauri build --no-bundle --target "$TARGET" --config '{"build":{"beforeBuildCommand":""}}' >"${BUILD_CARGO_LOG}" 2>&1; then

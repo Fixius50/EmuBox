@@ -351,7 +351,7 @@ TAURI_PACKAGES=(
 )
 
 install_packages_if_missing "${TAURI_PACKAGES[@]}"
-install_optional_packages gamescope vulkan-tools
+install_optional_packages gamescope vulkan-tools mold sccache
 bash "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/installer/setup/dependencies.sh"
 
 log_ok "Dependencias graficas, GStreamer y Cage instalados."
