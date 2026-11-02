@@ -5,6 +5,14 @@
 
 set -euo pipefail
 
+for arg in "$@"; do
+  case "$arg" in
+    -v|--verbose)
+      export VERBOSE=1
+      ;;
+  esac
+done
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=lib/logging.sh
 . "${SCRIPT_DIR}/lib/logging.sh"

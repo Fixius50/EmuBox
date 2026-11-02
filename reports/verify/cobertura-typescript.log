@@ -2,5 +2,5 @@
 > emubox@1.0.0 test:validator
 > node tests/validator.test.mjs
 
-Cobertura TypeScript: 98 archivos incluidos; no depende del editor.
+Cobertura TypeScript: 99 archivos incluidos; no depende del editor.
 Detectados error de tipos y jsx-runtime ausente en archivos nunca abiertos en VS Code.

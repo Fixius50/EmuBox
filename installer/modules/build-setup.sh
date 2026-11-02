@@ -19,9 +19,22 @@ fi
 
 cd "${ROOT_DIR}"
 
+BUILD_ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    -v|--verbose)
+      export VERBOSE=1
+      BUILD_ARGS+=("--verbose")
+      ;;
+  esac
+done
+if [[ "${VERBOSE:-0}" -eq 1 && ${#BUILD_ARGS[@]} -eq 0 ]]; then
+  BUILD_ARGS+=("--verbose")
+fi
+
 # 1. Compilación mediante el script centralizado build.sh
 chmod +x "${ROOT_DIR}/scripts/build.sh"
-bash "${ROOT_DIR}/scripts/build.sh"
+bash "${ROOT_DIR}/scripts/build.sh" "${BUILD_ARGS[@]}"
 
 OPT_BIN_DIR="/opt/emubox/bin"
 mkdir -p "${OPT_BIN_DIR}"

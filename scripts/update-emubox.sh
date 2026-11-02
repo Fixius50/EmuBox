@@ -21,10 +21,20 @@ set -euo pipefail
 EMUBOX_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_FILE="${EMUBOX_LOG_DIR:-/var/log/emubox}/update.log"
 BRANCH="main"
+VERBOSE="${VERBOSE:-0}"
+for arg in "$@"; do
+  case "$arg" in
+    -v|--verbose)
+      VERBOSE=1
+      export VERBOSE=1
+      ;;
+  esac
+done
+
 if [[ "$EUID" -eq 0 ]]; then
   BUILD_USER="${SUDO_USER:-emubox}"
   [[ "$BUILD_USER" != root ]] || { echo 'Update must run as a non-root user.' >&2; exit 1; }
-  exec runuser -u "$BUILD_USER" -- bash "$0" "$@"
+  exec runuser -u "$BUILD_USER" -- env VERBOSE="$VERBOSE" bash "$0" "$@"
 fi
 source "$EMUBOX_DIR/installer/lib/architecture.sh"
 BUILD_ARCH=$(get_emubox_architecture)
@@ -67,7 +77,12 @@ fi
 
 # 2. Consultar repositorio remoto
 echo "[2/5] Consultando actualizaciones remotas en GitHub (${BRANCH})..."
-if ! git fetch origin "${BRANCH}"; then
+GIT_VERBOSE_FLAGS=()
+if [[ "$VERBOSE" -eq 1 ]]; then
+  GIT_VERBOSE_FLAGS+=("--verbose")
+fi
+
+if ! git fetch "${GIT_VERBOSE_FLAGS[@]}" origin "${BRANCH}"; then
   echo "[ERROR] No se pudo conectar con el repositorio remoto. Verifica la conexión de red." >&2
   if [[ "${1:-}" == "--auto-startup" ]]; then
     echo "[INFO] Modo auto-startup: sin conexión a GitHub; continuando con arranque normal."
@@ -109,7 +124,7 @@ if [[ -f "$EMUBOX_DIR/bin/emubox" ]]; then
   cp -p "$EMUBOX_DIR/bin/emubox" "$BACKUP_DIR/emubox"
 fi
 trap cleanup_update EXIT
-if ! git pull --ff-only origin "${BRANCH}"; then
+if ! git pull "${GIT_VERBOSE_FLAGS[@]}" --ff-only origin "${BRANCH}"; then
   echo "----------------------------------------------------------------------" >&2
   echo "[ERROR CRÍTICO] 'git pull --ff-only' no pudo aplicarse limpiamente." >&2
   echo "[SEGURIDAD] La versión actual en ejecución NO ha sido alterada." >&2
@@ -121,8 +136,12 @@ restore_binary
 # 3. Delegar compilación al script maestro build.sh
 echo "[4/5] Compilando nueva versión mediante scripts/build.sh..."
 chmod +x "${EMUBOX_DIR}/scripts/build.sh"
+BUILD_ARGS=()
+if [[ "$VERBOSE" -eq 1 ]]; then
+  BUILD_ARGS+=("--verbose")
+fi
 
-if ! bash "${EMUBOX_DIR}/scripts/build.sh"; then
+if ! bash "${EMUBOX_DIR}/scripts/build.sh" "${BUILD_ARGS[@]}"; then
   echo "======================================================================" >&2
   echo "[ERROR CRÍTICO] La compilación falló durante 'scripts/build.sh'." >&2
   echo "El build conserva el binario anterior hasta validar el nuevo ELF." >&2

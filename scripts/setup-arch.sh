@@ -27,6 +27,16 @@ set -Eeuo pipefail
 
 set -E
 
+VERBOSE="${VERBOSE:-0}"
+for arg in "$@"; do
+  case "$arg" in
+    -v|--verbose)
+      VERBOSE=1
+      export VERBOSE=1
+      ;;
+  esac
+done
+
 # ------------------------------------------------------------------------------
 # CONFIGURACION
 # ------------------------------------------------------------------------------
@@ -155,7 +165,12 @@ df -h /
 
 log_info "[2/15] Actualizando repositorios y sistema..."
 
-pacman -Syu --noconfirm
+PACMAN_EXTRA_FLAGS=()
+if [[ "$VERBOSE" -eq 1 ]]; then
+    PACMAN_EXTRA_FLAGS+=("-v")
+fi
+
+pacman -Syu --noconfirm "${PACMAN_EXTRA_FLAGS[@]}"
 
 log_ok "Sistema actualizado."
 
@@ -185,7 +200,7 @@ BASE_PACKAGES=(
     which
 )
 
-pacman -S --needed --noconfirm "${BASE_PACKAGES[@]}"
+pacman -S --needed --noconfirm "${PACMAN_EXTRA_FLAGS[@]}" "${BASE_PACKAGES[@]}"
 
 log_ok "Herramientas base instaladas."
 
@@ -302,7 +317,11 @@ fi
 if command -v rustup >/dev/null 2>&1; then
     if ! rustup toolchain list 2>/dev/null | grep -q '^stable'; then
         log_step "Instalando toolchain estable de Rust..."
-        rustup toolchain install stable
+        RUSTUP_EXTRA_FLAGS=()
+        if [[ "$VERBOSE" -eq 1 ]]; then
+            RUSTUP_EXTRA_FLAGS+=("--verbose")
+        fi
+        rustup toolchain install stable "${RUSTUP_EXTRA_FLAGS[@]}"
     fi
 
     rustup default stable
@@ -378,7 +397,11 @@ else
         die "${EMUBOX_DIR} existe pero no es un repositorio Git."
     fi
     log_step "Clonando repositorio..."
-    git clone "${REPO_URL}" "${EMUBOX_DIR}"
+    GIT_EXTRA_FLAGS=()
+    if [[ "$VERBOSE" -eq 1 ]]; then
+        GIT_EXTRA_FLAGS+=("--verbose")
+    fi
+    git clone "${GIT_EXTRA_FLAGS[@]}" "${REPO_URL}" "${EMUBOX_DIR}"
 fi
 
 chown -R "${EMUBOX_USER}:${EMUBOX_GROUP}" "${EMUBOX_DIR}"
@@ -411,8 +434,12 @@ log_step "La salida npm se almacenara en los logs correspondientes."
 # Esto evita que node_modules y Cargo queden propiedad de root.
 
 BUILD_SCRIPT="${EMUBOX_DIR}/scripts/build.sh"
+BUILD_ARGS=()
+if [[ "$VERBOSE" -eq 1 ]]; then
+    BUILD_ARGS+=("--verbose")
+fi
 
-if ! runuser -u "${EMUBOX_USER}" -- bash "${BUILD_SCRIPT}"; then
+if ! runuser -u "${EMUBOX_USER}" -- env VERBOSE="$VERBOSE" bash "${BUILD_SCRIPT}" "${BUILD_ARGS[@]}"; then
     log_error "El build de EmuBox ha fallado."
     log_error "Logs disponibles:"
     log_error "  npm:     ${NPM_INSTALL_LOG}"

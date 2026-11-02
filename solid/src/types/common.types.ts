@@ -62,3 +62,12 @@ export interface SettingSliderProps {
   isFocused?: boolean;
   onChange: (val: number) => void;
 }
+
+export type KeyBadgeVariant = 'default' | 'gold' | 'danger';
+
+export interface KeyBadgeProps {
+  gamepad?: string;
+  kbd?: string;
+  variant?: KeyBadgeVariant;
+  class?: string;
+}

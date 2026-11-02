@@ -4,6 +4,14 @@
 # ==============================================================================
 
 set -euo pipefail
+
+for arg in "$@"; do
+  case "$arg" in
+    -v|--verbose)
+      export VERBOSE=1
+      ;;
+  esac
+done
 INSTALLER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$INSTALLER_DIR/lib/logging.sh"
 source "$INSTALLER_DIR/lib/detection.sh"

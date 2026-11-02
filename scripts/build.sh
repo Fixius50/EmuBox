@@ -9,10 +9,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EMUBOX_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 source "${EMUBOX_DIR}/installer/lib/architecture.sh"
 
+VERBOSE="${VERBOSE:-0}"
+for arg in "$@"; do
+  case "$arg" in
+    -v|--verbose)
+      VERBOSE=1
+      export VERBOSE=1
+      ;;
+  esac
+done
+
 if [[ "$EUID" -eq 0 ]]; then
   BUILD_USER="${SUDO_USER:-emubox}"
   [[ "$BUILD_USER" != root ]] || { echo 'Build must run as a non-root user.' >&2; exit 1; }
-  exec runuser -u "$BUILD_USER" -- bash "$0" "$@"
+  exec runuser -u "$BUILD_USER" -- env VERBOSE="$VERBOSE" bash "$0" "$@"
 fi
 
 BUILD_ARCH="${BUILD_ARCH:-$(get_emubox_architecture)}"
@@ -47,7 +57,11 @@ log_step "Logs: $LOG_DIR"
 
 cd "${EMUBOX_DIR}"
 
-log_info "Iniciando proceso de compilacion de EmuBox..."
+if [[ "$VERBOSE" -eq 1 ]]; then
+  log_info "Iniciando proceso de compilacion de EmuBox (Modo Verbose)..."
+else
+  log_info "Iniciando proceso de compilacion de EmuBox..."
+fi
 log_step "BUILD_ARCH=${BUILD_ARCH} TARGET=${TARGET}"
 
 # ------------------------------------------------------------------------------
@@ -66,9 +80,16 @@ log_step "Node: $(node --version) | npm: $(npm --version)"
 # ------------------------------------------------------------------------------
 log_step "Validando dependencias npm y cache..."
 NPM_LOG="${LOG_DIR}/npm-install.log"
-if ! node scripts/build-cache.mjs dependencies >"${NPM_LOG}" 2>&1; then
-  tail -n 30 "${NPM_LOG}"
-  exit 1
+if [[ "$VERBOSE" -eq 1 ]]; then
+  if ! node scripts/build-cache.mjs dependencies 2>&1 | tee "${NPM_LOG}"; then
+    log_error "Fallo al validar/instalar dependencias npm."
+    exit 1
+  fi
+else
+  if ! node scripts/build-cache.mjs dependencies >"${NPM_LOG}" 2>&1; then
+    tail -n 30 "${NPM_LOG}"
+    exit 1
+  fi
 fi
 
 log_ok "Dependencias npm preparadas."
@@ -80,16 +101,27 @@ log_step "Compilando frontend SolidJS..."
 BUILD_LOG="${LOG_DIR}/npm-build.log"
 : > "${BUILD_LOG}"
 
-if node scripts/build-cache.mjs frontend >"${BUILD_LOG}" 2>&1; then
-  log_ok "Frontend SolidJS compilado correctamente."
+if [[ "$VERBOSE" -eq 1 ]]; then
+  if node scripts/build-cache.mjs frontend 2>&1 | tee -a "${BUILD_LOG}"; then
+    log_ok "Frontend SolidJS compilado correctamente."
+  else
+    BUILD_STATUS=${PIPESTATUS[0]}
+    log_error "La compilacion del frontend ha fallado (codigo ${BUILD_STATUS})."
+    log_error "Log completo: ${BUILD_LOG}"
+    exit "${BUILD_STATUS}"
+  fi
 else
-  BUILD_STATUS=$?
-  log_error "La compilacion del frontend ha fallado (codigo ${BUILD_STATUS})."
-  log_error "Log completo: ${BUILD_LOG}"
-  echo ""
-  echo "Ultimas 40 lineas del error:"
-  tail -n 40 "${BUILD_LOG}"
-  exit "${BUILD_STATUS}"
+  if node scripts/build-cache.mjs frontend >"${BUILD_LOG}" 2>&1; then
+    log_ok "Frontend SolidJS compilado correctamente."
+  else
+    BUILD_STATUS=$?
+    log_error "La compilacion del frontend ha fallado (codigo ${BUILD_STATUS})."
+    log_error "Log completo: ${BUILD_LOG}"
+    echo ""
+    echo "Ultimas 40 lineas del error:"
+    tail -n 40 "${BUILD_LOG}"
+    exit "${BUILD_STATUS}"
+  fi
 fi
 
 # ------------------------------------------------------------------------------
@@ -122,6 +154,9 @@ mkdir -p "${EMUBOX_DIR}/bin"
 log_step "Compilando adaptador de superficies vmwgfx para Cage..."
 DRM_BUILD_FLAGS=()
 read -r -a DRM_BUILD_FLAGS <<< "$(pkg-config --cflags --libs libdrm)"
+if [[ "$VERBOSE" -eq 1 ]]; then
+  log_step "Compilador C: ${CC:-cc} ${DRM_BUILD_FLAGS[*]}"
+fi
 "${CC:-cc}" -std=c11 -O2 -Wall -Wextra -Werror -fPIC -shared \
   -Wl,-z,relro,-z,now -Wl,--no-undefined \
   "${SCRIPT_DIR}/vmwgfx-compat.c" "${DRM_BUILD_FLAGS[@]}" \
@@ -135,6 +170,9 @@ BUILD_CARGO_LOG="${LOG_DIR}/cargo-build.log"
 if command -v sccache >/dev/null 2>&1 && [[ -z "${RUSTC_WRAPPER:-}" ]]; then
   export RUSTC_WRAPPER="sccache"
   log_step "Acelerador de compilacion sccache activado."
+  if [[ "$VERBOSE" -eq 1 ]]; then
+    sccache --show-stats 2>/dev/null || true
+  fi
 fi
 
 if command -v mold >/dev/null 2>&1 && [[ "$(uname -s)" == "Linux" ]]; then
@@ -144,18 +182,42 @@ fi
 
 log_step "Compilando EmuBox Tauri en modo produccion con frontend embebido..."
 
-if npx tauri build --no-bundle --target "$TARGET" --config '{"build":{"beforeBuildCommand":""}}' >"${BUILD_CARGO_LOG}" 2>&1; then
-  log_ok "Binario nativo Tauri compilado exitosamente con frontend embebido (tauri build)."
-elif cargo build --release --target "$TARGET" --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" >>"${BUILD_CARGO_LOG}" 2>&1; then
-  log_ok "Binario nativo Tauri compilado exitosamente mediante Cargo release."
+TAURI_EXTRA_ARGS=()
+CARGO_EXTRA_ARGS=()
+if [[ "$VERBOSE" -eq 1 ]]; then
+  TAURI_EXTRA_ARGS+=("--verbose")
+  CARGO_EXTRA_ARGS+=("--verbose")
+fi
+
+if [[ "$VERBOSE" -eq 1 ]]; then
+  if npx tauri build --no-bundle --target "$TARGET" "${TAURI_EXTRA_ARGS[@]}" --config '{"build":{"beforeBuildCommand":""}}' 2>&1 | tee -a "${BUILD_CARGO_LOG}"; then
+    log_ok "Binario nativo Tauri compilado exitosamente con frontend embebido (tauri build)."
+  elif cargo build --release --target "$TARGET" --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" "${CARGO_EXTRA_ARGS[@]}" 2>&1 | tee -a "${BUILD_CARGO_LOG}"; then
+    log_ok "Binario nativo Tauri compilado exitosamente mediante Cargo release."
+  else
+    CARGO_STATUS=${PIPESTATUS[0]}
+    log_error "La compilacion de Tauri ha fallado (codigo ${CARGO_STATUS})."
+    log_error "Log completo: ${BUILD_CARGO_LOG}"
+    exit "${CARGO_STATUS}"
+  fi
+  if command -v sccache >/dev/null 2>&1; then
+    log_step "Estadisticas de aceleracion sccache:"
+    sccache --show-stats 2>/dev/null || true
+  fi
 else
-  CARGO_STATUS=$?
-  log_error "La compilacion de Tauri ha fallado (codigo ${CARGO_STATUS})."
-  log_error "Log completo: ${BUILD_CARGO_LOG}"
-  echo ""
-  echo "Ultimas 40 lineas del error:"
-  tail -n 40 "${BUILD_CARGO_LOG}"
-  exit "${CARGO_STATUS}"
+  if npx tauri build --no-bundle --target "$TARGET" --config '{"build":{"beforeBuildCommand":""}}' >"${BUILD_CARGO_LOG}" 2>&1; then
+    log_ok "Binario nativo Tauri compilado exitosamente con frontend embebido (tauri build)."
+  elif cargo build --release --target "$TARGET" --manifest-path "${EMUBOX_DIR}/src-tauri/Cargo.toml" >>"${BUILD_CARGO_LOG}" 2>&1; then
+    log_ok "Binario nativo Tauri compilado exitosamente mediante Cargo release."
+  else
+    CARGO_STATUS=$?
+    log_error "La compilacion de Tauri ha fallado (codigo ${CARGO_STATUS})."
+    log_error "Log completo: ${BUILD_CARGO_LOG}"
+    echo ""
+    echo "Ultimas 40 lineas del error:"
+    tail -n 40 "${BUILD_CARGO_LOG}"
+    exit "${CARGO_STATUS}"
+  fi
 fi
 
 # Copiar binario a ubicacion estable
@@ -164,3 +226,7 @@ install -m 0755 "$TAURI_BINARY" "${EMUBOX_DIR}/bin/emubox-linux-${BUILD_ARCH}"
 install -m 0755 "$TAURI_BINARY" "${EMUBOX_DIR}/bin/emubox.next"
 mv -f "${EMUBOX_DIR}/bin/emubox.next" "${EMUBOX_DIR}/bin/emubox"
 log_ok "Binario instalado en ${EMUBOX_DIR}/bin/emubox."
+if [[ "$VERBOSE" -eq 1 ]]; then
+  log_step "Detalles del binario:"
+  ls -lh "${EMUBOX_DIR}/bin/emubox" 2>/dev/null || true
+fi

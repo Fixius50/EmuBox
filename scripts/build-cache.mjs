@@ -35,14 +35,24 @@ function dependencies(root) {
   const stamp = path.join(root, 'node_modules/.emubox-dependencies.json');
   const environment = `${process.version}:${process.platform}:${process.arch}`;
   const inputs = () => fingerprint(root, ['package.json', 'package-lock.json'], environment);
+  const isVerbose = process.env.VERBOSE === '1' || process.argv.includes('--verbose') || process.argv.includes('-v');
   let saved;
   try { saved = JSON.parse(readFileSync(stamp, 'utf8')); } catch { saved = null; }
   const reusable = process.env.EMUBOX_REINSTALL_DEPS !== '1' && saved?.inputs === inputs()
     && spawnSync('npm', ['ls', '--depth=0', '--json'], { stdio: 'ignore' }).status === 0;
-  if (!reusable) run('npm', [existsSync(path.join(root, 'package-lock.json')) ? 'ci' : 'install', '--no-audit', '--no-fund']);
+  if (!reusable) {
+    if (isVerbose) console.log('[build-cache] Instalando dependencias con npm...');
+    const npmArgs = [existsSync(path.join(root, 'package-lock.json')) ? 'ci' : 'install', '--no-audit', '--no-fund'];
+    if (isVerbose) npmArgs.push('--loglevel', 'info');
+    run('npm', npmArgs);
+  }
   const require = createRequire(path.join(root, 'package.json'));
   try { require('esbuild').transformSync('const ready = true;'); }
-  catch { run('npm', ['rebuild', 'esbuild']); require('esbuild').transformSync('const ready = true;'); }
+  catch {
+    if (isVerbose) console.log('[build-cache] Reconstruyendo binario nativo de esbuild...');
+    run('npm', ['rebuild', 'esbuild']);
+    require('esbuild').transformSync('const ready = true;');
+  }
   writeFileSync(stamp, JSON.stringify({ inputs: inputs() }));
   console.log(reusable ? 'Dependencias verificadas y reutilizadas.' : 'Dependencias instaladas y verificadas.');
 }
@@ -56,11 +66,13 @@ function frontend(root) {
     'data', 'tsconfig.json', 'package.json', 'package-lock.json', 'scripts/build-cache.mjs', ...envFiles], `${process.version}:${process.arch}:${environment}`);
   let saved;
   try { saved = JSON.parse(readFileSync(stamp, 'utf8')); } catch { saved = null; }
+  const isVerbose = process.env.VERBOSE === '1' || process.argv.includes('--verbose') || process.argv.includes('-v');
   if (process.env.EMUBOX_REBUILD_FRONTEND !== '1' && saved?.inputs === inputs
     && existsSync(path.join(root, 'solid/dist/index.html')) && saved.outputs === fingerprint(root, ['solid/dist'])) {
     console.log('Frontend sin cambios: artefactos verificados y reutilizados.');
     return;
   }
+  if (isVerbose) console.log('[build-cache] Compilando frontend mediante Vite...');
   run('npm', ['run', 'build']);
   mkdirSync(path.dirname(stamp), { recursive: true });
   writeFileSync(stamp, JSON.stringify({ inputs, outputs: fingerprint(root, ['solid/dist']) }));

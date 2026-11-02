@@ -24,10 +24,15 @@ install_packages_if_missing() {
     missing+=("$package")
   done
   [[ ${#missing[@]} -gt 0 ]] || return 0
+  local pacman_cmd=("pacman" "-S" "--needed" "--noconfirm")
+  if [[ "${VERBOSE:-0}" -eq 1 ]]; then
+    pacman_cmd+=("-v")
+    echo "  [pacman] Instalando/descargando paquetes (${#missing[@]}): ${missing[*]}"
+  fi
   if [[ "$EUID" -eq 0 ]]; then
-    pacman -S --needed --noconfirm "${missing[@]}"
+    "${pacman_cmd[@]}" "${missing[@]}"
   else
-    sudo pacman -S --needed --noconfirm "${missing[@]}"
+    sudo "${pacman_cmd[@]}" "${missing[@]}"
   fi
 }
 
@@ -35,6 +40,7 @@ install_optional_packages() {
   local package
   for package in "$@"; do
     if is_pkg_installed "$package"; then
+      [[ "${VERBOSE:-0}" -eq 1 ]] && echo "  [pacman] Paquete opcional ya disponible: $package"
       continue
     elif pacman -Si "$package" >/dev/null 2>&1; then
       install_packages_if_missing "$package" || log_warn "Optional package failed: $package"

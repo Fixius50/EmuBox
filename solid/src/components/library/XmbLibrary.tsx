@@ -21,6 +21,7 @@ import type { XmbLibraryProps } from "@contracts/xmb.types";
 import type { Game } from "@contracts/game.types";
 import { useXmbLibrary } from "@hooks/useXmbLibrary";
 import { ConsoleHardwareVisual } from "@components/common/ConsoleHardwareVisual";
+import { KeyBadge } from "@components/common/KeyBadge";
 import { catalogTitle, cleanGameDescription } from "@services/library/catalog-groups";
 import { xmbDownloadStatus } from "@services/library/xmb-navigation";
 
@@ -134,7 +135,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
               >
                 <Keyboard size={17} />
                 <span>{query() || "Buscar"}</span>
-                <span class="xmb-key-badge gamepad gold">(Y)</span>
+                <KeyBadge gamepad="(Y)" variant="gold" />
               </button>
             }
           >
@@ -149,7 +150,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                 onInput={(event) => search(event.currentTarget.value)}
                 onKeyDown={onSearchKeyDown}
               />
-              <span class="xmb-key-badge kbd">/</span>
+              <KeyBadge kbd="/" />
             </label>
           </Show>
           <time>{clock()}</time>
@@ -442,8 +443,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                   aria-label="Cerrar ficha"
                   onClick={() => navigate("back")}
                 >
-                  <span class="xmb-key-badge gamepad">(B)</span>
-                  <span class="xmb-key-badge kbd">Esc</span>
+                  <KeyBadge gamepad="(B)" kbd="Esc" />
                   <ArrowLeft size={16} />
                 </button>
               </header>
@@ -526,8 +526,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                   }
                   onClick={() => props.onOpenGame(game())}
                 >
-                  <span class="xmb-key-badge gamepad">(A)</span>
-                  <span class="xmb-key-badge kbd">Enter</span>
+                  <KeyBadge gamepad="(A)" kbd="Enter" />
                   <Show
                     when={isInstalled(game())}
                     fallback={<Download size={18} />}
@@ -543,8 +542,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                     title="Desinstalar juego (Supr / Del)"
                     onClick={() => props.onUninstall?.(game().id)}
                   >
-                    <span class="xmb-key-badge gamepad danger">(X)</span>
-                    <span class="xmb-key-badge kbd">Supr</span>
+                    <KeyBadge gamepad="(X)" kbd="Supr" variant="danger" />
                     <Trash2 size={16} />
                     <span>Desinstalar</span>
                   </button>
@@ -557,8 +555,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                   aria-pressed={game().favorite}
                   onClick={() => props.onFavorite(game().id)}
                 >
-                  <span class="xmb-key-badge gamepad gold">(Y)</span>
-                  <span class="xmb-key-badge kbd">F</span>
+                  <KeyBadge gamepad="(Y)" kbd="F" variant="gold" />
                   <Heart
                     size={18}
                     fill={game().favorite ? "currentColor" : "none"}
