@@ -54,14 +54,14 @@ pub trait EmulatorProfile: Sync + Send {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum RendererPreference {
+pub enum RendererPreference {
     OpenGl,
     Vulkan,
     Conservative,
 }
 
 impl RendererPreference {
-    pub(crate) fn metadata_name(self, core_type: &str) -> &'static str {
+    pub fn metadata_name(self, core_type: &str) -> &'static str {
         match (self, core_type) {
             (Self::OpenGl, "libretro") => "gl",
             (Self::OpenGl, _) => "opengl",
@@ -74,7 +74,7 @@ impl RendererPreference {
 /// Comparte la única decisión gráfica de EmuBox con los perfiles. Los backends
 /// software o indeterminados no fuerzan una clave nativa: cada emulador conserva
 /// su valor seguro hasta que exista una evidencia operativa acelerada.
-pub(crate) fn renderer_preference(operational_backend: &str) -> RendererPreference {
+pub fn renderer_preference(operational_backend: &str) -> RendererPreference {
     match operational_backend {
         "opengl" => RendererPreference::OpenGl,
         "vulkan" => RendererPreference::Vulkan,
