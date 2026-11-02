@@ -943,6 +943,15 @@
     color: var(--xmb-muted);
     font-size: 0.7rem;
   }
+
+  & .xmb-folder-downloading-pill {
+    display: inline-flex;
+    align-items: center;
+    color: #fca5a5;
+    font-weight: 700;
+    font-size: 0.7rem;
+    letter-spacing: 0;
+  }
 }
 
 .xmb-expanded {
@@ -1110,6 +1119,24 @@
     color: var(--xmb-accent);
   }
 
+  & .xmb-tile-download-badge {
+    position: absolute;
+    inset-block-start: 0.5rem;
+    inset-inline-start: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.45rem;
+    border-radius: var(--border-radius-sm);
+    background: color-mix(in srgb, var(--accent-crimson) 85%, #000000);
+    color: var(--text-primary);
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    letter-spacing: 0;
+    z-index: 3;
+    box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.5);
+  }
+
   & .xmb-tile-halo-actions {
     position: absolute;
     inset-block-end: -3.5rem;
@@ -1120,6 +1147,35 @@
     gap: 0.5rem;
     z-index: 10;
     animation: fadeIn var(--transition-fast) both;
+  }
+
+  & .xmb-tile-action-cancel {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: var(--border-radius-sm);
+    background: var(--accent-crimson);
+    color: var(--text-primary);
+    font-weight: 800;
+    font-size: var(--font-size-sm);
+    border: 0;
+    cursor: pointer;
+    box-shadow: 0 0.25rem 1rem
+      color-mix(in srgb, var(--accent-crimson) 40%, transparent);
+    letter-spacing: 0;
+    transition:
+      background var(--transition-fast),
+      box-shadow var(--transition-fast);
+
+    &:hover {
+      background: color-mix(in srgb, var(--accent-crimson) 80%, #ffffff);
+    }
+
+    & .xmb-tile-pad-pill {
+      background: #450a0a;
+      color: #fca5a5;
+    }
   }
 
   & .xmb-tile-action-open {
@@ -1436,6 +1492,40 @@
   &:hover {
     background: color-mix(in srgb, var(--accent-crimson) 22%, transparent);
     border-color: var(--accent-crimson);
+  }
+}
+
+.xmb-spin-loader {
+  animation: emubox-spin 1s linear infinite;
+}
+
+.xmb-case-btn-cancel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0 1.5rem;
+  block-size: 2.75rem;
+  flex: 1;
+  border-radius: var(--border-radius-md);
+  border: 0.0625rem solid var(--accent-crimson);
+  background: color-mix(in srgb, var(--accent-crimson) 20%, var(--xmb-surface));
+  color: #fca5a5;
+  font-weight: 800;
+  font-size: var(--font-size-base);
+  letter-spacing: 0;
+  box-shadow: 0 0.5rem 1.5rem
+    color-mix(in srgb, var(--accent-crimson) 25%, transparent);
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast),
+    border-color var(--transition-fast);
+
+  &:hover {
+    background: var(--accent-crimson);
+    color: var(--text-primary);
+    box-shadow: 0 0.75rem 2rem
+      color-mix(in srgb, var(--accent-crimson) 45%, transparent);
   }
 }
 

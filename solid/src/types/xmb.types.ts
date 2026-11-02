@@ -47,4 +47,5 @@ export interface XmbLibraryProps {
   onMove: () => void;
   onControllerReady: (handler: ((action: InputAction) => void) | null) => void;
   onUninstall?: (id: string) => void;
+  onCancelDownload?: (id: string) => void;
 }

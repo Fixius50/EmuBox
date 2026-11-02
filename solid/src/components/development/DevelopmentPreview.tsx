@@ -37,6 +37,22 @@ export default function DevelopmentPreview() {
             loading={preview.library.isLoading()}
             inputStatus={preview.inputStatus()}
             onOpenGame={(game) => {
+              const isDownloading =
+                preview.library.catalogDownloadingIds().has(game.id) ||
+                preview.library
+                  .downloadJobs()
+                  .some(
+                    (j) =>
+                      j.gameId === game.id &&
+                      (j.status === "downloading" || j.status === "queued"),
+                  );
+              if (isDownloading) {
+                const job = preview.library
+                  .downloadJobs()
+                  .find((j) => j.gameId === game.id);
+                if (job) void preview.library.controlDownload(job, "cancel");
+                return;
+              }
               if (preview.backend.isVmConnected) {
                 preview.setNotice(
                   `Enviando orden de ejecución para "${game.title}" a la pantalla de la VM...`,
@@ -54,6 +70,18 @@ export default function DevelopmentPreview() {
                   });
               } else {
                 void preview.library.downloadGame(game.id);
+              }
+            }}
+            onCancelDownload={(id) => {
+              const job = preview.library
+                .downloadJobs()
+                .find(
+                  (j) =>
+                    (j.gameId === id || j.id === id) &&
+                    (j.status === "downloading" || j.status === "queued"),
+                );
+              if (job) {
+                void preview.library.controlDownload(job, "cancel");
               }
             }}
             onUninstall={(id) => {

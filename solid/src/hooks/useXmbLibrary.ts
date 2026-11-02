@@ -7,6 +7,8 @@ import {
   onMount,
 } from "solid-js";
 import type { InputAction } from "@contracts/input.types";
+import type { Game } from "@contracts/game.types";
+import type { CatalogGroup } from "@services/library/catalog-groups";
 import type {
   VirtualKeyboardKey,
   XmbCommand,
@@ -81,6 +83,23 @@ export function useXmbLibrary(props: XmbLibraryProps) {
     ];
   });
   const categoryIndex = createMemo(() => position().category);
+  const isGameDownloading = (game: CatalogGroup | Game) => {
+    if (props.downloadingIds?.has(game.id)) return true;
+    const variants =
+      "variants" in game && Array.isArray(game.variants) ? game.variants : [];
+    for (const v of variants) {
+      if (props.downloadingIds?.has(v.id)) return true;
+    }
+    const ids = new Set([game.id, ...variants.map((v) => v.id)]);
+    return Boolean(
+      props.downloadJobs?.some(
+        (job) =>
+          ids.has(job.gameId) &&
+          (job.status === "downloading" || job.status === "queued"),
+      ),
+    );
+  };
+
   const category = createMemo(
     () => categories()[categoryIndex()] || categories()[3],
   );
@@ -92,11 +111,29 @@ export function useXmbLibrary(props: XmbLibraryProps) {
       (game) =>
         (current.kind !== "platform" || game.platform === current.id) &&
         (current.kind !== "favorites" || game.favorite) &&
-        (current.kind !== "installed" || game.installed) &&
+        (current.kind !== "installed" ||
+          game.installed ||
+          isGameDownloading(game)) &&
         (!search || game.title.toLocaleLowerCase().includes(search)),
     );
   });
-  const folders = createMemo(() => xmbFolders(filtered()));
+  const folders = createMemo(() => {
+    const list = filtered();
+    if (category().kind === "installed") {
+      const installedOrDownloading = list.map((g) => {
+        if (!g.canonicalId || !g.variants || g.variants.length <= 1) return g;
+        const validVariants = g.variants.filter(
+          (v) => v.installed || isGameDownloading(v),
+        );
+        return {
+          ...g,
+          variants: validVariants.length > 0 ? validVariants : g.variants,
+        };
+      });
+      return xmbFolders(installedOrDownloading);
+    }
+    return xmbFolders(list);
+  });
   const rows = () =>
     category().kind === "settings" ? settingItems.length : folders().length;
   const folder = () => folders()[position().row - 1];
@@ -360,6 +397,7 @@ export function useXmbLibrary(props: XmbLibraryProps) {
     rowWindow,
     gameWindow,
     packages,
+    isGameDownloading,
     navigate,
     chooseCategory,
     chooseRow,

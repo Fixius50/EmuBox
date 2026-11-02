@@ -373,3 +373,52 @@ test("XMB: virtual keyboard opens only without a keyboard input source", () => {
   } finally { runtime.dispose(); }
   assert.equal(controller, null);
 });
+test("XMB: actively downloading games appear in the installed category with download state", () => {
+  const uninstalledGame = { ...fixtures[0], id: "downloading-game", installed: false, romPath: null };
+  const installedGame = { ...fixtures[1], id: "installed-game", installed: true, romPath: "/path/game.iso" };
+  const catalog = groupCatalog([uninstalledGame, installedGame]);
+
+  const runtime = createRoot((dispose) => {
+    const model = useXmbLibrary({
+      games: catalog,
+      platforms: [],
+      loading: false,
+      downloadingIds: new Set(["downloading-game"]),
+      downloadJobs: [
+        {
+          id: "job-1",
+          gameId: "downloading-game",
+          sourceId: "src-1",
+          platform: "ps1",
+          destinationPath: "/games/downloading-game",
+          status: "downloading",
+          progress: 0.45,
+          speedBytesPerSecond: 1000000,
+          downloadedBytes: 4500000,
+          totalBytes: 10000000,
+        },
+      ],
+      inputStatus: { isConnected: true, deviceName: "Keyboard", source: "keyboard" },
+      onOpenGame: () => {},
+      onOpenSettings: () => {},
+      onFavorite: () => {},
+      onMove: () => {},
+      onControllerReady: () => {},
+    });
+    return { model, dispose };
+  });
+
+  try {
+    const { model } = runtime;
+    model.chooseCategory(2);
+    assert.equal(model.category().id, "installed");
+    const folderGames = model.folders().flatMap((f) => f.games);
+    assert.equal(folderGames.length, 2);
+    assert.ok(folderGames.some((g) => g.id === "downloading-game"));
+    assert.ok(folderGames.some((g) => g.id === "installed-game"));
+    assert.equal(model.isGameDownloading(uninstalledGame), true);
+    assert.equal(model.isGameDownloading(installedGame), false);
+  } finally {
+    runtime.dispose();
+  }
+});

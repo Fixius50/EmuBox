@@ -70,7 +70,37 @@ const NativeApp: Component = () => {
   ).length;
   const startupProgress = () => Math.round(startupCompletedCount() / startupSteps.length * 100);
 
+  const handleCancelDownload = (gameId: string) => {
+    soundFx.playBack();
+    const job = libraryStore.downloadJobs().find(
+      (j) =>
+        (j.gameId === gameId || j.id === gameId) &&
+        (j.status === "downloading" || j.status === "queued"),
+    );
+    if (job) {
+      void libraryStore.controlDownload(job, "cancel");
+    } else if (libraryStore.catalogDownloadingIds().has(gameId)) {
+      const anyJob = libraryStore.downloadJobs().find((j) => j.gameId === gameId);
+      if (anyJob) void libraryStore.controlDownload(anyJob, "cancel");
+    }
+  };
+
+  const isGameDownloading = (gameId: string) => {
+    if (libraryStore.catalogDownloadingIds().has(gameId)) return true;
+    return libraryStore
+      .downloadJobs()
+      .some(
+        (job) =>
+          job.gameId === gameId &&
+          (job.status === "downloading" || job.status === "queued"),
+      );
+  };
+
   const handleGameActivate = (game: Game) => {
+    if (isGameDownloading(game.id)) {
+      handleCancelDownload(game.id);
+      return;
+    }
     soundFx.playSelect();
     if (game.installed) {
       modalStore.openEmulatorSelector(game);
@@ -343,6 +373,7 @@ const NativeApp: Component = () => {
           inputStatus={inputStatus()}
           error={libraryStore.downloadError()}
           onOpenGame={handleGameActivate}
+          onCancelDownload={handleCancelDownload}
           onOpenSettings={(tab) => {
             setActiveSettingsTab(tab);
             setSettingsFocusArea("content");

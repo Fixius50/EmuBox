@@ -26,9 +26,20 @@ import { catalogTitle, cleanGameDescription } from "@services/library/catalog-gr
 import { xmbDownloadStatus } from "@services/library/xmb-navigation";
 
 export function XmbLibrary(props: XmbLibraryProps) {
+  const isDownloading = (entry: Game) => {
+    if (props.downloadingIds?.has(entry.id)) return true;
+    return Boolean(
+      props.downloadJobs?.some(
+        (job) =>
+          job.gameId === entry.id &&
+          (job.status === "downloading" || job.status === "queued"),
+      ),
+    );
+  };
   const downloadStatus = (entry: Game) =>
     xmbDownloadStatus(entry, props.downloadJobs, props.downloadingIds);
   const isInstalled = (entry: Game) =>
+    !isDownloading(entry) &&
     Boolean(
       entry.installed ||
         entry.romPath ||
@@ -51,6 +62,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
     selectedGame,
     rowWindow,
     gameWindow,
+    isGameDownloading,
     navigate,
     chooseCategory,
     chooseRow,
@@ -302,7 +314,12 @@ export function XmbLibrary(props: XmbLibraryProps) {
                         <div class="xmb-folder-label">
                           <h2>{entry()?.title}</h2>
                           <p>
-                            {entry()?.games.length || 0} versiones disponibles
+                            <Show
+                              when={entry()?.games.some((g) => isGameDownloading(g))}
+                              fallback={`${entry()?.games.length || 0} versiones disponibles`}
+                            >
+                              <span class="xmb-folder-downloading-pill">Descargando...</span>
+                            </Show>
                           </p>
                         </div>
                       </Show>
@@ -355,6 +372,12 @@ export function XmbLibrary(props: XmbLibraryProps) {
                             <ChevronRight size={20} />
                           </span>
                         </Show>
+                        <Show when={isDownloading(entry.game)}>
+                          <div class="xmb-tile-download-badge">
+                            <LoaderCircle size={12} class="xmb-spin-loader" />
+                            <span>Descargando</span>
+                          </div>
+                        </Show>
                         <div class="xmb-tile-art">
                           <Show
                             when={entry.game.coverImage && !imageFailed()}
@@ -383,18 +406,40 @@ export function XmbLibrary(props: XmbLibraryProps) {
                         </div>
                         <Show when={entry.index === position().game}>
                           <div class="xmb-tile-halo-actions">
-                            <button
-                              type="button"
-                              class="xmb-tile-action-open"
-                              title={isInstalled(entry.game) ? "Jugar juego" : "Instalar juego"}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                props.onOpenGame(entry.game);
-                              }}
+                            <Show
+                              when={isDownloading(entry.game)}
+                              fallback={
+                                <button
+                                  type="button"
+                                  class="xmb-tile-action-open"
+                                  title={isInstalled(entry.game) ? "Jugar juego" : "Instalar juego"}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    props.onOpenGame(entry.game);
+                                  }}
+                                >
+                                  <span class="xmb-tile-pad-pill">A</span>
+                                  <span>{isInstalled(entry.game) ? "Jugar" : "Instalar"}</span>
+                                </button>
+                              }
                             >
-                              <span class="xmb-tile-pad-pill">A</span>
-                              <span>{isInstalled(entry.game) ? "Jugar" : "Instalar"}</span>
-                            </button>
+                              <button
+                                type="button"
+                                class="xmb-tile-action-cancel"
+                                title="Cancelar descarga"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (props.onCancelDownload) {
+                                    props.onCancelDownload(entry.game.id);
+                                  } else {
+                                    props.onOpenGame(entry.game);
+                                  }
+                                }}
+                              >
+                                <span class="xmb-tile-pad-pill">A</span>
+                                <span>Cancelar</span>
+                              </button>
+                            </Show>
                             <button
                               type="button"
                               class="xmb-tile-action-fav"
@@ -517,24 +562,45 @@ export function XmbLibrary(props: XmbLibraryProps) {
               </div>
 
               <footer class="xmb-case-actions">
-                <button
-                  class="xmb-case-btn-primary"
-                  title={
-                    isInstalled(game())
-                      ? "Jugar juego (A / Enter)"
-                      : "Instalar juego (A / Enter)"
+                <Show
+                  when={isDownloading(game())}
+                  fallback={
+                    <button
+                      class="xmb-case-btn-primary"
+                      title={
+                        isInstalled(game())
+                          ? "Jugar juego (A / Enter)"
+                          : "Instalar juego (A / Enter)"
+                      }
+                      onClick={() => props.onOpenGame(game())}
+                    >
+                      <KeyBadge gamepad="(A)" kbd="Enter" />
+                      <Show
+                        when={isInstalled(game())}
+                        fallback={<Download size={18} />}
+                      >
+                        <Play size={18} fill="currentColor" />
+                      </Show>
+                      <span>{isInstalled(game()) ? "Jugar" : "Instalar"}</span>
+                    </button>
                   }
-                  onClick={() => props.onOpenGame(game())}
                 >
-                  <KeyBadge gamepad="(A)" kbd="Enter" />
-                  <Show
-                    when={isInstalled(game())}
-                    fallback={<Download size={18} />}
+                  <button
+                    class="xmb-case-btn-cancel"
+                    title="Cancelar descarga (A / Enter)"
+                    onClick={() => {
+                      if (props.onCancelDownload) {
+                        props.onCancelDownload(game().id);
+                      } else {
+                        props.onOpenGame(game());
+                      }
+                    }}
                   >
-                    <Play size={18} fill="currentColor" />
-                  </Show>
-                  <span>{isInstalled(game()) ? "Jugar" : "Instalar"}</span>
-                </button>
+                    <KeyBadge gamepad="(A)" kbd="Enter" variant="danger" />
+                    <LoaderCircle size={18} class="xmb-spin-loader" />
+                    <span>{downloadStatus(game())} · Cancelar</span>
+                  </button>
+                </Show>
 
                 <Show when={isInstalled(game())}>
                   <button
