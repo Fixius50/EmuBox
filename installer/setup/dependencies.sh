@@ -14,6 +14,9 @@ detect_distribution
 # Core System & Compositor Dependencies
 CORE_PKGS=(
   "cage"
+  "wlr-randr"
+  "gtk3"
+  "webkit2gtk-4.1"
   "pipewire"
   "pipewire-pulse"
   "pipewire-alsa"

@@ -21,29 +21,8 @@ import type { XmbLibraryProps } from "@contracts/xmb.types";
 import type { Game } from "@contracts/game.types";
 import { useXmbLibrary } from "@hooks/useXmbLibrary";
 import { ConsoleHardwareVisual } from "@components/common/ConsoleHardwareVisual";
-import { catalogTitle } from "@services/library/catalog-groups";
+import { catalogTitle, cleanGameDescription } from "@services/library/catalog-groups";
 import { xmbDownloadStatus } from "@services/library/xmb-navigation";
-
-function cleanGameDescription(desc?: string): string {
-  if (!desc) return "Sin descripción disponible.";
-  const trimmed = desc.trim();
-  if (!trimmed) return "Sin descripción disponible.";
-  const lower = trimmed.toLowerCase();
-  if (
-    lower.includes("website with instructions") ||
-    lower.includes("instructions for launching the game") ||
-    lower.includes("titulo ficticio de previsualizacion") ||
-    lower.includes("título ficticio de previsualización") ||
-    lower === "no disponible" ||
-    lower === "sin descripción" ||
-    lower === "sin descripcion" ||
-    lower.startsWith("http://") ||
-    lower.startsWith("https://")
-  ) {
-    return "Sin descripción disponible.";
-  }
-  return trimmed;
-}
 
 export function XmbLibrary(props: XmbLibraryProps) {
   const downloadStatus = (entry: Game) =>

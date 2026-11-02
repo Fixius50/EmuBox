@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { catalogTitle, groupCatalog } from '../solid/src/services/library/catalog-groups';
+import { catalogTitle, cleanGameDescription, groupCatalog } from '../solid/src/services/library/catalog-groups';
 import type { Game } from '../solid/src/types/game.types';
 
 const game: Game = { id: 'one', title: 'Fixture (2024) [Multi] (1.0) Repack FitGirl', platform: 'ps2', platformName: 'PS2',
@@ -70,5 +70,12 @@ assert.equal(groupCatalog([
   { ...game, id: 'same-a', title: 'Same title', canonicalId: 'canonical-a' },
   { ...game, id: 'same-b', title: 'Same title', canonicalId: 'canonical-b' },
 ]).length, 2);
+
+assert.equal(cleanGameDescription('Website with instructions for launching the game'), 'Sin descripción disponible.');
+assert.equal(cleanGameDescription('Titulo ficticio de previsualizacion. No contiene archivos de juego.'), 'Sin descripción disponible.');
+assert.equal(cleanGameDescription(''), 'Sin descripción disponible.');
+assert.equal(cleanGameDescription(undefined), 'Sin descripción disponible.');
+assert.equal(cleanGameDescription('https://example.com'), 'Sin descripción disponible.');
+assert.equal(cleanGameDescription('Una gran aventura en el espacio.'), 'Una gran aventura en el espacio.');
 
 console.log('Catalog groups: packages combined, platforms/editions preserved, original download IDs retained');
