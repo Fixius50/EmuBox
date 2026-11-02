@@ -1,6 +1,6 @@
-import { Component, onMount, onCleanup, createSignal, Show, For, batch, lazy, Suspense } from "solid-js";
+import { Component, onMount, onCleanup, createSignal, Show, batch, lazy, Suspense } from "solid-js";
 import { listen } from "@tauri-apps/api/event";
-import { Check, Gamepad2, LoaderCircle, LogOut } from 'lucide-solid';
+import { Gamepad2, LoaderCircle, LogOut } from 'lucide-solid';
 import { startupErrorMessage, startupMessage, waitForStartup } from '@services/system/startup';
 import type { StartupReport } from '@contracts/startup.types';
 import { startFrontendTelemetry, recordUiEvent } from '@services/system/telemetry';
@@ -312,10 +312,6 @@ const NativeApp: Component = () => {
           </main>
 
           <footer class="startup-footer">
-            <div class="startup-progress-heading">
-              <span>PROCESO DE ARRANQUE</span>
-              <span>{startupCompletedCount()} / {startupSteps.length}</span>
-            </div>
             <div
               class="startup-progress-track"
               role="progressbar"
@@ -328,27 +324,6 @@ const NativeApp: Component = () => {
             >
               <span class="startup-progress-fill" />
             </div>
-            <ol class="startup-steps" aria-label="Etapas del arranque">
-              <For each={startupSteps}>{step => {
-                const state = () => startupStepState(step.id);
-                const complete = () => state() === 'ready' || state() === 'degraded';
-                return (
-                  <li classList={{ complete: complete(), active: state() === 'running', failed: state() === 'error' }}>
-                    <span class="startup-step-marker" aria-hidden="true">
-                      <Show when={complete()} fallback={
-                        <Show when={state() === 'running'} fallback={<span class="startup-step-pending" />}>
-                          <LoaderCircle class="startup-step-spinner" size={14} />
-                        </Show>
-                      }>
-                        <Check size={14} />
-                      </Show>
-                    </span>
-                    <span class="startup-step-label">{step.label}</span>
-                    <Show when={state() === 'degraded'}><span class="startup-step-note">AVISO</span></Show>
-                  </li>
-                );
-              }}</For>
-            </ol>
             <Show when={startupFailed()}>
               <button class="startup-exit" onClick={() => { void backend.exitToLinuxShell(); }}>
                 <LogOut size={17} />Salir a consola

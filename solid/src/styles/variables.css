@@ -1,11 +1,114 @@
 :root {
   font-size: 100%;
+
+  /* --- Palette & Base Surfaces --- */
   --bg-void: #05070a;
   --bg-deep: #080c14;
   --bg-surface-glass: rgba(15, 23, 42, 0.6);
   --bg-surface-elevated: rgba(30, 41, 59, 0.7);
   --bg-card: rgba(12, 17, 28, 0.88);
   --bg-card-focused: rgba(22, 33, 56, 0.98);
+
+  /* --- Console Brand Palette --- */
+  --xmb-bg: #090f13;
+  --xmb-surface: #151f24;
+  --xmb-text: #eef1f0;
+  --xmb-muted: #9babaf;
+  --xmb-accent: #78d6c5;
+  --xmb-gold: #e8c276;
+  --xmb-border: #36484f;
+
+  /* --- Neons & Accents --- */
+  --neon-cyan: #00f0ff;
+  --neon-cyan-glow: rgba(0, 240, 255, 0.45);
+  --neon-cyan-subtle: rgba(0, 240, 255, 0.12);
+  --neon-blue: #3b82f6;
+  --neon-purple: #8b5cf6;
+  --accent-amber: #f59e0b;
+  --accent-emerald: #10b981;
+  --accent-crimson: #ef4444;
+
+  /* --- Text Colors --- */
+  --text-primary: #ffffff;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  /* --- Modern Fluid Typography (Scale) --- */
+  --font-size-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.8125rem);
+  --font-size-sm: clamp(0.8125rem, 0.76rem + 0.25vw, 0.875rem);
+  --font-size-base: clamp(0.9375rem, 0.88rem + 0.3vw, 1.0625rem);
+  --font-size-lg: clamp(1.125rem, 1rem + 0.5vw, 1.35rem);
+  --font-size-xl: clamp(1.35rem, 1.2rem + 0.7vw, 1.75rem);
+  --font-size-2xl: clamp(1.75rem, 1.5rem + 1vw, 2.25rem);
+  --font-size-3xl: clamp(2.25rem, 1.8rem + 1.5vw, 3rem);
+
+  /* --- Border Radii --- */
+  --border-radius-xs: 0.25rem;
+  --border-radius-sm: 0.3125rem;
+  --border-radius-md: 0.5rem;
+  --border-radius-lg: 0.75rem;
+  --border-radius-xl: 1rem;
+  --border-radius-full: 0.5rem;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+
+  /* --- Spacing Scale --- */
+  --space-2xs: 0.25rem;
+  --space-xs: 0.375rem;
+  --space-sm: 0.5rem;
+  --space-md: 0.75rem;
+  --space-base: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+
+  /* --- 10-Foot Console TV Dimensions --- */
+  --header-height: 3.5rem;
+  --footer-height: 2.75rem;
+  --shelf-card-height: 12.5rem;
+
+  /* --- Physical Game Box-Art Cards --- */
+  --tile-width: clamp(13rem, 12vw, 15.5rem);
+  --tile-height: clamp(17.5rem, 16vw, 21rem);
+  --tile-gap: clamp(1.25rem, 1.5vw, 2rem);
+  --tile-radius: 0.75rem;
+  --tile-border: rgba(255, 255, 255, 0.12);
+  --tile-border-focused: var(--xmb-accent);
+  --tile-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.75);
+  --tile-focus-scale: 1.05;
+  --tile-focus-shadow:
+    0 0 2rem rgba(120, 214, 197, 0.65), 0 1.25rem 3.5rem rgba(0, 0, 0, 0.95);
+  --tile-overlay-bg: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(9, 15, 19, 0.4) 40%,
+    rgba(9, 15, 19, 0.96) 90%
+  );
+  --tile-halo-bg: rgba(9, 15, 19, 0.88);
+  --tile-halo-border: rgba(120, 214, 197, 0.45);
+
+  /* --- Modern State Tokens --- */
+  --tile-selected: 0;
+  --is-favorite: 0;
+  --is-installed: 0;
+  --modal-variant: default;
+  --btn-variant: default;
+  --badge-tone: default;
+
+  /* --- Physical Game Case Dialog / Ficha Modal --- */
+  --case-inline-size: min(86rem, calc(100dvw - 2rem));
+  --case-block-size: min(48rem, calc(100dvh - 2rem));
+  --case-radius: 0.75rem;
+  --case-border: rgba(255, 255, 255, 0.12);
+  --case-bg-left: linear-gradient(
+    180deg,
+    rgba(14, 22, 29, 0.96) 0%,
+    rgba(8, 13, 18, 0.98) 100%
+  );
+  --case-bg-right: #090e13;
+  --case-accent: var(--xmb-accent);
+  --case-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.85);
+
+  /* --- Glass, Glow & Shadows --- */
   --glass-blur-sm: blur(0.5rem);
   --glass-blur-md: blur(1rem);
   --glass-blur-lg: blur(1.5rem);
@@ -19,36 +122,30 @@
   --glow-modal-shadow:
     0 0 3.125rem var(--neon-cyan-glow), 0 1.875rem 3.75rem rgba(0, 0, 0, 0.95);
   --glow-card-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.85);
-  --neon-cyan: #00f0ff;
-  --neon-cyan-glow: rgba(0, 240, 255, 0.45);
-  --neon-cyan-subtle: rgba(0, 240, 255, 0.12);
-  --neon-blue: #3b82f6;
-  --neon-purple: #8b5cf6;
-  --accent-amber: #f59e0b;
-  --accent-emerald: #10b981;
-  --accent-crimson: #ef4444;
+
+  /* --- Modern Gradients --- */
+  --gradient-startup-bg: radial-gradient(
+    circle at 50% 45%,
+    #0e1720 0%,
+    #06090d 100%
+  );
+  --gradient-ambient-teal: radial-gradient(
+    circle at 50% 0%,
+    rgba(120, 214, 197, 0.15) 0%,
+    transparent 70%
+  );
+
+  /* --- Transitions & Motion --- */
+  --transition-fast: 140ms ease;
+  --transition-normal: 220ms ease;
+  --transition-slow: 350ms cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --perspective-case: 60rem;
+
+  /* --- Typography Fonts --- */
   --font-family:
     "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --text-primary: #ffffff;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --header-height: 3.5rem;
-  --footer-height: 2.75rem;
-  --shelf-card-height: 12.5rem;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-radius-sm: 0.3125rem;
-  --border-radius-md: 0.5rem;
-  --border-radius-lg: 0.75rem;
-  --border-radius-xl: 1rem;
-  --border-radius-full: 0.5rem;
-  --xmb-bg: #090f13;
-  --xmb-surface: #151f24;
-  --xmb-text: #eef1f0;
-  --xmb-muted: #9babaf;
-  --xmb-accent: #78d6c5;
-  --xmb-gold: #e8c276;
-  --xmb-border: #36484f;
 }
 [data-render-pipeline="cpu-compatible"],
 [data-render-pipeline="indeterminate"],

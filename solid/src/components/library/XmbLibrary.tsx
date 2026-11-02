@@ -299,7 +299,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                 {(entry) => {
                   const [imageFailed, setImageFailed] = createSignal(false);
                   return (
-                  <button
+                  <div
                     id={`shelf-card-${entry.game.id}`}
                     class="xmb-game-tile"
                     tabIndex={entry.index === position().game ? 0 : -1}
@@ -307,6 +307,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
                     style={{ "--game-offset": entry.index - position().game }}
                     title={entry.game.title}
                     onClick={() => chooseGame(entry.index)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); chooseGame(entry.index); } }}
                   >
                     <Show when={entry.index === position().game && entry.index > 0}>
                       <ChevronLeft class="xmb-more-left" size={18} aria-hidden="true" />
@@ -314,29 +315,56 @@ export function XmbLibrary(props: XmbLibraryProps) {
                     <Show when={entry.index === position().game && entry.index < (folder()?.games.length || 0) - 1}>
                       <ChevronRight class="xmb-more-right" size={18} aria-hidden="true" />
                     </Show>
-                    <Show
-                      when={entry.game.coverImage && !imageFailed()}
-                      fallback={
-                        <ConsoleHardwareVisual
-                          platformId={entry.game.platform}
-                          size="sm"
+                    <div class="xmb-tile-art">
+                      <Show
+                        when={entry.game.coverImage && !imageFailed()}
+                        fallback={
+                          <ConsoleHardwareVisual
+                            platformId={entry.game.platform}
+                            size="md"
+                          />
+                        }
+                      >
+                        <img
+                          src={entry.game.coverImage}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          onError={() => setImageFailed(true)}
                         />
-                      }
-                    >
-                      <img
-                        src={entry.game.coverImage}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        onError={() => setImageFailed(true)}
-                      />
-                    </Show>
-                    <span>
+                      </Show>
+                    </div>
+                    <div class="xmb-tile-overlay">
                       <strong>{entry.game.title}</strong>
-                      <small>{entry.game.platformName}</small>
-                      <small>{downloadStatus(entry.game)}</small>
-                    </span>
-                  </button>
+                      <div class="xmb-tile-sub">
+                        <span>{entry.game.platformName}</span>
+                        <span>{downloadStatus(entry.game)}</span>
+                      </div>
+                    </div>
+                    <Show when={entry.index === position().game}>
+                      <div class="xmb-tile-halo-actions">
+                        <button
+                          type="button"
+                          class="xmb-tile-action-open"
+                          title="Abrir estuche"
+                          onClick={(e) => { e.stopPropagation(); props.onOpenGame(entry.game); }}
+                        >
+                          <span class="xmb-tile-pad-pill">A</span>
+                          <span>Abrir estuche</span>
+                        </button>
+                        <button
+                          type="button"
+                          class="xmb-tile-action-fav"
+                          title="Alternar favorito"
+                          aria-pressed={entry.game.favorite}
+                          onClick={(e) => { e.stopPropagation(); props.onFavorite(entry.game.id); }}
+                        >
+                          <span class="xmb-tile-pad-pill">Y</span>
+                          <Heart size={14} fill={entry.game.favorite ? "currentColor" : "none"} />
+                        </button>
+                      </div>
+                    </Show>
+                  </div>
                   );
                 }}
               </For>

@@ -35,40 +35,6 @@
   & .settings-top-bar {
     margin-block-end: 0.75rem;
   }
-
-  @media (max-width: 48rem) {
-    inset: 10.5rem 0.75rem 4rem;
-
-    & .console-tabs-system {
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    & .console-sidebar-menu {
-      inline-size: 100%;
-      flex-direction: row;
-      overflow-x: auto;
-      overflow-y: hidden;
-      border: 0;
-      padding: 0;
-      gap: 0.5rem;
-    }
-
-    & .sidebar-tab-trigger {
-      flex: 0 0 auto;
-      inline-size: auto;
-      padding: 0.5rem;
-    }
-
-    & .tab-sub-text,
-    & .tab-badge-icon {
-      display: none;
-    }
-
-    & .console-settings-content-pane {
-      min-block-size: 0;
-    }
-  }
 }
 
 .emubox-startup {
@@ -455,71 +421,6 @@
     &:hover {
       border-color: var(--startup-gold);
       background: #e8c27619;
-    }
-  }
-
-  @media (max-width: 40em) {
-    padding: 1.25rem;
-
-    & .startup-lockup-mark {
-      inline-size: 2.2rem;
-    }
-
-    & .startup-lockup-copy small,
-    & .startup-state {
-      font-size: 0.5rem;
-    }
-
-    & .startup-emblem {
-      inline-size: 6.25rem;
-      margin-block-end: 1rem;
-    }
-
-    & .startup-emblem-core {
-      inline-size: 3.5rem;
-    }
-
-    & h1 {
-      font-size: 2.7rem;
-    }
-
-    & .startup-current {
-      font-size: 0.78rem;
-    }
-
-    & .startup-steps {
-      gap: 0.35rem;
-    }
-
-    & .startup-steps li {
-      font-size: 0.58rem;
-      overflow-wrap: anywhere;
-    }
-  }
-
-  @media (max-height: 34em) {
-    padding-block: 1rem;
-    gap: 0.5rem;
-
-    & .startup-emblem {
-      inline-size: 5rem;
-      margin-block-end: 0.5rem;
-    }
-
-    & .startup-emblem-core {
-      inline-size: 2.8rem;
-    }
-
-    & .startup-emblem-core svg {
-      inline-size: 1.6rem;
-    }
-
-    & .startup-current {
-      margin-block-start: 0.4rem;
-    }
-
-    & .startup-steps {
-      margin-block-start: 0.6rem;
     }
   }
 }
@@ -1033,10 +934,10 @@
 }
 .xmb-game-shelf {
   position: absolute;
-  inset-block-start: calc(12rem + (100% - 16.5rem) * 0.34 - 0.75rem);
-  inset-inline-start: calc(var(--xmb-anchor) + 3rem);
-  inset-inline-end: calc(var(--xmb-drawer) + 1rem);
-  block-size: 10rem;
+  inset-block-start: calc(8rem + (100% - 16.5rem) * 0.22);
+  inset-inline-start: calc(var(--xmb-anchor) + 2rem);
+  inset-inline-end: 2rem;
+  block-size: 23rem;
   z-index: 6;
   overflow-x: clip;
   overflow-y: visible;
@@ -1046,9 +947,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  block-size: 1.75rem;
-  padding-inline: 0.25rem;
-  font-size: 0.8rem;
+  block-size: 2rem;
+  padding-inline: 0.5rem;
+  font-size: 0.9rem;
   color: var(--xmb-muted);
 
   & span {
@@ -1061,99 +962,184 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: #e2e8f0;
   }
 }
 .xmb-version-track {
   position: relative;
-  block-size: 8rem;
+  block-size: 19rem;
+  margin-block-start: 0.5rem;
 }
 .xmb-game-tile {
-  --tile-width: 13rem;
   position: absolute;
   contain: layout;
   inset-block-start: 0.5rem;
   inset-inline-start: calc(
-    var(--game-offset) * (var(--tile-width) + 1rem) + 0.25rem
+    var(--game-offset) * (var(--tile-width) + var(--tile-gap)) + 0.25rem
   );
   inline-size: var(--tile-width);
-  min-block-size: 6.5rem;
-  block-size: auto;
+  block-size: var(--tile-height);
   display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.65rem;
-  border-radius: 0.375rem;
-  border: 0.0625rem solid var(--xmb-border);
-  background: #111c21f5;
-  color: var(--xmb-muted) !important;
+  flex-direction: column;
+  padding: 0;
+  border-radius: var(--tile-radius);
+  border: 0.0625rem solid var(--tile-border);
+  background: var(--xmb-surface);
+  box-shadow: var(--tile-shadow);
   opacity: 0.65;
   transition:
-    inset-inline-start 220ms ease,
-    border-color 160ms;
+    inset-inline-start var(--transition-normal),
+    transform var(--transition-normal),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-normal);
   text-align: start;
+  cursor: pointer;
+  outline: none;
 
   &.selected {
+    --tile-selected: 1;
     opacity: 1;
-    border-color: var(--xmb-accent);
-    background: #23403f;
-    color: white !important;
+    z-index: 5;
+    border-color: var(--tile-border-focused);
+    transform: scale(var(--tile-focus-scale)) translateY(-0.35rem);
+    box-shadow: var(--tile-focus-shadow);
   }
 
   & .xmb-more-left,
   & .xmb-more-right {
     position: absolute;
-    inset-block-start: 2rem;
+    inset-block-start: 45%;
     color: var(--xmb-accent);
-    filter: drop-shadow(0 0 0.25rem #111c21);
+    filter: drop-shadow(0 0 0.35rem #000000);
+    z-index: 10;
   }
 
   & .xmb-more-left {
-    inset-inline-start: -0.75rem;
+    inset-inline-start: -1rem;
   }
   & .xmb-more-right {
-    inset-inline-end: -0.75rem;
+    inset-inline-end: -1rem;
   }
 
-  & img {
-    inline-size: 3rem;
-    block-size: 4.1rem;
-    object-fit: cover;
-    border-radius: 0.125rem;
-    flex-shrink: 0;
-  }
-
-  & .console-minimal-icon-container {
-    inline-size: 2.5rem;
-    block-size: 2.5rem;
-    flex-shrink: 0;
-  }
-
-  & > span {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    min-inline-size: 0;
-  }
-
-  & strong {
-    font-size: 0.82rem;
-    white-space: nowrap;
+  & .xmb-tile-art {
+    position: absolute;
+    inset: 0;
+    border-radius: calc(var(--tile-radius) - 0.0625rem);
     overflow: hidden;
-    text-overflow: ellipsis;
+    background: #06090e;
+
+    & img {
+      inline-size: 100%;
+      block-size: 100%;
+      object-fit: cover;
+      object-position: center top;
+      transition: transform var(--transition-slow);
+    }
+
+    & .console-minimal-icon-container {
+      inline-size: 100%;
+      block-size: 100%;
+      display: grid;
+      place-items: center;
+    }
   }
 
-  & small {
-    font-size: 0.65rem;
+  &.selected .xmb-tile-art img {
+    transform: scale(1.03);
+  }
+
+  & .xmb-tile-overlay {
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline: 0;
+    padding: 2.25rem 0.85rem 0.85rem;
+    background: var(--tile-overlay-bg);
+    border-radius: 0 0 calc(var(--tile-radius) - 0.0625rem)
+      calc(var(--tile-radius) - 0.0625rem);
+    z-index: 2;
+
+    & strong {
+      display: block;
+      font-size: var(--font-size-base);
+      font-weight: 800;
+      line-height: 1.25;
+      color: var(--text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-shadow: 0 0.125rem 0.4rem rgba(0, 0, 0, 0.8);
+    }
+  }
+
+  & .xmb-tile-sub {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    margin-block-start: 0.35rem;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
     color: var(--xmb-accent);
-    overflow-wrap: anywhere;
   }
 
-  & strong {
-    line-height: 1.2;
-    overflow: visible;
-    overflow-wrap: anywhere;
-    text-overflow: clip;
-    white-space: normal;
+  & .xmb-tile-halo-actions {
+    position: absolute;
+    inset-block-end: -3.5rem;
+    inset-inline: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    z-index: 10;
+    animation: fadeIn var(--transition-fast) both;
+  }
+
+  & .xmb-tile-action-open {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: var(--border-radius-sm);
+    background: var(--xmb-accent);
+    color: #06171a;
+    font-weight: 800;
+    font-size: var(--font-size-sm);
+    border: 0;
+    cursor: pointer;
+    box-shadow: 0 0.25rem 1rem
+      color-mix(in srgb, var(--xmb-accent) 40%, transparent);
+    letter-spacing: 0;
+  }
+
+  & .xmb-tile-action-fav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.65rem;
+    border-radius: var(--border-radius-sm);
+    background: var(--tile-halo-bg);
+    border: 0.0625rem solid var(--tile-halo-border);
+    color: var(--text-primary);
+    cursor: pointer;
+
+    &[aria-pressed="true"] {
+      color: var(--xmb-gold);
+      border-color: var(--xmb-gold);
+      background: color-mix(in srgb, var(--xmb-gold) 20%, transparent);
+    }
+  }
+
+  & .xmb-tile-pad-pill {
+    display: inline-grid;
+    place-items: center;
+    inline-size: 1.15rem;
+    block-size: 1.15rem;
+    border-radius: 50%;
+    background: #06171a;
+    color: var(--xmb-accent);
+    font-size: 0.65rem;
+    font-weight: 800;
   }
 }
 
@@ -1355,165 +1341,6 @@
   z-index: 22;
 }
 
-@media (width <= 62.5em) {
-  .xmb {
-    --xmb-column: 5.5rem;
-    --xmb-drawer: 20rem;
-    --xmb-anchor: 23%;
-  }
-  .xmb-expanded {
-    --xmb-anchor: 9%;
-  }
-  .xmb-category-intro h1 {
-    font-size: 1.5rem;
-  }
-  .xmb-in-list .xmb-folder-row.active .xmb-folder-label h2 {
-    font-size: 1.35rem;
-  }
-  .xmb-boxart {
-    block-size: 10rem;
-  }
-  .xmb-game-tile {
-    --tile-width: 11rem;
-  }
-  .xmb-detail-drawer {
-    inset-inline-end: 0.75rem;
-    inline-size: calc(var(--xmb-drawer) - 0.75rem);
-  }
-}
-@media (width <= 40em) {
-  .xmb {
-    --xmb-column: 4.2rem;
-    --xmb-row: 4.3rem;
-    --xmb-anchor: 18%;
-  }
-  .xmb-topbar {
-    inset-block-start: 1rem;
-    inset-inline-start: 1rem;
-    inset-inline-end: 1rem;
-    flex-wrap: wrap;
-    row-gap: 0.35rem;
-  }
-  .xmb-virtual-keyboard {
-    inset-block-start: 6rem;
-    inset-inline-start: 0.75rem;
-    inset-inline-end: 0.75rem;
-    inline-size: auto;
-  }
-  .xmb-virtual-keyboard-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-  .xmb-load-status {
-    order: 3;
-    flex-basis: 100%;
-  }
-  .xmb-brand span {
-    display: none;
-  }
-  .xmb-top-actions {
-    gap: 0.65rem;
-  }
-  .xmb-topbar time {
-    font-size: 1rem;
-  }
-  .xmb-search input {
-    inline-size: 5.5rem;
-  }
-  .xmb-category-intro h1 {
-    font-size: 1.25rem;
-  }
-  .xmb-category-rail {
-    inset-block-start: 26%;
-  }
-  .xmb-category-intro {
-    inset-block-start: max(0.5rem, calc(26% - 6rem));
-    inset-inline-start: max(1rem, calc(var(--xmb-anchor) - 9rem));
-    inline-size: min(18rem, calc(2 * var(--xmb-anchor) - 2rem));
-  }
-  .xmb-category span {
-    display: none;
-  }
-  .xmb-folder-viewport {
-    inset-block-start: calc(26% + 5rem);
-  }
-  .xmb-in-list {
-    --xmb-row: 5rem;
-
-    & .xmb-category-rail {
-      inset-block-start: 4rem;
-    }
-
-    & .xmb-folder-viewport {
-      inset-block-start: 8.75rem;
-    }
-  }
-  .xmb-folder-label {
-    inset-inline-start: 4.25rem;
-    inline-size: calc(100dvw - 8rem);
-  }
-  .xmb-folder-label h2 {
-    font-size: 0.78rem;
-  }
-  .xmb-folder-label p {
-    font-size: 0.62rem;
-  }
-  .xmb-in-list .xmb-folder-row.active .xmb-folder-label h2 {
-    font-size: 1.15rem;
-  }
-  .xmb-expanded .xmb-folder-viewport {
-    inset-block-start: 5rem;
-    inset-inline-end: 0;
-    inset-block-end: 60%;
-  }
-  .xmb-expanded .xmb-folder-row:not(.active) {
-    visibility: hidden;
-  }
-  .xmb-expanded .xmb-folder-row.active {
-    inset-block-start: 1rem;
-  }
-  .xmb-expanded .xmb-category-rail {
-    visibility: hidden;
-  }
-  .xmb-expanded .xmb-game-shelf {
-    inset-block-start: 15rem;
-    inset-inline-start: 6rem;
-    inset-inline-end: 1rem;
-    block-size: 8.25rem;
-  }
-  .xmb-version-track {
-    block-size: 7.25rem;
-  }
-  .xmb-expanded .xmb-game-shelf {
-    block-size: 9rem;
-  }
-  .xmb-game-tile {
-    --tile-width: 12rem;
-  }
-  .xmb-detail-drawer {
-    inset-block-start: 14rem;
-    inset-block-end: 4rem;
-    inset-inline-start: 1rem;
-    inset-inline-end: 1rem;
-    inline-size: auto;
-    border-inline-start: 0;
-    border-block-start: 0.0625rem solid var(--xmb-border);
-  }
-  .xmb-boxart {
-    block-size: 8rem;
-  }
-  .xmb-bottom {
-    inset-inline-start: 1rem;
-    inset-inline-end: 1rem;
-    inset-block-end: 0.75rem;
-    gap: 0.3rem;
-  }
-  .xmb-input-status {
-    display: none;
-  }
-  .xmb-bottom > .xmb-icon-button {
-    margin-inline-start: auto;
-  }
-}
 html[data-render-pipeline="cpu-compatible"] .xmb-wave,
 html[data-render-pipeline="indeterminate"] .xmb-wave,
 html[data-gpu-kind="virtual"] .xmb-wave {

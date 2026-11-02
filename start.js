@@ -37,6 +37,14 @@ function freePort(port) {
         }
       }
     } catch {}
+  } else {
+    try {
+      execSync(`fuser -k ${port}/tcp`, { stdio: 'ignore' });
+    } catch {
+      try {
+        execSync(`lsof -ti:${port} | xargs kill -9`, { stdio: 'ignore' });
+      } catch {}
+    }
   }
 }
 
@@ -103,19 +111,18 @@ function showMenu() {
   ===================================================================
   `)));
   console.log(`  ${green(bold('[1]'))} ${bold('Iniciar EmuBox Modo Desarrollo')}  ${dim('(Vite http://localhost:3001 - HMR)')}`);
-  console.log(`  ${magenta(bold('[2]'))} ${bold('Ejecutar Test Suite F3')}         ${dim('(34 pruebas automatizadas de arquitectura)')}`);
-  console.log(`  ${yellow(bold('[3]'))} ${bold('Compilar Frontend SolidJS')}     ${dim('(npm run build - dist/)')}`);
-  console.log(`  ${cyan(bold('[4]'))} ${bold('Compilar Binario Tauri (Prod)')}  ${dim('(cargo build --release)')}\n`);
+  console.log(`  ${magenta(bold('[2]'))} ${bold('Ejecutar Tests y Verificación')}   ${dim('(npm run verify - 47 tests, tipos, lint, arquitectura)')}`);
+  console.log(`  ${yellow(bold('[3]'))} ${bold('Compilar EmuBox Completo (Prod)')} ${dim('(Frontend SolidJS + Binario Tauri Release)')}\n`);
 
   console.log(`  ${dim('[0]')} ${dim('Salir (o presiona Ctrl+C / Esc)')}\n`);
   
-  process.stdout.write(cyan(bold('  Introduce tu opción (0-4): ')));
+  process.stdout.write(cyan(bold('  Introduce tu opción (0-3): ')));
 }
 
 process.stdin.on('data', (data) => {
   if (!isRunningApp) {
     const input = data.toString().trim();
-    if (['1', '2', '3', '4', '0'].includes(input)) {
+    if (['1', '2', '3', '0'].includes(input)) {
       handleChoice(input);
     }
   }
@@ -168,13 +175,10 @@ function handleChoice(choice) {
       runNpmScript('dev', 'EmuBox Console UI (http://localhost:3001)', 3001);
       break;
     case '2':
-      runNpmScript('test', 'Suite de Pruebas del Vertical Slice', null);
+      runNpmScript('verify', 'Suite de Tests y Verificación Integral de Calidad', null);
       break;
     case '3':
-      runNpmScript('build', 'Compilación de Producción (SolidJS)', null);
-      break;
-    case '4':
-      runNpmScript('tauri:build', 'Compilación de Binario Nativo Tauri (Producción)', null);
+      runNpmScript('build:all', 'Compilación Completa de Producción (Frontend + Binario Tauri)', null);
       break;
     case '0':
       handleCleanExit();

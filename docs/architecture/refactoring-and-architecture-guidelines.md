@@ -59,6 +59,13 @@ Este documento define los estándares arquitectónicos, las reglas de refactoriz
 
 ---
 
+### D. Recursos y Referencias de Diseño UI/UX
+- **Gradientes y paletas cromáticas**: [Gradient SaaS](https://gradientsaas.blogspot.com/) para fondos sutiles, degradados y contrastes adaptados a pantallas de televisor.
+- **Componentes interactivos e ideas visuales**: [Fancy Components](https://www.fancycomponents.dev/) (evaluar siempre rendimiento y carga antes de incorporar efectos en hardware de consola/appliance).
+- **Librería comunitaria de UI/UX**: [21st.dev Community Libraries](https://21st.dev/community/libraries) como catálogo de referencia para patrones de interacción y animaciones fluidas.
+
+---
+
 ## 3. Matriz de Módulos y Estructura
 
 ```text
