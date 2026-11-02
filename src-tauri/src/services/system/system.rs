@@ -7,6 +7,11 @@ use crate::services::paths;
 use crate::services::EmulatorService;
 use std::fs;
 use std::process::Command;
+use std::sync::OnceLock;
+
+static CACHED_OS_NAME: OnceLock<String> = OnceLock::new();
+static CACHED_CPU_MODEL: OnceLock<String> = OnceLock::new();
+static CACHED_CPU_CORES: OnceLock<usize> = OnceLock::new();
 
 pub struct SystemService;
 
@@ -117,14 +122,16 @@ impl SystemService {
     }
 
     fn detect_os_name() -> String {
-        if let Ok(content) = fs::read_to_string("/etc/os-release") {
-            for line in content.lines() {
-                if let Some(value) = line.strip_prefix("PRETTY_NAME=") {
-                    return value.trim_matches('"').to_string();
+        CACHED_OS_NAME.get_or_init(|| {
+            if let Ok(content) = fs::read_to_string("/etc/os-release") {
+                for line in content.lines() {
+                    if let Some(value) = line.strip_prefix("PRETTY_NAME=") {
+                        return value.trim_matches('"').to_string();
+                    }
                 }
             }
-        }
-        "Linux".to_string()
+            "Linux".to_string()
+        }).clone()
     }
 
     fn detect_hostname() -> String {
@@ -162,31 +169,35 @@ impl SystemService {
     }
 
     fn detect_cpu_model() -> String {
-        if let Ok(content) = fs::read_to_string("/proc/cpuinfo") {
-            for line in content.lines() {
-                if let Some((key, value)) = line.split_once(':') {
-                    if matches!(key.trim(), "model name" | "Hardware" | "Model") {
-                        return value.trim().to_string();
+        CACHED_CPU_MODEL.get_or_init(|| {
+            if let Ok(content) = fs::read_to_string("/proc/cpuinfo") {
+                for line in content.lines() {
+                    if let Some((key, value)) = line.split_once(':') {
+                        if matches!(key.trim(), "model name" | "Hardware" | "Model") {
+                            return value.trim().to_string();
+                        }
                     }
                 }
             }
-        }
-        "Unknown CPU".to_string()
+            "Unknown CPU".to_string()
+        }).clone()
     }
 
     fn detect_cpu_cores() -> usize {
-        if let Ok(content) = fs::read_to_string("/proc/cpuinfo") {
-            let count = content
-                .lines()
-                .filter(|l| l.starts_with("processor"))
-                .count();
-            if count > 0 {
-                return count;
+        *CACHED_CPU_CORES.get_or_init(|| {
+            if let Ok(content) = fs::read_to_string("/proc/cpuinfo") {
+                let count = content
+                    .lines()
+                    .filter(|l| l.starts_with("processor"))
+                    .count();
+                if count > 0 {
+                    return count;
+                }
             }
-        }
-        std::thread::available_parallelism()
-            .map(|n| n.get())
-            .unwrap_or(1)
+            std::thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(1)
+        })
     }
 
     fn detect_memory_mb() -> (u64, u64) {

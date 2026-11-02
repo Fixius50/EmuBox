@@ -4,7 +4,13 @@ export interface CatalogGroup extends Game {
   variants: Game[];
 }
 
+const titleCache = new Map<string, string>();
+const MAX_TITLE_CACHE = 10000;
+
 export function catalogTitle(title: string): string {
+  const cached = titleCache.get(title);
+  if (cached !== undefined) return cached;
+
   const cleaned = title.normalize('NFKC')
     .replace(/\s*[[(](?:19\d{2}|20\d{2}|(?:ru|en|es|fr|de|it|pt|ja|multi\d*)(?:\s*[-/,]\s*(?:ru|en|es|fr|de|it|pt|ja|multi\d*))*|multi\s*\d+|p2p|gog|steam|epic|skidrow|pre-instalado|pre-installed|repack\s+(?:fitgirl|dodi|elamigos)|scene\s+skidrow|v?\s*\d+(?:\.\d+)+(?:\s*\|\s*build\s+\d+)?|v\d{8}(?:-p2p)?|build\s+\d+)[\])]\s*/gi, ' ')
     .replace(/\s+free download\b/gi, '')
@@ -15,7 +21,12 @@ export function catalogTitle(title: string): string {
     .replace(/(?:\s*\((?:tenoke|rune|plaza)\)|\s*[-–—]\s*(?:tenoke|rune|plaza))\s*$/i, '')
     .replace(/\s*[-–—]\s*$/, '')
     .replace(/\s+/g, ' ').trim();
-  return cleaned || title.trim();
+  const result = cleaned || title.trim();
+  if (titleCache.size >= MAX_TITLE_CACHE) {
+    titleCache.clear();
+  }
+  titleCache.set(title, result);
+  return result;
 }
 
 export function cleanGameDescription(desc?: string): string {

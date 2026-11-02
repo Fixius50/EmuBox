@@ -83,7 +83,10 @@ impl DatabaseService {
         conn.execute_batch(
             "PRAGMA journal_mode = WAL;
              PRAGMA synchronous = NORMAL;
-             PRAGMA foreign_keys = ON;",
+             PRAGMA foreign_keys = ON;
+             PRAGMA temp_store = MEMORY;
+             PRAGMA cache_size = -64000;
+             PRAGMA mmap_size = 268435456;",
         )
         .map_err(|e| {
             EmuBoxError::StorageUnavailable(format!("Error al configurar pragmas de SQLite: {}", e))
