@@ -24,6 +24,27 @@ import { ConsoleHardwareVisual } from "@components/common/ConsoleHardwareVisual"
 import { catalogTitle } from "@services/library/catalog-groups";
 import { xmbDownloadStatus } from "@services/library/xmb-navigation";
 
+function cleanGameDescription(desc?: string): string {
+  if (!desc) return "Sin descripción disponible.";
+  const trimmed = desc.trim();
+  if (!trimmed) return "Sin descripción disponible.";
+  const lower = trimmed.toLowerCase();
+  if (
+    lower.includes("website with instructions") ||
+    lower.includes("instructions for launching the game") ||
+    lower.includes("titulo ficticio de previsualizacion") ||
+    lower.includes("título ficticio de previsualización") ||
+    lower === "no disponible" ||
+    lower === "sin descripción" ||
+    lower === "sin descripcion" ||
+    lower.startsWith("http://") ||
+    lower.startsWith("https://")
+  ) {
+    return "Sin descripción disponible.";
+  }
+  return trimmed;
+}
+
 export function XmbLibrary(props: XmbLibraryProps) {
   const downloadStatus = (entry: Game) =>
     xmbDownloadStatus(entry, props.downloadJobs, props.downloadingIds);
@@ -469,8 +490,7 @@ export function XmbLibrary(props: XmbLibraryProps) {
               >
                 <div class="xmb-case-description-box">
                   <p class="xmb-case-description">
-                    {game().description ||
-                      "Título ficticio de previsualización. No contiene archivos de juego."}
+                    {cleanGameDescription(game().description)}
                   </p>
                 </div>
 
