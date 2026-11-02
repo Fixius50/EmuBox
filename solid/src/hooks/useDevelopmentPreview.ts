@@ -27,7 +27,6 @@ export function useDevelopmentPreview() {
   const [notice, setNotice] = createSignal("");
   let libraryController: InputActionListener | null = null;
   let settingsController: InputActionListener | null = null;
-  let sourcesController: InputActionListener | null = null;
 
   const settings = useSettingsController({
     systemStore: system,
@@ -57,8 +56,7 @@ export function useDevelopmentPreview() {
     setNotice("Accion nativa deshabilitada en desarrollo.");
   const { inputStatus } = useConsoleInput({
     onAction: (action) => {
-      if (library.sourceGame()) sourcesController?.(action);
-      else if (action === "MAINTENANCE_MENU") blockedAction();
+      if (action === "MAINTENANCE_MENU") blockedAction();
       else if (section() === "settings") settingsController?.(action);
       else libraryController?.(action);
     },
@@ -104,9 +102,6 @@ export function useDevelopmentPreview() {
     },
     registerSettings: (handler: InputActionListener | null) => {
       settingsController = handler;
-    },
-    registerSources: (handler: InputActionListener | null) => {
-      sourcesController = handler;
     },
   };
 }

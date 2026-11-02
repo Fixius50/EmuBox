@@ -8,7 +8,6 @@ import { startFrontendTelemetry, recordUiEvent } from '@services/system/telemetr
 // Types
 import type { Game } from "@contracts/game.types";
 import type { InputAction } from "@contracts/input.types";
-import { gameBlockReason } from "@services/compatibility/launch-capability";
 
 // Services
 import { TauriBackendService } from "@services/backend/tauri-backend.service";
@@ -32,7 +31,6 @@ import { useSettingsController } from "@hooks/useSettingsController";
 import { XmbLibrary } from "@components/library/XmbLibrary";
 import { EmulatorSelectorModal } from "@components/modals/EmulatorSelectorModal";
 import { SettingsView } from "@components/settings/SettingsView";
-import { DownloadSourceModal } from "@components/modals/DownloadSourceModal";
 
 const startupSteps = [
   { id: 'library', label: 'Biblioteca' },
@@ -74,19 +72,19 @@ const NativeApp: Component = () => {
 
   const handleGameActivate = (game: Game) => {
     soundFx.playSelect();
-    void libraryStore.openSources(game);
+    if (game.installed) {
+      modalStore.openEmulatorSelector(game);
+    } else {
+      void libraryStore.downloadGame(game.id);
+    }
   };
-  let sourceController: ((action: InputAction) => void) | null = null;
-  let xmbController: ((action: InputAction) => void) | null = null;
+    let xmbController: ((action: InputAction) => void) | null = null;
   let emulatorController: ((action: InputAction) => void) | null = null;
   let settingsController: ((action: InputAction) => void) | null = null;
 
   const [activeSettingsTab, setActiveSettingsTab] =
     createSignal<string>("system");
-  const confirmSource = () => {
-    void libraryStore.confirmSource();
-  };
-  const [settingsFocusArea, setSettingsFocusArea] = createSignal<
+    const [settingsFocusArea, setSettingsFocusArea] = createSignal<
     "sidebar" | "content"
   >("sidebar");
   const [settingsRowIndex, setSettingsRowIndex] = createSignal<number>(0);
@@ -149,10 +147,6 @@ const NativeApp: Component = () => {
       recordUiEvent('input.action', { action });
       if (!startupReady()) return;
       if (action === "MAINTENANCE_MENU") {
-        return;
-      }
-      if (libraryStore.sourceGame()) {
-        sourceController?.(action);
         return;
       }
       if (modalStore.isEmulatorSelectorOpen()) {
@@ -355,6 +349,9 @@ const NativeApp: Component = () => {
             setSettingsRowIndex(0);
             navigationStore.setCurrentSection("settings");
           }}
+          onUninstall={(id) => {
+            void libraryStore.uninstallGame(id);
+          }}
           onFavorite={(id) => {
             void libraryStore
               .toggleFavorite(id)
@@ -412,26 +409,7 @@ const NativeApp: Component = () => {
         onSavePreference={saveEmulatorPreference}
       />
 
-      <DownloadSourceModal
-        store={libraryStore}
-        inputStatus={inputStatus()}
-        onConfirm={confirmSource}
-        onControllerReady={(handler) => {
-          sourceController = handler;
-        }}
-        playBlockReason={
-          libraryStore.sourceGame()
-            ? gameBlockReason(
-                libraryStore.sourceGame()!,
-                systemStore.emulators(),
-              )
-            : null
-        }
-        onPlay={(game) => {
-          libraryStore.closeSources();
-          modalStore.openEmulatorSelector(game);
-        }}
-      />
+      {/* Acciones de juego integradas en el estuche lateral */}
 
     </div>
   );

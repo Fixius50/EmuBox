@@ -2,7 +2,6 @@ import { Show } from "solid-js";
 import { FlaskConical } from "lucide-solid";
 import { XmbLibrary } from "@components/library/XmbLibrary";
 import { SettingsView } from "@components/settings/SettingsView";
-import { DownloadSourceModal } from "@components/modals/DownloadSourceModal";
 import { useDevelopmentPreview } from "@hooks/useDevelopmentPreview";
 import "@styles/development-preview.css";
 
@@ -38,7 +37,27 @@ export default function DevelopmentPreview() {
             loading={preview.library.isLoading()}
             inputStatus={preview.inputStatus()}
             onOpenGame={(game) => {
-              void preview.library.openSources(game);
+              if (preview.backend.isVmConnected) {
+                preview.setNotice(
+                  `Enviando orden de ejecución para "${game.title}" a la pantalla de la VM...`,
+                );
+                void preview.backend
+                  .launchGame(game.id)
+                  .then((res: any) => {
+                    preview.setNotice(
+                      res.message ||
+                        `Juego "${game.title}" lanzado en la pantalla de la VM.`,
+                    );
+                  })
+                  .catch((err: any) => {
+                    preview.setNotice(`Error al lanzar en la VM: ${err.message}`);
+                  });
+              } else {
+                void preview.library.downloadGame(game.id);
+              }
+            }}
+            onUninstall={(id) => {
+              void preview.library.uninstallGame(id);
             }}
             onOpenSettings={preview.openSettings}
             onFavorite={preview.toggleFavorite}
@@ -64,38 +83,6 @@ export default function DevelopmentPreview() {
             }
           />
         </div>
-        <DownloadSourceModal
-          store={preview.library}
-          inputStatus={preview.inputStatus()}
-          onConfirm={preview.blockedAction}
-          onPlay={(game) => {
-            if (preview.backend.isVmConnected) {
-              preview.setNotice(
-                `Enviando orden de ejecución para "${game.title}" a la pantalla de la VM...`,
-              );
-              void preview.backend
-                .launchGame(game.id)
-                .then((res: any) => {
-                  preview.setNotice(
-                    res.message ||
-                      `Juego "${game.title}" lanzado en la pantalla de la VM.`,
-                  );
-                })
-                .catch((err: any) => {
-                  preview.setNotice(`Error al lanzar en la VM: ${err.message}`);
-                });
-            } else {
-              preview.blockedAction();
-            }
-          }}
-          playBlockReason={
-            preview.backend.isVmConnected
-              ? undefined
-              : "Requiere MV conectada para ejecutar"
-          }
-          searchDisabled
-          onControllerReady={preview.registerSources}
-        />
       </div>
     </div>
   );
