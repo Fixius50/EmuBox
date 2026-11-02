@@ -356,6 +356,7 @@ TAURI_PACKAGES=(
     webkit2gtk-4.1
     librsvg
     openssl
+    sqlite
     pkgconf
     xdotool
     cage

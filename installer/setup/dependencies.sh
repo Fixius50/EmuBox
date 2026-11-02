@@ -44,6 +44,7 @@ CORE_PKGS=(
   "bubblewrap"
   "util-linux"
   "python-pip"
+  "sqlite"
 )
 
 echo "  -> Comprobando gestor de paquetes de Arch Linux (pacman)..."
