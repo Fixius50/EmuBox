@@ -87,6 +87,71 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
     }
   };
 
+  const [loadedPlatforms, setLoadedPlatforms] = createSignal<Set<string>>(new Set());
+  const [platformLoading, setPlatformLoading] = createSignal(false);
+  const [catalogOffset, setCatalogOffset] = createSignal(200);
+
+  const mergeFetchedGames = (fetched: Game[]) => {
+    const previous = games();
+    const byId = new Map(previous.map(game => [game.id, game]));
+    const merged = new Map<string, Game>();
+    for (const game of fetched) {
+      const existing = byId.get(game.id);
+      const keys = Object.keys(game) as (keyof Game)[];
+      const unchanged = existing && Object.keys(existing).length === keys.length
+        && keys.every(key => Object.is(existing[key], game[key]));
+      merged.set(game.id, unchanged ? existing : game);
+    }
+    for (const game of previous) {
+      if (!merged.has(game.id)) {
+        merged.set(game.id, game);
+      }
+    }
+    const next = [...merged.values()];
+    if (next.length !== previous.length || next.some((game, index) => game !== previous[index])) {
+      setGames(next);
+    }
+  };
+
+  const loadPlatform = async (platformId: string) => {
+    if (!platformId || platformId === 'all' || platformId === 'settings' || platformId === 'installed' || platformId === 'favorites') return;
+    if (loadedPlatforms().has(platformId)) return;
+    setPlatformLoading(true);
+    try {
+      const platformGames = await backend.getGames({ platform: platformId });
+      setLoadedPlatforms(prev => new Set(prev).add(platformId));
+      mergeFetchedGames(platformGames);
+    } catch (error) {
+      console.warn(`[Library] Fallo al cargar plataforma ${platformId}:`, error);
+    } finally {
+      setPlatformLoading(false);
+    }
+  };
+
+  const searchCatalog = async (query: string) => {
+    const q = query.trim();
+    if (!q) return;
+    try {
+      const results = await backend.getGames({ search: q, limit: 100 });
+      mergeFetchedGames(results);
+    } catch (error) {
+      console.warn('[Library] Fallo al buscar en catalogo:', error);
+    }
+  };
+
+  const loadMoreCatalog = async () => {
+    const offset = catalogOffset();
+    try {
+      const nextBatch = await backend.getGames({ limit: 100, offset });
+      if (nextBatch.length > 0) {
+        setCatalogOffset(prev => prev + nextBatch.length);
+        mergeFetchedGames(nextBatch);
+      }
+    } catch (error) {
+      console.warn('[Library] Fallo al cargar mas catalogo:', error);
+    }
+  };
+
   let gamesRequest = 0;
   let pendingGames: Promise<void> | undefined;
   const [loadError, setLoadError] = createSignal('');
@@ -95,7 +160,14 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
     const request = ++gamesRequest;
     setIsLoading(true);
     setLoadError('');
-    const operation = Promise.resolve().then(() => preloadedGames ?? backend.getGames())
+    const operation = Promise.resolve().then(async () => {
+      if (preloadedGames !== undefined) return preloadedGames;
+      const base = await backend.getGames({ limit: 200 });
+      const extra = Array.from(loadedPlatforms());
+      if (extra.length === 0) return base;
+      const results = await Promise.all(extra.map(p => backend.getGames({ platform: p }).catch(() => [])));
+      return [...base, ...results.flat()];
+    })
       .then(fetched => {
         if (request !== gamesRequest) return;
         const previous = games();
@@ -278,7 +350,12 @@ export function createLibraryStore(backend: IEmuBoxBackend) {
     toggleFavorite,
     downloadingIds,
     downloadError,
-    downloadGame
+    downloadGame,
+    loadPlatform,
+    searchCatalog,
+    loadMoreCatalog,
+    platformLoading,
+    loadedPlatforms
   };
 }
 

@@ -173,6 +173,24 @@ export function useXmbLibrary(props: XmbLibraryProps) {
       },
     ),
   );
+  createEffect(
+    on(
+      () => category(),
+      (current) => {
+        if (current) {
+          props.onCategoryChange?.({ id: current.id, kind: current.kind });
+        }
+      },
+    ),
+  );
+  createEffect(
+    on(
+      () => query(),
+      (current) => {
+        props.onSearch?.(current);
+      },
+    ),
+  );
 
   const navigate = (command: XmbCommand) => {
     if (

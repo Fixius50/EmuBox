@@ -374,6 +374,16 @@ const NativeApp: Component = () => {
           error={libraryStore.downloadError()}
           onOpenGame={handleGameActivate}
           onCancelDownload={handleCancelDownload}
+          onCategoryChange={({ id, kind }) => {
+            if (kind === 'platform') {
+              void libraryStore.loadPlatform(id);
+            } else if (kind === 'all') {
+              void libraryStore.loadMoreCatalog();
+            }
+          }}
+          onSearch={(query) => {
+            void libraryStore.searchCatalog(query);
+          }}
           onOpenSettings={(tab) => {
             setActiveSettingsTab(tab);
             setSettingsFocusArea("content");
