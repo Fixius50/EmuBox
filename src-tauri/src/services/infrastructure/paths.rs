@@ -49,6 +49,18 @@ pub fn database_path() -> String {
     format!("{DATA_DIR}/emubox.db")
 }
 
+pub fn catalogs_dir() -> String {
+    format!("{DATA_DIR}/catalogs")
+}
+
+pub fn platform_database_path(platform_id: &str) -> String {
+    let clean_id: String = platform_id
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+        .collect();
+    format!("{DATA_DIR}/catalogs/{clean_id}.db")
+}
+
 pub fn stores_dir() -> String {
     format!("{DATA_DIR}/stores")
 }

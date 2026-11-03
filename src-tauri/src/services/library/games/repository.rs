@@ -47,6 +47,74 @@ fn row_to_game(row: &rusqlite::Row<'_>) -> rusqlite::Result<Game> {
 
 impl GameService {
     pub fn get_games(filter: Option<GameFilter>) -> Result<Vec<Game>, EmuBoxError> {
+        if let Some(ref f) = filter {
+            if let Some(ref target_plat) = f.platform {
+                if target_plat != "all" {
+                    let plat_path = DatabaseService::get_platform_db_path(target_plat);
+                    if plat_path.is_file() {
+                        if let Ok(plat_conn) = DatabaseService::get_platform_connection(target_plat) {
+                            let mut query = format!("{GAME_SELECT} WHERE 1=1");
+                            let mut param_values: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+                            if let Some(ref q) = f.search {
+                                if !q.trim().is_empty() {
+                                    query.push_str(" AND game.title LIKE ?");
+                                    param_values.push(Box::new(format!("%{}%", q.trim())));
+                                }
+                            }
+                            query.push_str(" ORDER BY COALESCE(canonical.title, game.title) ASC, game.title ASC");
+                            if let Some(limit) = f.limit {
+                                query.push_str(" LIMIT ?");
+                                param_values.push(Box::new(limit as i64));
+                                if let Some(offset) = f.offset {
+                                    query.push_str(" OFFSET ?");
+                                    param_values.push(Box::new(offset as i64));
+                                }
+                            }
+                            query.push(';');
+                            if let Ok(mut stmt) = plat_conn.prepare(&query) {
+                                let params_slice: Vec<&dyn rusqlite::ToSql> =
+                                    param_values.iter().map(|b| b.as_ref()).collect();
+                                if let Ok(rows) = stmt.query_map(params_slice.as_slice(), row_to_game) {
+                                    if let Ok(mut plat_games) = rows.collect::<Result<Vec<_>, _>>() {
+                                        if let Ok(sys_conn) = DatabaseService::get_connection() {
+                                            if let Ok(mut sys_stmt) = sys_conn.prepare(
+                                                "SELECT id, rom_path, favorite, play_time_minutes, last_played_at                                                  FROM games WHERE platform_id = ? AND (rom_path IS NOT NULL OR favorite = 1)"
+                                            ) {
+                                                if let Ok(sys_rows) = sys_stmt.query_map([target_plat], |row| {
+                                                    Ok((
+                                                        row.get::<_, String>(0)?,
+                                                        row.get::<_, Option<String>>(1)?,
+                                                        row.get::<_, i32>(2)? == 1,
+                                                        row.get::<_, u32>(3)?,
+                                                        row.get::<_, Option<i64>>(4)?,
+                                                    ))
+                                                }) {
+                                                    let mut installed_map = std::collections::HashMap::new();
+                                                    for r in sys_rows.flatten() {
+                                                        installed_map.insert(r.0, (r.1, r.2, r.3, r.4));
+                                                    }
+                                                    for g in &mut plat_games {
+                                                        if let Some((rom, fav, play_time, last_played)) = installed_map.get(&g.id) {
+                                                            g.rom_path = rom.clone();
+                                                            g.installed = rom.is_some();
+                                                            g.favorite = *fav;
+                                                            g.play_time_minutes = *play_time;
+                                                            g.last_played_at = *last_played;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        return Ok(plat_games);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let conn = DatabaseService::get_connection()?;
         let mut query = format!("{GAME_SELECT} WHERE 1=1");
         let mut param_values: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();

@@ -76,13 +76,12 @@ impl DatabaseService {
         let conn = Connection::open(db_path).map_err(|e| {
             EmuBoxError::StorageUnavailable(format!("Error al abrir base de datos SQLite: {}", e))
         })?;
-        conn.busy_timeout(std::time::Duration::from_secs(5))
+        conn.busy_timeout(std::time::Duration::from_secs(30))
             .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
 
         // Configuración de alto rendimiento para consola dedicada
         conn.execute_batch(
-            "PRAGMA journal_mode = WAL;
-             PRAGMA synchronous = NORMAL;
+            "PRAGMA synchronous = NORMAL;
              PRAGMA foreign_keys = ON;
              PRAGMA temp_store = MEMORY;
              PRAGMA cache_size = -64000;
@@ -96,10 +95,107 @@ impl DatabaseService {
             EmuBoxError::StorageUnavailable(format!("Inicializacion SQLite interrumpida: {error}"))
         })?;
         if !*schema_initialized {
+            let _ = conn.execute_batch("PRAGMA journal_mode = WAL;");
             Self::init_schema(&conn)?;
             *schema_initialized = true;
         }
         Ok(conn)
+    }
+
+    pub fn get_platform_db_path(platform_id: &str) -> PathBuf {
+        let clean_id: String = platform_id
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+            .collect();
+        #[cfg(test)]
+        {
+            return std::env::temp_dir()
+                .join(format!("emubox-platform-{clean_id}-{}.db", std::process::id()));
+        }
+        #[cfg(not(test))]
+        {
+            let base = Path::new(paths::DATA_DIR).join("catalogs");
+            if !base.exists() {
+                let _ = fs::create_dir_all(&base);
+            }
+            base.join(format!("{clean_id}.db"))
+        }
+    }
+
+    pub fn get_platform_connection(platform_id: &str) -> Result<Connection, EmuBoxError> {
+        let db_path = Self::get_platform_db_path(platform_id);
+        if let Some(parent) = db_path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        let conn = Connection::open(&db_path).map_err(|e| {
+            EmuBoxError::StorageUnavailable(format!("Error al abrir base de datos de plataforma {}: {}", platform_id, e))
+        })?;
+        conn.busy_timeout(std::time::Duration::from_secs(30))
+            .map_err(|error| EmuBoxError::StorageUnavailable(error.to_string()))?;
+        conn.execute_batch(
+            "PRAGMA journal_mode = WAL;
+             PRAGMA synchronous = NORMAL;
+             PRAGMA foreign_keys = ON;
+             PRAGMA temp_store = MEMORY;
+             PRAGMA cache_size = -32000;
+             PRAGMA mmap_size = 67108864;",
+        ).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
+
+        Self::init_platform_schema(&conn)?;
+        Ok(conn)
+    }
+
+    fn init_platform_schema(conn: &Connection) -> Result<(), EmuBoxError> {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS games (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                platform_id TEXT NOT NULL,
+                platform_name TEXT NOT NULL,
+                release_year INTEGER,
+                genre TEXT,
+                developer TEXT,
+                publisher TEXT,
+                rating REAL,
+                play_time_minutes INTEGER DEFAULT 0,
+                favorite INTEGER DEFAULT 0,
+                cover_image TEXT,
+                backdrop_image TEXT,
+                description TEXT,
+                rom_path TEXT UNIQUE,
+                file_size_bytes INTEGER DEFAULT 0,
+                added_at INTEGER,
+                last_played_at INTEGER
+            );
+            CREATE INDEX IF NOT EXISTS idx_platform_games_title ON games(title COLLATE NOCASE);
+            CREATE TABLE IF NOT EXISTS download_sources (
+                id TEXT PRIMARY KEY,
+                game_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                uri TEXT NOT NULL,
+                size_bytes INTEGER,
+                format TEXT,
+                region TEXT,
+                version TEXT,
+                available INTEGER DEFAULT 1,
+                priority INTEGER DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS idx_platform_download_sources_game_id ON download_sources(game_id);
+            CREATE TABLE IF NOT EXISTS manifest_sources (
+                manifest_url TEXT NOT NULL,
+                game_id TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                PRIMARY KEY(manifest_url, game_id, source_id)
+            );
+            CREATE TABLE IF NOT EXISTS manifest_entry_cache (
+                manifest_url TEXT NOT NULL,
+                game_id TEXT NOT NULL,
+                digest TEXT NOT NULL,
+                PRIMARY KEY(manifest_url, game_id)
+            );"
+        ).map_err(|e| EmuBoxError::StorageUnavailable(e.to_string()))?;
+        Ok(())
     }
 
     fn init_schema(conn: &Connection) -> Result<(), EmuBoxError> {
