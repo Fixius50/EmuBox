@@ -105,7 +105,11 @@ impl GameService {
     pub fn get_startup_games() -> Result<Vec<Game>, EmuBoxError> {
         let conn = DatabaseService::get_connection()?;
         let query = format!(
-            "{GAME_SELECT} \
+            "{GAME_SELECT} WHERE game.rom_path IS NOT NULL \
+             OR game.favorite = 1 \
+             OR canonical.favorite = 1 \
+             OR game.id IN (SELECT game_id FROM download_jobs WHERE status IN ('downloading', 'queued')) \
+             OR game.id IN (SELECT id FROM games ORDER BY rating DESC, title ASC LIMIT 500) \
              ORDER BY \
                CASE WHEN game.rom_path IS NOT NULL THEN 0 ELSE 1 END, \
                CASE WHEN game.favorite = 1 OR canonical.favorite = 1 THEN 0 ELSE 1 END, \
