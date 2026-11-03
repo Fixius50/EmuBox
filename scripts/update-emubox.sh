@@ -65,6 +65,9 @@ cd "${EMUBOX_DIR}"
 
 # 1. Comprobar si hay cambios locales sin commitear
 echo "[1/5] Verificando estado del árbol de trabajo local..."
+if [[ "${1:-}" == "--auto-startup" ]]; then
+  git checkout -- reports/ 2>/dev/null || true
+fi
 if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
   echo "[AVISO] Existen modificaciones locales no confirmadas en ${EMUBOX_DIR}."
   if [[ "${1:-}" == "--auto-startup" ]]; then

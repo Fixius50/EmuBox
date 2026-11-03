@@ -143,13 +143,18 @@ echo "======================================================================"
 # Comprobación y auto-descarga de actualizaciones de GitHub al recargar / iniciar el SO
 SETTINGS_FILE="${EMUBOX_HOME:-/var/lib/emubox}/settings.json"
 [[ -f "$SETTINGS_FILE" ]] || SETTINGS_FILE="/etc/emubox/settings.json"
-AUTO_UPDATE=$(grep -o '"autoUpdate":s*true' "$SETTINGS_FILE" 2>/dev/null || echo "")
-CHECK_ON_STARTUP=$(grep -o '"checkOnStartup":s*true' "$SETTINGS_FILE" 2>/dev/null || echo "")
+AUTO_UPDATE=$(grep -Eq '"autoUpdate"[[:space:]]*:[[:space:]]*true' "$SETTINGS_FILE" 2>/dev/null && echo "1" || echo "")
+CHECK_ON_STARTUP=$(grep -Eq '"checkOnStartup"[[:space:]]*:[[:space:]]*true' "$SETTINGS_FILE" 2>/dev/null && echo "1" || echo "")
 
 if [[ -n "$AUTO_UPDATE" || -n "$CHECK_ON_STARTUP" || "${EMUBOX_FORCE_UPDATE_CHECK:-0}" == "1" ]]; then
-  if ping -c 1 -W 2 github.com >/dev/null 2>&1; then
-    echo "[EmuBox Session] Verificando actualizaciones en GitHub..."
+  echo ""
+  echo "======================================================================"
+  echo "  🎮 EmuBox - Comprobando actualizaciones del sistema en GitHub..."
+  echo "======================================================================"
+  if ping -c 1 -W 2 github.com >/dev/null 2>&1 || curl -s --connect-timeout 2 -I https://github.com >/dev/null 2>&1; then
     bash /opt/emubox/scripts/update-emubox.sh --auto-startup || true
+  else
+    echo "[EmuBox Session] Sin conexión a GitHub (modo offline); continuando con el arranque."
   fi
 fi
 
